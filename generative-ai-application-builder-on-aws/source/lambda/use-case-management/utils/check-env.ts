@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+/**********************************************************************************************************************
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                *
+ *                                                                                                                    *
+ *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    *
+ *  with the License. A copy of the License is located at                                                             *
+ *                                                                                                                    *
+ *      http://www.apache.org/licenses/LICENSE-2.0                                                                    *
+ *                                                                                                                    *
+ *  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES *
+ *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
+ *  and limitations under the License.                                                                                *
+ *********************************************************************************************************************/
+
+import { logger } from '../power-tools-init';
+import { REQUIRED_ENV_VARS } from './constants';
+
+export const checkEnv = () => {
+    let missingVars = [];
+    for (let envVar of REQUIRED_ENV_VARS) {
+        if (!process.env[envVar]) {
+            missingVars.push(envVar);
+        }
+    }
+    if (missingVars.length > 0) {
+        const errMsg = `Missing required environment variables: ${missingVars.join(
+            ', '
+        )}. This should not happen and indicates in issue with your deployment.`;
+        logger.error(errMsg);
+        throw new Error(errMsg);
+    }
+};

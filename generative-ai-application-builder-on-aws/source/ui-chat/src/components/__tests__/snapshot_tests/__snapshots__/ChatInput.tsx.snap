@@ -1,0 +1,56 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Chat Snapshot test for Chat 1`] = `
+<Container>
+  <StatusIndicator
+    type="success"
+  >
+     
+    Connected
+     
+  </StatusIndicator>
+   
+  <div
+    className="chatinput-textarea"
+  >
+    <div
+      data-testid="chat-input-textarea-div"
+      style={
+        Object {
+          "display": "inline-block",
+          "width": "92%",
+        }
+      }
+    >
+      <Textarea
+        autoFocus={true}
+        data-class-name="chat-input-textarea"
+        data-columns="3"
+        data-testid="chat-input-textarea"
+        onChange={[Function]}
+        onKeyDown={[Function]}
+        placeholder="Type a message..."
+        rows={1}
+        value=""
+      />
+    </div>
+    <div
+      style={
+        Object {
+          "display": "inline-block",
+          "float": "right",
+        }
+      }
+    >
+      <Button
+        data-testid="send-button"
+        disabled={false}
+        iconName="check"
+        loading={false}
+        onClick={[Function]}
+        variant="icon"
+      />
+    </div>
+  </div>
+</Container>
+`;

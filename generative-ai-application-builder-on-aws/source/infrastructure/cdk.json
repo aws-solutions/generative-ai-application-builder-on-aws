@@ -1,0 +1,42 @@
+{
+  "app": "../pre-build-lambda-layers.sh && npx ts-node --prefer-ts-exts bin/gen-ai-app-builder.ts",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "package*.json",
+      "yarn.lock",
+      "node_modules",
+      "test"
+    ]
+  },
+  "context": {
+    "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
+    "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
+    "@aws-cdk/core:stackRelativeExports": true,
+    "@aws-cdk/aws-rds:lowercaseDbIdentifier": true,
+    "@aws-cdk/aws-lambda:recognizeVersionProps": true,
+    "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
+    "@aws-cdk-containers/ecs-service-extensions:enableDefaultLogDriver": true,
+    "@aws-cdk/aws-ec2:uniqueImdsv2TemplateName": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/core:target-partitions": [
+      "aws",
+      "aws-cn",
+      "aws-us-gov"
+    ],
+    "solution_id": "SO0276",
+    "solution_name": "generative-ai-application-builder-on-aws",
+    "solution_version": "v1.0.0",
+    "app_registry_name": "GAAB",
+    "application_type": "AWS-Solutions",
+    "application_trademark_name": "Generative AI Application Builder on AWS"
+  }
+}
