@@ -1,0 +1,64 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Chat Snapshot test for wizard step 3 1`] = `
+<Box
+  data-testid="rag-required-dropdown"
+  margin={
+    Object {
+      "bottom": "l",
+    }
+  }
+>
+  <SpaceBetween
+    size="l"
+  >
+    <Container
+      data-testid="rag-required-container"
+      header={
+        <Header
+          variant="h2"
+        >
+          Retrieval Augmented Generation (RAG)
+        </Header>
+      }
+    >
+      <SpaceBetween
+        size="l"
+      >
+        <FormField
+          description="If RAG is enabled, a Knowledge Base (such as one powered by Amazon Kendra) is required to be configured."
+          info={
+            <InfoLink
+              ariaLabel="Information about enabling RAG."
+              onFollow={[Function]}
+            />
+          }
+          label="Do you want to enable Retrieval Augmented Generation (RAG) for this use case?"
+        >
+          <Select
+            onChange={[Function]}
+            options={
+              Array [
+                Object {
+                  "label": "yes",
+                  "value": true,
+                },
+                Object {
+                  "label": "no",
+                  "value": false,
+                },
+              ]
+            }
+            selectedOption={
+              Object {
+                "label": "no",
+                "value": false,
+              }
+            }
+          />
+        </FormField>
+      </SpaceBetween>
+    </Container>
+  </SpaceBetween>
+</Box>
+`;

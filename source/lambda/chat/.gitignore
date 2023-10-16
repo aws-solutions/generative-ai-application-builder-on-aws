@@ -1,0 +1,15 @@
+aws_lambda_power_tools/*
+aws_xray_sdk/*
+botocore/*
+dateutil/*
+jmesopath/*
+urllib*
+wrapt/*
+boto3/*
+.coverage
+s3transfer/*
+*.dist-info
+jp.py
+THIRD_PARTY-LICENSES
+.venv
+venv

@@ -1,0 +1,102 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Snapshot test for Dashboard 1`] = `
+<div>
+  <AppLayout
+    ariaLabels={
+      Object {
+        "navigation": "Side navigation",
+        "navigationClose": "Close side navigation",
+        "navigationToggle": "Open side navigation",
+        "notifications": "Notifications",
+        "tools": "Help panel",
+        "toolsClose": "Close help panel",
+        "toolsToggle": "Open help panel",
+      }
+    }
+    breadcrumbs={<Breadcrumbs />}
+    content={
+      <UseCaseTable
+        columnDefinitions={
+          Array [
+            Object {
+              "ariaLabel": [Function],
+              "cell": [Function],
+              "header": "Use Case Name",
+              "id": "name",
+              "isRowHeader": true,
+              "minWidth": 160,
+              "sortingField": "Name",
+              "width": undefined,
+            },
+            Object {
+              "ariaLabel": [Function],
+              "cell": [Function],
+              "header": "Deployment Stack ID",
+              "id": "stackId",
+              "minWidth": 100,
+              "sortingField": "useCaseUUID",
+              "width": undefined,
+            },
+            Object {
+              "ariaLabel": [Function],
+              "cell": [Function],
+              "header": "Application Status",
+              "id": "status",
+              "minWidth": 60,
+              "sortingField": "status",
+              "width": undefined,
+            },
+            Object {
+              "ariaLabel": [Function],
+              "cell": [Function],
+              "header": "Date Created",
+              "id": "dateCreated",
+              "minWidth": 120,
+              "sortingField": "CreatedDate",
+              "width": undefined,
+            },
+            Object {
+              "ariaLabel": [Function],
+              "cell": [Function],
+              "header": "Model Provider",
+              "id": "modelProvider",
+              "minWidth": 100,
+              "sortingField": "ModelProvider",
+              "width": undefined,
+            },
+            Object {
+              "ariaLabel": [Function],
+              "cell": [Function],
+              "header": "Application Access",
+              "id": "webUrl",
+              "minWidth": 120,
+              "sortingField": "cloudFrontWebUrl",
+              "width": undefined,
+            },
+          ]
+        }
+        loadHelpPanelContent={[Function]}
+        saveWidths={[Function]}
+        setSelectedDeploymentStorage={true}
+      />
+    }
+    contentType="table"
+    data-testid="dashboard-view"
+    navigation={
+      <Navigation
+        onFollowHandler={[Function]}
+      />
+    }
+    notifications={
+      <Notifications
+        successNotification={true}
+      />
+    }
+    onToolsChange={[Function]}
+    stickyNotifications={true}
+    tools={<ToolsContent />}
+    toolsOpen={false}
+  />
+</div>
+`;

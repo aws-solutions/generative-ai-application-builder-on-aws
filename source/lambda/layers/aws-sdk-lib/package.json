@@ -1,0 +1,24 @@
+{
+  "name": "aws-sdk-layer",
+  "version": "1.0.0",
+  "description": "AWS Javascript SDK v3 layer",
+  "dependencies": {
+    "@aws-sdk/client-cloudformation": "^3.423.0",
+    "@aws-sdk/client-dynamodb": "^3.423.0",
+    "@aws-sdk/client-kendra": "^3.423.0",
+    "@aws-sdk/client-s3": "^3.423.0",
+    "@aws-sdk/client-secrets-manager": "^3.423.0",
+    "@aws-sdk/client-ssm": "^3.423.0",
+    "@aws-sdk/lib-dynamodb": "^3.423.0",
+    "@aws-sdk/types": "^3.418.0",
+    "@aws-sdk/util-arn-parser": "^3.310",
+    "@aws-sdk/util-dynamodb": "^3.423.0",
+    "@smithy/types": "^2.3.4",
+    "@types/aws-lambda": "^8.10.123"
+  },
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "license": "Apache-2.0"
+}

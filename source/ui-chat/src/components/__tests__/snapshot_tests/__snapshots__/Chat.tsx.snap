@@ -1,0 +1,131 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Chat Snapshot test for Chat 1`] = `
+<div
+  className="flex-1"
+  data-testid="chat-view"
+>
+  <div
+    className="sticky top-0 z-10 flex justify-center bg-neutral-100 py-2"
+  >
+    <Button
+      data-testid="settings-button"
+      iconName="settings"
+      onClick={[Function]}
+      variant="icon"
+    />
+    <Button
+      data-testid="clear-convo-button"
+      iconName="refresh"
+      onClick={[Function]}
+      variant="icon"
+    />
+  </div>
+  <div
+    className="mx-auto sm:max-w-[600px] p-4"
+  >
+    <div
+      data-testid="prompt-template"
+    >
+      <label>
+        Prompt template (optional)
+      </label>
+      <SpaceBetween
+        direction="vertical"
+        size="xxs"
+      >
+        <Textarea
+          data-testid="prompt-template-textarea"
+          disabled={false}
+          onChange={[Function]}
+          placeholder=""
+          rows={10}
+          value=""
+        />
+        <SpaceBetween
+          direction="horizontal"
+          size="xxs"
+        >
+          <Button
+            data-testid="save-prompt-button"
+            disabled={false}
+            onClick={[Function]}
+            variant="primary"
+          >
+            Save
+          </Button>
+          <Button
+            data-testid="reset-to-default-prompt button"
+            disabled={false}
+            onClick={[Function]}
+          >
+            Reset to default
+          </Button>
+          <Button
+            onClick={[Function]}
+          >
+            Cancel
+          </Button>
+        </SpaceBetween>
+        <div />
+      </SpaceBetween>
+    </div>
+  </div>
+  <div
+    className="chat-input"
+  >
+    <Container>
+      <StatusIndicator
+        type="stopped"
+      >
+         
+        Disconnected. Please send a message to initiate reconnection.
+         
+      </StatusIndicator>
+       
+      <div
+        className="chatinput-textarea"
+      >
+        <div
+          data-testid="chat-input-textarea-div"
+          style={
+            Object {
+              "display": "inline-block",
+              "width": "92%",
+            }
+          }
+        >
+          <Textarea
+            autoFocus={true}
+            data-class-name="chat-input-textarea"
+            data-columns="3"
+            data-testid="chat-input-textarea"
+            onChange={[Function]}
+            onKeyDown={[Function]}
+            placeholder="Type a message..."
+            rows={1}
+            value=""
+          />
+        </div>
+        <div
+          style={
+            Object {
+              "display": "inline-block",
+              "float": "right",
+            }
+          }
+        >
+          <Button
+            data-testid="send-button"
+            disabled={false}
+            iconName="check"
+            loading={false}
+            onClick={[Function]}
+            variant="icon"
+          />
+        </div>
+      </div>
+    </Container>
+  </div>
+</div>
+`;

@@ -1,0 +1,2 @@
+class LLMBuildError(Exception):
+    pass

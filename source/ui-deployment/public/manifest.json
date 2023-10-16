@@ -1,0 +1,15 @@
+{
+  "short_name": "GAABAdmin",
+  "name": "Generative AI Application Builder Admin",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "type": "image/png",
+      "sizes": "320x320"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}

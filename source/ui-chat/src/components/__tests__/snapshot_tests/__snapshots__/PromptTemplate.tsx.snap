@@ -1,0 +1,52 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Chat Does not show prompt window if showPromptWindow is false 1`] = `<div />`;
+
+exports[`Chat Snapshot test for prompt template 1`] = `
+<div
+  data-testid="prompt-template"
+>
+  <label>
+    Prompt template (optional)
+  </label>
+  <SpaceBetween
+    direction="vertical"
+    size="xxs"
+  >
+    <Textarea
+      data-testid="prompt-template-textarea"
+      disabled={false}
+      onChange={[Function]}
+      placeholder=""
+      rows={10}
+      value=""
+    />
+    <SpaceBetween
+      direction="horizontal"
+      size="xxs"
+    >
+      <Button
+        data-testid="save-prompt-button"
+        disabled={false}
+        onClick={[Function]}
+        variant="primary"
+      >
+        Save
+      </Button>
+      <Button
+        data-testid="reset-to-default-prompt button"
+        disabled={false}
+        onClick={[Function]}
+      >
+        Reset to default
+      </Button>
+      <Button
+        onClick={[Function]}
+      >
+        Cancel
+      </Button>
+    </SpaceBetween>
+    <div />
+  </SpaceBetween>
+</div>
+`;
