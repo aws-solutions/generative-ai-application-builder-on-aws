@@ -1,0 +1,128 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Snapshot test 1`] = `
+<AppLayout
+  ariaLabels={
+    Object {
+      "navigation": "Side navigation",
+      "navigationClose": "Close side navigation",
+      "navigationToggle": "Open side navigation",
+      "notifications": "Notifications",
+      "tools": "Help panel",
+      "toolsClose": "Close help panel",
+      "toolsToggle": "Open help panel",
+    }
+  }
+  breadcrumbs={
+    <Breadcrumbs
+      deploymentId="jul31-test-1-mp-810ccef1/f14ba520-2f5b-11ee-8ffa-028cc380112b"
+    />
+  }
+  content={
+    <ContentLayout
+      header={
+        <PageHeader
+          buttonsList={
+            Array [
+              <Button
+                data-testid="use-case-view-edit-btn"
+                onClick={[Function]}
+              >
+                Edit
+              </Button>,
+              <Button
+                onClick={[Function]}
+              >
+                Delete
+              </Button>,
+            ]
+          }
+          deploymentId="jul31-test-1-mp-810ccef1/f14ba520-2f5b-11ee-8ffa-028cc380112b"
+        />
+      }
+    >
+      <SpaceBetween
+        size="l"
+      >
+        <GeneralConfig />
+        <Tabs
+          ariaLabel="Resource details"
+          tabs={
+            Array [
+              Object {
+                "content": <Model
+                  loadHelpPanelContent={[Function]}
+                />,
+                "id": "model",
+                "key": "model",
+                "label": "Model",
+              },
+              Object {
+                "content": <KnowledgeBase
+                  loadHelpPanelContent={[Function]}
+                />,
+                "id": "knowledgeBase",
+                "key": "knowledgeBase",
+                "label": "Knowledge base",
+              },
+            ]
+          }
+        />
+      </SpaceBetween>
+      <DeleteDeploymentModal
+        deployment={
+          Object {
+            "ConversationMemoryType": "DynamoDB",
+            "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+            "CreatedDate": "2023-07-31T04:37:23.824Z",
+            "Description": "",
+            "KnowledgeBaseParams": Object {},
+            "KnowledgeBaseType": "Kendra",
+            "LlmParams": Object {
+              "ModelId": "claude-v1",
+              "ModelParams": Object {
+                "epsilon": Object {
+                  "Type": "float",
+                  "Value": "0.9",
+                },
+              },
+              "ModelProvider": "Anthropic",
+              "PromptTemplate": "",
+              "RAGEnabled": false,
+              "Streaming": false,
+              "Temperature": 0.1,
+              "Verbose": false,
+            },
+            "Name": "jul31-test-1-mp",
+            "StackId": "arn:aws:cloudformation:us-west-2:341654348659:stack/jul31-test-1-mp-810ccef1/f14ba520-2f5b-11ee-8ffa-028cc380112b",
+            "UseCaseId": "810ccef1-1c30-43a7-b959-5aaef2cb8c23",
+            "UseCaseName": "jul31-test-1-mp",
+            "chatConfigSSMParameterName": "/gaab-ai/use-case-config/810ccef1",
+            "cloudFrontWebUrl": "https://d22b0yb5zwh4d.cloudfront.net",
+            "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul31-test-1-mp-810ccef1-us-west-2-Dashboard",
+            "defaultUserEmail": "placeholder@example.com",
+            "kendraIndexId": "",
+            "providerApiKeySecret": "810ccef1/api-key",
+            "status": "CREATE_COMPLETE",
+            "useCaseUUID": "810ccef1",
+            "webConfigKey": "/jul31-test-1-mp-810ccef1/webconfig",
+          }
+        }
+        onDelete={[Function]}
+        onDiscard={[Function]}
+        visible={false}
+      />
+    </ContentLayout>
+  }
+  data-testid="use-case-view"
+  navigation={
+    <Navigation
+      onFollowHandler={[Function]}
+    />
+  }
+  notifications={<Notifications />}
+  onToolsChange={[Function]}
+  tools={<ToolsContent />}
+  toolsOpen={false}
+/>
+`;

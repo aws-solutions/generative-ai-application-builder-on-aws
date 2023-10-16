@@ -1,0 +1,1298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1697411714709" clover="3.2.0">
+  <project timestamp="1697411714709" name="All files">
+    <metrics statements="1112" coveredstatements="864" conditionals="536" coveredconditionals="383" methods="323" coveredmethods="210" elements="1971" coveredelements="1457" complexity="0" loc="1112" ncloc="1112" packages="10" files="50" classes="50"/>
+    <package name="components.commons">
+      <metrics statements="155" coveredstatements="124" conditionals="76" coveredconditionals="65" methods="63" coveredmethods="42"/>
+      <file name="breadcrumbs.js" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/breadcrumbs.js">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="14" count="2" type="stmt"/>
+      </file>
+      <file name="columnDefinitionsHelper.js" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/columnDefinitionsHelper.js">
+        <metrics statements="6" coveredstatements="5" conditionals="5" coveredconditionals="4" methods="5" coveredmethods="2"/>
+        <line num="14" count="2" type="stmt"/>
+        <line num="15" count="8" type="stmt"/>
+        <line num="16" count="48" type="cond" truecount="2" falsecount="0"/>
+        <line num="17" count="48" type="stmt"/>
+        <line num="23" count="2" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+      </file>
+      <file name="common-components.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/common-components.jsx">
+        <metrics statements="6" coveredstatements="5" conditionals="0" coveredconditionals="0" methods="3" coveredmethods="2"/>
+        <line num="21" count="8" type="stmt"/>
+        <line num="22" count="9" type="stmt"/>
+        <line num="25" count="8" type="stmt"/>
+        <line num="26" count="0" type="stmt"/>
+        <line num="39" count="8" type="stmt"/>
+        <line num="40" count="7" type="stmt"/>
+      </file>
+      <file name="delete-modal.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/delete-modal.jsx">
+        <metrics statements="24" coveredstatements="16" conditionals="8" coveredconditionals="8" methods="7" coveredmethods="4"/>
+        <line num="23" count="4" type="stmt"/>
+        <line num="24" count="1" type="stmt"/>
+        <line num="25" count="1" type="stmt"/>
+        <line num="26" count="1" type="stmt"/>
+        <line num="27" count="1" type="stmt"/>
+        <line num="29" count="0" type="stmt"/>
+        <line num="34" count="28" type="stmt"/>
+        <line num="35" count="28" type="stmt"/>
+        <line num="36" count="28" type="stmt"/>
+        <line num="37" count="28" type="stmt"/>
+        <line num="39" count="28" type="stmt"/>
+        <line num="40" count="0" type="stmt"/>
+        <line num="41" count="0" type="stmt"/>
+        <line num="42" count="0" type="stmt"/>
+        <line num="45" count="28" type="stmt"/>
+        <line num="46" count="28" type="cond" truecount="2" falsecount="0"/>
+        <line num="47" count="1" type="stmt"/>
+        <line num="48" count="0" type="stmt"/>
+        <line num="49" count="0" type="stmt"/>
+        <line num="53" count="0" type="stmt"/>
+        <line num="59" count="28" type="cond" truecount="2" falsecount="0"/>
+        <line num="62" count="28" type="stmt"/>
+        <line num="79" count="1" type="stmt"/>
+        <line num="107" count="0" type="stmt"/>
+      </file>
+      <file name="delete-notifications.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/delete-notifications.tsx">
+        <metrics statements="13" coveredstatements="11" conditionals="13" coveredconditionals="10" methods="3" coveredmethods="2"/>
+        <line num="19" count="13" type="stmt"/>
+        <line num="21" count="13" type="stmt"/>
+        <line num="22" count="13" type="stmt"/>
+        <line num="24" count="13" type="cond" truecount="4" falsecount="0"/>
+        <line num="25" count="1" type="stmt"/>
+        <line num="31" count="0" type="stmt"/>
+        <line num="34" count="12" type="cond" truecount="2" falsecount="2"/>
+        <line num="35" count="0" type="stmt"/>
+        <line num="44" count="12" type="cond" truecount="4" falsecount="0"/>
+        <line num="45" count="1" type="stmt"/>
+        <line num="56" count="13" type="stmt"/>
+        <line num="64" count="13" type="stmt"/>
+        <line num="65" count="13" type="stmt"/>
+      </file>
+      <file name="deploy-confirmation-modal.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/deploy-confirmation-modal.jsx">
+        <metrics statements="6" coveredstatements="6" conditionals="11" coveredconditionals="8" methods="2" coveredmethods="2"/>
+        <line num="23" count="133" type="stmt"/>
+        <line num="25" count="133" type="stmt"/>
+        <line num="26" count="1" type="stmt"/>
+        <line num="27" count="1" type="stmt"/>
+        <line num="30" count="133" type="cond" truecount="1" falsecount="1"/>
+        <line num="32" count="133" type="stmt"/>
+      </file>
+      <file name="external-link-group.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/external-link-group.tsx">
+        <metrics statements="9" coveredstatements="7" conditionals="4" coveredconditionals="3" methods="4" coveredmethods="3"/>
+        <line num="34" count="8" type="stmt"/>
+        <line num="37" count="25" type="stmt"/>
+        <line num="51" count="24" type="stmt"/>
+        <line num="56" count="24" type="stmt"/>
+        <line num="58" count="24" type="cond" truecount="1" falsecount="1"/>
+        <line num="59" count="0" type="stmt"/>
+        <line num="70" count="0" type="stmt"/>
+        <line num="77" count="24" type="stmt"/>
+        <line num="86" count="25" type="stmt"/>
+      </file>
+      <file name="external-link-warning-modal.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/external-link-warning-modal.jsx">
+        <metrics statements="1" coveredstatements="1" conditionals="2" coveredconditionals="2" methods="1" coveredmethods="1"/>
+        <line num="17" count="12" type="stmt"/>
+      </file>
+      <file name="external-link.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/external-link.tsx">
+        <metrics statements="1" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="18" count="0" type="stmt"/>
+      </file>
+      <file name="full-page-header.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/full-page-header.tsx">
+        <metrics statements="28" coveredstatements="25" conditionals="9" coveredconditionals="9" methods="12" coveredmethods="11"/>
+        <line num="44" count="21" type="stmt"/>
+        <line num="49" count="21" type="stmt"/>
+        <line num="52" count="1" type="stmt"/>
+        <line num="56" count="1" type="stmt"/>
+        <line num="60" count="1" type="stmt"/>
+        <line num="64" count="1" type="stmt"/>
+        <line num="68" count="1" type="stmt"/>
+        <line num="72" count="1" type="stmt"/>
+        <line num="76" count="1" type="stmt"/>
+        <line num="80" count="1" type="stmt"/>
+        <line num="84" count="1" type="stmt"/>
+        <line num="88" count="1" type="stmt"/>
+        <line num="92" count="1" type="stmt"/>
+        <line num="95" count="21" type="stmt"/>
+        <line num="98" count="21" type="cond" truecount="2" falsecount="0"/>
+        <line num="101" count="21" type="stmt"/>
+        <line num="102" count="0" type="stmt"/>
+        <line num="106" count="0" type="stmt"/>
+        <line num="107" count="0" type="stmt"/>
+        <line num="113" count="21" type="stmt"/>
+        <line num="114" count="7" type="stmt"/>
+        <line num="115" count="7" type="stmt"/>
+        <line num="116" count="7" type="stmt"/>
+        <line num="123" count="21" type="stmt"/>
+        <line num="132" count="1" type="stmt"/>
+        <line num="139" count="1" type="stmt"/>
+        <line num="146" count="1" type="stmt"/>
+        <line num="156" count="1" type="stmt"/>
+      </file>
+      <file name="index.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/index.ts">
+        <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      </file>
+      <file name="info-link.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/info-link.tsx">
+        <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="22" count="8" type="stmt"/>
+        <line num="23" count="623" type="stmt"/>
+      </file>
+      <file name="localStorage.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/localStorage.ts">
+        <metrics statements="8" coveredstatements="6" conditionals="2" coveredconditionals="1" methods="3" coveredmethods="1"/>
+        <line num="14" count="2" type="stmt"/>
+        <line num="16" count="2" type="stmt"/>
+        <line num="18" count="2" type="stmt"/>
+        <line num="19" count="15" type="stmt"/>
+        <line num="20" count="15" type="stmt"/>
+        <line num="21" count="15" type="cond" truecount="1" falsecount="1"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="26" count="0" type="stmt"/>
+      </file>
+      <file name="navigation.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/navigation.tsx">
+        <metrics statements="5" coveredstatements="4" conditionals="3" coveredconditionals="3" methods="2" coveredmethods="1"/>
+        <line num="16" count="8" type="stmt"/>
+        <line num="17" count="8" type="stmt"/>
+        <line num="25" count="8" type="stmt"/>
+        <line num="27" count="0" type="stmt"/>
+        <line num="43" count="145" type="stmt"/>
+      </file>
+      <file name="notifications.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/notifications.tsx">
+        <metrics statements="14" coveredstatements="11" conditionals="13" coveredconditionals="11" methods="4" coveredmethods="2"/>
+        <line num="20" count="145" type="stmt"/>
+        <line num="22" count="145" type="stmt"/>
+        <line num="23" count="145" type="stmt"/>
+        <line num="25" count="145" type="cond" truecount="4" falsecount="0"/>
+        <line num="26" count="1" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+        <line num="37" count="144" type="cond" truecount="2" falsecount="2"/>
+        <line num="38" count="0" type="stmt"/>
+        <line num="45" count="0" type="stmt"/>
+        <line num="48" count="144" type="cond" truecount="4" falsecount="0"/>
+        <line num="49" count="1" type="stmt"/>
+        <line num="60" count="145" type="stmt"/>
+        <line num="69" count="145" type="stmt"/>
+        <line num="70" count="145" type="stmt"/>
+      </file>
+      <file name="separated-list.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/separated-list.tsx">
+        <metrics statements="3" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="0"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+        <line num="27" count="0" type="stmt"/>
+      </file>
+      <file name="table-config.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/table-config.jsx">
+        <metrics statements="13" coveredstatements="12" conditionals="2" coveredconditionals="2" methods="4" coveredmethods="3"/>
+        <line num="16" count="8" type="stmt"/>
+        <line num="17" count="7" type="stmt"/>
+        <line num="18" count="7" type="stmt"/>
+        <line num="21" count="8" type="stmt"/>
+        <line num="22" count="83" type="stmt"/>
+        <line num="23" count="83" type="stmt"/>
+        <line num="26" count="8" type="stmt"/>
+        <line num="28" count="8" type="stmt"/>
+        <line num="37" count="8" type="stmt"/>
+        <line num="53" count="8" type="stmt"/>
+        <line num="59" count="8" type="stmt"/>
+        <line num="66" count="21" type="stmt"/>
+        <line num="72" count="0" type="stmt"/>
+      </file>
+      <file name="use-column-widths.js" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/use-column-widths.js">
+        <metrics statements="5" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="3" coveredmethods="2"/>
+        <line num="19" count="8" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="24" count="8" type="stmt"/>
+        <line num="25" count="8" type="stmt"/>
+        <line num="28" count="8" type="stmt"/>
+      </file>
+      <file name="use-component-id.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/use-component-id.ts">
+        <metrics statements="6" coveredstatements="6" conditionals="2" coveredconditionals="2" methods="3" coveredmethods="3"/>
+        <line num="18" count="34" type="stmt"/>
+        <line num="21" count="34" type="cond" truecount="2" falsecount="0"/>
+        <line num="22" count="28" type="stmt"/>
+        <line num="24" count="34" type="stmt"/>
+        <line num="27" count="34" type="stmt"/>
+        <line num="31" count="34" type="stmt"/>
+      </file>
+      <file name="use-local-storage.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/use-local-storage.ts">
+        <metrics statements="4" coveredstatements="2" conditionals="2" coveredconditionals="2" methods="3" coveredmethods="2"/>
+        <line num="18" count="29" type="cond" truecount="2" falsecount="0"/>
+        <line num="21" count="0" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="25" count="29" type="stmt"/>
+      </file>
+    </package>
+    <package name="components.commons.copy-text">
+      <metrics statements="11" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="5" coveredmethods="0"/>
+      <file name="index.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/commons/copy-text/index.tsx">
+        <metrics statements="11" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="5" coveredmethods="0"/>
+        <line num="18" count="0" type="stmt"/>
+        <line num="19" count="0" type="stmt"/>
+        <line num="31" count="0" type="stmt"/>
+        <line num="35" count="0" type="stmt"/>
+        <line num="36" count="0" type="stmt"/>
+        <line num="38" count="0" type="stmt"/>
+        <line num="53" count="0" type="stmt"/>
+        <line num="55" count="0" type="stmt"/>
+        <line num="56" count="0" type="stmt"/>
+        <line num="59" count="0" type="stmt"/>
+        <line num="60" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="components.dashboard">
+      <metrics statements="129" coveredstatements="84" conditionals="41" coveredconditionals="19" methods="36" coveredmethods="24"/>
+      <file name="DashboardView.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/dashboard/DashboardView.jsx">
+        <metrics statements="69" coveredstatements="55" conditionals="16" coveredconditionals="12" methods="26" coveredmethods="18"/>
+        <line num="45" count="21" type="stmt"/>
+        <line num="46" count="21" type="stmt"/>
+        <line num="47" count="21" type="stmt"/>
+        <line num="48" count="21" type="stmt"/>
+        <line num="49" count="21" type="stmt"/>
+        <line num="50" count="21" type="stmt"/>
+        <line num="51" count="21" type="stmt"/>
+        <line num="53" count="21" type="stmt"/>
+        <line num="54" count="21" type="stmt"/>
+        <line num="59" count="21" type="stmt"/>
+        <line num="61" count="21" type="cond" truecount="1" falsecount="0"/>
+        <line num="62" count="7" type="stmt"/>
+        <line num="63" count="7" type="stmt"/>
+        <line num="65" count="7" type="cond" truecount="5" falsecount="0"/>
+        <line num="66" count="1" type="stmt"/>
+        <line num="67" count="1" type="stmt"/>
+        <line num="68" count="1" type="stmt"/>
+        <line num="73" count="6" type="stmt"/>
+        <line num="75" count="7" type="stmt"/>
+        <line num="76" count="7" type="stmt"/>
+        <line num="80" count="7" type="stmt"/>
+        <line num="85" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="86" count="0" type="stmt"/>
+        <line num="91" count="0" type="stmt"/>
+        <line num="95" count="21" type="stmt"/>
+        <line num="96" count="7" type="stmt"/>
+        <line num="99" count="84" type="stmt"/>
+        <line num="101" count="21" type="stmt"/>
+        <line num="106" count="0" type="stmt"/>
+        <line num="114" count="21" type="stmt"/>
+        <line num="115" count="0" type="stmt"/>
+        <line num="116" count="0" type="stmt"/>
+        <line num="119" count="21" type="stmt"/>
+        <line num="120" count="5" type="stmt"/>
+        <line num="121" count="5" type="stmt"/>
+        <line num="127" count="21" type="stmt"/>
+        <line num="185" count="2" type="stmt"/>
+        <line num="186" count="65" type="cond" truecount="3" falsecount="1"/>
+        <line num="187" count="0" type="stmt"/>
+        <line num="190" count="65" type="stmt"/>
+        <line num="200" count="9" type="stmt"/>
+        <line num="201" count="8" type="stmt"/>
+        <line num="202" count="8" type="stmt"/>
+        <line num="204" count="8" type="stmt"/>
+        <line num="205" count="0" type="stmt"/>
+        <line num="209" count="0" type="stmt"/>
+        <line num="212" count="8" type="stmt"/>
+        <line num="213" count="65" type="stmt"/>
+        <line num="214" count="0" type="stmt"/>
+        <line num="220" count="8" type="stmt"/>
+        <line num="221" count="65" type="stmt"/>
+        <line num="222" count="65" type="stmt"/>
+        <line num="224" count="65" type="stmt"/>
+        <line num="231" count="8" type="stmt"/>
+        <line num="235" count="65" type="stmt"/>
+        <line num="244" count="65" type="stmt"/>
+        <line num="251" count="65" type="stmt"/>
+        <line num="258" count="65" type="stmt"/>
+        <line num="265" count="65" type="cond" truecount="1" falsecount="1"/>
+        <line num="272" count="65" type="stmt"/>
+        <line num="277" count="48" type="stmt"/>
+        <line num="282" count="8" type="stmt"/>
+        <line num="284" count="8" type="stmt"/>
+        <line num="286" count="8" type="stmt"/>
+        <line num="287" count="0" type="stmt"/>
+        <line num="290" count="8" type="stmt"/>
+        <line num="301" count="0" type="stmt"/>
+        <line num="302" count="0" type="stmt"/>
+        <line num="310" count="0" type="stmt"/>
+      </file>
+      <file name="common-components.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/dashboard/common-components.jsx">
+        <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="2"/>
+        <line num="19" count="2" type="stmt"/>
+        <line num="20" count="7" type="stmt"/>
+        <line num="22" count="2" type="stmt"/>
+        <line num="23" count="7" type="stmt"/>
+      </file>
+      <file name="deployments.js" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/dashboard/deployments.js">
+        <metrics statements="34" coveredstatements="25" conditionals="12" coveredconditionals="7" methods="4" coveredmethods="4"/>
+        <line num="26" count="1" type="stmt"/>
+        <line num="27" count="1" type="stmt"/>
+        <line num="28" count="1" type="stmt"/>
+        <line num="34" count="1" type="stmt"/>
+        <line num="36" count="0" type="stmt"/>
+        <line num="37" count="0" type="stmt"/>
+        <line num="48" count="1" type="stmt"/>
+        <line num="49" count="1" type="stmt"/>
+        <line num="50" count="1" type="stmt"/>
+        <line num="53" count="1" type="stmt"/>
+        <line num="55" count="1" type="stmt"/>
+        <line num="61" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="62" count="0" type="stmt"/>
+        <line num="67" count="1" type="stmt"/>
+        <line num="69" count="1" type="stmt"/>
+        <line num="71" count="0" type="stmt"/>
+        <line num="72" count="0" type="stmt"/>
+        <line num="81" count="9" type="stmt"/>
+        <line num="82" count="157" type="stmt"/>
+        <line num="83" count="157" type="stmt"/>
+        <line num="90" count="157" type="stmt"/>
+        <line num="96" count="157" type="stmt"/>
+        <line num="104" count="157" type="stmt"/>
+        <line num="106" count="157" type="cond" truecount="2" falsecount="0"/>
+        <line num="107" count="154" type="stmt"/>
+        <line num="110" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="111" count="0" type="stmt"/>
+        <line num="114" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="115" count="0" type="stmt"/>
+        <line num="118" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="119" count="0" type="stmt"/>
+        <line num="122" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="123" count="0" type="stmt"/>
+        <line num="125" count="3" type="stmt"/>
+      </file>
+      <file name="hooks.js" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/dashboard/hooks.js">
+        <metrics statements="22" coveredstatements="0" conditionals="13" coveredconditionals="0" methods="4" coveredmethods="0"/>
+        <line num="18" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="19" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="20" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="21" count="0" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="27" count="0" type="stmt"/>
+        <line num="28" count="0" type="stmt"/>
+        <line num="31" count="0" type="stmt"/>
+        <line num="32" count="0" type="stmt"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="46" count="0" type="stmt"/>
+        <line num="47" count="0" type="stmt"/>
+        <line num="48" count="0" type="stmt"/>
+        <line num="49" count="0" type="stmt"/>
+        <line num="50" count="0" type="stmt"/>
+        <line num="51" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="52" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="55" count="0" type="stmt"/>
+        <line num="66" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="components.useCaseDetails">
+      <metrics statements="100" coveredstatements="69" conditionals="58" coveredconditionals="33" methods="37" coveredmethods="19"/>
+      <file name="UseCaseView.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/useCaseDetails/UseCaseView.jsx">
+        <metrics statements="26" coveredstatements="18" conditionals="0" coveredconditionals="0" methods="11" coveredmethods="3"/>
+        <line num="28" count="3" type="stmt"/>
+        <line num="29" count="5" type="stmt"/>
+        <line num="35" count="0" type="stmt"/>
+        <line num="48" count="3" type="stmt"/>
+        <line num="49" count="0" type="stmt"/>
+        <line num="55" count="0" type="stmt"/>
+        <line num="72" count="8" type="stmt"/>
+        <line num="73" count="6" type="stmt"/>
+        <line num="75" count="6" type="stmt"/>
+        <line num="76" count="6" type="stmt"/>
+        <line num="77" count="6" type="stmt"/>
+        <line num="78" count="6" type="stmt"/>
+        <line num="80" count="6" type="stmt"/>
+        <line num="81" count="6" type="stmt"/>
+        <line num="84" count="0" type="stmt"/>
+        <line num="85" count="0" type="stmt"/>
+        <line num="86" count="0" type="stmt"/>
+        <line num="89" count="6" type="stmt"/>
+        <line num="104" count="6" type="stmt"/>
+        <line num="105" count="1" type="stmt"/>
+        <line num="109" count="1" type="stmt"/>
+        <line num="113" count="1" type="stmt"/>
+        <line num="116" count="6" type="stmt"/>
+        <line num="117" count="0" type="stmt"/>
+        <line num="120" count="6" type="stmt"/>
+        <line num="155" count="0" type="stmt"/>
+      </file>
+      <file name="common-components.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/useCaseDetails/common-components.jsx">
+        <metrics statements="72" coveredstatements="49" conditionals="58" coveredconditionals="33" methods="25" coveredmethods="15"/>
+        <line num="34" count="8" type="stmt"/>
+        <line num="41" count="8" type="stmt"/>
+        <line num="42" count="137" type="stmt"/>
+        <line num="48" count="8" type="stmt"/>
+        <line num="49" count="5" type="stmt"/>
+        <line num="51" count="5" type="stmt"/>
+        <line num="63" count="0" type="stmt"/>
+        <line num="64" count="0" type="stmt"/>
+        <line num="70" count="8" type="stmt"/>
+        <line num="71" count="5" type="stmt"/>
+        <line num="76" count="10" type="cond" truecount="2" falsecount="0"/>
+        <line num="85" count="8" type="stmt"/>
+        <line num="95" count="8" type="stmt"/>
+        <line num="96" count="0" type="stmt"/>
+        <line num="99" count="8" type="stmt"/>
+        <line num="102" count="6" type="stmt"/>
+        <line num="104" count="6" type="stmt"/>
+        <line num="105" count="6" type="stmt"/>
+        <line num="107" count="6" type="stmt"/>
+        <line num="108" count="6" type="cond" truecount="2" falsecount="1"/>
+        <line num="111" count="6" type="stmt"/>
+        <line num="153" count="0" type="stmt"/>
+        <line num="161" count="0" type="stmt"/>
+        <line num="174" count="1" type="stmt"/>
+        <line num="182" count="0" type="stmt"/>
+        <line num="193" count="8" type="stmt"/>
+        <line num="194" count="0" type="stmt"/>
+        <line num="195" count="0" type="stmt"/>
+        <line num="197" count="0" type="stmt"/>
+        <line num="201" count="8" type="stmt"/>
+        <line num="202" count="9" type="cond" truecount="1" falsecount="1"/>
+        <line num="207" count="8" type="cond" truecount="1" falsecount="0"/>
+        <line num="208" count="9" type="stmt"/>
+        <line num="209" count="9" type="stmt"/>
+        <line num="211" count="9" type="cond" truecount="1" falsecount="1"/>
+        <line num="212" count="0" type="stmt"/>
+        <line num="214" count="9" type="stmt"/>
+        <line num="217" count="9" type="cond" truecount="1" falsecount="1"/>
+        <line num="218" count="0" type="stmt"/>
+        <line num="221" count="9" type="cond" truecount="4" falsecount="0"/>
+        <line num="222" count="4" type="stmt"/>
+        <line num="224" count="5" type="stmt"/>
+        <line num="228" count="8" type="stmt"/>
+        <line num="229" count="15" type="stmt"/>
+        <line num="232" count="8" type="stmt"/>
+        <line num="233" count="10" type="stmt"/>
+        <line num="234" count="10" type="stmt"/>
+        <line num="235" count="10" type="stmt"/>
+        <line num="244" count="10" type="stmt"/>
+        <line num="249" count="10" type="stmt"/>
+        <line num="255" count="8" type="stmt"/>
+        <line num="256" count="10" type="stmt"/>
+        <line num="257" count="10" type="stmt"/>
+        <line num="258" count="40" type="cond" truecount="2" falsecount="0"/>
+        <line num="261" count="0" type="stmt"/>
+        <line num="265" count="8" type="stmt"/>
+        <line num="268" count="5" type="stmt"/>
+        <line num="271" count="5" type="cond" truecount="1" falsecount="1"/>
+        <line num="280" count="5" type="stmt"/>
+        <line num="324" count="8" type="stmt"/>
+        <line num="325" count="0" type="stmt"/>
+        <line num="336" count="8" type="stmt"/>
+        <line num="339" count="0" type="stmt"/>
+        <line num="341" count="0" type="stmt"/>
+        <line num="342" count="0" type="stmt"/>
+        <line num="344" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="345" count="0" type="stmt"/>
+        <line num="348" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="349" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="352" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="354" count="0" type="stmt"/>
+        <line num="372" count="0" type="stmt"/>
+      </file>
+      <file name="tools-content.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/useCaseDetails/tools-content.jsx">
+        <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="18" count="3" type="stmt"/>
+        <line num="19" count="5" type="stmt"/>
+      </file>
+    </package>
+    <package name="components.wizard">
+      <metrics statements="185" coveredstatements="143" conditionals="85" coveredconditionals="49" methods="47" coveredmethods="37"/>
+      <file name="WizardView.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/WizardView.jsx">
+        <metrics statements="106" coveredstatements="74" conditionals="39" coveredconditionals="16" methods="30" coveredmethods="21"/>
+        <line num="39" count="5" type="stmt"/>
+        <line num="62" count="140" type="stmt"/>
+        <line num="64" count="5" type="stmt"/>
+        <line num="65" count="140" type="stmt"/>
+        <line num="70" count="5" type="stmt"/>
+        <line num="71" count="137" type="stmt"/>
+        <line num="72" count="134" type="stmt"/>
+        <line num="73" count="134" type="stmt"/>
+        <line num="75" count="134" type="stmt"/>
+        <line num="76" count="3" type="stmt"/>
+        <line num="79" count="134" type="stmt"/>
+        <line num="80" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="81" count="0" type="stmt"/>
+        <line num="83" count="0" type="stmt"/>
+        <line num="84" count="0" type="stmt"/>
+        <line num="86" count="134" type="stmt"/>
+        <line num="88" count="134" type="stmt"/>
+        <line num="90" count="134" type="stmt"/>
+        <line num="101" count="5" type="stmt"/>
+        <line num="102" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="103" count="0" type="stmt"/>
+        <line num="106" count="0" type="stmt"/>
+        <line num="107" count="0" type="stmt"/>
+        <line num="108" count="0" type="stmt"/>
+        <line num="118" count="0" type="stmt"/>
+        <line num="121" count="5" type="stmt"/>
+        <line num="122" count="134" type="stmt"/>
+        <line num="123" count="134" type="cond" truecount="3" falsecount="1"/>
+        <line num="124" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="125" count="0" type="stmt"/>
+        <line num="126" count="0" type="stmt"/>
+        <line num="127" count="0" type="stmt"/>
+        <line num="168" count="134" type="cond" truecount="3" falsecount="1"/>
+        <line num="169" count="0" type="stmt"/>
+        <line num="172" count="134" type="cond" truecount="1" falsecount="1"/>
+        <line num="173" count="0" type="stmt"/>
+        <line num="175" count="134" type="stmt"/>
+        <line num="178" count="5" type="stmt"/>
+        <line num="181" count="134" type="stmt"/>
+        <line num="183" count="134" type="stmt"/>
+        <line num="184" count="134" type="stmt"/>
+        <line num="185" count="134" type="stmt"/>
+        <line num="187" count="134" type="stmt"/>
+        <line num="188" count="134" type="stmt"/>
+        <line num="190" count="134" type="stmt"/>
+        <line num="192" count="134" type="stmt"/>
+        <line num="203" count="134" type="stmt"/>
+        <line num="204" count="3" type="stmt"/>
+        <line num="205" count="3" type="stmt"/>
+        <line num="206" count="3" type="stmt"/>
+        <line num="209" count="134" type="stmt"/>
+        <line num="210" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="215" count="1" type="stmt"/>
+        <line num="217" count="3" type="stmt"/>
+        <line num="218" count="3" type="stmt"/>
+        <line num="222" count="134" type="stmt"/>
+        <line num="223" count="1" type="stmt"/>
+        <line num="226" count="134" type="stmt"/>
+        <line num="227" count="1" type="stmt"/>
+        <line num="228" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="229" count="0" type="stmt"/>
+        <line num="230" count="0" type="stmt"/>
+        <line num="231" count="0" type="stmt"/>
+        <line num="232" count="0" type="stmt"/>
+        <line num="234" count="1" type="stmt"/>
+        <line num="235" count="1" type="stmt"/>
+        <line num="236" count="1" type="stmt"/>
+        <line num="237" count="1" type="stmt"/>
+        <line num="240" count="0" type="stmt"/>
+        <line num="241" count="0" type="stmt"/>
+        <line num="242" count="0" type="stmt"/>
+        <line num="246" count="134" type="cond" truecount="0" falsecount="1"/>
+        <line num="247" count="0" type="stmt"/>
+        <line num="248" count="0" type="stmt"/>
+        <line num="249" count="0" type="stmt"/>
+        <line num="255" count="0" type="stmt"/>
+        <line num="256" count="0" type="stmt"/>
+        <line num="266" count="134" type="cond" truecount="0" falsecount="1"/>
+        <line num="267" count="1" type="stmt"/>
+        <line num="269" count="1" type="stmt"/>
+        <line num="270" count="1" type="stmt"/>
+        <line num="276" count="1" type="stmt"/>
+        <line num="277" count="1" type="stmt"/>
+        <line num="280" count="134" type="stmt"/>
+        <line num="292" count="5" type="stmt"/>
+        <line num="301" count="137" type="stmt"/>
+        <line num="311" count="134" type="stmt"/>
+        <line num="316" count="134" type="stmt"/>
+        <line num="317" count="134" type="stmt"/>
+        <line num="319" count="134" type="stmt"/>
+        <line num="321" count="134" type="stmt"/>
+        <line num="322" count="134" type="stmt"/>
+        <line num="324" count="536" type="stmt"/>
+        <line num="328" count="0" type="stmt"/>
+        <line num="336" count="134" type="stmt"/>
+        <line num="344" count="134" type="stmt"/>
+        <line num="345" count="568" type="stmt"/>
+        <line num="346" count="142" type="stmt"/>
+        <line num="356" count="134" type="stmt"/>
+        <line num="357" count="0" type="stmt"/>
+        <line num="360" count="134" type="stmt"/>
+        <line num="361" count="0" type="stmt"/>
+        <line num="366" count="0" type="stmt"/>
+        <line num="369" count="134" type="stmt"/>
+        <line num="370" count="134" type="stmt"/>
+        <line num="373" count="134" type="stmt"/>
+      </file>
+      <file name="steps-config.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/steps-config.jsx">
+        <metrics statements="11" coveredstatements="11" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="19" count="10" type="stmt"/>
+        <line num="26" count="10" type="stmt"/>
+        <line num="31" count="10" type="stmt"/>
+        <line num="33" count="10" type="stmt"/>
+        <line num="34" count="10" type="stmt"/>
+        <line num="35" count="10" type="stmt"/>
+        <line num="36" count="10" type="stmt"/>
+        <line num="38" count="10" type="stmt"/>
+        <line num="57" count="10" type="stmt"/>
+        <line num="70" count="10" type="stmt"/>
+        <line num="105" count="10" type="stmt"/>
+      </file>
+      <file name="tools-content.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/tools-content.jsx">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="17" count="6" type="stmt"/>
+      </file>
+      <file name="utils.js" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/utils.js">
+        <metrics statements="60" coveredstatements="52" conditionals="46" coveredconditionals="33" methods="15" coveredmethods="15"/>
+        <line num="23" count="7" type="stmt"/>
+        <line num="24" count="245" type="stmt"/>
+        <line num="26" count="15" type="cond" truecount="2" falsecount="0"/>
+        <line num="27" count="2" type="stmt"/>
+        <line num="28" count="13" type="cond" truecount="2" falsecount="0"/>
+        <line num="29" count="11" type="stmt"/>
+        <line num="31" count="2" type="stmt"/>
+        <line num="33" count="15" type="stmt"/>
+        <line num="38" count="7" type="stmt"/>
+        <line num="39" count="2" type="stmt"/>
+        <line num="46" count="2" type="stmt"/>
+        <line num="49" count="7" type="stmt"/>
+        <line num="50" count="3" type="stmt"/>
+        <line num="60" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="61" count="3" type="stmt"/>
+        <line num="63" count="3" type="stmt"/>
+        <line num="66" count="7" type="stmt"/>
+        <line num="67" count="4" type="stmt"/>
+        <line num="68" count="36" type="stmt"/>
+        <line num="80" count="7" type="stmt"/>
+        <line num="81" count="3" type="stmt"/>
+        <line num="91" count="7" type="cond" truecount="0" falsecount="1"/>
+        <line num="92" count="3" type="stmt"/>
+        <line num="93" count="5" type="stmt"/>
+        <line num="94" count="5" type="cond" truecount="1" falsecount="1"/>
+        <line num="95" count="0" type="stmt"/>
+        <line num="96" count="5" type="cond" truecount="1" falsecount="1"/>
+        <line num="97" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="98" count="0" type="stmt"/>
+        <line num="100" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="101" count="0" type="stmt"/>
+        <line num="104" count="5" type="stmt"/>
+        <line num="107" count="3" type="stmt"/>
+        <line num="108" count="3" type="cond" truecount="3" falsecount="1"/>
+        <line num="109" count="0" type="stmt"/>
+        <line num="112" count="3" type="stmt"/>
+        <line num="113" count="3" type="stmt"/>
+        <line num="114" count="5" type="stmt"/>
+        <line num="120" count="3" type="stmt"/>
+        <line num="123" count="3" type="stmt"/>
+        <line num="132" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="133" count="3" type="stmt"/>
+        <line num="136" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="137" count="0" type="stmt"/>
+        <line num="138" count="0" type="stmt"/>
+        <line num="140" count="3" type="stmt"/>
+        <line num="141" count="3" type="stmt"/>
+        <line num="144" count="3" type="stmt"/>
+        <line num="147" count="3" type="stmt"/>
+        <line num="156" count="7" type="stmt"/>
+        <line num="157" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="158" count="1" type="stmt"/>
+        <line num="161" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="163" count="1" type="stmt"/>
+        <line num="172" count="3" type="stmt"/>
+        <line num="197" count="7" type="stmt"/>
+        <line num="198" count="20" type="cond" truecount="4" falsecount="0"/>
+        <line num="199" count="5" type="stmt"/>
+        <line num="200" count="15" type="cond" truecount="4" falsecount="0"/>
+        <line num="201" count="5" type="stmt"/>
+      </file>
+      <file name="wizard-components.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/wizard-components.jsx">
+        <metrics statements="7" coveredstatements="5" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="1"/>
+        <line num="20" count="5" type="stmt"/>
+        <line num="21" count="136" type="stmt"/>
+        <line num="25" count="133" type="stmt"/>
+        <line num="28" count="133" type="stmt"/>
+        <line num="30" count="133" type="stmt"/>
+        <line num="36" count="0" type="stmt"/>
+        <line num="37" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="components.wizard.stepComponents">
+      <metrics statements="431" coveredstatements="369" conditionals="247" coveredconditionals="206" methods="108" coveredmethods="78"/>
+      <file name="step1.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/stepComponents/step1.jsx">
+        <metrics statements="52" coveredstatements="51" conditionals="30" coveredconditionals="29" methods="8" coveredmethods="7"/>
+        <line num="38" count="5" type="stmt"/>
+        <line num="40" count="5" type="stmt"/>
+        <line num="43" count="38" type="stmt"/>
+        <line num="45" count="38" type="stmt"/>
+        <line num="46" count="38" type="stmt"/>
+        <line num="47" count="38" type="stmt"/>
+        <line num="48" count="38" type="stmt"/>
+        <line num="49" count="38" type="stmt"/>
+        <line num="51" count="38" type="stmt"/>
+        <line num="53" count="38" type="stmt"/>
+        <line num="54" count="4" type="stmt"/>
+        <line num="55" count="4" type="stmt"/>
+        <line num="56" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="57" count="1" type="stmt"/>
+        <line num="59" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="60" count="1" type="stmt"/>
+        <line num="62" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="63" count="1" type="stmt"/>
+        <line num="70" count="4" type="cond" truecount="4" falsecount="0"/>
+        <line num="71" count="1" type="stmt"/>
+        <line num="73" count="4" type="stmt"/>
+        <line num="74" count="4" type="stmt"/>
+        <line num="77" count="38" type="stmt"/>
+        <line num="78" count="3" type="stmt"/>
+        <line num="79" count="3" type="stmt"/>
+        <line num="80" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="81" count="2" type="stmt"/>
+        <line num="83" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="89" count="1" type="stmt"/>
+        <line num="97" count="3" type="stmt"/>
+        <line num="98" count="3" type="stmt"/>
+        <line num="101" count="38" type="stmt"/>
+        <line num="102" count="2" type="stmt"/>
+        <line num="103" count="2" type="stmt"/>
+        <line num="105" count="2" type="cond" truecount="4" falsecount="0"/>
+        <line num="106" count="1" type="stmt"/>
+        <line num="109" count="2" type="stmt"/>
+        <line num="110" count="2" type="stmt"/>
+        <line num="113" count="38" type="stmt"/>
+        <line num="114" count="18" type="stmt"/>
+        <line num="115" count="15" type="stmt"/>
+        <line num="116" count="15" type="cond" truecount="2" falsecount="0"/>
+        <line num="117" count="9" type="stmt"/>
+        <line num="120" count="6" type="stmt"/>
+        <line num="122" count="18" type="stmt"/>
+        <line num="123" count="18" type="cond" truecount="4" falsecount="0"/>
+        <line num="124" count="15" type="stmt"/>
+        <line num="125" count="3" type="cond" truecount="3" falsecount="1"/>
+        <line num="126" count="3" type="stmt"/>
+        <line num="129" count="18" type="stmt"/>
+        <line num="132" count="38" type="stmt"/>
+        <line num="167" count="0" type="stmt"/>
+      </file>
+      <file name="step2.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/stepComponents/step2.jsx">
+        <metrics statements="238" coveredstatements="204" conditionals="122" coveredconditionals="101" methods="53" coveredmethods="43"/>
+        <line num="52" count="5" type="stmt"/>
+        <line num="54" count="5" type="stmt"/>
+        <line num="56" count="63" type="cond" truecount="2" falsecount="0"/>
+        <line num="62" count="63" type="cond" truecount="2" falsecount="0"/>
+        <line num="63" count="12" type="cond" truecount="4" falsecount="0"/>
+        <line num="64" count="3" type="stmt"/>
+        <line num="69" count="9" type="stmt"/>
+        <line num="76" count="51" type="stmt"/>
+        <line num="79" count="54" type="stmt"/>
+        <line num="86" count="5" type="stmt"/>
+        <line num="94" count="63" type="stmt"/>
+        <line num="95" count="63" type="cond" truecount="2" falsecount="0"/>
+        <line num="96" count="63" type="stmt"/>
+        <line num="109" count="1" type="stmt"/>
+        <line num="122" count="5" type="stmt"/>
+        <line num="123" count="71" type="stmt"/>
+        <line num="124" count="71" type="cond" truecount="2" falsecount="0"/>
+        <line num="126" count="5" type="stmt"/>
+        <line num="130" count="5" type="stmt"/>
+        <line num="133" count="63" type="stmt"/>
+        <line num="135" count="63" type="stmt"/>
+        <line num="136" count="63" type="stmt"/>
+        <line num="137" count="63" type="stmt"/>
+        <line num="138" count="63" type="stmt"/>
+        <line num="139" count="63" type="stmt"/>
+        <line num="140" count="63" type="stmt"/>
+        <line num="142" count="63" type="stmt"/>
+        <line num="146" count="63" type="stmt"/>
+        <line num="147" count="63" type="stmt"/>
+        <line num="149" count="63" type="stmt"/>
+        <line num="150" count="1" type="stmt"/>
+        <line num="151" count="1" type="stmt"/>
+        <line num="152" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="153" count="0" type="stmt"/>
+        <line num="155" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="156" count="0" type="stmt"/>
+        <line num="163" count="1" type="stmt"/>
+        <line num="164" count="1" type="stmt"/>
+        <line num="167" count="63" type="stmt"/>
+        <line num="168" count="0" type="stmt"/>
+        <line num="169" count="0" type="stmt"/>
+        <line num="170" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="171" count="0" type="stmt"/>
+        <line num="173" count="0" type="stmt"/>
+        <line num="174" count="0" type="stmt"/>
+        <line num="177" count="63" type="stmt"/>
+        <line num="178" count="1" type="stmt"/>
+        <line num="179" count="1" type="stmt"/>
+        <line num="180" count="1" type="cond" truecount="4" falsecount="1"/>
+        <line num="181" count="0" type="stmt"/>
+        <line num="182" count="1" type="cond" truecount="3" falsecount="1"/>
+        <line num="183" count="0" type="stmt"/>
+        <line num="185" count="1" type="stmt"/>
+        <line num="186" count="1" type="stmt"/>
+        <line num="189" count="63" type="stmt"/>
+        <line num="190" count="0" type="stmt"/>
+        <line num="191" count="0" type="stmt"/>
+        <line num="192" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="193" count="0" type="stmt"/>
+        <line num="195" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="196" count="0" type="stmt"/>
+        <line num="198" count="0" type="stmt"/>
+        <line num="199" count="0" type="stmt"/>
+        <line num="202" count="63" type="stmt"/>
+        <line num="203" count="66" type="stmt"/>
+        <line num="205" count="66" type="cond" truecount="2" falsecount="0"/>
+        <line num="206" count="16" type="stmt"/>
+        <line num="207" count="16" type="stmt"/>
+        <line num="208" count="96" type="stmt"/>
+        <line num="209" count="96" type="cond" truecount="2" falsecount="0"/>
+        <line num="210" count="48" type="stmt"/>
+        <line num="212" count="96" type="stmt"/>
+        <line num="214" count="16" type="stmt"/>
+        <line num="217" count="50" type="stmt"/>
+        <line num="218" count="164" type="stmt"/>
+        <line num="225" count="63" type="stmt"/>
+        <line num="227" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="230" count="63" type="stmt"/>
+        <line num="231" count="3" type="stmt"/>
+        <line num="232" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="233" count="2" type="stmt"/>
+        <line num="237" count="63" type="stmt"/>
+        <line num="238" count="5" type="cond" truecount="1" falsecount="1"/>
+        <line num="239" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="240" count="4" type="stmt"/>
+        <line num="241" count="4" type="stmt"/>
+        <line num="249" count="4" type="stmt"/>
+        <line num="255" count="1" type="stmt"/>
+        <line num="264" count="63" type="stmt"/>
+        <line num="265" count="9" type="cond" truecount="4" falsecount="0"/>
+        <line num="266" count="1" type="stmt"/>
+        <line num="268" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="269" count="0" type="stmt"/>
+        <line num="270" count="0" type="stmt"/>
+        <line num="271" count="0" type="stmt"/>
+        <line num="273" count="1" type="stmt"/>
+        <line num="274" count="1" type="stmt"/>
+        <line num="275" count="1" type="stmt"/>
+        <line num="278" count="8" type="stmt"/>
+        <line num="282" count="8" type="stmt"/>
+        <line num="283" count="8" type="stmt"/>
+        <line num="284" count="8" type="stmt"/>
+        <line num="288" count="63" type="stmt"/>
+        <line num="289" count="62" type="cond" truecount="2" falsecount="0"/>
+        <line num="290" count="3" type="stmt"/>
+        <line num="293" count="3" type="stmt"/>
+        <line num="299" count="63" type="stmt"/>
+        <line num="345" count="0" type="stmt"/>
+        <line num="370" count="0" type="stmt"/>
+        <line num="400" count="0" type="stmt"/>
+        <line num="425" count="0" type="stmt"/>
+        <line num="436" count="1" type="stmt"/>
+        <line num="437" count="1" type="stmt"/>
+        <line num="451" count="0" type="stmt"/>
+        <line num="477" count="0" type="stmt"/>
+        <line num="495" count="0" type="stmt"/>
+        <line num="510" count="5" type="stmt"/>
+        <line num="511" count="4" type="stmt"/>
+        <line num="512" count="2" type="stmt"/>
+        <line num="513" count="2" type="stmt"/>
+        <line num="514" count="2" type="stmt"/>
+        <line num="518" count="2" type="stmt"/>
+        <line num="521" count="4" type="stmt"/>
+        <line num="524" count="5" type="stmt"/>
+        <line num="525" count="216" type="stmt"/>
+        <line num="527" count="36" type="cond" truecount="2" falsecount="0"/>
+        <line num="529" count="36" type="stmt"/>
+        <line num="530" count="6" type="stmt"/>
+        <line num="532" count="6" type="stmt"/>
+        <line num="533" count="6" type="stmt"/>
+        <line num="534" count="6" type="stmt"/>
+        <line num="538" count="6" type="stmt"/>
+        <line num="542" count="36" type="stmt"/>
+        <line num="553" count="5" type="stmt"/>
+        <line num="554" count="36" type="stmt"/>
+        <line num="556" count="36" type="cond" truecount="3" falsecount="0"/>
+        <line num="558" count="4" type="stmt"/>
+        <line num="559" count="4" type="stmt"/>
+        <line num="561" count="4" type="stmt"/>
+        <line num="562" count="4" type="stmt"/>
+        <line num="564" count="4" type="stmt"/>
+        <line num="565" count="4" type="stmt"/>
+        <line num="568" count="36" type="cond" truecount="2" falsecount="0"/>
+        <line num="569" count="12" type="stmt"/>
+        <line num="579" count="5" type="stmt"/>
+        <line num="580" count="71" type="stmt"/>
+        <line num="584" count="36" type="stmt"/>
+        <line num="590" count="36" type="stmt"/>
+        <line num="607" count="36" type="stmt"/>
+        <line num="620" count="5" type="stmt"/>
+        <line num="621" count="71" type="stmt"/>
+        <line num="623" count="71" type="stmt"/>
+        <line num="624" count="1" type="stmt"/>
+        <line num="627" count="71" type="stmt"/>
+        <line num="628" count="0" type="stmt"/>
+        <line num="629" count="0" type="stmt"/>
+        <line num="630" count="0" type="stmt"/>
+        <line num="633" count="71" type="stmt"/>
+        <line num="634" count="10" type="stmt"/>
+        <line num="637" count="71" type="stmt"/>
+        <line num="665" count="5" type="stmt"/>
+        <line num="666" count="62" type="stmt"/>
+        <line num="668" count="62" type="stmt"/>
+        <line num="669" count="62" type="stmt"/>
+        <line num="670" count="62" type="cond" truecount="2" falsecount="0"/>
+        <line num="671" count="3" type="stmt"/>
+        <line num="672" count="59" type="cond" truecount="2" falsecount="0"/>
+        <line num="673" count="12" type="stmt"/>
+        <line num="675" count="47" type="stmt"/>
+        <line num="677" count="0" type="stmt"/>
+        <line num="680" count="62" type="stmt"/>
+        <line num="681" count="62" type="stmt"/>
+        <line num="691" count="62" type="stmt"/>
+        <line num="692" count="20" type="cond" truecount="2" falsecount="0"/>
+        <line num="693" count="1" type="stmt"/>
+        <line num="694" count="19" type="cond" truecount="2" falsecount="0"/>
+        <line num="695" count="4" type="stmt"/>
+        <line num="697" count="15" type="stmt"/>
+        <line num="701" count="62" type="stmt"/>
+        <line num="702" count="51" type="stmt"/>
+        <line num="703" count="79" type="cond" truecount="4" falsecount="0"/>
+        <line num="704" count="15" type="stmt"/>
+        <line num="707" count="36" type="stmt"/>
+        <line num="710" count="62" type="stmt"/>
+        <line num="711" count="2" type="stmt"/>
+        <line num="712" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="715" count="62" type="stmt"/>
+        <line num="716" count="2" type="stmt"/>
+        <line num="717" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="720" count="62" type="stmt"/>
+        <line num="721" count="2" type="stmt"/>
+        <line num="722" count="2" type="stmt"/>
+        <line num="725" count="62" type="stmt"/>
+        <line num="726" count="2" type="stmt"/>
+        <line num="727" count="2" type="stmt"/>
+        <line num="728" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="729" count="2" type="stmt"/>
+        <line num="731" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="732" count="2" type="stmt"/>
+        <line num="734" count="2" type="stmt"/>
+        <line num="736" count="2" type="stmt"/>
+        <line num="738" count="0" type="stmt"/>
+        <line num="741" count="62" type="stmt"/>
+        <line num="742" count="26" type="stmt"/>
+        <line num="743" count="18" type="stmt"/>
+        <line num="744" count="18" type="stmt"/>
+        <line num="745" count="18" type="cond" truecount="5" falsecount="0"/>
+        <line num="746" count="6" type="stmt"/>
+        <line num="749" count="12" type="cond" truecount="6" falsecount="0"/>
+        <line num="751" count="2" type="stmt"/>
+        <line num="752" count="2" type="stmt"/>
+        <line num="754" count="2" type="stmt"/>
+        <line num="755" count="2" type="stmt"/>
+        <line num="757" count="2" type="stmt"/>
+        <line num="758" count="2" type="stmt"/>
+        <line num="760" count="2" type="stmt"/>
+        <line num="761" count="2" type="stmt"/>
+        <line num="763" count="2" type="stmt"/>
+        <line num="764" count="2" type="stmt"/>
+        <line num="766" count="2" type="stmt"/>
+        <line num="767" count="2" type="stmt"/>
+        <line num="768" count="0" type="stmt"/>
+        <line num="770" count="2" type="stmt"/>
+        <line num="772" count="2" type="stmt"/>
+        <line num="775" count="12" type="cond" truecount="2" falsecount="0"/>
+        <line num="776" count="10" type="stmt"/>
+        <line num="779" count="10" type="stmt"/>
+        <line num="782" count="62" type="stmt"/>
+        <line num="783" count="41" type="cond" truecount="5" falsecount="0"/>
+        <line num="784" count="31" type="stmt"/>
+        <line num="785" count="10" type="cond" truecount="3" falsecount="1"/>
+        <line num="786" count="10" type="stmt"/>
+        <line num="790" count="62" type="stmt"/>
+        <line num="791" count="21" type="stmt"/>
+        <line num="795" count="62" type="stmt"/>
+        <line num="796" count="20" type="stmt"/>
+        <line num="797" count="20" type="stmt"/>
+        <line num="809" count="62" type="stmt"/>
+      </file>
+      <file name="step3.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/stepComponents/step3.jsx">
+        <metrics statements="118" coveredstatements="95" conditionals="64" coveredconditionals="50" methods="33" coveredmethods="18"/>
+        <line num="47" count="6" type="stmt"/>
+        <line num="49" count="6" type="stmt"/>
+        <line num="59" count="27" type="stmt"/>
+        <line num="60" count="27" type="stmt"/>
+        <line num="61" count="27" type="stmt"/>
+        <line num="62" count="27" type="stmt"/>
+        <line num="66" count="27" type="stmt"/>
+        <line num="68" count="27" type="stmt"/>
+        <line num="69" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="70" count="1" type="stmt"/>
+        <line num="71" count="1" type="stmt"/>
+        <line num="73" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="74" count="0" type="stmt"/>
+        <line num="77" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="78" count="0" type="stmt"/>
+        <line num="80" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="81" count="1" type="stmt"/>
+        <line num="82" count="1" type="stmt"/>
+        <line num="84" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="85" count="0" type="stmt"/>
+        <line num="88" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="89" count="0" type="stmt"/>
+        <line num="92" count="3" type="stmt"/>
+        <line num="95" count="27" type="stmt"/>
+        <line num="96" count="27" type="stmt"/>
+        <line num="97" count="27" type="stmt"/>
+        <line num="99" count="27" type="stmt"/>
+        <line num="100" count="3" type="stmt"/>
+        <line num="101" count="3" type="stmt"/>
+        <line num="102" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="103" count="1" type="stmt"/>
+        <line num="105" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="106" count="0" type="stmt"/>
+        <line num="114" count="3" type="stmt"/>
+        <line num="115" count="3" type="stmt"/>
+        <line num="118" count="27" type="stmt"/>
+        <line num="119" count="3" type="stmt"/>
+        <line num="120" count="3" type="stmt"/>
+        <line num="122" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="123" count="1" type="stmt"/>
+        <line num="126" count="3" type="cond" truecount="2" falsecount="0"/>
+        <line num="127" count="1" type="stmt"/>
+        <line num="135" count="3" type="stmt"/>
+        <line num="136" count="3" type="stmt"/>
+        <line num="139" count="27" type="stmt"/>
+        <line num="140" count="1" type="stmt"/>
+        <line num="141" count="1" type="stmt"/>
+        <line num="142" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="143" count="0" type="stmt"/>
+        <line num="144" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="148" count="0" type="stmt"/>
+        <line num="156" count="1" type="stmt"/>
+        <line num="157" count="1" type="stmt"/>
+        <line num="160" count="27" type="stmt"/>
+        <line num="161" count="1" type="stmt"/>
+        <line num="162" count="1" type="stmt"/>
+        <line num="163" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="164" count="0" type="stmt"/>
+        <line num="165" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="169" count="0" type="stmt"/>
+        <line num="177" count="1" type="stmt"/>
+        <line num="178" count="1" type="stmt"/>
+        <line num="181" count="27" type="stmt"/>
+        <line num="194" count="0" type="stmt"/>
+        <line num="217" count="0" type="stmt"/>
+        <line num="240" count="0" type="stmt"/>
+        <line num="268" count="0" type="stmt"/>
+        <line num="292" count="0" type="stmt"/>
+        <line num="322" count="0" type="stmt"/>
+        <line num="345" count="0" type="stmt"/>
+        <line num="367" count="6" type="stmt"/>
+        <line num="374" count="27" type="stmt"/>
+        <line num="376" count="27" type="stmt"/>
+        <line num="377" count="1" type="stmt"/>
+        <line num="378" count="1" type="stmt"/>
+        <line num="379" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="380" count="0" type="stmt"/>
+        <line num="381" count="1" type="cond" truecount="1" falsecount="1"/>
+        <line num="385" count="0" type="stmt"/>
+        <line num="389" count="1" type="stmt"/>
+        <line num="390" count="1" type="stmt"/>
+        <line num="393" count="27" type="stmt"/>
+        <line num="402" count="0" type="stmt"/>
+        <line num="421" count="6" type="stmt"/>
+        <line num="422" count="32" type="stmt"/>
+        <line num="424" count="32" type="stmt"/>
+        <line num="425" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="426" count="0" type="stmt"/>
+        <line num="428" count="2" type="stmt"/>
+        <line num="431" count="32" type="stmt"/>
+        <line num="432" count="2" type="stmt"/>
+        <line num="433" count="2" type="cond" truecount="1" falsecount="1"/>
+        <line num="434" count="0" type="stmt"/>
+        <line num="436" count="2" type="stmt"/>
+        <line num="438" count="0" type="stmt"/>
+        <line num="441" count="32" type="stmt"/>
+        <line num="442" count="32" type="stmt"/>
+        <line num="444" count="32" type="stmt"/>
+        <line num="445" count="34" type="stmt"/>
+        <line num="446" count="20" type="cond" truecount="2" falsecount="0"/>
+        <line num="447" count="2" type="stmt"/>
+        <line num="450" count="32" type="stmt"/>
+        <line num="453" count="32" type="stmt"/>
+        <line num="454" count="20" type="cond" truecount="4" falsecount="0"/>
+        <line num="455" count="4" type="stmt"/>
+        <line num="456" count="16" type="cond" truecount="3" falsecount="1"/>
+        <line num="457" count="16" type="stmt"/>
+        <line num="462" count="32" type="stmt"/>
+        <line num="463" count="1" type="stmt"/>
+        <line num="466" count="32" type="stmt"/>
+        <line num="467" count="16" type="stmt"/>
+        <line num="480" count="32" type="stmt"/>
+        <line num="491" count="32" type="stmt"/>
+        <line num="492" count="2" type="stmt"/>
+        <line num="493" count="2" type="stmt"/>
+        <line num="494" count="2" type="stmt"/>
+        <line num="497" count="32" type="stmt"/>
+        <line num="510" count="0" type="stmt"/>
+      </file>
+      <file name="step4.jsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/components/wizard/stepComponents/step4.jsx">
+        <metrics statements="23" coveredstatements="19" conditionals="31" coveredconditionals="26" methods="14" coveredmethods="10"/>
+        <line num="34" count="6" type="stmt"/>
+        <line num="42" count="6" type="stmt"/>
+        <line num="43" count="5" type="stmt"/>
+        <line num="44" count="4" type="stmt"/>
+        <line num="45" count="4" type="cond" truecount="3" falsecount="0"/>
+        <line num="48" count="6" type="stmt"/>
+        <line num="49" count="4" type="stmt"/>
+        <line num="51" count="0" type="stmt"/>
+        <line num="57" count="5" type="stmt"/>
+        <line num="61" count="5" type="stmt"/>
+        <line num="65" count="5" type="stmt"/>
+        <line num="68" count="7" type="stmt"/>
+        <line num="73" count="6" type="stmt"/>
+        <line num="74" count="5" type="cond" truecount="4" falsecount="0"/>
+        <line num="75" count="4" type="stmt"/>
+        <line num="84" count="1" type="stmt"/>
+        <line num="87" count="6" type="stmt"/>
+        <line num="90" count="5" type="stmt"/>
+        <line num="92" count="5" type="stmt"/>
+        <line num="93" count="5" type="stmt"/>
+        <line num="101" count="0" type="stmt"/>
+        <line num="144" count="0" type="stmt"/>
+        <line num="239" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="home">
+      <metrics statements="8" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="3" coveredmethods="0"/>
+      <file name="home.context.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/home/home.context.tsx">
+        <metrics statements="5" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="0"/>
+        <line num="25" count="9" type="stmt"/>
+        <line num="27" count="9" type="stmt"/>
+        <line num="28" count="0" type="stmt"/>
+        <line num="29" count="0" type="stmt"/>
+        <line num="32" count="0" type="stmt"/>
+      </file>
+      <file name="home.state.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/home/home.state.tsx">
+        <metrics statements="3" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="hooks">
+      <metrics statements="7" coveredstatements="0" conditionals="4" coveredconditionals="0" methods="3" coveredmethods="0"/>
+      <file name="useCreateReducer.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/hooks/useCreateReducer.ts">
+        <metrics statements="7" coveredstatements="0" conditionals="4" coveredconditionals="0" methods="3" coveredmethods="0"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="28" count="0" type="stmt"/>
+        <line num="29" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="31" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="36" count="0" type="stmt"/>
+        <line num="38" count="0" type="stmt"/>
+      </file>
+    </package>
+    <package name="i18n-strings">
+      <metrics statements="33" coveredstatements="22" conditionals="25" coveredconditionals="11" methods="18" coveredmethods="8"/>
+      <file name="app-layout.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/app-layout.ts">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="16" count="9" type="stmt"/>
+      </file>
+      <file name="collection-preferences.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/collection-preferences.ts">
+        <metrics statements="4" coveredstatements="1" conditionals="4" coveredconditionals="0" methods="3" coveredmethods="0"/>
+        <line num="16" count="9" type="stmt"/>
+        <line num="17" count="0" type="stmt"/>
+        <line num="20" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="24" count="0" type="cond" truecount="0" falsecount="2"/>
+      </file>
+      <file name="flashbar.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/flashbar.ts">
+        <metrics statements="1" coveredstatements="1" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+        <line num="16" count="9" type="stmt"/>
+      </file>
+      <file name="header.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/header.ts">
+        <metrics statements="4" coveredstatements="3" conditionals="8" coveredconditionals="3" methods="2" coveredmethods="1"/>
+        <line num="14" count="9" type="stmt"/>
+        <line num="18" count="20" type="cond" truecount="3" falsecount="1"/>
+        <line num="23" count="9" type="stmt"/>
+        <line num="24" count="0" type="cond" truecount="0" falsecount="4"/>
+      </file>
+      <file name="index.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/index.ts">
+        <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      </file>
+      <file name="pagination.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/pagination.ts">
+        <metrics statements="4" coveredstatements="4" conditionals="2" coveredconditionals="2" methods="3" coveredmethods="3"/>
+        <line num="16" count="9" type="stmt"/>
+        <line num="17" count="28" type="stmt"/>
+        <line num="19" count="21" type="stmt"/>
+        <line num="22" count="42" type="cond" truecount="2" falsecount="0"/>
+      </file>
+      <file name="table.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/table.ts">
+        <metrics statements="18" coveredstatements="11" conditionals="9" coveredconditionals="5" methods="9" coveredmethods="3"/>
+        <line num="16" count="9" type="stmt"/>
+        <line num="17" count="0" type="stmt"/>
+        <line num="20" count="9" type="stmt"/>
+        <line num="21" count="0" type="stmt"/>
+        <line num="22" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+        <line num="24" count="0" type="stmt"/>
+        <line num="25" count="0" type="stmt"/>
+        <line num="28" count="9" type="stmt"/>
+        <line num="30" count="65" type="stmt"/>
+        <line num="34" count="9" type="stmt"/>
+        <line num="42" count="48" type="cond" truecount="2" falsecount="3"/>
+        <line num="43" count="0" type="stmt"/>
+        <line num="45" count="48" type="stmt"/>
+        <line num="46" count="168" type="cond" truecount="2" falsecount="0"/>
+        <line num="47" count="140" type="stmt"/>
+        <line num="50" count="28" type="cond" truecount="1" falsecount="1"/>
+        <line num="51" count="28" type="stmt"/>
+      </file>
+      <file name="text-filter.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/i18n-strings/text-filter.ts">
+        <metrics statements="1" coveredstatements="1" conditionals="2" coveredconditionals="1" methods="1" coveredmethods="1"/>
+        <line num="14" count="21" type="cond" truecount="1" falsecount="1"/>
+      </file>
+    </package>
+    <package name="utils">
+      <metrics statements="53" coveredstatements="51" conditionals="0" coveredconditionals="0" methods="3" coveredmethods="2"/>
+      <file name="constants.ts" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/utils/constants.ts">
+        <metrics statements="48" coveredstatements="47" conditionals="0" coveredconditionals="0" methods="2" coveredmethods="1"/>
+        <line num="14" count="10" type="stmt"/>
+        <line num="15" count="10" type="stmt"/>
+        <line num="17" count="10" type="stmt"/>
+        <line num="18" count="10" type="stmt"/>
+        <line num="19" count="10" type="stmt"/>
+        <line num="20" count="10" type="stmt"/>
+        <line num="21" count="10" type="stmt"/>
+        <line num="22" count="10" type="stmt"/>
+        <line num="23" count="10" type="stmt"/>
+        <line num="24" count="10" type="stmt"/>
+        <line num="25" count="10" type="stmt"/>
+        <line num="26" count="10" type="stmt"/>
+        <line num="27" count="10" type="stmt"/>
+        <line num="28" count="10" type="stmt"/>
+        <line num="29" count="10" type="stmt"/>
+        <line num="30" count="10" type="stmt"/>
+        <line num="31" count="10" type="stmt"/>
+        <line num="32" count="10" type="stmt"/>
+        <line num="33" count="10" type="stmt"/>
+        <line num="34" count="10" type="stmt"/>
+        <line num="35" count="10" type="stmt"/>
+        <line num="36" count="10" type="stmt"/>
+        <line num="37" count="10" type="stmt"/>
+        <line num="38" count="10" type="stmt"/>
+        <line num="39" count="10" type="stmt"/>
+        <line num="40" count="10" type="stmt"/>
+        <line num="41" count="10" type="stmt"/>
+        <line num="43" count="10" type="stmt"/>
+        <line num="44" count="10" type="stmt"/>
+        <line num="45" count="10" type="stmt"/>
+        <line num="47" count="10" type="stmt"/>
+        <line num="52" count="0" type="stmt"/>
+        <line num="58" count="1" type="stmt"/>
+        <line num="64" count="10" type="stmt"/>
+        <line num="70" count="10" type="stmt"/>
+        <line num="76" count="10" type="stmt"/>
+        <line num="82" count="10" type="stmt"/>
+        <line num="90" count="10" type="stmt"/>
+        <line num="92" count="10" type="stmt"/>
+        <line num="94" count="10" type="stmt"/>
+        <line num="113" count="10" type="stmt"/>
+        <line num="116" count="10" type="stmt"/>
+        <line num="118" count="10" type="stmt"/>
+        <line num="130" count="10" type="stmt"/>
+        <line num="131" count="10" type="stmt"/>
+        <line num="135" count="10" type="stmt"/>
+        <line num="136" count="10" type="stmt"/>
+        <line num="151" count="10" type="stmt"/>
+      </file>
+      <file name="utils.tsx" path="/codebuild/output/src2291302061/src/source/ui-deployment/src/utils/utils.tsx">
+        <metrics statements="5" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="1" coveredmethods="1"/>
+        <line num="22" count="3" type="stmt"/>
+        <line num="23" count="3" type="stmt"/>
+        <line num="24" count="3" type="stmt"/>
+        <line num="25" count="3" type="stmt"/>
+        <line num="27" count="0" type="stmt"/>
+      </file>
+    </package>
+  </project>
+</coverage>

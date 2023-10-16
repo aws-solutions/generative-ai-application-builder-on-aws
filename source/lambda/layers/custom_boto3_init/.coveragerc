@@ -1,0 +1,20 @@
+[run]
+omit =
+    **/__init__.py
+    __init__.py
+    test/*
+    .venv*/*
+    aws_lambda_powertools/*
+    aws_xray_sdk/*
+    botocore/*
+    dateutil/*
+    jmespath/*
+    urllib*/*
+    wrapt/*
+    setup.py
+    six.py
+    typing_extensions.py
+    s3transfer/*
+    boto3/**
+source =
+    .

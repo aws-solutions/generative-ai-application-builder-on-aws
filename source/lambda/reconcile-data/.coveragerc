@@ -1,0 +1,27 @@
+[report]
+show_missing = True
+fail_under = 80.0
+
+[run]
+omit =
+    **/__init__.py
+    __init__.py
+    test/*
+    .venv*/*
+    aws_lambda_powertools/*
+    aws_xray_sdk/*
+    boto3/*
+    botocore/*
+    dateutil/*
+    jmespath/*
+    urllib*/*
+    wrapt/*
+    setup.py
+    six.py
+    typing_extensions.py
+    s3transfer/*
+    boto3/**
+    test/*
+    .venv-*/*
+source =
+    .

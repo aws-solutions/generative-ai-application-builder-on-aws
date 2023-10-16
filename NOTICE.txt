@@ -1,0 +1,173 @@
+Generative AI Application Builder on AWS
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+Licensed under the Apache License Version 2.0 (the "License"). You may not use this file except
+in compliance with the License. A copy of the License is located at http://www.apache.org/licenses/
+or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+
+**********************
+THIRD PARTY COMPONENTS
+**********************
+This software includes third party software subject to the following copyrights:     
+
+@aws-amplify/ui-react                                       Apache-2.0
+@aws-cdk/aws-apigatewayv2-alpha                             Apache-2.0
+@aws-cdk/aws-apigatewayv2-authorizers-alpha                 Apache-2.0
+@aws-cdk/aws-apigatewayv2-integrations-alpha                Apache-2.0
+@aws-cdk/aws-servicecatalogappregistry-alpha                Apache-2.0
+@aws-lambda-powertools/logger                               MIT
+@aws-lambda-powertools/metrics                              MIT
+@aws-lambda-powertools/tracer                               MIT
+@aws-sdk/client-cloudformation                              Apache-2.0
+@aws-sdk/client-dynamodb                                    Apache-2.0
+@aws-sdk/client-kendra                                      Apache-2.0
+@aws-sdk/client-s3                                          Apache-2.0
+@aws-sdk/client-secrets-manager                             Apache-2.0
+@aws-sdk/client-ssm                                         Apache-2.0
+@aws-sdk/lib-dynamodb                                       Apache-2.0
+@aws-sdk/types                                              Apache-2.0
+@aws-sdk/util-arn-parser                                    Apache-2.0
+@aws-sdk/util-dynamodb                                      Apache-2.0
+@aws-solutions-constructs/aws-apigateway-lambda             Apache-2.0
+@aws-solutions-constructs/aws-cloudfront-s3                 Apache-2.0
+@aws-solutions-constructs/aws-dynamodbstreams-lambda        Apache-2.0
+@aws-solutions-constructs/aws-lambda-dynamodb               Apache-2.0
+@aws-solutions-constructs/aws-lambda-ssmstringparameter     Apache-2.0
+@aws-solutions-constructs/aws-wafwebacl-apigateway          Apache-2.0
+@babel/plugin-proposal-private-property-in-object           MIT
+@cloudscape-design/components                               Apache-2.0
+@cloudscape-design/design-tokens                            Apache-2.0
+@cloudscape-design/global-styles                            Apache-2.0
+@middy/core                                                 MIT
+@smithy/types                                               Apache-2.0
+@tailwindcss/typography                                     MIT
+@testing-library/jest-dom                                   MIT
+@testing-library/react                                      MIT
+@testing-library/user-event                                 MIT
+@types/aws-lambda                                           MIT
+@types/jest                                                 MIT
+@types/lodash                                               MIT
+@types/mock-fs                                              MIT
+@types/node                                                 MIT
+@types/npmlog                                               MIT
+@types/prettier                                             MIT
+@types/react-test-renderer                                  MIT
+@types/uuid                                                 MIT
+@typescript-eslint/eslint-plugin                            MIT
+@typescript-eslint/parser                                   BSD-2-Clause
+Jinja2                                                      BSD-3-Clause
+MarkupSafe                                                  BSD-3-Clause
+PyYAML                                                      MIT
+SQLAlchemy                                                  MIT
+Werkzeug                                                    BSD-3-Clause
+aiohttp                                                     Apache-2.0
+aiosignal                                                   Apache-2.0
+annotated-types                                             MIT
+anthropic                                                   MIT
+anyio                                                       MIT
+async-timeout                                               Apache-2.0
+attrs                                                       MIT
+aws-amplify                                                 Apache-2.0
+aws-cdk-lib                                                 Apache-2.0
+aws-jwt-verify                                              Apache-2.0
+aws-lambda-powertools==2.20.0                               MIT
+aws-sdk-client-mock                                         MIT
+aws-sdk-mock                                                Apache-2.0
+aws-xray-sdk==2.12.0                                        Apache-2.0
+black                                                       MIT
+boolean.py                                                  BSD-2-Clause
+bootstrap                                                   MIT
+boto3                                                       Apache-2.0
+botocore                                                    Apache-2.0
+cdk                                                         Apache-2.0
+cdk-nag                                                     Apache-2.0
+certifi                                                     MPL 2.0
+cffi                                                        MIT
+charset-normalizer                                          MIT
+click                                                       BSD License (BSD-3-Clause)
+constructs                                                  Apache-2.0
+coverage                                                    Apache-2.0
+cryptography                                                Apache-2.0 OR BSD-3-Clause
+dataclasses                                                 Apache-2.0
+dataclasses-json                                            MIT
+distro                                                      Apache-2.0
+eslint                                                      MIT
+exceptiongroup                                              MIT
+filelock                                                    Unlicense
+freezegun                                                   Apache-2.0
+frozenlist                                                  Apache-2.0
+fsspec                                                      BSD
+greenlet                                                    MIT
+h11                                                         MIT
+httpcore                                                    BSD License (BSD)
+httpx                                                       BSD License
+huggingface-hub                                             Apache-2.0
+identity-obj-proxy                                          MIT
+idna                                                        BSD License
+importlib-metadata                                          Apache-2.0
+iniconfig                                                   MIT
+isort                                                       MIT
+jest                                                        MIT
+jmespath                                                    MIT
+jsonpatch                                                   BSD License
+jsonpointer                                                 BSD License
+langchain                                                   MIT
+langsmith                                                   MIT
+license-expression                                          Apache-2.0
+lodash                                                      MIT
+marshmallow                                                 MIT
+mock                                                        BSD
+mock-fs                                                     MIT
+moto                                                        Apache-2.0
+multidict                                                   Apache-2.0
+mypy-extensions                                             MIT
+npmlog                                                      ISC
+numexpr                                                     MIT
+numpy                                                       BSD-3-Clause
+openapi-schema-pydantic                                     MIT
+packaging                                                   Apache 2.0, BSD License
+pathspec                                                    MPL 2.0
+platformdirs                                                MIT
+pluggy                                                      MIT
+portfinder                                                  MIT
+prettier                                                    MIT
+pycparser                                                   BSD
+pydantic                                                    MIT
+pydantic_core                                               MIT
+pytest                                                      MIT
+pytest-cov                                                  MIT
+pytest-env                                                  MIT
+pytest-mock                                                 MIT
+python-dateutil                                             Apache 2.0, BSD License
+react-bootstrap                                             MIT
+react-router-dom                                            MIT
+react-scripts                                               MIT
+react-tabs                                                  MIT
+react-test-renderer                                         MIT
+requests                                                    Apache-2.0
+responses                                                   Apache-2.0
+s3transfer                                                  Apache-2.0
+setuptools                                                  MIT
+six                                                         MIT
+sniffio                                                     MIT OR Apache-2.0
+source-map-support                                          MIT
+tailwindcss                                                 MIT
+tenacity                                                    Apache-2.0
+tokenizers                                                  Apache-2.0
+tomli                                                       MIT
+tqdm                                                        MIT
+tqdm                                                        MPL 2.0, MIT
+ts-jest                                                     MIT
+ts-node                                                     MIT
+types-PyYAML                                                Apache-2.0
+typescript                                                  Apache-2.0
+typing-extensions                                           Python 2.0
+typing-inspect                                              MIT
+urllib3                                                     MIT
+uuid                                                        MIT
+wrapt                                                       BSD License
+xmltodict                                                   MIT
+yarl                                                        Apache-2.0
+zipp                                                        MIT

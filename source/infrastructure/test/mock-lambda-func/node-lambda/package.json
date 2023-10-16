@@ -1,0 +1,20 @@
+{
+  "name": "node-lambda",
+  "version": "1.0.0",
+  "description": "A mock lambda implementation for CDK infrastructure unit",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --coverage --silent --verbose",
+    "test-debug": "jest --coverage",
+    "clean": "rm -rf node_modules",
+    "code-linter-js": "./node_modules/eslint/bin/eslint.js lambda --ext .js",
+    "code-linter-ts": "./node_modules/eslint/bin/eslint.js bin lib --ext .ts",
+    "code-linter": "npm run code-linter-ts && npm run code-linter-js",
+    "code-formatter": "./node_modules/prettier/bin-prettier.js --config .prettierrc.yml '**/*.ts' '**/*.js' --write"
+  },
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "cdk-solution-helper",
+  "version": "0.1.0",
+  "description": "This script performs token replacement as part of the build pipeline",
+  "dependencies": {
+    "fs": "^0.0.2"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  }
+}

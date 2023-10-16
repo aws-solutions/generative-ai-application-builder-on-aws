@@ -1,0 +1,334 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Snapshot test 1`] = `
+<AppLayout
+  ariaLabels={
+    Object {
+      "navigation": "Side navigation",
+      "navigationClose": "Close side navigation",
+      "navigationToggle": "Open side navigation",
+      "notifications": "Notifications",
+      "tools": "Help panel",
+      "toolsClose": "Close help panel",
+      "toolsToggle": "Open help panel",
+    }
+  }
+  breadcrumbs={<Breadcrumbs />}
+  content={
+    <Box>
+      <SpaceBetween
+        size="m"
+      >
+        <Wizard
+          activeStepIndex={0}
+          i18nStrings={
+            Object {
+              "cancelButton": "Cancel",
+              "collapsedStepsLabel": [Function],
+              "errorIconAriaLabel": "Error",
+              "navigationAriaLabel": "Steps",
+              "nextButton": "Next",
+              "optional": "optional",
+              "previousButton": "Previous",
+              "stepNumberLabel": [Function],
+              "submitButton": "Deploy use case",
+            }
+          }
+          onCancel={[Function]}
+          onNavigate={[Function]}
+          onSubmit={[Function]}
+          steps={
+            Array [
+              Object {
+                "content": <UseCase
+                  info={
+                    Object {
+                      "knowledgeBase": Object {
+                        "existingKendraIndex": "",
+                        "inError": false,
+                        "isRagRequired": false,
+                        "kendraAdditionalQueryCapacity": 0,
+                        "kendraAdditionalStorageCapacity": 0,
+                        "kendraEdition": Object {
+                          "label": "Developer",
+                          "value": "developer",
+                        },
+                        "kendraIndexId": "",
+                        "kendraIndexName": "",
+                        "knowledgeBaseType": Object {
+                          "label": "Kendra",
+                          "value": "kendra",
+                        },
+                        "maxNumDocs": 2,
+                      },
+                      "model": Object {
+                        "apiKey": "",
+                        "inError": false,
+                        "inferenceEndpoint": "",
+                        "modelFamily": "",
+                        "modelName": "",
+                        "modelParameters": Array [],
+                        "modelProvider": Object {
+                          "label": "Bedrock",
+                          "value": "Bedrock",
+                        },
+                        "promptTemplate": "",
+                        "streaming": false,
+                        "temperature": 0.1,
+                        "verbose": false,
+                      },
+                      "useCase": Object {
+                        "defaultUserEmail": "",
+                        "inError": false,
+                        "useCase": Object {
+                          "label": "Chat",
+                          "value": "Chat",
+                        },
+                        "useCaseDescription": "",
+                        "useCaseName": "",
+                      },
+                    }
+                  }
+                  onChange={[Function]}
+                  setActiveStepIndex={[Function]}
+                  setHelpPanelContent={[Function]}
+                />,
+                "info": <InfoLink
+                  ariaLabel="Information about Select use case."
+                  onFollow={[Function]}
+                />,
+                "title": "Select use case",
+              },
+              Object {
+                "content": <Model
+                  info={
+                    Object {
+                      "knowledgeBase": Object {
+                        "existingKendraIndex": "",
+                        "inError": false,
+                        "isRagRequired": false,
+                        "kendraAdditionalQueryCapacity": 0,
+                        "kendraAdditionalStorageCapacity": 0,
+                        "kendraEdition": Object {
+                          "label": "Developer",
+                          "value": "developer",
+                        },
+                        "kendraIndexId": "",
+                        "kendraIndexName": "",
+                        "knowledgeBaseType": Object {
+                          "label": "Kendra",
+                          "value": "kendra",
+                        },
+                        "maxNumDocs": 2,
+                      },
+                      "model": Object {
+                        "apiKey": "",
+                        "inError": false,
+                        "inferenceEndpoint": "",
+                        "modelFamily": "",
+                        "modelName": "",
+                        "modelParameters": Array [],
+                        "modelProvider": Object {
+                          "label": "Bedrock",
+                          "value": "Bedrock",
+                        },
+                        "promptTemplate": "",
+                        "streaming": false,
+                        "temperature": 0.1,
+                        "verbose": false,
+                      },
+                      "useCase": Object {
+                        "defaultUserEmail": "",
+                        "inError": false,
+                        "useCase": Object {
+                          "label": "Chat",
+                          "value": "Chat",
+                        },
+                        "useCaseDescription": "",
+                        "useCaseName": "",
+                      },
+                    }
+                  }
+                  onChange={[Function]}
+                  setActiveStepIndex={[Function]}
+                  setHelpPanelContent={[Function]}
+                />,
+                "info": <InfoLink
+                  ariaLabel="Information about Select model."
+                  onFollow={[Function]}
+                />,
+                "title": "Select model",
+              },
+              Object {
+                "content": <KnowledgeBase
+                  info={
+                    Object {
+                      "knowledgeBase": Object {
+                        "existingKendraIndex": "",
+                        "inError": false,
+                        "isRagRequired": false,
+                        "kendraAdditionalQueryCapacity": 0,
+                        "kendraAdditionalStorageCapacity": 0,
+                        "kendraEdition": Object {
+                          "label": "Developer",
+                          "value": "developer",
+                        },
+                        "kendraIndexId": "",
+                        "kendraIndexName": "",
+                        "knowledgeBaseType": Object {
+                          "label": "Kendra",
+                          "value": "kendra",
+                        },
+                        "maxNumDocs": 2,
+                      },
+                      "model": Object {
+                        "apiKey": "",
+                        "inError": false,
+                        "inferenceEndpoint": "",
+                        "modelFamily": "",
+                        "modelName": "",
+                        "modelParameters": Array [],
+                        "modelProvider": Object {
+                          "label": "Bedrock",
+                          "value": "Bedrock",
+                        },
+                        "promptTemplate": "",
+                        "streaming": false,
+                        "temperature": 0.1,
+                        "verbose": false,
+                      },
+                      "useCase": Object {
+                        "defaultUserEmail": "",
+                        "inError": false,
+                        "useCase": Object {
+                          "label": "Chat",
+                          "value": "Chat",
+                        },
+                        "useCaseDescription": "",
+                        "useCaseName": "",
+                      },
+                    }
+                  }
+                  onChange={[Function]}
+                  setActiveStepIndex={[Function]}
+                  setHelpPanelContent={[Function]}
+                />,
+                "info": <InfoLink
+                  ariaLabel="Information about Select knowledge base."
+                  onFollow={[Function]}
+                />,
+                "title": "Select knowledge base",
+              },
+              Object {
+                "content": <Review
+                  info={
+                    Object {
+                      "knowledgeBase": Object {
+                        "existingKendraIndex": "",
+                        "inError": false,
+                        "isRagRequired": false,
+                        "kendraAdditionalQueryCapacity": 0,
+                        "kendraAdditionalStorageCapacity": 0,
+                        "kendraEdition": Object {
+                          "label": "Developer",
+                          "value": "developer",
+                        },
+                        "kendraIndexId": "",
+                        "kendraIndexName": "",
+                        "knowledgeBaseType": Object {
+                          "label": "Kendra",
+                          "value": "kendra",
+                        },
+                        "maxNumDocs": 2,
+                      },
+                      "model": Object {
+                        "apiKey": "",
+                        "inError": false,
+                        "inferenceEndpoint": "",
+                        "modelFamily": "",
+                        "modelName": "",
+                        "modelParameters": Array [],
+                        "modelProvider": Object {
+                          "label": "Bedrock",
+                          "value": "Bedrock",
+                        },
+                        "promptTemplate": "",
+                        "streaming": false,
+                        "temperature": 0.1,
+                        "verbose": false,
+                      },
+                      "useCase": Object {
+                        "defaultUserEmail": "",
+                        "inError": false,
+                        "useCase": Object {
+                          "label": "Chat",
+                          "value": "Chat",
+                        },
+                        "useCaseDescription": "",
+                        "useCaseName": "",
+                      },
+                    }
+                  }
+                  onChange={[Function]}
+                  setActiveStepIndex={[Function]}
+                  setHelpPanelContent={[Function]}
+                />,
+                "info": <InfoLink
+                  ariaLabel="Information about Review and create."
+                  onFollow={[Function]}
+                />,
+                "title": "Review and create",
+              },
+            ]
+          }
+        />
+        <ConfirmDeployModal
+          deploymentAction="CREATE"
+          isThirdPartyProvider={false}
+          onConfirm={[Function]}
+          onDiscard={[Function]}
+          visible={false}
+        />
+      </SpaceBetween>
+    </Box>
+  }
+  contentType="wizard"
+  data-testid="wizard-view"
+  navigation={<Navigation />}
+  notifications={
+    <Notifications
+      onSuccessButtonAction={[Function]}
+      status=""
+    />
+  }
+  onToolsChange={[Function]}
+  tools={
+    <HelpPanel
+      footer={
+        <ExternalLinkGroup
+          items={
+            Array [
+              Object {
+                "href": "https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/use-cases.html",
+                "text": "Learn more about use cases",
+              },
+            ]
+          }
+        />
+      }
+      header={
+        <h2>
+          Deploying a new use case
+        </h2>
+      }
+    >
+      <Box
+        variant="p"
+      >
+        Use this page to create a new deployment
+      </Box>
+    </HelpPanel>
+  }
+  toolsOpen={false}
+/>
+`;
