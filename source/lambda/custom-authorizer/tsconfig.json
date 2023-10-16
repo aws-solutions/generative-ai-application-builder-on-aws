@@ -1,0 +1,58 @@
+{
+  "compilerOptions": {
+    "target": "ES2018",
+    "module": "commonjs",
+    "lib": [
+      "es2018",
+      "dom"
+    ],
+    "declaration": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": false,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "experimentalDecorators": true,
+    "strictPropertyInitialization": false,
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "outDir": "./dist",
+    "moduleResolution": "Node",
+    "rootDir": ".",
+    "paths": {
+      "aws-node-user-agent-config": [
+        "../layers/aws-node-user-agent-config/dist"
+      ],
+      "aws-lambda": [
+        "../layers/aws-sdk-lib/node_modules/@types/aws-lambda"
+      ],
+      "@aws-lambda-powertools/logger": [
+        "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/logger"
+      ],
+      "@aws-lambda-powertools/tracer": [
+        "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/tracer"
+      ],
+      "@aws-lambda-powertools/metrics": [
+        "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/metrics"
+      ],
+      "@aws-sdk/client-dynamodb": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-dynamodb"
+      ],
+      "@aws-sdk/lib-dynamodb": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/lib-dynamodb"
+      ],
+      "@smithy/types": [
+        "../layers/aws-sdk-lib/node_modules/@smithy/types"
+      ]
+    }
+  }
+}

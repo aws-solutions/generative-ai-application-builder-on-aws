@@ -1,0 +1,17 @@
+build/
+aws_lambda_powertools/
+aws_xray_sdk/
+botocore/
+dateutil/
+jmespath/
+urllib*/
+wrapt/
+boto3/
+six.py
+python_dateutil/
+typing_extensions.py
+THIRD-PARTY-LICENSES
+*.dist-info
+*.egg-info
+jp.py
+s3transfer/*
