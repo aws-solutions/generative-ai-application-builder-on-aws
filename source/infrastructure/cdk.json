@@ -34,7 +34,7 @@
     ],
     "solution_id": "SO0276",
     "solution_name": "generative-ai-application-builder-on-aws",
-    "solution_version": "v1.0.0",
+    "solution_version": "v1.0.1",
     "app_registry_name": "GAAB",
     "application_type": "AWS-Solutions",
     "application_trademark_name": "Generative AI Application Builder on AWS"

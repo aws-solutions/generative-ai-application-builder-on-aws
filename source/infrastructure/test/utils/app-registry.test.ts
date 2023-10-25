@@ -28,7 +28,7 @@ describe('When Solution Stack with a nested stack is registered with AppRegistry
         'Solutions:ApplicationType': 'AWS-Solutions',
         'Solutions:SolutionID': 'SO0276',
         'Solutions:SolutionName': 'generative-ai-application-builder-on-aws',
-        'Solutions:SolutionVersion': 'v1.0.0'
+        'Solutions:SolutionVersion': rawCdkJson.context.solution_version
     };
 
     const applicationName = `App-${rawCdkJson.context.app_registry_name}`;

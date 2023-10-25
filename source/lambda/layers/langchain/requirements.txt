@@ -1,2 +1,2 @@
-langchain==0.0.312
+langchain==0.0.321
 numpy==1.26.0
