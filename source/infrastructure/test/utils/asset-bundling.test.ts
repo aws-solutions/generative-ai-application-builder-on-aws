@@ -247,10 +247,8 @@ describe('when local bundling is successful lambda assets', () => {
     it('should perform a successful reactjs local build', () => {
         const stack = new cdk.Stack();
         new s3_asset.Asset(stack, 'UIAsset', {
-            path: path.join(__dirname, '../../../ui-chat'),
-            ...AppAssetBundler.assetOptionsFactory
-                .assetOptions('Reactjs')
-                .options(path.join(__dirname, '../../../ui-chat'))
+            path: path.join(__dirname, '../mock-ui'),
+            ...AppAssetBundler.assetOptionsFactory.assetOptions('Reactjs').options(path.join(__dirname, '../mock-ui'))
         });
 
         try {
