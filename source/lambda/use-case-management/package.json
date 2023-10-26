@@ -1,6 +1,6 @@
 {
   "name": "use-case-management",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "This lambda supports APIs that provide the capability to deploy GenAI use cases",
   "main": "index.ts",
   "scripts": {
