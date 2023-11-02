@@ -115,7 +115,7 @@ export function DeleteDeploymentModal({ deployment, visible, onDiscard, onDelete
                                 Kendra Index and S3 Buckets will be retained.{' '}
                                 <Link
                                     external={true}
-                                    href={IG_DOCS.UNINSTALL}
+                                    href={IG_DOCS.CLEANUP}
                                     ariaLabel="Learn more about deployment cleanup, opens in new tab"
                                 >
                                     Learn more

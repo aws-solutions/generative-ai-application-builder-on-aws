@@ -25,7 +25,7 @@ export const MAX_MODEL_NAME_LENGTH = 64;
 export const MIN_API_KEY_LENGTH = 1;
 export const MAX_API_KEY_LENGTH = 128;
 export const MIN_PROMPT_TEMPLATE_LENGTH = 0;
-export const MAX_PROMPT_TEMPLATE_LENGTH = 1000;
+export const MAX_PROMPT_TEMPLATE_LENGTH = 2000;
 export const MIN_MODEL_PARAMETER_NAME_LENGTH = 0;
 export const MAX_MODEL_PARAMETER_NAME_LENGTH = 64;
 export const MIN_MODEL_PARAMETER_VALUE_LENGTH = 0;
@@ -132,10 +132,12 @@ export const ERROR_MESSAGES = {
     UNAUTHORIZED: 'Request failed with status code 403'
 };
 
-const IG_ROOT = 'https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws'
+const IG_ROOT = 'https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws';
 export const IG_DOCS = {
     BEDROCK_SECURITY: `${IG_ROOT}/security-1.html#using-third-party-models-on-amazon-bedrock`,
     CHOOSING_LLMS: `${IG_ROOT}/use-the-solution.html#choosing-the-right-llm-for-your-use-case`,
+    CLEANUP_KENDRA: `${IG_ROOT}/uninstall-the-solution.html#deleting-the-amazon-kendra-indexes`,
+    CLEANUP: `${IG_ROOT}/uninstall-the-solution.html#manual-uninstall-sub-topics`,
     CONCEPTS: `${IG_ROOT}/concepts-and-definitions.html`,
     COST: `${IG_ROOT}/cost.html`,
     INGESTING_DATA: `${IG_ROOT}/step-3-ingest-data-into-knowledge-base.html`,
@@ -143,9 +145,9 @@ export const IG_DOCS = {
     SUPPORTED_LLMS: `${IG_ROOT}/supplemental-topics.html#supported-llm-providers`,
     THIRD_PARTY_SECURITY: `${IG_ROOT}/security-1.html#third-party-llm-integrations-outside-of-amazon-bedrock`,
     TIPS_PROMPT_LIMITS: `${IG_ROOT}/use-the-solution.html#tips-for-managing-model-token-limits`,
-    UNINSTALL: `${IG_ROOT}/uninstall-the-solution.html`,
     USE_CASES: `${IG_ROOT}/use-cases.html`,
-    USING_THE_SOLUTION: `${IG_ROOT}/use-the-solution.html`,
-}
+    USING_THE_SOLUTION: `${IG_ROOT}/use-the-solution.html`
+};
 
-export const LANDING_PAGE_URL = 'https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/'
+export const LANDING_PAGE_URL =
+    'https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/';

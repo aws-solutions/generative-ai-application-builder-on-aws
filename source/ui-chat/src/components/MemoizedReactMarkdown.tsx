@@ -11,12 +11,10 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-export const API_NAME = 'api';
-export const APP_TRADEMARK_NAME = 'Generative AI Application Builder on AWS - Chat';
-export const MODEL_MAX_INPUT_LENGTH = 2500;
+import { FC, memo } from 'react';
+import ReactMarkdown, { Options } from 'react-markdown';
 
-export const MIN_PROMPT_TEMPLATE_LENGTH = 0;
-export const MAX_PROMPT_TEMPLATE_LENGTH = 2000;
-export const END_CONVERSATION_TOKEN = '##END_CONVERSATION##';
-
-export const INTERNAL_USER_GENAI_POLICY_URL = 'https://policy.a2z.com/docs/568686/publication';
+export const MemoizedReactMarkdown: FC<Options> = memo(
+    ReactMarkdown,
+    (prevProps, nextProps) => prevProps.children === nextProps.children
+);

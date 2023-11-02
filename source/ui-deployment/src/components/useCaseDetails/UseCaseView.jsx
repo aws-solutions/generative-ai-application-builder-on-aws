@@ -23,7 +23,8 @@ import { ToolsContent } from './tools-content';
 import HomeContext from '../../home/home.context';
 import { parseStackName } from '../commons/table-config';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
-import { DEPLOYMENT_ACTIONS } from '../../utils/constants';
+import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS } from '../../utils/constants';
+import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 
 const Model = ({ loadHelpPanelContent }) => (
     <Container
@@ -117,6 +118,11 @@ export default function UseCaseView() {
         navigate(event.detail.href);
     };
 
+    const currentDeploymentStatus = statusIndicatorTypeSelector(selectedDeployment.status);
+    const isEditEnabled =
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING;
+
     return (
         <AppLayout
             ref={appLayout}
@@ -125,7 +131,12 @@ export default function UseCaseView() {
                     header={
                         <PageHeader
                             buttonsList={[
-                                <Button onClick={onEditClickAction} key={'edit-button'} data-testid="use-case-view-edit-btn">
+                                <Button
+                                    onClick={onEditClickAction}
+                                    key={'edit-button'}
+                                    data-testid="use-case-view-edit-btn"
+                                    disabled={!isEditEnabled}
+                                >
                                     Edit
                                 </Button>,
                                 <Button onClick={onDeleteInit} key={'delete-button'}>

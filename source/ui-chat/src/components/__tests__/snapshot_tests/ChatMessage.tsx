@@ -27,6 +27,14 @@ jest.mock('@cloudscape-design/components', () => {
     return Components;
 });
 
+jest.mock('react-markdown', () => (props) => {
+    return <>{props.children}</>;
+});
+
+jest.mock('remark-gfm', () => (props) => {
+    return <>{props.children}</>;
+});
+
 describe('Chat', () => {
     const contextValue = {
         dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
