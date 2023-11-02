@@ -278,7 +278,7 @@ export const TOOLS_CONTENT = {
                     text: 'Concepts and Definitions - DevOps user'
                 },
                 {
-                    href: IG_DOCS.UNINSTALL,
+                    href: IG_DOCS.CLEANUP_KENDRA,
                     text: 'Cleaning up Kendra indexes'
                 }
             ]

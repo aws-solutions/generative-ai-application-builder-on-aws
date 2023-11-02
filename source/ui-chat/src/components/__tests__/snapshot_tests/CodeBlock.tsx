@@ -11,51 +11,34 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { Dispatch } from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
-import HomeContext from '../../home/home.context';
-import { HomeInitialState } from '../../home/home.state';
-import { ActionType } from '../../hooks/useCreateReducer';
-import { ChatMessage } from '../ChatMessage';
+import renderer from 'react-test-renderer';
+import { CodeBlock } from '../../CodeBlock';
 
-jest.mock('react-markdown', () => (props) => {
-    return <>{props.children}</>;
+jest.mock('@cloudscape-design/components', () => {
+    const Components = jest.genMockFromModule('@cloudscape-design/components') as any;
+    for (const componentName of Object.keys(Components)) {
+        Components[componentName] = componentName;
+    }
+    return Components;
 });
 
-jest.mock('remark-gfm', () => (props) => {
-    return <>{props.children}</>;
-});
+const code = `public static void towerOfHanoi(int n, char fromRod,
+    char toRod, char auxRod) {
+        if (n == 1) {
+            System.out.println("Move disk 1 from rod " + 
+                fromRod + " to rod " + toRod);
+            return;
+        }
+        towerOfHanoi(n-1, fromRod, auxRod, toRod);
+        System.out.println("Move disk " + n + " from rod " +
+            fromRod + " to rod " + toRod);
+        towerOfHanoi(n-1, auxRod, toRod, fromRod);
+    }`;
 
-describe('Chat', () => {
-    const contextValue = {
-        dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
-        state: {
-            loading: false,
-            messageIsStreaming: false,
-            selectedConversation: {
-                id: '',
-                name: 'New Conversation',
-                messages: []
-            },
-            promptTemplate: '',
-            defaultPromptTemplate: ''
-        },
-        handleUpdateConversation: jest.fn()
-    };
-
-    test('The initial state is correct', async () => {
-        // const copy = jest.spyOn(ChatMessage.prototype, 'copyOnClick');
-        render(
-            <HomeContext.Provider
-                value={{
-                    ...contextValue
-                }}
-            >
-                <ChatMessage message={{ role: 'assistant', content: 'hello' }} messageIndex={1} />
-            </HomeContext.Provider>
-        );
-        const copyMsgButton = screen.getByTestId('copy-msg-button');
-        fireEvent.click(copyMsgButton);
+describe('CodeBlock', () => {
+    test('Snapshot test for code block', async () => {
+        const tree = renderer.create(<CodeBlock key={Math.random()} language={'java'} value={code} />).toJSON();
+        expect(tree).toMatchSnapshot();
     });
 });

@@ -15,15 +15,43 @@ import { FC, memo, useContext, useState } from 'react';
 import { Button, Icon } from '@cloudscape-design/components';
 import HomeContext from '../home/home.context';
 import { Message } from '../types/chat';
+import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import { CodeBlock } from './CodeBlock';
+import { Components } from 'react-markdown';
 
 export interface Props {
     message: Message;
     messageIndex: number;
 }
 
+const MARKDOWN_COMPONENTS: Components = {
+    code: ({ node, className, children, ...props }) => {
+        const match = /language-(\w+)/.exec(className || '');
+
+        return match ? (
+            <CodeBlock language={(match && match[1]) || ''} value={String(children).replace(/\n$/, '')} {...props} />
+        ) : (
+            <code className={className} {...props}>
+                {children}
+            </code>
+        );
+    },
+    table: ({ children }) => {
+        return <table>{children}</table>;
+    },
+    th: ({ children }) => {
+        return <th className="break-words border border-black bg-gray-500 px-3 py-1 text-white">{children}</th>;
+    },
+    td: ({ children }) => {
+        return <td className="break-words border border-black px-3 py-1">{children}</td>;
+    }
+};
+
 export const ChatMessage: FC<Props> = memo(({ message, messageIndex }) => {
     const {
-        state: { selectedConversation, messageIsStreaming, loading }
+        state: { selectedConversation, messageIsStreaming }
     } = useContext(HomeContext);
 
     const [messagedCopied, setMessageCopied] = useState(false);
@@ -51,18 +79,25 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex }) => {
                 <div className="prose mt-[-2px] w-full">
                     {message.role === 'user' ? (
                         <div className="w-full">
-                            <div className="user-message">{message.content}</div>
+                            <div>{message.content}</div>
                         </div>
                     ) : (
                         <div className="flex ">
                             <div className="flex-1">
-                                {message.content}
-                                <span className="animate-pulse">
-                                    {(messageIsStreaming || loading) &&
-                                    messageIndex === (selectedConversation?.messages.length ?? 0) - 1
-                                        ? '▍'
-                                        : ''}
-                                </span>
+                                <MemoizedReactMarkdown
+                                    className="prose dark:prose-invert flex-1"
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    disallowedElements={['a']}
+                                    unwrapDisallowed
+                                    components={MARKDOWN_COMPONENTS}
+                                >
+                                    {`${message.content}${
+                                        messageIsStreaming &&
+                                        messageIndex === (selectedConversation?.messages.length ?? 0) - 1
+                                            ? '▍'
+                                            : ''
+                                    }`}
+                                </MemoizedReactMarkdown>
                             </div>
                             <div className="copy-button-div md:-mr-8">
                                 {messagedCopied ? (

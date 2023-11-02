@@ -29,9 +29,6 @@ exports[`Chat Snapshot test for chat message from assistant 1`] = `
           className="flex-1"
         >
           hello
-          <span
-            className="animate-pulse"
-          />
         </div>
         <div
           className="copy-button-div md:-mr-8"
@@ -71,9 +68,7 @@ exports[`Chat Snapshot test for chat message from user 1`] = `
       <div
         className="w-full"
       >
-        <div
-          className="user-message"
-        >
+        <div>
           hello
         </div>
       </div>

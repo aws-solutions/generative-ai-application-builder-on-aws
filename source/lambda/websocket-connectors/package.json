@@ -1,6 +1,6 @@
 {
   "name": "websocket-connectors",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "This lambda function is used to handle connect and disconnect requests",
   "main": "connect-handler.js",
   "scripts": {
