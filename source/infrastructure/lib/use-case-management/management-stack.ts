@@ -641,7 +641,8 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                             'cognito-idp:CreateUserPoolClient',
                             'cognito-idp:DeleteUserPoolClient',
                             'cognito-idp:AdminAddUserToGroup',
-                            'cognito-idp:AdminRemoveUserFromGroup'
+                            'cognito-idp:AdminRemoveUserFromGroup',
+                            'cognito-idp:AdminListGroupsForUser'
                         ],
                         resources: [
                             `arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`

@@ -86,7 +86,7 @@ def test_body_missing_required_fields(setup_environment, llm_client):
 
 
 def test_prompt_valid_length(llm_client):
-    valid_prompt = "p" * 1000
+    valid_prompt = "p" * PROMPT_LENGTH
     with does_not_raise():
         llm_client.check_event(
             {
@@ -98,7 +98,7 @@ def test_prompt_valid_length(llm_client):
 
 
 def test_prompt_invalid_length(setup_environment, llm_client):
-    invalid_prompt = "p" * 1001
+    invalid_prompt = "p" * (PROMPT_LENGTH + 1)
     with pytest.raises(ValueError) as error:
         llm_client.check_event(
             {
@@ -115,7 +115,7 @@ def test_prompt_invalid_length(setup_environment, llm_client):
 
 
 def test_question_valid_length(llm_client):
-    valid_question = "q" * 200
+    valid_question = "q" * USER_QUERY_LENGTH
 
     with does_not_raise():
         llm_client.check_event(
@@ -128,7 +128,7 @@ def test_question_valid_length(llm_client):
 
 
 def test_question_invalid_length(setup_environment, llm_client):
-    invalid_question = "q" * 201
+    invalid_question = "q" * (USER_QUERY_LENGTH + 1)
     with pytest.raises(ValueError) as error:
         llm_client.check_event(
             {
@@ -158,8 +158,8 @@ def test_empty_question(setup_environment, llm_client):
 
 
 def test_multiple_length_issues(setup_environment, llm_client):
-    invalid_question = "q" * 201
-    invalid_prompt = "p" * 1001
+    invalid_question = "q" * (USER_QUERY_LENGTH + 1)
+    invalid_prompt = "p" * (PROMPT_LENGTH + 1)
 
     with pytest.raises(ValueError) as error:
         llm_client.check_event(

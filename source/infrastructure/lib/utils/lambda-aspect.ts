@@ -191,7 +191,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
         node.addLayers(this.getOrCreateNodeUserAgent(node), this.getOrCreateAwsNodeSdkLibLayer(node));
         node.addEnvironment(
             'AWS_SDK_USER_AGENT',
-            `{ "customUserAgent": "AwsSolution/${solutionID}/${solutionVersion}" }`
+            `{ "customUserAgent": [["AwsSolution/${solutionID}/${solutionVersion}"]] }`
         );
         node.addEnvironment('AWS_NODEJS_CONNECTION_REUSE_ENABLED', '1');
     }

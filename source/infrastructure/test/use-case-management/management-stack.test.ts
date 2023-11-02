@@ -932,7 +932,8 @@ describe('When creating a use case management Stack', () => {
                                     'cognito-idp:AdminDeleteUser',
                                     'cognito-idp:DeleteUserPoolClient',
                                     'cognito-idp:AdminAddUserToGroup',
-                                    'cognito-idp:AdminRemoveUserFromGroup'
+                                    'cognito-idp:AdminRemoveUserFromGroup',
+                                    'cognito-idp:AdminListGroupsForUser'
                                 ],
                                 Condition: {
                                     'ForAnyValue:StringEquals': {

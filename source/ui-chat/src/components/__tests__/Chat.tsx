@@ -26,6 +26,14 @@ const createMockRefObject = (initialValue: boolean) => ({
     current: initialValue
 });
 
+jest.mock('react-markdown', () => (props) => {
+    return <>{props.children}</>;
+});
+
+jest.mock('remark-gfm', () => (props) => {
+    return <>{props.children}</>;
+});
+
 const mockAPI = {
     get: jest.fn()
 };

@@ -26,6 +26,7 @@ exports[`Snapshot test 1`] = `
             Array [
               <Button
                 data-testid="use-case-view-edit-btn"
+                disabled={false}
                 onClick={[Function]}
               >
                 Edit

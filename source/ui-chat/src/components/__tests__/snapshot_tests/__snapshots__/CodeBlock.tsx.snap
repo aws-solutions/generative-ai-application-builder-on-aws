@@ -1,0 +1,1085 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CodeBlock Snapshot test for code block 1`] = `
+<div>
+  <div
+    className="flex justify-between"
+  >
+    <span
+      className="text-xs lowercase text-white"
+    >
+      java
+    </span>
+    <div
+      className="flex"
+      data-testid="codeblock-button-copy-div"
+    >
+      <button
+        className="flex gap-1.5 items-center rounded text-xs"
+        data-testid="codeblock-button-copy"
+        onClick={[Function]}
+      >
+        <svg
+          className="tabler-icon tabler-icon-clipboard"
+          fill="none"
+          height={18}
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          viewBox="0 0 24 24"
+          width={18}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2"
+          />
+          <path
+            d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z"
+          />
+        </svg>
+        Copy code
+      </button>
+    </div>
+  </div>
+  <pre
+    style={
+      Object {
+        "MozHyphens": "none",
+        "MozTabSize": "2",
+        "OTabSize": "2",
+        "WebkitHyphens": "none",
+        "background": "hsl(220, 13%, 18%)",
+        "borderRadius": "0.3em",
+        "color": "hsl(220, 14%, 71%)",
+        "direction": "ltr",
+        "fontFamily": "\\"Fira Code\\", \\"Fira Mono\\", Menlo, Consolas, \\"DejaVu Sans Mono\\", monospace",
+        "hyphens": "none",
+        "lineHeight": "1.5",
+        "margin": 0,
+        "msHyphens": "none",
+        "overflow": "auto",
+        "padding": "1em",
+        "tabSize": "2",
+        "textAlign": "left",
+        "textShadow": "0 1px rgba(0, 0, 0, 0.3)",
+        "whiteSpace": "pre",
+        "wordBreak": "normal",
+        "wordSpacing": "normal",
+      }
+    }
+  >
+    <code
+      className="language-java"
+      style={
+        Object {
+          "MozHyphens": "none",
+          "MozTabSize": "2",
+          "OTabSize": "2",
+          "WebkitHyphens": "none",
+          "background": "hsl(220, 13%, 18%)",
+          "color": "hsl(220, 14%, 71%)",
+          "direction": "ltr",
+          "fontFamily": "\\"Fira Code\\", \\"Fira Mono\\", Menlo, Consolas, \\"DejaVu Sans Mono\\", monospace",
+          "hyphens": "none",
+          "lineHeight": "1.5",
+          "msHyphens": "none",
+          "tabSize": "2",
+          "textAlign": "left",
+          "textShadow": "0 1px rgba(0, 0, 0, 0.3)",
+          "whiteSpace": "pre",
+          "wordBreak": "normal",
+          "wordSpacing": "normal",
+        }
+      }
+    >
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        public
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        static
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        void
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        towerOfHanoi
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        (
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        int
+      </span>
+      <span
+        style={Object {}}
+      >
+         n
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        char
+      </span>
+      <span
+        style={Object {}}
+      >
+         fromRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+            
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        char
+      </span>
+      <span
+        style={Object {}}
+      >
+         toRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        char
+      </span>
+      <span
+        style={Object {}}
+      >
+         auxRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        )
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        {
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        if
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        (
+      </span>
+      <span
+        style={Object {}}
+      >
+        n 
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        ==
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(29, 54%, 61%)",
+          }
+        }
+      >
+        1
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        )
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        {
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                    
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(29, 54%, 61%)",
+          }
+        }
+      >
+        System
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        .
+      </span>
+      <span
+        style={Object {}}
+      >
+        out
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        .
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        println
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        (
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(95, 38%, 62%)",
+          }
+        }
+      >
+        "Move disk 1 from rod "
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                        fromRod 
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(95, 38%, 62%)",
+          }
+        }
+      >
+        " to rod "
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+         toRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        )
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ;
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                    
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(286, 60%, 67%)",
+          }
+        }
+      >
+        return
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ;
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        }
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        towerOfHanoi
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        (
+      </span>
+      <span
+        style={Object {}}
+      >
+        n
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        -
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(29, 54%, 61%)",
+          }
+        }
+      >
+        1
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         fromRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         auxRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         toRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        )
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ;
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(29, 54%, 61%)",
+          }
+        }
+      >
+        System
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        .
+      </span>
+      <span
+        style={Object {}}
+      >
+        out
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        .
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        println
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        (
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(95, 38%, 62%)",
+          }
+        }
+      >
+        "Move disk "
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+         n 
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(95, 38%, 62%)",
+          }
+        }
+      >
+        " from rod "
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                    fromRod 
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(95, 38%, 62%)",
+          }
+        }
+      >
+        " to rod "
+      </span>
+      <span
+        style={Object {}}
+      >
+         
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        +
+      </span>
+      <span
+        style={Object {}}
+      >
+         toRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        )
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ;
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+                
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        towerOfHanoi
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        (
+      </span>
+      <span
+        style={Object {}}
+      >
+        n
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(207, 82%, 66%)",
+          }
+        }
+      >
+        -
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(29, 54%, 61%)",
+          }
+        }
+      >
+        1
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         auxRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         toRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ,
+      </span>
+      <span
+        style={Object {}}
+      >
+         fromRod
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        )
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        ;
+      </span>
+      <span
+        style={Object {}}
+      >
+        
+
+      </span>
+      <span
+        style={Object {}}
+      >
+            
+      </span>
+      <span
+        className="token"
+        style={
+          Object {
+            "color": "hsl(220, 14%, 71%)",
+          }
+        }
+      >
+        }
+      </span>
+    </code>
+  </pre>
+</div>
+`;

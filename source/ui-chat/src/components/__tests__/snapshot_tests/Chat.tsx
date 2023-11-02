@@ -27,6 +27,14 @@ jest.mock('@cloudscape-design/components', () => {
     return Components;
 });
 
+jest.mock('react-markdown', () => (props) => {
+    return <>{props.children}</>;
+});
+
+jest.mock('remark-gfm', () => (props) => {
+    return <>{props.children}</>;
+});
+
 const createMockRefObject = (initialValue: boolean) => ({
     current: initialValue
 });
