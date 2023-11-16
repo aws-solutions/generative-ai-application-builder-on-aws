@@ -31,7 +31,7 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['nodejs16.x', 'nodejs18.x'],
+            CompatibleRuntimes: ['nodejs18.x'],
             Content: Match.anyValue()
         });
 
@@ -55,7 +55,7 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
             buildStack(lambda.Runtime.PYTHON_3_8);
         } catch (error) {
             expect((error as Error).message).toEqual(
-                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [nodejs16.x, nodejs18.x])`
+                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [nodejs18.x])`
             );
         }
     });
@@ -101,7 +101,7 @@ function buildStack(runtime: lambda.Runtime): cdk.Stack {
                 new AwsNodeSdkLibLayer(stack, 'AwsSharedLibLayer', {
                     entry: '../lambda/layers/aws-sdk-lib',
                     description: 'A layer to add aws-sdk shared layer',
-                    compatibleRuntimes: [lambda.Runtime.NODEJS_16_X, lambda.Runtime.NODEJS_18_X]
+                    compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
                 })
             ]
         });

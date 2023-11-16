@@ -89,7 +89,7 @@ describe('When add lambda runtime command', () => {
         beforeAll(() => {
             jest.doMock('../../lib/utils/constants', () => ({
                 COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime.NODEJS_18_X,
-                GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime.NODEJS_16_X
+                GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime.NODEJS_18_X
             }));
             const { LambdaRuntimeCommandFactory } = require('../../lib/utils/lambda-runtimes');
 
@@ -105,7 +105,7 @@ describe('When add lambda runtime command', () => {
             const result = lambdaRuntimeCommandFactory
                 .getRuntimeCommand(lambda.RuntimeFamily.NODEJS)
                 .getLambdaRuntime();
-            expect(result).toContain('Token');
+            expect(result).toContain('nodejs18.x');
         });
     });
 });

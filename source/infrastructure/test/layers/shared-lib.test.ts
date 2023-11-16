@@ -57,7 +57,7 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
             buildStack(lambda.Runtime.PYTHON_3_8);
         } catch (error) {
             expect((error as Error).message).toEqual(
-                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [nodejs16.x, nodejs18.x])`
+                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [nodejs18.x])`
             );
         }
     });
