@@ -33,7 +33,7 @@ describe('When node user agent config layer is injected as an aspect', () => {
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
             Content: Match.anyValue(),
-            CompatibleRuntimes: ['nodejs16.x', 'nodejs18.x'],
+            CompatibleRuntimes: ['nodejs18.x'],
             Description: 'This layer configures AWS Node SDK initialization to send user agent information'
         });
 
@@ -64,7 +64,7 @@ describe('When local build fails', () => {
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
             Content: Match.anyValue(),
-            CompatibleRuntimes: ['nodejs16.x', 'nodejs18.x'],
+            CompatibleRuntimes: ['nodejs18.x'],
             Description: 'This layer configures AWS Node SDK initialization to send user agent information'
         });
     });
@@ -86,13 +86,13 @@ describe('When a non-supported runtime is provided', () => {
                     new NodeUserAgentLayer(stack, 'AWSUserAgentConfigLayer', {
                         entry: '../lambda/layers/aws-node-user-agent-config',
                         description: 'This layer configures AWS Node SDK initialization to send user agent information',
-                        compatibleRuntimes: [lambda.Runtime.NODEJS_16_X, lambda.Runtime.NODEJS_18_X]
+                        compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
                     })
                 ]
             });
         } catch (error) {
             expect((error as Error).message).toEqual(
-                'This lambda function uses a runtime that is incompatible with this layer (python3.11 is not in [nodejs16.x, nodejs18.x])'
+                'This lambda function uses a runtime that is incompatible with this layer (python3.11 is not in [nodejs18.x])'
             );
         }
     });
@@ -108,13 +108,13 @@ describe('When a non-supported runtime is provided', () => {
                     new NodeUserAgentLayer(stack, 'AWSUserAgentConfigLayer', {
                         entry: '../lambda/layers/aws-node-user-agent-config',
                         description: 'This layer configures AWS Node SDK initialization to send user agent information',
-                        compatibleRuntimes: [lambda.Runtime.NODEJS_16_X, lambda.Runtime.NODEJS_18_X]
+                        compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
                     })
                 ]
             });
         } catch (error) {
             expect((error as Error).message).toEqual(
-                'This lambda function uses a runtime that is incompatible with this layer (nodejs12.x is not in [nodejs16.x, nodejs18.x])'
+                'This lambda function uses a runtime that is incompatible with this layer (nodejs12.x is not in [nodejs18.x])'
             );
         }
     });
@@ -130,7 +130,7 @@ function buildStack(): cdk.Stack {
             new NodeUserAgentLayer(stack, 'AWSUserAgentConfigLayer', {
                 entry: '../lambda/layers/aws-node-user-agent-config',
                 description: 'This layer configures AWS Node SDK initialization to send user agent information',
-                compatibleRuntimes: [lambda.Runtime.NODEJS_16_X, lambda.Runtime.NODEJS_18_X]
+                compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
             })
         ]
     });

@@ -207,7 +207,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
                 new TSUserAgentLayer(this.getConstructToCreateLayer(node), 'NodeUserAgentLayer', {
                     entry: '../lambda/layers/aws-node-user-agent-config',
                     description: 'This layer configures AWS Node SDK initialization to send user-agent information',
-                    compatibleRuntimes: [lambda.Runtime.NODEJS_16_X, lambda.Runtime.NODEJS_18_X]
+                    compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
                 })
             );
         }
@@ -249,7 +249,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
                 new AwsNodeSdkLibLayer(this.getConstructToCreateLayer(node), 'AwsNodeSdkLayer', {
                     entry: '../lambda/layers/aws-sdk-lib',
                     description: 'AWS Javascript SDK v3 to be bundled with lambda functions as a layer',
-                    compatibleRuntimes: [lambda.Runtime.NODEJS_16_X, lambda.Runtime.NODEJS_18_X]
+                    compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
                 })
             );
         }
