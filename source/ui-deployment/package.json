@@ -7,7 +7,7 @@
     "@cloudscape-design/design-tokens": "^3.0.13",
     "@cloudscape-design/global-styles": "^1.0.9",
     "@types/uuid": "9.0.2",
-    "aws-amplify": "^5.3.12",
+    "aws-amplify": "^6.0.2",
     "bootstrap": "^5.2.0",
     "react-bootstrap": "^2.7.4",
     "react-router-dom": "^6.11.1",
