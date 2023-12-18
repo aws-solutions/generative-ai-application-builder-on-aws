@@ -971,7 +971,9 @@ describe('When creating a use case management Stack', () => {
                                     'dynamodb:CreateTable',
                                     'dynamodb:DeleteTable',
                                     'dynamodb:UpdateTimeToLive',
-                                    'dynamodb:DescribeTimeToLive'
+                                    'dynamodb:DescribeTimeToLive',
+                                    'dynamodb:TagResource',
+                                    'dynamodb:ListTagsOfResource'
                                 ],
                                 Condition: {
                                     'ForAllValues:StringEquals': {

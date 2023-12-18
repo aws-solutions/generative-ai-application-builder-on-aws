@@ -81,7 +81,7 @@ exports[`Snapshot test 1`] = `
                         "defaultUserEmail": "",
                         "inError": false,
                         "useCase": Object {
-                          "label": "Chat",
+                          "label": "Text",
                           "value": "Chat",
                         },
                         "useCaseDescription": "",
@@ -141,7 +141,7 @@ exports[`Snapshot test 1`] = `
                         "defaultUserEmail": "",
                         "inError": false,
                         "useCase": Object {
-                          "label": "Chat",
+                          "label": "Text",
                           "value": "Chat",
                         },
                         "useCaseDescription": "",
@@ -201,7 +201,7 @@ exports[`Snapshot test 1`] = `
                         "defaultUserEmail": "",
                         "inError": false,
                         "useCase": Object {
-                          "label": "Chat",
+                          "label": "Text",
                           "value": "Chat",
                         },
                         "useCaseDescription": "",
@@ -261,7 +261,7 @@ exports[`Snapshot test 1`] = `
                         "defaultUserEmail": "",
                         "inError": false,
                         "useCase": Object {
-                          "label": "Chat",
+                          "label": "Text",
                           "value": "Chat",
                         },
                         "useCaseDescription": "",

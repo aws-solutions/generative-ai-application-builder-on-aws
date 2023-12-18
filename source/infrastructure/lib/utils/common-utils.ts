@@ -17,6 +17,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3_asset from 'aws-cdk-lib/aws-s3-assets';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as log from 'npmlog';
 import * as path from 'path';
@@ -373,4 +374,13 @@ export function createDefaultLambdaRole(scope: Construct, id: string): iam.Role 
     ]);
 
     return role;
+}
+
+/**
+ * Generates a unique hash identfifer using SHA256 encryption algorithm.
+ */
+export function hashValues(...values: string[]): string {
+    const sha256 = crypto.createHash('sha256');
+    values.forEach((val) => sha256.update(val));
+    return sha256.digest('hex').slice(0, 12);
 }

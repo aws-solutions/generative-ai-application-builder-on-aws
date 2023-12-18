@@ -13,11 +13,10 @@
 
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import HomeContext from '../../../../home/home.context';
 import WizardView from '../../../wizard/WizardView';
-import { API_NAME, INTERNAL_USER_GENAI_POLICY_URL, LEGAL_DISCLAIMER } from '../../../../utils/constants';
 import { API, Auth } from 'aws-amplify';
 
 const mockAPI = {
@@ -96,7 +95,11 @@ describe('Wizard', () => {
                             'amazon.titan-text-express-v1',
                             'anthropic.claude-v1',
                             'anthropic.claude-v2',
-                            'anthropic.claude-instant-v1'
+                            'anthropic.claude-instant-v1',
+                            'meta.llama2-13b-chat-v1',
+                            'meta.llama2-70b-chat-v1',
+                            'cohere.command-text-v14',
+                            'cohere.command-light-text-v1'
                         ],
                         AllowsStreaming: 'false'
                     }
@@ -104,17 +107,6 @@ describe('Wizard', () => {
             }
         }
     };
-
-    const mockUseWizard = jest.fn(() => ({
-        activeStepIndex: 2,
-        stepsInfo: {},
-        showErrorAlert: false,
-        useCaseDeployStatus: '',
-        setActiveStepIndexAndCloseTools: jest.fn(),
-        onStepInfoChange: jest.fn(),
-        onNavigate: jest.fn(),
-        onSubmit: jest.fn()
-    }));
 
     beforeEach(() => {
         mockAPI.post.mockReset();
@@ -134,10 +126,6 @@ describe('Wizard', () => {
             };
         });
 
-        // jest.mock('../../../wizard/WizardView', () => ({
-        //     __esModule: true,
-        //     default: mockUseWizard
-        // }));
 
         jest.mock('../../../wizard/WizardView', () => ({
             ...jest.requireActual('../../../wizard/WizardView'), // Use the actual implementation for other exports

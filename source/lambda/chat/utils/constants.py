@@ -14,6 +14,7 @@
 import os
 
 from langchain.prompts import PromptTemplate
+from langchain.chains.conversational_retrieval.prompts import CONDENSE_QUESTION_PROMPT
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 # Chat environment variables
@@ -99,11 +100,15 @@ MEMORY_CONFIG = {
             BedrockModelProviders.ANTHROPIC.value: "A",
             BedrockModelProviders.AMAZON.value: "Bot",
             BedrockModelProviders.AI21.value: "AI",
+            BedrockModelProviders.META.value: "AI",
+            BedrockModelProviders.COHERE.value: "AI",
         },
         "human_prefix": {
             BedrockModelProviders.ANTHROPIC.value: "H",
             BedrockModelProviders.AMAZON.value: "User",
             BedrockModelProviders.AI21.value: "Human",
+            BedrockModelProviders.META.value: "Human",
+            BedrockModelProviders.COHERE.value: "Human",
         },
         "output": None,
     },
@@ -115,11 +120,15 @@ MEMORY_CONFIG = {
             BedrockModelProviders.ANTHROPIC.value: "A",
             BedrockModelProviders.AMAZON.value: "Bot",
             BedrockModelProviders.AI21.value: "AI",
+            BedrockModelProviders.META.value: "AI",
+            BedrockModelProviders.COHERE.value: "AI",
         },
         "human_prefix": {
             BedrockModelProviders.ANTHROPIC.value: "H",
             BedrockModelProviders.AMAZON.value: "User",
             BedrockModelProviders.AI21.value: "Human",
+            BedrockModelProviders.META.value: "Human",
+            BedrockModelProviders.COHERE.value: "Human",
         },
         "output": "answer",
     },
@@ -161,6 +170,9 @@ DEFAULT_HUGGINGFACE_RAG_PLACEHOLDERS = [
     MEMORY_CONFIG[HUGGINGFACE_RAG]["input"],
     MEMORY_CONFIG[HUGGINGFACE_RAG]["context"],
 ]
+
+DEFAULT_META_PROMPT = f"[INST] {DEFAULT_CHAT_PROMPT} [/INST]"
+DEFAULT_META_RAG_PROMPT = f"[INST] {DEFAULT_HUGGINGFACE_RAG_PROMPT} [/INST]"
 
 # Anthropic non-RAG constants
 DEFAULT_ANTHROPIC_MODEL = "claude-instant-v1"
@@ -217,6 +229,7 @@ DEFAULT_BEDROCK_MODEL_FAMILY = BedrockModelProviders.AMAZON.value
 BEDROCK_MODEL_MAP = {
     BedrockModelProviders.AMAZON.value: {
         "TITAN_TEXT_EXPRESS": "amazon.titan-text-express-v1",
+        "TITAN_TEXT_LITE": "titan-text-lite-v1",
         "DEFAULT": "amazon.titan-text-express-v1",
     },
     BedrockModelProviders.AI21.value: {
@@ -228,7 +241,18 @@ BEDROCK_MODEL_MAP = {
         "ANTHROPIC_CLAUDE_INSTANT_V1": "anthropic.claude-instant-v1",
         "ANTHROPIC_CLAUDE_V1": "anthropic.claude-v1",
         "ANTHROPIC_CLAUDE_V2": "anthropic.claude-v2",
+        "ANTHROPIC_CLAUDE_V2.1": "anthropic.claude-v2:1",
         "DEFAULT": "anthropic.claude-instant-v1",
+    },
+    BedrockModelProviders.META.value: {
+        "LLAMA_2_CHAT_13_B": "meta.llama2-13b-chat-v1",
+        "LLAMA_2_CHAT_70_B": "meta.llama2-70b-chat-v1",
+        "DEFAULT": "meta.llama2-13b-chat-v1",
+    },
+    BedrockModelProviders.COHERE.value: {
+        "COMMAND": "cohere.command-text-v14",
+        "COMMAND_LIGHT": "cohere.command-light-text-v14",
+        "DEFAULT": "cohere.command-light-text-v14",
     },
 }
 
@@ -236,11 +260,15 @@ DEFAULT_BEDROCK_TEMPERATURE_MAP = {
     BedrockModelProviders.AMAZON.value: 0.0,
     BedrockModelProviders.AI21.value: 0.7,
     BedrockModelProviders.ANTHROPIC.value: 1,
+    BedrockModelProviders.META.value: 0.5,
+    BedrockModelProviders.COHERE.value: 0.75,
 }
 BEDROCK_STOP_SEQUENCES = {
     BedrockModelProviders.ANTHROPIC.value: [],
     BedrockModelProviders.AMAZON.value: ["|"],
     BedrockModelProviders.AI21.value: [],
+    BedrockModelProviders.META.value: [],
+    BedrockModelProviders.COHERE.value: [],
 }
 DEFAULT_BEDROCK_RAG_ENABLED_MODE = False
 DEFAULT_BEDROCK_STREAMING_MODE = False
@@ -250,6 +278,8 @@ DEFAULT_BEDROCK_PROMPT = {
     BedrockModelProviders.AMAZON.value: DEFAULT_CHAT_PROMPT,
     BedrockModelProviders.AI21.value: DEFAULT_CHAT_PROMPT,
     BedrockModelProviders.ANTHROPIC.value: DEFAULT_ANTHROPIC_PROMPT,
+    BedrockModelProviders.META.value: DEFAULT_META_PROMPT,
+    BedrockModelProviders.COHERE.value: DEFAULT_CHAT_PROMPT,
 }
 
 DEFAULT_BEDROCK_PLACEHOLDERS = [
@@ -273,6 +303,8 @@ User: {question}
 Bot:""",
     BedrockModelProviders.AI21.value: DEFAULT_HUGGINGFACE_RAG_PROMPT,
     BedrockModelProviders.ANTHROPIC.value: DEFAULT_ANTHROPIC_RAG_PROMPT,
+    BedrockModelProviders.META.value: DEFAULT_META_RAG_PROMPT,
+    BedrockModelProviders.COHERE.value: DEFAULT_HUGGINGFACE_RAG_PROMPT,
 }
 
 DEFAULT_BEDROCK_RAG_PLACEHOLDERS = [
@@ -296,6 +328,10 @@ Assistant: Standalone question:"""
 
 DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE = PromptTemplate.from_template(
     DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT
+)
+
+DEFAULT_BEDROCK_META_CONDENSING_PROMPT_TEMPLATE = PromptTemplate.from_template(
+    f"[INST] {CONDENSE_QUESTION_PROMPT.template} [/INST]"
 )
 
 # Chat environment variables

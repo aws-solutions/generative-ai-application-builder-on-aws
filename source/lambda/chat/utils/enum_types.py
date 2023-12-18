@@ -41,6 +41,8 @@ class BedrockModelProviders(str, Enum):
     AI21 = "AI21"
     ANTHROPIC = "ANTHROPIC"
     AMAZON = "AMAZON_TITAN"
+    META = "META"
+    COHERE = "COHERE"
 
 
 class CloudWatchNamespaces(str, Enum):

@@ -21,40 +21,38 @@ from utils.enum_types import BedrockModelProviders
 
 
 @dataclass
-class BedrockAI21LLMParams(BedrockLLMParams):
+class BedrockAmazonLLMParams(BedrockLLMParams):
     """
-    Model parameters for the AI21 model available in Bedrock.
-    The class also provides logic to parse and clean model parameters specifically for the Amazon AI21 Bedrock model.
+    Model parameters for the Amazon Titan Bedrock model.
+    The class also provides logic to parse and clean model parameters specifically for the Amazon Titan Bedrock model.
     """
 
-    maxTokens: Optional[int] = None
-    topP: Optional[float] = None
-    countPenalty: Optional[Dict[str, Any]] = None
-    presencePenalty: Optional[Dict[str, Any]] = None
-    frequencyPenalty: Optional[Dict[str, Any]] = None
+    maxTokenCount: Optional[int] = None
     stopSequences: Optional[List[str]] = None
-    temperature: float = DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AI21.value]
+    topP: Optional[float] = None
+    temperature: Optional[float] = DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AMAZON.value]
 
     def __post_init__(self):
         """
         Parses model_params to produce clean model parameters per the standards of the an underlying Bedrock model family
-        For example, for Bedrock's AI21 provision,
+        For example, for Amazon Titan,
             if provided with:
                 {
-                    "maxTokens": 250,
+                    "maxTokenCount": 250,
                     "stopSequences": '\nAI:, \nHuman:'
                     "temperature": 0.2,
                     "topP": None
                 }
             the response is:
-                BedrockAI21LLMParams(model_params={'maxTokens': 250, 'stopSequences': ['\nAI:', '\nHuman:'], 'temperature': 0.2})
+                BedrockAmazonLLMParams(model_params={'maxTokenCount': 250, 'stopSequences': ['|', '\nAI:', '\nHuman:'], 'temperature': 0.2})
 
-        Empty keys are dropped from the BedrockAI21LLMParams dataclass object. All model parameters are optional.
+        Empty keys are dropped from the BedrockAmazonLLMParams dataclass object. All model parameters are optional.
         Stop sequences are also set to a default if a default exists for that model provider.
-
         """
         user_stop_sequences = self.stopSequences if self.stopSequences is not None else []
-        self.stopSequences = list(set(BEDROCK_STOP_SEQUENCES[BedrockModelProviders.AI21.value] + user_stop_sequences))
+        self.stopSequences = list(
+            sorted(set(BEDROCK_STOP_SEQUENCES[BedrockModelProviders.AMAZON.value] + user_stop_sequences))
+        )
 
     def get_params_as_dict(self, pop_null=True) -> Dict[str, Any]:
         """

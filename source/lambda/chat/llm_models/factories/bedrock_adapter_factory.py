@@ -16,7 +16,10 @@ from aws_lambda_powertools import Logger
 from llm_models.models.bedrock_ai21_params import BedrockAI21LLMParams
 from llm_models.models.bedrock_anthropic_params import BedrockAnthropicLLMParams
 from llm_models.models.bedrock_llm_params import BedrockLLMParams
-from llm_models.models.bedrock_titan_params import BedrockTitanLLMParams
+from llm_models.models.bedrock_amazon_params import BedrockAmazonLLMParams
+from llm_models.models.bedrock_meta_params import BedrockMetaLLMParams
+from llm_models.models.bedrock_cohere_params import BedrockCohereLLMParams
+
 from utils.enum_types import BedrockModelProviders
 
 logger = Logger(utc=True)
@@ -32,7 +35,9 @@ class BedrockAdapterFactory:
         self.model_map = {
             BedrockModelProviders.ANTHROPIC.value: BedrockAnthropicLLMParams,
             BedrockModelProviders.AI21.value: BedrockAI21LLMParams,
-            BedrockModelProviders.AMAZON.value: BedrockTitanLLMParams,
+            BedrockModelProviders.AMAZON.value: BedrockAmazonLLMParams,
+            BedrockModelProviders.META.value: BedrockMetaLLMParams,
+            BedrockModelProviders.COHERE.value: BedrockCohereLLMParams,
         }
 
     def get_bedrock_adapter(self, model_family) -> BedrockLLMParams:

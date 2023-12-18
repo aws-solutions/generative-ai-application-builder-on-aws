@@ -30,7 +30,7 @@ TYPE_CASTING_MAP = {
     "string": str,
     "boolean": lambda value: value.lower() in ["true", "yes"],
     "list": lambda value: json.loads(value, strict=False),
-    "dict": lambda value: json.loads(value),
+    "dictionary": lambda value: json.loads(value),
 }
 
 

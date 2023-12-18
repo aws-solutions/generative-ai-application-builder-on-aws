@@ -233,11 +233,7 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
         }
         let text = '';
         
-        if (response.message) {
-            text += "Chat service failed to respond. Please contact your administrator for support.";
-            homeDispatch({ field: 'messageIsStreaming', value: false });
-            homeDispatch({ field: 'loading', value: false });
-        } else if (response.errorMessage) {
+        if (response.errorMessage) {
             text += response.errorMessage;
             homeDispatch({ field: 'messageIsStreaming', value: false });
             homeDispatch({ field: 'loading', value: false });

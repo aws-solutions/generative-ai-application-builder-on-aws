@@ -42,12 +42,12 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict:
     :param context (LambdaContext): AWS Lambda Context
     :return: the generated response from the chatbot
     """
-    huggingface_client = HuggingFaceClient(
-        connection_id=event["requestContext"]["connectionId"],
-        rag_enabled=os.getenv(RAG_ENABLED_ENV_VAR, DEFAULT_HUGGINGFACE_RAG_ENABLED_MODE),
-    )
 
     try:
+        huggingface_client = HuggingFaceClient(
+            connection_id=event["requestContext"]["connectionId"],
+            rag_enabled=os.getenv(RAG_ENABLED_ENV_VAR, DEFAULT_HUGGINGFACE_RAG_ENABLED_MODE),
+        )
         huggingface_client.check_env()
         event_body = huggingface_client.check_event(event)
         huggingface_chat = huggingface_client.get_model(

@@ -16,7 +16,6 @@ import renderer from 'react-test-renderer';
 import HomeContext from '../../../../../home/home.context';
 import Review from '../../../../wizard/stepComponents/step4';
 import {
-    DEFAULT_STEP_INFO,
     USE_CASE_OPTIONS,
     KNOWLEDGE_BASE_TYPES,
     DEFAULT_ADDITIONAL_KENDRA_QUERY_CAPACITY,

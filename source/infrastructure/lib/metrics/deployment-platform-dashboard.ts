@@ -16,7 +16,7 @@ import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import { Construct } from 'constructs';
 import { CustomDashboard, CustomDashboardProps } from './custom-dashboard';
 import { CloudWatchNamespace, CloudWatchMetrics } from '../utils/constants';
-import { SERVICE_NAME } from '../../lib/utils/constants'
+import { SERVICE_NAME } from '../../lib/utils/constants';
 
 /**
  * This construct creates a custom Dashboard in Amazon CloudWatch and adds widgets and defines metrics. It defines
@@ -168,7 +168,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         period: cdk.Duration.hours(1),
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         color: cloudwatch.Color.BLUE
                     }),
@@ -178,7 +178,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         label: CloudWatchMetrics.UC_INITIATION_FAILURE + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         period: cdk.Duration.hours(1),
                         color: cloudwatch.Color.ORANGE
@@ -189,7 +189,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         label: CloudWatchMetrics.UC_DELETION_SUCCESS + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         period: cdk.Duration.hours(1),
                         color: cloudwatch.Color.PURPLE
@@ -200,7 +200,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         label: CloudWatchMetrics.UC_DELETION_FAILURE + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         period: cdk.Duration.hours(1),
                         color: cloudwatch.Color.RED
@@ -211,7 +211,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         label: CloudWatchMetrics.UC_UPDATE_SUCCESS + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         period: cdk.Duration.hours(1),
                         color: cloudwatch.Color.GREEN
@@ -222,7 +222,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         label: CloudWatchMetrics.UC_UPDATE_FAILURE + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         period: cdk.Duration.hours(1),
                         color: cloudwatch.Color.BROWN
@@ -233,7 +233,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         label: CloudWatchMetrics.UC_DESCRIBE_SUCCESS + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         period: cdk.Duration.hours(1),
                         color: cloudwatch.Color.PINK
@@ -244,7 +244,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         label: CloudWatchMetrics.UC_DESCRIBE_FAILURE + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
                         dimensionsMap: {
-                            service: SERVICE_NAME,
+                            service: SERVICE_NAME
                         },
                         period: cdk.Duration.hours(1),
                         color: cloudwatch.Color.GREY

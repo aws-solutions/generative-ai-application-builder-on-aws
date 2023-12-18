@@ -204,6 +204,7 @@ class BedrockLLM(BaseLangChainModel):
         """
         sanitized_model_params = super().get_clean_model_params(model_params)
         bedrock_adapter = BedrockAdapterFactory().get_bedrock_adapter(self.model_family)
+        sanitized_model_params["temperature"] = float(self.temperature)
 
         try:
             bedrock_llm_params_dict = bedrock_adapter(**sanitized_model_params).get_params_as_dict()
@@ -217,8 +218,10 @@ class BedrockLLM(BaseLangChainModel):
             raise LLMBuildError(error_message)
 
         stop_sequence_keys = ["stop_sequences", "stopSequences"]
+        self.stop_sequences = []
         for stop in stop_sequence_keys:
             if stop in bedrock_llm_params_dict:
                 self.stop_sequences = bedrock_llm_params_dict[stop]
+                break
 
         return bedrock_llm_params_dict
