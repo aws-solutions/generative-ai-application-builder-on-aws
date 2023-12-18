@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import pytest
-from llm_models.models.bedrock_titan_params import BedrockTitanLLMParams
+from llm_models.models.bedrock_amazon_params import BedrockAmazonLLMParams
 from utils.constants import DEFAULT_BEDROCK_TEMPERATURE_MAP
 from utils.enum_types import BedrockModelProviders
 
@@ -22,7 +22,7 @@ from utils.enum_types import BedrockModelProviders
     "params, expected_response",
     [
         (
-            {"maxTokenCount": 512, "topP": 0.2, "stopSequences": "", "temperature": 0.2},
+            {"maxTokenCount": 512, "topP": 0.2, "temperature": 0.2},
             {"maxTokenCount": 512, "topP": 0.2, "stopSequences": ["|"], "temperature": 0.2},
         ),
         (
@@ -30,7 +30,7 @@ from utils.enum_types import BedrockModelProviders
             {"maxTokenCount": 512, "topP": 0.2, "stopSequences": ["ai:", "human:", "|"], "temperature": 0.2},
         ),
         (
-            {"maxTokenCount": 512, "topP": 0.2, "stopSequences": ""},
+            {"maxTokenCount": 512, "topP": 0.2},
             {
                 "maxTokenCount": 512,
                 "topP": 0.2,
@@ -47,11 +47,11 @@ from utils.enum_types import BedrockModelProviders
         ),
     ],
 )
-def test_ai21_params_dataclass_success(params, expected_response):
-    bedrock_params = BedrockTitanLLMParams(**params)
+def test_amazon_params_dataclass_success(params, expected_response):
+    bedrock_params = BedrockAmazonLLMParams(**params)
     assert bedrock_params.temperature == expected_response["temperature"]
-    assert bedrock_params.maxTokenCount is expected_response.get("maxTokenCount", None)
-    assert bedrock_params.topP == expected_response.get("topP", None)
+    assert bedrock_params.maxTokenCount is expected_response.get("maxTokenCount")
+    assert bedrock_params.topP == expected_response.get("topP")
     assert sorted(bedrock_params.stopSequences) == expected_response.get("stopSequences", [])
 
 
@@ -97,6 +97,22 @@ def test_ai21_params_dataclass_success(params, expected_response):
         ),
     ],
 )
-def test_ai21_get_params_as_dict(pop_null, params, expected_response):
-    bedrock_params = BedrockTitanLLMParams(**params)
+def test_amazon_get_params_as_dict(pop_null, params, expected_response):
+    bedrock_params = BedrockAmazonLLMParams(**params)
     assert bedrock_params.get_params_as_dict(pop_null=pop_null) == expected_response
+
+
+def test_amazon_incorrect_params():
+    with pytest.raises(TypeError) as error:
+        BedrockAmazonLLMParams(
+            **{
+                "maxTokenCount": 512,
+                "topP": 0.2,
+                "temperature": 0.2,
+                "incorrect_param": 0.1,
+            }
+        )
+
+    assert (
+        error.value.args[0] == "BedrockAmazonLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
+    )

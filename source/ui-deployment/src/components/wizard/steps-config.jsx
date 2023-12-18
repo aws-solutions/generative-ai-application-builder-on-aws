@@ -19,7 +19,7 @@ import {
 export const USE_CASE_OPTIONS = [
     {
         value: 'Chat',
-        label: 'Chat'
+        label: 'Text'
     }
 ];
 
@@ -102,4 +102,4 @@ export const DEFAULT_STEP_INFO = {
     }
 };
 
-export const BEDROCK_MODEL_PROVIDERS_WITH_STREAMING = ['amazon', 'anthropic'];
+export const BEDROCK_MODEL_PROVIDERS_WITH_STREAMING = ['amazon', 'anthropic', 'cohere', 'meta'];

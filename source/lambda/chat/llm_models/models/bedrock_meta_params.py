@@ -12,29 +12,33 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-import pytest
-from llm_models.factories.bedrock_adapter_factory import BedrockAdapterFactory
-from llm_models.models.bedrock_ai21_params import BedrockAI21LLMParams
-from llm_models.models.bedrock_anthropic_params import BedrockAnthropicLLMParams
-from llm_models.models.bedrock_amazon_params import BedrockAmazonLLMParams
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
+from llm_models.models.bedrock_llm_params import BedrockLLMParams
+from utils.constants import DEFAULT_BEDROCK_TEMPERATURE_MAP
 from utils.enum_types import BedrockModelProviders
 
 
-@pytest.mark.parametrize(
-    "model_family, expected_adapter",
-    [
-        (BedrockModelProviders.ANTHROPIC.value, BedrockAnthropicLLMParams),
-        (BedrockModelProviders.AMAZON.value, BedrockAmazonLLMParams),
-        (BedrockModelProviders.AI21.value, BedrockAI21LLMParams),
-    ],
-)
-def test_sanitizer_passes(model_family, expected_adapter):
-    bedrock_adapter = BedrockAdapterFactory().get_bedrock_adapter(model_family)
-    assert bedrock_adapter == expected_adapter
+@dataclass
+class BedrockMetaLLMParams(BedrockLLMParams):
+    """
+    Model parameters for the Meta model available in Bedrock.
+    The class also provides logic to parse and clean model parameters specifically for the Amazon Meta Bedrock model.
+    """
 
+    max_gen_len: Optional[int] = None
+    top_p: Optional[float] = None
+    temperature: float = DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.META.value]
 
-def test_sanitizer_fails():
-    with pytest.raises(ValueError) as error:
-        BedrockAdapterFactory().get_bedrock_adapter("Ai21")
+    def get_params_as_dict(self, pop_null=True) -> Dict[str, Any]:
+        """
+        Takes the model dataclass object and returns a dict of the model parameters.
 
-    assert error.value.args[0] == "BedrockAdapterFactory: Provided model family is not supported."
+        Args:
+            pop_null (bool): If true, pops the null/empty values from the dict.
+
+        Returns:
+            (Dict): Dict of the model parameters.
+        """
+        return super().get_params_as_dict(pop_null=pop_null)

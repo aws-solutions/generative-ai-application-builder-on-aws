@@ -12,7 +12,7 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from llm_models.models.bedrock_llm_params import BedrockLLMParams
@@ -21,46 +21,33 @@ from utils.enum_types import BedrockModelProviders
 
 
 @dataclass
-class BedrockTitanLLMParams(BedrockLLMParams):
+class BedrockCohereLLMParams(BedrockLLMParams):
     """
-    Model parameters for the Amazon Titan Bedrock model.
-    The class also provides logic to parse and clean model parameters specifically for the Amazon Titan Bedrock model.
+    Model parameters for the Anthropic model available in Bedrock.
+    The class also provides logic to parse and clean model parameters specifically for the Amazon AI21 Bedrock model.
     """
 
-    maxTokenCount: Optional[int] = None
-    stopSequences: Optional[List[str]] = field(default_factory=list)
-    topP: Optional[float] = None
-    temperature: Optional[float] = DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AMAZON.value]
+    num_generations: Optional[int] = None
+    logit_bias: Optional[Dict[str, float]] = None
+    stream: Optional[bool] = None
+    return_likelihoods: Optional[str] = None
+    temperature: Optional[float] = DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.COHERE.value]
+    p: Optional[float] = None
+    k: Optional[float] = None
+    max_tokens: Optional[int] = None
+    truncate: Optional[str] = None
+    stop_sequences: Optional[List[str]] = None
 
     def __post_init__(self):
         """
         Parses model_params to produce clean model parameters per the standards of the an underlying Bedrock model family
-        For example, for Amazon Titan,
-            if provided with:
-                {
-                    "maxTokenCount": 250,
-                    "stopSequences": '\nAI:, \nHuman:'
-                    "temperature": 0.2,
-                    "topP": None
-                }
-            the response is:
-                BedrockTitanLLMParams(model_params={'maxTokenCount': 250, 'stopSequences': ['|', '\nAI:', '\nHuman:'], 'temperature': 0.2})
-
-        Empty keys are dropped from the BedrockTitanLLMParams dataclass object. All model parameters are optional.
-        Temperature is set to model default value if not provided.
-        Stop sequences are also set to a default if a default exists for that model provider.
-
+        Empty keys are dropped from the BedrockCohereLLMParams dataclass object. All model parameters are optional.
+        Stop sequences are extended to include defaults if a default exists for that model provider.
         """
-        user_stop_sequences = self.stopSequences if self.stopSequences else []
-        self.stopSequences = list(
-            sorted(set(BEDROCK_STOP_SEQUENCES[BedrockModelProviders.AMAZON.value] + user_stop_sequences))
+        user_stop_sequences = self.stop_sequences if self.stop_sequences is not None else []
+        self.stop_sequences = list(
+            sorted(set(BEDROCK_STOP_SEQUENCES[BedrockModelProviders.COHERE.value] + user_stop_sequences))
         )
-        self.temperature = (
-            float(self.temperature)
-            if self.temperature is not None
-            else DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AMAZON.value]
-        )
-        self.topP = float(self.topP) if self.topP is not None else None
 
     def get_params_as_dict(self, pop_null=True) -> Dict[str, Any]:
         """
@@ -72,4 +59,4 @@ class BedrockTitanLLMParams(BedrockLLMParams):
         Returns:
             (Dict): Dict of the model parameters.
         """
-        return super().get_params_as_dict(stop_sequence_key="stopSequences", pop_null=pop_null)
+        return super().get_params_as_dict(stop_sequence_key="stop_sequences", pop_null=pop_null)

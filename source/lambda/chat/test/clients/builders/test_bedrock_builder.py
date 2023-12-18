@@ -120,7 +120,7 @@ def test_set_llm_model(
     assert builder.llm_model.model == config["LlmParams"]["ModelId"]
     assert builder.llm_model.prompt_template.template == prompt
     assert set(builder.llm_model.prompt_template.input_variables) == set(placeholders)
-    assert builder.llm_model.model_params["temperature"] == 0.0
+    assert builder.llm_model.model_params["temperature"] == 0.2
     assert sorted(builder.llm_model.model_params["stopSequences"]) == ["|"]
     assert builder.llm_model.streaming == config["LlmParams"]["Streaming"]
     assert builder.llm_model.verbose == config["LlmParams"]["Verbose"]

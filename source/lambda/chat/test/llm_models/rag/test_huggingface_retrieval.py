@@ -47,6 +47,7 @@ def huggingface_model(is_streaming, setup_environment):
         },
         prompt_template=DEFAULT_HUGGINGFACE_RAG_PROMPT,
         streaming=is_streaming,
+        temperature=0.3,
         verbose=False,
         callbacks=None,
     )
@@ -62,7 +63,7 @@ def test_implement_error_not_raised(chat_fixture, is_streaming, request):
         assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_HUGGINGFACE_RAG_PLACEHOLDERS)
         assert chat_model.model_params == {
             "top_p": 0.2,
-            "temperature": DEFAULT_HUGGINGFACE_TEMPERATURE,
+            "temperature": 0.3,
             "max_length": 100,
         }
         assert chat_model.api_token == "fake-token"

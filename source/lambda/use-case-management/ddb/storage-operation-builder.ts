@@ -81,7 +81,8 @@ export class UpdateItemCommandBuilder extends CommandInputBuilder {
             Key: {
                 UseCaseId: { S: this.useCase.useCaseId }
             },
-            UpdateExpression: 'SET #Description = :description, #UpdatedDate = :date, #UpdatedBy = :user, #SSMParameterKey = :ssm_parameter_key',
+            UpdateExpression:
+                'SET #Description = :description, #UpdatedDate = :date, #UpdatedBy = :user, #SSMParameterKey = :ssm_parameter_key',
             ExpressionAttributeNames: {
                 ['#Description']: 'Description',
                 ['#UpdatedDate']: 'UpdatedDate',

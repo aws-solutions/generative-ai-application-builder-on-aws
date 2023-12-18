@@ -160,9 +160,8 @@ export class StackManagement {
             metrics.addMetric(CloudWatchMetrics.UC_DESCRIBE_FAILURE, MetricUnits.Count, 1);
             logger.error(`Error occurred when describing stack, error is ${error}`);
             throw error;
-        }
-        finally {
-            metrics.publishStoredMetrics()
+        } finally {
+            metrics.publishStoredMetrics();
         }
     }
 

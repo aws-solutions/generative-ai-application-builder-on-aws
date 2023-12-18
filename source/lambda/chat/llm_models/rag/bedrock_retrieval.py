@@ -26,6 +26,7 @@ from llm_models.bedrock import BedrockLLM
 from shared.knowledge.knowledge_base import KnowledgeBase
 from utils.constants import (
     DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE,
+    DEFAULT_BEDROCK_META_CONDENSING_PROMPT_TEMPLATE,
     DEFAULT_BEDROCK_MODEL_FAMILY,
     DEFAULT_BEDROCK_STREAMING_MODE,
     DEFAULT_BEDROCK_TEMPERATURE_MAP,
@@ -88,11 +89,12 @@ class BedrockRetrievalLLM(BedrockLLM):
         if condensing_prompt_template:
             self.condensing_prompt_template = condensing_prompt_template
         else:
-            self.condensing_prompt_template = (
-                DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE
-                if model_family == BedrockModelProviders.ANTHROPIC.value
-                else CONDENSE_QUESTION_PROMPT
-            )
+            if model_family == BedrockModelProviders.ANTHROPIC.value:
+                self.condensing_prompt_template = DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE
+            elif model_family == BedrockModelProviders.META.value:
+                self.condensing_prompt_template = DEFAULT_BEDROCK_META_CONDENSING_PROMPT_TEMPLATE
+            else:
+                self.condensing_prompt_template = CONDENSE_QUESTION_PROMPT
 
         super().__init__(
             conversation_memory=conversation_memory,

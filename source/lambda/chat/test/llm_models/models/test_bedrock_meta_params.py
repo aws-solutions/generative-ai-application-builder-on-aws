@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import pytest
-from llm_models.models.bedrock_anthropic_params import BedrockAnthropicLLMParams
+from llm_models.models.bedrock_meta_params import BedrockMetaLLMParams
 from utils.constants import DEFAULT_BEDROCK_TEMPERATURE_MAP
 from utils.enum_types import BedrockModelProviders
 
@@ -22,60 +22,34 @@ from utils.enum_types import BedrockModelProviders
     "params, expected_response",
     [
         (
-            {"max_tokens_to_sample": 512, "top_p": 0.2, "top_k": 0.2, "temperature": 0.2},
+            {"max_gen_len": 512, "top_p": 0.2, "temperature": 0.2},
             {
-                "max_tokens_to_sample": 512,
+                "max_gen_len": 512,
                 "top_p": 0.2,
-                "top_k": 0.2,
-                "stop_sequences": [],
                 "temperature": 0.2,
             },
         ),
         (
+            {"max_gen_len": 512, "top_p": 0.2},
             {
-                "max_tokens_to_sample": 512,
+                "max_gen_len": 512,
                 "top_p": 0.2,
-                "top_k": 0.2,
-                "stop_sequences": ["human:", "ai:"],
-                "temperature": 0.2,
-            },
-            {
-                "max_tokens_to_sample": 512,
-                "top_p": 0.2,
-                "top_k": 0.2,
-                "stop_sequences": ["ai:", "human:"],
-                "temperature": 0.2,
-            },
-        ),
-        (
-            {
-                "max_tokens_to_sample": 512,
-                "top_p": 0.2,
-                "top_k": 0.2,
-            },
-            {
-                "max_tokens_to_sample": 512,
-                "top_p": 0.2,
-                "top_k": 0.2,
-                "stop_sequences": [],
-                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value],
+                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.META.value],
             },
         ),
         (
             {},
             {
-                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value],
+                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.META.value],
             },
         ),
     ],
 )
-def test_anthropic_params_dataclass_success(params, expected_response):
-    bedrock_params = BedrockAnthropicLLMParams(**params)
+def test_meta_params_dataclass_success(params, expected_response):
+    bedrock_params = BedrockMetaLLMParams(**params)
     assert bedrock_params.temperature == expected_response["temperature"]
-    assert bedrock_params.max_tokens_to_sample is expected_response.get("max_tokens_to_sample")
+    assert bedrock_params.max_gen_len == expected_response.get("max_gen_len")
     assert bedrock_params.top_p == expected_response.get("top_p")
-    assert bedrock_params.top_k == expected_response.get("top_k")
-    assert bedrock_params.stop_sequences == expected_response.get("stop_sequences", [])
 
 
 @pytest.mark.parametrize(
@@ -86,58 +60,50 @@ def test_anthropic_params_dataclass_success(params, expected_response):
             {"top_p": 0.2},
             {
                 "top_p": 0.2,
-                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value],
+                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.META.value],
             },
         ),
         (
             True,
             {},
             {
-                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value],
+                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.META.value],
             },
         ),
         (
             False,
             {},
             {
-                "max_tokens_to_sample": None,
+                "max_gen_len": None,
                 "top_p": None,
-                "top_k": None,
-                "stop_sequences": [],
-                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value],
+                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.META.value],
             },
         ),
         (
             False,
             {"top_p": 0.2},
             {
-                "max_tokens_to_sample": None,
+                "max_gen_len": None,
                 "top_p": 0.2,
-                "top_k": None,
-                "stop_sequences": [],
-                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value],
+                "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.META.value],
             },
         ),
     ],
 )
-def test_anthropic_get_params_as_dict(pop_null, params, expected_response):
-    bedrock_params = BedrockAnthropicLLMParams(**params)
+def test_meta_get_params_as_dict(pop_null, params, expected_response):
+    bedrock_params = BedrockMetaLLMParams(**params)
     assert bedrock_params.get_params_as_dict(pop_null=pop_null) == expected_response
 
 
-def test_anthropic_incorrect_params():
+def test_meta_incorrect_params():
     with pytest.raises(TypeError) as error:
-        BedrockAnthropicLLMParams(
+        BedrockMetaLLMParams(
             **{
-                "max_tokens_to_sample": 512,
+                "max_gen_len": 512,
                 "top_p": 0.2,
-                "top_k": 0.2,
                 "temperature": 0.2,
                 "incorrect_param": 0.1,
             }
         )
 
-    assert (
-        error.value.args[0]
-        == "BedrockAnthropicLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
-    )
+    assert error.value.args[0] == "BedrockMetaLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"

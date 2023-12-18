@@ -659,7 +659,9 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                             'dynamodb:CreateTable',
                             'dynamodb:DeleteTable',
                             'dynamodb:UpdateTimeToLive',
-                            'dynamodb:DescribeTimeToLive'
+                            'dynamodb:DescribeTimeToLive',
+                            'dynamodb:TagResource',
+                            'dynamodb:ListTagsOfResource'
                         ],
                         resources: [
                             `arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`

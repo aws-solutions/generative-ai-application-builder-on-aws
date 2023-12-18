@@ -12,7 +12,7 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from llm_models.models.bedrock_llm_params import BedrockLLMParams
@@ -30,8 +30,8 @@ class BedrockAnthropicLLMParams(BedrockLLMParams):
     max_tokens_to_sample: Optional[int] = None
     top_p: Optional[float] = None
     top_k: Optional[float] = None
-    stop_sequences: Optional[List[str]] = field(default_factory=list)
-    temperature: Optional[float] = DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value]
+    stop_sequences: Optional[List[str]] = None
+    temperature: float = DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value]
 
     def __post_init__(self):
         """
@@ -51,19 +51,10 @@ class BedrockAnthropicLLMParams(BedrockLLMParams):
         Temperature is set to model default value if not provided.
         Stop sequences are also set to a default if a default exists for that model provider.
         """
-        user_stop_sequences = self.stop_sequences if self.stop_sequences else []
+        user_stop_sequences = self.stop_sequences if self.stop_sequences is not None else []
         self.stop_sequences = list(
             sorted(set(BEDROCK_STOP_SEQUENCES[BedrockModelProviders.ANTHROPIC.value] + user_stop_sequences))
         )
-
-        self.temperature = (
-            float(self.temperature)
-            if self.temperature is not None
-            else DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.ANTHROPIC.value]
-        )
-
-        self.top_p = float(self.top_p) if self.top_p is not None else None
-        self.top_k = float(self.top_k) if self.top_k is not None else None
 
     def get_params_as_dict(self, pop_null=True) -> Dict[str, Any]:
         """

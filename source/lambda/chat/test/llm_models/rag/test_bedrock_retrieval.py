@@ -25,12 +25,12 @@ from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistor
 from utils.constants import (
     BEDROCK_MODEL_MAP,
     DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE,
+    DEFAULT_BEDROCK_META_CONDENSING_PROMPT_TEMPLATE,
     DEFAULT_BEDROCK_RAG_PLACEHOLDERS,
     DEFAULT_BEDROCK_RAG_PROMPT,
-    MEMORY_CONFIG,
 )
 from utils.custom_exceptions import LLMBuildError
-from utils.enum_types import BedrockModelProviders, LLMProviderTypes
+from utils.enum_types import BedrockModelProviders
 
 mocked_doc = Document(**{"page_content": "some-page-content-1", "metadata": {"source": "fake-url-1"}})
 
@@ -45,9 +45,9 @@ def titan_model(is_streaming, setup_environment):
         model=BEDROCK_MODEL_MAP[BedrockModelProviders.AMAZON.value]["DEFAULT"],
         model_params={
             "maxTokenCount": {"Type": "integer", "Value": "512"},
-            "temperature": {"Type": "float", "Value": "0.2"},
             "topP": {"Type": "float", "Value": "0.9"},
         },
+        temperature=0.2,
         prompt_template=DEFAULT_BEDROCK_RAG_PROMPT[BedrockModelProviders.AMAZON.value],
         streaming=is_streaming,
         verbose=False,
@@ -112,6 +112,7 @@ def test_exception_for_failed_model_incorrect_key(is_streaming, setup_environmen
                 model_params={"incorrect_param": {"Type": "integer", "Value": "512"}},
                 prompt_template=DEFAULT_BEDROCK_RAG_PROMPT[BedrockModelProviders.AMAZON.value],
                 streaming=is_streaming,
+                temperature=0.3,
                 verbose=False,
                 callbacks=None,
             )
@@ -120,11 +121,11 @@ def test_exception_for_failed_model_incorrect_key(is_streaming, setup_environmen
     assert error.value.args[0] == (
         f"Error occurred while building Bedrock {model_family} {model} Model. "
         "Ensure that the model params provided are correct and they match the model specification. "
-        "Received params: {'incorrect_param': 512}. Error: BedrockTitanLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
+        "Received params: {'incorrect_param': 512, 'temperature': 0.3}. Error: BedrockAmazonLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
     )
 
 
-@pytest.mark.parametrize("is_streaming", [False, True])
+@pytest.mark.parametrize("is_streaming", [False])
 def test_anthropic_condensing_prompt():
     chat_model = BedrockRetrievalLLM(
         conversation_memory=DynamoDBChatMemory(
@@ -135,11 +136,11 @@ def test_anthropic_condensing_prompt():
         model=BEDROCK_MODEL_MAP[BedrockModelProviders.ANTHROPIC.value]["DEFAULT"],
         model_params={
             "top_k": {"Type": "float", "Value": "0.2"},
-            "temperature": {"Type": "float", "Value": "0.2"},
             "top_p": {"Type": "float", "Value": "0.9"},
         },
         prompt_template=DEFAULT_BEDROCK_RAG_PROMPT[BedrockModelProviders.ANTHROPIC.value],
         streaming=False,
+        temperature=0.3,
         verbose=False,
         callbacks=None,
     )
@@ -147,7 +148,7 @@ def test_anthropic_condensing_prompt():
     assert chat_model.model == BEDROCK_MODEL_MAP[BedrockModelProviders.ANTHROPIC.value]["DEFAULT"]
     assert chat_model.prompt_template.template == DEFAULT_BEDROCK_RAG_PROMPT[BedrockModelProviders.ANTHROPIC.value]
     assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_BEDROCK_RAG_PLACEHOLDERS)
-    assert chat_model.model_params == {"temperature": 0.2, "top_k": 0.2, "top_p": 0.9}
+    assert chat_model.model_params == {"temperature": 0.3, "top_k": 0.2, "top_p": 0.9}
     assert chat_model.streaming == False
     assert chat_model.verbose == False
     assert chat_model.knowledge_base.kendra_index_id == "fake-kendra-index-id"
@@ -156,3 +157,17 @@ def test_anthropic_condensing_prompt():
 
     assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
     assert type(chat_model.conversation_memory) == DynamoDBChatMemory
+
+@pytest.mark.parametrize("is_streaming", [False])
+def test_meta_condensing_prompt():
+    chat_model = BedrockRetrievalLLM(
+        conversation_memory=DynamoDBChatMemory(
+            DynamoDBChatMessageHistory("fake-table", "fake-conversation-id", "fake-user-id")
+        ),
+        knowledge_base=KendraKnowledgeBase(),
+        model_family=BedrockModelProviders.META.value,
+        model=BEDROCK_MODEL_MAP[BedrockModelProviders.META.value]["DEFAULT"],
+        prompt_template=DEFAULT_BEDROCK_RAG_PROMPT[BedrockModelProviders.META.value],
+    )
+
+    assert chat_model.condensing_prompt_template == DEFAULT_BEDROCK_META_CONDENSING_PROMPT_TEMPLATE

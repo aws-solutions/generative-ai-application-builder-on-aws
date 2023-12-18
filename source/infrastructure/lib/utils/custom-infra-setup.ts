@@ -165,6 +165,6 @@ export class CustomInfraSetup extends Construct {
                 reason: 'The wildcard permission is required to publish events for x-ray insights',
                 appliesTo: ['Resource::*']
             }
-        ]);        
+        ]);
     }
 }

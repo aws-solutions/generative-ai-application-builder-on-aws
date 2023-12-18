@@ -37,7 +37,7 @@ export const MAX_ADDITIONAL_KENDRA_QUERY_CAPACITY = 5;
 export const MIN_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 0;
 export const MAX_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 5;
 export const MIN_KNOWLEDGE_BASE_NUM_DOCS = 1;
-export const MAX_KNOWLEDGE_BASE_NUM_DOCS = 5;
+export const MAX_KNOWLEDGE_BASE_NUM_DOCS = 100;
 export const DELAY_AFTER_DELETE_MS = 2000; // 2 seconds
 
 export const DEFAULT_KENDRA_NUMBER_OF_DOCS = 2;
@@ -87,27 +87,15 @@ export const CFN_STACK_STATUS_INDICATOR = {
     STOPPED: 'stopped'
 };
 
-export const MODEL_PARAM_TYPES = ['string', 'integer', 'float', 'boolean', 'list', 'dict'];
+export const MODEL_PARAM_TYPES = ['string', 'integer', 'float', 'boolean', 'list', 'dictionary'];
 
 export const DEFAULT_KNOWLEDGE_BASE_TYPE = 'Kendra';
 
 export const LEGAL_DISCLAIMER = `
-Generative AI Application Builder on AWS allows you to build and deploy
-generative artificial intelligence (GAI) applications on AWS by engaging the GAI model
-of your choice, including third-party GAI models that you may choose to use that AWS
-does not own or otherwise have any control over (“Third-Party GAI Models”).
-Your use of the Third-Party GAI Models is governed by the terms provided to you
-by the Third-Party GAI Model providers when you acquired your license to use them
-(for example, their terms of service, license agreement, acceptable use policy, and privacy policy).
-You are responsible for ensuring that your use of the Third-Party GAI Models comply
-with the terms governing them, and any laws, rules, regulations, policies, or standards
-that apply to you. You are also responsible for making your own independent assessment
-of the Third-Party GAI Models that you use, including their outputs and how Third-Party
-GAI Model providers use any data that may be transmitted to them based on your deployment
-configuration. AWS does not make any representations, warranties, or guarantees regarding
-the Third-Party GAI Models, which are “Third-Party Content” under your agreement with AWS.
-Generative AI Application Builder on AWS is offered to you as
-“AWS Content” under your agreement with AWS.
+Generative AI Application Builder on AWS allows you to build and deploy generative artificial intelligence applications on AWS by engaging the generative AI model of your choice, including third-party generative AI models that you can choose to use that AWS does not own or otherwise have any control over ("Third-Party Generative AI Models").
+Your use of the Third-Party Generative AI Models is governed by the terms provided to you by the Third-Party Generative AI Model providers when you acquired your license to use them (for example, their terms of service, license agreement, acceptable use policy, and privacy policy).
+You are responsible for ensuring that your use of the Third-Party Generative AI Models comply with the terms governing them, and any laws, rules, regulations, policies, or standards that apply to you.
+You are also responsible for making your own independent assessment of the Third-Party Generative AI Models that you use, including their outputs and how Third-Party Generative AI Model providers use any data that might be transmitted to them based on your deployment configuration. AWS does not make any representations, warranties, or guarantees regarding the Third-Party Generative AI Models, which are "Third-Party Content" under your agreement with AWS. Generative AI Application Builder on AWS is offered to you as "AWS Content" under your agreement with AWS.
 `;
 
 export const KENDRA_WARNING = `

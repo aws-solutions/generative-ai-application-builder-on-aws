@@ -47,6 +47,7 @@ def anthropic_model(is_streaming, setup_environment):
         },
         prompt_template=DEFAULT_ANTHROPIC_RAG_PROMPT,
         streaming=is_streaming,
+        temperature=0.3,
         verbose=False,
         callbacks=None,
     )
@@ -61,7 +62,7 @@ def test_implement_error_not_raised(chat_fixture, is_streaming, request):
         assert chat_model.prompt_template.template == DEFAULT_ANTHROPIC_RAG_PROMPT
         assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_ANTHROPIC_RAG_PLACEHOLDERS)
         assert chat_model.model_params == {
-            "temperature": DEFAULT_ANTHROPIC_TEMPERATURE,
+            "temperature": 0.3,
             "max_tokens_to_sample": 200,
             "top_p": 0.2,
         }
@@ -116,5 +117,5 @@ def test_exception_for_failed_model_incorrect_key(setup_environment, is_streamin
 
     assert (
         error.value.args[0]
-        == "ChatAnthropic model construction failed. API key was incorrect. Error: Error code: 401 - {'error': {'type': 'authentication_error', 'message': 'Invalid API Key'}}"
+        == "ChatAnthropic model construction failed. API key was incorrect. Error: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'Invalid API Key'}}"
     )

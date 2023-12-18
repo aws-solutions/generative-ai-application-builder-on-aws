@@ -76,7 +76,7 @@ def test_validate_prompt_template_valid(prompt_template, required_placeholders):
         ("false", "boolean", False, bool),
         ('["\nHuman:", "\nAI:"]', "list", ["\nHuman:", "\nAI:"], list),
         ('["|"]', "list", ["|"], list),
-        ('{"scale": 0}', "dict", {"scale": 0}, dict),
+        ('{"scale": 0}', "dictionary", {"scale": 0}, dict),
     ],
 )
 def test_valid_type_casting(value, data_type, response, response_type, setup_environment):

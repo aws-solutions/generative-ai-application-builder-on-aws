@@ -20,12 +20,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from clients.anthropic_client import AnthropicClient
 from shared.callbacks.websocket_error_handler import WebsocketErrorHandler
 from shared.callbacks.websocket_handler import WebsocketHandler
-from utils.constants import (
-    DEFAULT_ANTHROPIC_RAG_ENABLED_MODE,
-    RAG_ENABLED_ENV_VAR,
-    TRACE_ID_ENV_VAR,
-    USER_ID_EVENT_KEY,
-)
+from utils.constants import DEFAULT_ANTHROPIC_RAG_ENABLED_MODE, RAG_ENABLED_ENV_VAR, TRACE_ID_ENV_VAR, USER_ID_EVENT_KEY
 from utils.enum_types import CloudWatchNamespaces
 from utils.handler_response_formatter import format_response
 
@@ -42,11 +37,11 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict:
     :param context (LambdaContext): AWS Lambda Context
     :return: the generated response from the chatbot
     """
-    anthropic_client = AnthropicClient(
-        connection_id=event["requestContext"]["connectionId"],
-        rag_enabled=os.getenv(RAG_ENABLED_ENV_VAR, DEFAULT_ANTHROPIC_RAG_ENABLED_MODE),
-    )
     try:
+        anthropic_client = AnthropicClient(
+            connection_id=event["requestContext"]["connectionId"],
+            rag_enabled=os.getenv(RAG_ENABLED_ENV_VAR, DEFAULT_ANTHROPIC_RAG_ENABLED_MODE),
+        )
         anthropic_client.check_env()
         event_body = anthropic_client.check_event(event)
 
