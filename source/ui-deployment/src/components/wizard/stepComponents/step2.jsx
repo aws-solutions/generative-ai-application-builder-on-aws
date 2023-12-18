@@ -560,7 +560,7 @@ const generateModelParameterTypeInstructions = (type) => {
         case 'list':
             instructions = 'Please ensure it is a comma-separated list and a valid JSON string.';
             break;
-        case 'dict':
+        case 'dictionary':
             instructions = 'Please ensure it is a valid JSON string.';
             break;
     }
@@ -762,7 +762,7 @@ const Model = ({ info: { model }, setHelpPanelContent, onChange }) => {
                 case 'list':
                     isValidType = validateList(parameter);
                     break;
-                case 'dict':
+                case 'dictionary':
                     try {
                         JSON.parse(parameter.value);
                         isValidType = true;

@@ -24,7 +24,6 @@ from utils.enum_types import BedrockModelProviders
         (
             {
                 "maxTokens": 512,
-                "stopSequences": [],
                 "temperature": 0.9,
                 "presencePenalty": {"scale": 0},
                 "countPenalty": {"scale": 0},
@@ -33,6 +32,7 @@ from utils.enum_types import BedrockModelProviders
             {
                 "maxTokens": 512,
                 "temperature": 0.9,
+                "stopSequences": [],
                 "presencePenalty": {"scale": 0},
                 "countPenalty": {"scale": 0},
                 "frequencyPenalty": {"scale": 0},
@@ -60,18 +60,18 @@ from utils.enum_types import BedrockModelProviders
         ),
         (
             {},
-            {"temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AI21.value]},
+            {"temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AI21.value], "stopSequences": []},
         ),
     ],
 )
 def test_ai21_params_dataclass_success(params, expected_response):
     bedrock_params = BedrockAI21LLMParams(**params)
     assert bedrock_params.temperature == expected_response["temperature"]
-    assert bedrock_params.maxTokens == expected_response.get("maxTokens", None)
-    assert sorted(bedrock_params.stopSequences) == expected_response.get("stopSequences", [])
-    assert bedrock_params.presencePenalty == expected_response.get("presencePenalty", {})
-    assert bedrock_params.countPenalty == expected_response.get("countPenalty", {})
-    assert bedrock_params.frequencyPenalty == expected_response.get("frequencyPenalty", {})
+    assert bedrock_params.maxTokens == expected_response.get("maxTokens")
+    assert sorted(bedrock_params.stopSequences) == expected_response.get("stopSequences")
+    assert bedrock_params.presencePenalty == expected_response.get("presencePenalty")
+    assert bedrock_params.countPenalty == expected_response.get("countPenalty")
+    assert bedrock_params.frequencyPenalty == expected_response.get("frequencyPenalty")
 
 
 @pytest.mark.parametrize(
@@ -98,9 +98,9 @@ def test_ai21_params_dataclass_success(params, expected_response):
             {
                 "maxTokens": None,
                 "topP": None,
-                "countPenalty": {},
-                "presencePenalty": {},
-                "frequencyPenalty": {},
+                "countPenalty": None,
+                "presencePenalty": None,
+                "frequencyPenalty": None,
                 "stopSequences": [],
                 "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AI21.value],
             },
@@ -111,9 +111,9 @@ def test_ai21_params_dataclass_success(params, expected_response):
             {
                 "maxTokens": None,
                 "topP": 0.2,
-                "countPenalty": {},
-                "presencePenalty": {},
-                "frequencyPenalty": {},
+                "countPenalty": None,
+                "presencePenalty": None,
+                "frequencyPenalty": None,
                 "stopSequences": [],
                 "temperature": DEFAULT_BEDROCK_TEMPERATURE_MAP[BedrockModelProviders.AI21.value],
             },
@@ -123,3 +123,19 @@ def test_ai21_params_dataclass_success(params, expected_response):
 def test_ai21_get_params_as_dict(pop_null, params, expected_response):
     bedrock_params = BedrockAI21LLMParams(**params)
     assert bedrock_params.get_params_as_dict(pop_null=pop_null) == expected_response
+
+
+def test_ai21_incorrect_params():
+    with pytest.raises(TypeError) as error:
+        BedrockAI21LLMParams(
+            **{
+                "maxTokens": 512,
+                "temperature": 0.9,
+                "presencePenalty": {"scale": 0},
+                "countPenalty": {"scale": 0},
+                "frequencyPenalty": {"scale": 0},
+                "incorrect_param": 0.1,
+            }
+        )
+
+    assert error.value.args[0] == "BedrockAI21LLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"

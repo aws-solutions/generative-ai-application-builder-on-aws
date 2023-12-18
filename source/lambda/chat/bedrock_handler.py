@@ -37,11 +37,11 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict:
     :param context (LambdaContext): AWS Lambda Context
     :return: the generated response from the chatbot
     """
-    bedrock_client = BedrockClient(
-        connection_id=event["requestContext"]["connectionId"],
-        rag_enabled=os.getenv(RAG_ENABLED_ENV_VAR, DEFAULT_BEDROCK_RAG_ENABLED_MODE),
-    )
     try:
+        bedrock_client = BedrockClient(
+            connection_id=event["requestContext"]["connectionId"],
+            rag_enabled=os.getenv(RAG_ENABLED_ENV_VAR, DEFAULT_BEDROCK_RAG_ENABLED_MODE),
+        )
         bedrock_client.check_env()
         event_body = bedrock_client.check_event(event)
 

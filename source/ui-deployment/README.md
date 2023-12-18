@@ -16,7 +16,7 @@ Follow the below steps before building the web app for local execution
 
 ```
 mkdir -p source/ui-deployment/public
-touch source/ui-deployment/public/runtimeConfig.js
+touch source/ui-deployment/public/runtimeConfig.json
 ```
 
 -   From the AWS CloudFormation console, navigate to the `Outputs` tab of the main/ parent stack deployed and copy the `Value` of the `Key` named `WebConfigKey`.
@@ -78,7 +78,11 @@ For reference, the string in the Parameter Store should look something like the 
         "amazon.titan-text-express-v1",
         "anthropic.claude-v1",
         "anthropic.claude-v2",
-        "anthropic.claude-instant-v1"
+        "anthropic.claude-instant-v1",
+        "meta.llama2-13b-chat-v1",
+        "meta.llama2-70b-chat-v1",
+        "cohere.command-text-v14",
+        "cohere.command-light-text-v14"
       ],
       "AllowsStreaming": "true"
     }

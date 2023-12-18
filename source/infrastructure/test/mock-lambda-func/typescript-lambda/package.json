@@ -1,6 +1,6 @@
 {
   "name": "mock-typescript-lambda",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A mock lambda implementation for CDK infrastructure unit",
   "main": "index.ts",
   "scripts": {

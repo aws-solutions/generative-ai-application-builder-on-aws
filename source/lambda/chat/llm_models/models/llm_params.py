@@ -40,9 +40,7 @@ class LLMParams(ABC):
         Returns:
             (Dict): Dict of the model parameters.
         """
-        lambda_func = (
-            lambda x: {k: v for (k, v) in x if v is not None and v != {}} if pop_null else {k: v for (k, v) in x}
-        )
+        lambda_func = lambda x: {k: v for (k, v) in x if v is not None} if pop_null else {k: v for (k, v) in x}
 
         response = {k: v for k, v in asdict(self, dict_factory=lambda_func).items()}
 

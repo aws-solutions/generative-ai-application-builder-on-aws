@@ -120,18 +120,26 @@ export const enum CHAT_PROVIDERS {
 export const SUPPORTED_CHAT_PROVIDERS = [CHAT_PROVIDERS.HUGGING_FACE, CHAT_PROVIDERS.ANTHROPIC, CHAT_PROVIDERS.BEDROCK];
 
 export const enum BEDROCK_MODEL_FAMILIES {
+    AI21 = 'ai21',
     AMAZON = 'amazon',
     ANTHROPIC = 'anthropic',
-    AI21 = 'ai21'
+    COHERE = 'cohere',
+    META = 'meta'
 }
 
 export const SUPPORTED_BEDROCK_CHAT_MODELS = [
     `${BEDROCK_MODEL_FAMILIES.AI21}.j2-ultra`,
     `${BEDROCK_MODEL_FAMILIES.AI21}.j2-mid`,
     `${BEDROCK_MODEL_FAMILIES.AMAZON}.titan-text-express-v1`,
+    `${BEDROCK_MODEL_FAMILIES.AMAZON}.titan-text-lite-v1`,
     `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-v1`,
     `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-v2`,
-    `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-instant-v1`
+    `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-v2:1`,
+    `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-instant-v1`,
+    `${BEDROCK_MODEL_FAMILIES.COHERE}.command-text-v14`,
+    `${BEDROCK_MODEL_FAMILIES.COHERE}.command-light-text-v14`,
+    `${BEDROCK_MODEL_FAMILIES.META}.llama2-13b-chat-v1`,
+    `${BEDROCK_MODEL_FAMILIES.META}.llama2-70b-chat-v1`
 ];
 
 export const DEFAULT_HUGGINGFACE_TEMPERATURE = 1;
@@ -161,6 +169,9 @@ Current conversation:
 
 Human: {input}
 AI:`;
+
+export const DEFAULT_META_CHAT_PROMPT = `[INST] ${DEFAULT_CHAT_PROMPT} [/INST]`;
+export const DEFAULT_META_RAG_PROMPT = `[INST] ${DEFAULT_HUGGINGFACE_RAG_PROMPT} [/INST]`
 
 export const SUPPORTED_ANTHROPIC_CHAT_MODELS = ['claude-instant-1', 'claude-1', 'claude-2'];
 export const DEFAULT_ANTHROPIC_TEMPERATURE = 1;
@@ -199,6 +210,9 @@ Assistant:`;
 export const DEFAULT_BEDROCK_AMAZON_PROMPT = DEFAULT_CHAT_PROMPT;
 export const DEFAULT_BEDROCK_ANTHROPIC_PROMPT = DEFAULT_ANTHROPIC_CHAT_PROMPT;
 export const DEFAULT_BEDROCK_AI21_PROMPT = DEFAULT_CHAT_PROMPT;
+export const DEFAULT_BEDROCK_COHERE_PROMPT = DEFAULT_CHAT_PROMPT;
+export const DEFAULT_BEDROCK_META_PROMPT = DEFAULT_META_CHAT_PROMPT;
+
 export const DEFAULT_BEDROCK_AMAZON_RAG_PROMPT = `Instructions: You are an AI Assistant created to help answer the User's question. You are only to answer the User's question using the provided references. You are not allowed to make things up or use your own knowledge. Only use what is provided between the <references> XML tags.
 
 Here are the only references you can use:
@@ -213,6 +227,28 @@ User: {input}
 Bot:`;
 export const DEFAULT_BEDROCK_ANTHROPIC_RAG_PROMPT = DEFAULT_ANTHROPIC_RAG_PROMPT;
 export const DEFAULT_BEDROCK_AI21_RAG_PROMPT = DEFAULT_HUGGINGFACE_RAG_PROMPT;
+export const DEFAULT_BEDROCK_COHERE_RAG_PROMPT = DEFAULT_HUGGINGFACE_RAG_PROMPT;
+export const DEFAULT_BEDROCK_META_RAG_PROMPT = DEFAULT_META_RAG_PROMPT;
+
+export const DEFAULT_BEDROCK_ANTHROPIC_TEMPERATURE = DEFAULT_ANTHROPIC_TEMPERATURE;
+export const MIN_BEDROCK_ANTHROPIC_TEMPERATURE = MIN_ANTHROPIC_TEMPERATURE;
+export const MAX_BEDROCK_ANTHROPIC_TEMPERATURE = MAX_ANTHROPIC_TEMPERATURE;
+
+export const DEFAULT_BEDROCK_AMAZON_TEMPERATURE = 0.5;
+export const MIN_BEDROCK_AMAZON_TEMPERATURE = 0;
+export const MAX_BEDROCK_AMAZON_TEMPERATURE = 1;
+
+export const DEFAULT_BEDROCK_AI21_TEMPERATURE = 1;
+export const MIN_BEDROCK_AI21_TEMPERATURE = 0;
+export const MAX_BEDROCK_AI21_TEMPERATURE = 1;
+
+export const DEFAULT_BEDROCK_COHERE_TEMPERATURE = 0.75;
+export const MIN_BEDROCK_COHERE_TEMPERATURE = 0;
+export const MAX_BEDROCK_COHERE_TEMPERATURE = 1;
+
+export const DEFAULT_BEDROCK_META_TEMPERATURE = 0.5;
+export const MIN_BEDROCK_META_TEMPERATURE = 0;
+export const MAX_BEDROCK_META_TEMPERATURE = 1;
 
 export const KENDRA_EDITIONS = ['DEVELOPER_EDITION', 'ENTERPRISE_EDITION'];
 export const DEFAULT_KENDRA_EDITION = 'DEVELOPER_EDITION';
@@ -247,7 +283,7 @@ export const DEFAULT_KENDRA_STORAGE_CAPACITY_UNITS = 0;
 export const MAX_KENDRA_QUERY_CAPACITY_UNITS = 1;
 export const MAX_KENDRA_STORAGE_CAPACITY_UNITS = 5;
 export const DEFAULT_KENDRA_NUMBER_OF_DOCS = 2;
-export const MAX_KENDRA_NUMBER_OF_DOCS = 5;
+export const MAX_KENDRA_NUMBER_OF_DOCS = 100;
 export const MIN_KENDRA_NUMBER_OF_DOCS = 1;
 export const MODEL_PARAM_TYPES = ['string', 'integer', 'float', 'boolean', 'list', 'dictionary'];
 
@@ -292,26 +328,40 @@ export const additionalDeploymentPlatformConfigValues = {
             SupportedModels: SUPPORTED_BEDROCK_CHAT_MODELS,
             AllowsStreaming: true,
             ModelFamilyParams: {
+                [BEDROCK_MODEL_FAMILIES.AI21]: {
+                    ChatPromptTemplate: DEFAULT_BEDROCK_AI21_PROMPT,
+                    RAGPromptTemplate: DEFAULT_BEDROCK_AI21_RAG_PROMPT,
+                    DefaultTemperature: DEFAULT_BEDROCK_AI21_TEMPERATURE,
+                    MinTemperature: MIN_BEDROCK_AI21_TEMPERATURE,
+                    MaxTemperature: MAX_BEDROCK_AI21_TEMPERATURE
+                },
                 [BEDROCK_MODEL_FAMILIES.AMAZON]: {
                     ChatPromptTemplate: DEFAULT_BEDROCK_AMAZON_PROMPT,
                     RAGPromptTemplate: DEFAULT_BEDROCK_AMAZON_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_ANTHROPIC_TEMPERATURE,
-                    MinTemperature: MIN_ANTHROPIC_TEMPERATURE,
-                    MaxTemperature: MAX_ANTHROPIC_TEMPERATURE
+                    DefaultTemperature: DEFAULT_BEDROCK_AMAZON_TEMPERATURE,
+                    MinTemperature: MIN_BEDROCK_AMAZON_TEMPERATURE,
+                    MaxTemperature: MAX_BEDROCK_AMAZON_TEMPERATURE
                 },
                 [BEDROCK_MODEL_FAMILIES.ANTHROPIC]: {
                     ChatPromptTemplate: DEFAULT_BEDROCK_ANTHROPIC_PROMPT,
                     RAGPromptTemplate: DEFAULT_BEDROCK_ANTHROPIC_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_ANTHROPIC_TEMPERATURE,
-                    MinTemperature: MIN_ANTHROPIC_TEMPERATURE,
-                    MaxTemperature: MAX_ANTHROPIC_TEMPERATURE
+                    DefaultTemperature: DEFAULT_BEDROCK_ANTHROPIC_TEMPERATURE,
+                    MinTemperature: MIN_BEDROCK_ANTHROPIC_TEMPERATURE,
+                    MaxTemperature: MAX_BEDROCK_ANTHROPIC_TEMPERATURE
                 },
-                [BEDROCK_MODEL_FAMILIES.AI21]: {
-                    ChatPromptTemplate: DEFAULT_BEDROCK_AI21_PROMPT,
-                    RAGPromptTemplate: DEFAULT_BEDROCK_AI21_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_ANTHROPIC_TEMPERATURE,
-                    MinTemperature: MIN_ANTHROPIC_TEMPERATURE,
-                    MaxTemperature: MAX_ANTHROPIC_TEMPERATURE
+                [BEDROCK_MODEL_FAMILIES.COHERE]: {
+                    ChatPromptTemplate: DEFAULT_BEDROCK_COHERE_PROMPT,
+                    RAGPromptTemplate: DEFAULT_BEDROCK_COHERE_RAG_PROMPT,
+                    DefaultTemperature: DEFAULT_BEDROCK_COHERE_TEMPERATURE,
+                    MinTemperature: MIN_BEDROCK_COHERE_TEMPERATURE,
+                    MaxTemperature: MAX_BEDROCK_COHERE_TEMPERATURE
+                },
+                [BEDROCK_MODEL_FAMILIES.META]: {
+                    ChatPromptTemplate: DEFAULT_BEDROCK_META_PROMPT,
+                    RAGPromptTemplate: DEFAULT_BEDROCK_META_RAG_PROMPT,
+                    DefaultTemperature: DEFAULT_BEDROCK_META_TEMPERATURE,
+                    MinTemperature: MIN_BEDROCK_META_TEMPERATURE,
+                    MaxTemperature: MAX_BEDROCK_META_TEMPERATURE
                 }
             }
         }

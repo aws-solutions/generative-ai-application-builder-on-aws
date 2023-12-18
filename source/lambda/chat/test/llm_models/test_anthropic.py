@@ -132,7 +132,7 @@ def test_exception_for_failed_model_incorrect_key(setup_environment, is_streamin
 
     assert (
         error.value.args[0]
-        == "ChatAnthropic model construction failed. API key was incorrect. Error: Error code: 401 - {'error': {'type': 'authentication_error', 'message': 'Invalid API Key'}}"
+        == "ChatAnthropic model construction failed. API key was incorrect. Error: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'Invalid API Key'}}"
     )
 
 

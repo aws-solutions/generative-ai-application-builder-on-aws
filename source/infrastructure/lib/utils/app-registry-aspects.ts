@@ -16,7 +16,7 @@ import * as appreg from '@aws-cdk/aws-servicecatalogappregistry-alpha';
 import * as cdk from 'aws-cdk-lib';
 import { CfnResourceAssociation } from 'aws-cdk-lib/aws-servicecatalogappregistry';
 import { Construct, IConstruct } from 'constructs';
-import * as crypto from 'crypto';
+import { hashValues } from './common-utils';
 
 export interface AppRegistryProps {
     /**
@@ -116,11 +116,15 @@ export class AppRegistry extends Construct implements cdk.IAspect {
                 }
 
                 const nestedStack = node;
-                new CfnResourceAssociation(nestedStack, `ResourceAssociation${crypto.randomUUID()}`, {
-                    application: this.application.get(node.nestedStackParent!.stackId)!.applicationArn,
-                    resource: node.stackId,
-                    resourceType: 'CFN_STACK'
-                });
+                new CfnResourceAssociation(
+                    nestedStack,
+                    `ResourceAssociation${hashValues(cdk.Names.nodeUniqueId(nestedStack.node))}`,
+                    {
+                        application: this.application.get(node.nestedStackParent!.stackId)!.applicationId,
+                        resource: node.stackId,
+                        resourceType: 'CFN_STACK'
+                    }
+                );
 
                 (nestedStack.node.defaultChild as cdk.CfnResource).addDependency(
                     this.application.get(node.nestedStackParent!.stackId)!.node.defaultChild as cdk.CfnResource
