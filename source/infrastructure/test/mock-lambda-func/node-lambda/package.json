@@ -1,6 +1,6 @@
 {
   "name": "node-lambda",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A mock lambda implementation for CDK infrastructure unit",
   "main": "index.js",
   "scripts": {
