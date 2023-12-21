@@ -15,6 +15,8 @@
 from unittest import mock
 
 import pytest
+from anthropic import AuthenticationError
+from httpx import Request, Response
 from langchain.chains import ConversationalRetrievalChain
 from langchain.schema.document import Document
 from llm_models.rag.anthropic_retrieval import AnthropicRetrievalLLM
@@ -113,9 +115,15 @@ def test_exception_for_failed_model_incorrect_key(setup_environment, is_streamin
                 verbose=False,
                 callbacks=None,
             )
-            chat.generate("What is lambda?")
+            with mock.patch("langchain.chat_models.ChatAnthropic._generate") as mocked_hub_call:
+                mocked_hub_call.side_effect = AuthenticationError(
+                    message="Error 401: Wrong API key",
+                    body={},
+                    response=Response(401, json={"id": "fake-id"}),
+                    request=Request(method="some-method", url="fake-url"),
+                )
+                chat.generate("What is lambda?")
 
-    assert (
-        error.value.args[0]
-        == "ChatAnthropic model construction failed. API key was incorrect. Error: Error code: 401 - {'type': 'error', 'error': {'type': 'authentication_error', 'message': 'Invalid API Key'}}"
-    )
+    error.value.args[
+        0
+    ] == "ChatAnthropic model construction failed. API key was incorrect. Error: Error 401: Wrong API key"
