@@ -158,6 +158,7 @@ def test_anthropic_condensing_prompt():
     assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
     assert type(chat_model.conversation_memory) == DynamoDBChatMemory
 
+
 @pytest.mark.parametrize("is_streaming", [False])
 def test_meta_condensing_prompt():
     chat_model = BedrockRetrievalLLM(
