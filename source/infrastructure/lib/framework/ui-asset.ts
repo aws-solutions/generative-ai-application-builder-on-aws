@@ -112,6 +112,7 @@ export abstract class UIAssets extends cdk.NestedStack {
                 })
             ]
         });
+        customResourceWebsiteBucketPolicy.node.addDependency(staticWebsite.webS3Bucket);
         customResourceWebsiteBucketPolicy.attachToRole(customResourceRole);
 
         const ssmParameterPolicy = new iam.Policy(this, 'SSMAccessPolicy', {
