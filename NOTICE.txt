@@ -71,6 +71,7 @@ anthropic                                                   MIT
 anyio                                                       MIT
 async-timeout                                               Apache-2.0
 attrs                                                       MIT
+awscli                                                      Apache-2.0
 aws-amplify                                                 Apache-2.0
 aws-cdk-lib                                                 Apache-2.0
 aws-jwt-verify                                              Apache-2.0
@@ -89,11 +90,13 @@ certifi                                                     MPL 2.0
 cffi                                                        MIT
 charset-normalizer                                          MIT
 click                                                       BSD License (BSD-3-Clause)
+colorama                                                    BSD License
 constructs                                                  Apache-2.0
 coverage                                                    Apache-2.0
 cryptography                                                Apache-2.0 OR BSD-3-Clause
 dataclasses                                                 Apache-2.0
 dataclasses-json                                            MIT
+docutils                                                    BSD License
 distro                                                      Apache-2.0
 eslint                                                      MIT
 exceptiongroup                                              MIT
@@ -116,6 +119,8 @@ jmespath                                                    MIT
 jsonpatch                                                   BSD License
 jsonpointer                                                 BSD License
 langchain                                                   MIT
+langchain-community                                         MIT
+langchain-core                                              MIT
 langsmith                                                   MIT
 license-expression                                          Apache-2.0
 lodash                                                      MIT
@@ -135,6 +140,7 @@ platformdirs                                                MIT
 pluggy                                                      MIT
 portfinder                                                  MIT
 prettier                                                    MIT
+pyasn1                                                      BSD License (BSD-2-Clause)
 pycparser                                                   BSD
 pydantic                                                    MIT
 pydantic_core                                               MIT
@@ -154,6 +160,7 @@ remark-gfm                                                  MIT
 remark-math                                                 MIT
 requests                                                    Apache-2.0
 responses                                                   Apache-2.0
+rsa                                                         Apache-2.0
 s3transfer                                                  Apache-2.0
 setuptools                                                  MIT
 six                                                         MIT
@@ -171,6 +178,7 @@ types-PyYAML                                                Apache-2.0
 typescript                                                  Apache-2.0
 typing-extensions                                           Python 2.0
 typing-inspect                                              MIT
+typing_extensions                                           Python 2.0
 urllib3                                                     MIT
 uuid                                                        MIT
 wrapt                                                       BSD License
