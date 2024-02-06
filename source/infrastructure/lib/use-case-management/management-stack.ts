@@ -441,22 +441,14 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                             'iam:GetRolePolicy',
                             'iam:PutRolePolicy',
                             'iam:TagRole',
-                            'iam:UpdateAssumeRolePolicy'
+                            'iam:UpdateAssumeRolePolicy',
+                            'iam:PassRole'
                         ],
                         resources: [
                             `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/*`,
                             `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:policy/*`
                         ],
                         conditions: {
-                            ...awsTagKeysCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: ['iam:PassRole'],
-                        resources: [`arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/*`],
-                        conditions: {
-                            ...awsCalledViaCondition,
                             ...awsTagKeysCondition
                         }
                     }),
@@ -811,7 +803,21 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                             ...awsCalledViaCondition,
                             ...awsTagKeysCondition
                         }
-                    })
+                    }),
+                    new iam.PolicyStatement({
+                        effect: iam.Effect.ALLOW,
+                        actions: [
+                            'cloudformation:CreateStack',
+                            'cloudformation:UpdateStack',
+                            'cloudformation:DeleteStack'
+                        ],
+                        resources: [
+                            `arn:${cdk.Aws.PARTITION}:cloudformation:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stack/*`
+                        ],
+                        conditions: {
+                            ...awsTagKeysCondition
+                        }
+                        })
                 ]
             })
         }

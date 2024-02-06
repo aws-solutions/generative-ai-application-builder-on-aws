@@ -447,7 +447,8 @@ describe('When creating a use case management Stack', () => {
                                     'iam:GetRolePolicy',
                                     'iam:PutRolePolicy',
                                     'iam:TagRole',
-                                    'iam:UpdateAssumeRolePolicy'
+                                    'iam:UpdateAssumeRolePolicy',
+                                    'iam:PassRole'
                                 ],
                                 Condition: {
                                     'ForAllValues:StringEquals': {
@@ -489,34 +490,6 @@ describe('When creating a use case management Stack', () => {
                                         ]
                                     }
                                 ]
-                            },
-                            {
-                                Action: 'iam:PassRole',
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':iam::',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':role/*'
-                                        ]
-                                    ]
-                                }
                             },
                             {
                                 Action: ['lambda:AddPermission', 'lambda:RemovePermission', 'lambda:InvokeFunction'],
@@ -1304,6 +1277,39 @@ describe('When creating a use case management Stack', () => {
                                                 Ref: 'AWS::AccountId'
                                             },
                                             ':dashboard/*'
+                                        ]
+                                    ]
+                                }
+                            },
+                            {
+                                Action: [
+                                    'cloudformation:CreateStack',
+                                    'cloudformation:UpdateStack',
+                                    'cloudformation:DeleteStack'
+                                ],
+                                Condition: {
+                                    'ForAllValues:StringEquals': {
+                                        'aws:TagKeys': ['createdVia', 'userId']
+                                    }
+                                },
+                                Effect: 'Allow',
+                                Resource: {
+                                    'Fn::Join': [
+                                        '',
+                                        [
+                                            'arn:',
+                                            {
+                                                Ref: 'AWS::Partition'
+                                            },
+                                            ':cloudformation:',
+                                            {
+                                                Ref: 'AWS::Region'
+                                            },
+                                            ':',
+                                            {
+                                                Ref: 'AWS::AccountId'
+                                            },
+                                            ':stack/*'
                                         ]
                                     ]
                                 }
