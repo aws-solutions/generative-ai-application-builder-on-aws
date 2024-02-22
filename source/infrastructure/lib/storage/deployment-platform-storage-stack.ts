@@ -20,9 +20,37 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { DynamoDBStreamsToLambda } from '@aws-solutions-constructs/aws-dynamodbstreams-lambda';
 import { DynamoEventSourceProps } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { NagSuppressions } from 'cdk-nag';
-import { Construct } from 'constructs';
+import { Construct, IConstruct } from 'constructs';
 import { AppAssetBundler } from '../utils/asset-bundling';
 import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME, DynamoDBAttributes } from '../utils/constants';
+import { DeploymentPlatformModelInfoStorage } from './deployment-platform-model-info-storage';
+
+export class DynamoDBDeploymentPlatformStorageParameters {
+    /**
+     * Arn of the Lambda function to use for custom resource implementation.
+     */
+    public readonly customResourceLambdaArn: string;
+
+    /**
+     * Arn of the IAM role to use for custom resource implementation.
+     */
+    public readonly customResourceRoleArn: string;
+
+    constructor(stack: IConstruct) {
+        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
+            type: 'String',
+            maxLength: 255,
+            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
+            description: 'Arn of the Lambda function to use for custom resource implementation.'
+        }).valueAsString;
+
+        this.customResourceRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
+            type: 'String',
+            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
+            description: 'Arn of the IAM role to use for custom resource implementation.'
+        }).valueAsString;
+    }
+}
 
 export class DynamoDBDeploymentPlatformStorage extends cdk.NestedStack {
     /**
@@ -30,8 +58,14 @@ export class DynamoDBDeploymentPlatformStorage extends cdk.NestedStack {
      */
     public useCasesTable: dynamodb.Table;
 
+    /**
+     * The DynamoDB table which will store model info and defaults
+     */
+    public modelInfoTable: dynamodb.Table;
+
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
+        const stackParameters = new DynamoDBDeploymentPlatformStorageParameters(cdk.Stack.of(this));
 
         this.useCasesTable = new dynamodb.Table(this, 'UseCasesTable', {
             encryption: dynamodb.TableEncryption.AWS_MANAGED,
@@ -85,6 +119,13 @@ export class DynamoDBDeploymentPlatformStorage extends cdk.NestedStack {
             ]
         });
         ddbStreamToLambda.lambdaFunction.addToRolePolicy(ssmPolicy);
+
+        // a model defaults table must be created and populated with the deployment platform
+        const modelInfoStorage = new DeploymentPlatformModelInfoStorage(this, 'ModelInfoStorage', {
+            customResourceLambdaArn: stackParameters.customResourceLambdaArn,
+            customResourceRoleArn: stackParameters.customResourceRoleArn
+        });
+        this.modelInfoTable = modelInfoStorage.newModelInfoTable;
 
         NagSuppressions.addResourceSuppressions(ddbStreamToLambda.lambdaFunction.role!, [
             {

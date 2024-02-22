@@ -116,6 +116,7 @@ export const SUPPORTED_FALCON_MODELS = [
 ];
 
 export const BEDROCK_MODEL_PROVIDER_NAME = 'Bedrock';
+export const SAGEMAKER_MODEL_PROVIDER_NAME = 'SageMaker';
 export const ERROR_MESSAGES = {
     UNAUTHORIZED: 'Request failed with status code 403'
 };
@@ -134,8 +135,16 @@ export const IG_DOCS = {
     THIRD_PARTY_SECURITY: `${IG_ROOT}/security-1.html#third-party-llm-integrations-outside-of-amazon-bedrock`,
     TIPS_PROMPT_LIMITS: `${IG_ROOT}/use-the-solution.html#tips-for-managing-model-token-limits`,
     USE_CASES: `${IG_ROOT}/use-cases.html`,
-    USING_THE_SOLUTION: `${IG_ROOT}/use-the-solution.html`
+    USING_THE_SOLUTION: `${IG_ROOT}/use-the-solution.html`,
+    VPC: `${IG_ROOT}`,
+    VPC_TROUBLESHOOTING: `${IG_ROOT}`,
+    VPC_CONSOLE: `https://console.aws.amazon.com/vpc/`,
+    SAGEMAKER_CREATE_ENDPOINT: `${IG_ROOT}`,
+    SAGEMAKER_USE: `${IG_ROOT}`
 };
 
 export const LANDING_PAGE_URL =
     'https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/';
+
+// used in api get requests to retrieve model defaults for providers such as sagemaker that doesn't require a model-id
+export const DEFAULT_MODEL_ID = 'default';

@@ -1,0 +1,286 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Chat Snapshot test for wizard step 4 1`] = `
+<div>
+  <box
+    data-testid="review-deployment-component"
+    margin="[object Object]"
+  >
+    <spacebetween>
+      <spacebetween>
+        <header
+          actions="[object Object]"
+          headingtagoverride="h2"
+          variant="h3"
+        >
+          Step 1: Use case
+        </header>
+        <container
+          data-testid="review-use-case-details-container"
+          header="[object Object]"
+        >
+          <columnlayout
+            columns="2"
+            data-testid="review-use-case-details"
+            variant="text-grid"
+          >
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Use case
+              </box>
+              <div>
+                Text
+              </div>
+            </div>
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Use case name
+              </box>
+              <div>
+                fake-use-case
+              </div>
+            </div>
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Use case email
+              </box>
+              <div>
+                fake_email@example.com
+              </div>
+            </div>
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Use case description
+              </box>
+              <div>
+                fake-description
+              </div>
+            </div>
+          </columnlayout>
+        </container>
+      </spacebetween>
+      <spacebetween>
+        <header
+          actions="[object Object]"
+          headingtagoverride="h2"
+          variant="h3"
+        >
+          Step 2: VPC Configuration
+        </header>
+        <container
+          data-testid="vpc-config-details-container"
+          header="[object Object]"
+        >
+          <columnlayout
+            columns="2"
+            data-testid="vpc-config-details"
+            variant="text-grid"
+          >
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Do you want to deploy this use case with a VPC?
+              </box>
+              <div>
+                Yes
+              </div>
+            </div>
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Would you like to use an existing VPC?
+              </box>
+              <div>
+                Yes
+              </div>
+            </div>
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                VPC ID
+              </box>
+              <div>
+                vpc-234q23
+              </div>
+            </div>
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Subnet IDs
+              </box>
+              <div>
+                , 
+              </div>
+            </div>
+            <div>
+              <box
+                variant="awsui-key-label"
+              >
+                Security Group IDs
+              </box>
+              <div />
+            </div>
+          </columnlayout>
+        </container>
+      </spacebetween>
+      <spacebetween
+        class="step-3-review"
+      >
+        <header
+          actions="[object Object]"
+          headingtagoverride="h2"
+          variant="h3"
+        >
+          Step 3: Model
+        </header>
+        <spacebetween>
+          <container
+            data-testid="review-model-details-container"
+            footer="[object Object]"
+            header="[object Object]"
+          >
+            <columnlayout
+              columns="2"
+              variant="text-grid"
+            >
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  Model provider
+                </box>
+                <div>
+                  Bedrock
+                </div>
+              </div>
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  Model name
+                </box>
+                <div>
+                  fake-name
+                </div>
+              </div>
+            </columnlayout>
+          </container>
+        </spacebetween>
+      </spacebetween>
+      <spacebetween
+        data-testid="review-knowledge-base-container"
+      >
+        <header
+          actions="[object Object]"
+          headingtagoverride="h2"
+          variant="h3"
+        >
+          Step 4: Knowledge base
+        </header>
+        <spacebetween>
+          <container
+            header="[object Object]"
+          >
+            <columnlayout
+              columns="1"
+              variant="text-grid"
+            >
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  Do you want to enable Retrieval Augmented Generation (RAG) for this use case?
+                </box>
+                <div>
+                  Yes
+                </div>
+              </div>
+            </columnlayout>
+          </container>
+          <container
+            data-testid="knowledge-base-options-container"
+            footer="[object Object]"
+            header="[object Object]"
+          >
+            <columnlayout
+              columns="2"
+              variant="text-grid"
+            >
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  Knowledge base type
+                </box>
+                <div>
+                  Kendra
+                </div>
+              </div>
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  Do you have an existing Kendra index?
+                </box>
+                <div>
+                  no
+                </div>
+              </div>
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  New Kendra index name
+                </box>
+                <div>
+                  fake-index
+                </div>
+              </div>
+            </columnlayout>
+          </container>
+          <container
+            data-testid="advanced-rag-configs-container"
+            header="[object Object]"
+          >
+            <columnlayout
+              columns="2"
+              variant="text-grid"
+            >
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  Maximum number of documents
+                </box>
+                <div />
+              </div>
+              <div>
+                <box
+                  variant="awsui-key-label"
+                >
+                  Display document source
+                </box>
+                <div>
+                  No
+                </div>
+              </div>
+            </columnlayout>
+          </container>
+        </spacebetween>
+      </spacebetween>
+    </spacebetween>
+  </box>
+</div>
+`;

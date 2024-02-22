@@ -27,7 +27,7 @@ describe('When performing storage management operations', () => {
 
     describe('When sucessfully invoking the commands', () => {
         beforeAll(() => {
-            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0276/v2.0.0" }`;
+            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
 
             stackInfo = {
                 stackArn: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid',
@@ -52,7 +52,28 @@ describe('When performing storage management operations', () => {
                             {
                                 ParameterKey: 'ChatConfigSSMParameterName',
                                 ParameterValue: 'mock-chat-config-ssm-parameter-name'
-                            }
+                            },
+                            {
+                                ParameterKey: 'DefaultUserEmail',
+                                ParameterValue: 'mock-default-user-email'
+                            },
+                            {
+                                ParameterKey: 'UseCaseUUID',
+                                ParameterValue: 'mock-use-case-uuid'
+                            },
+                            {
+                                ParameterKey: 'RAGEnabled',
+                                ParameterValue: 'true'
+                            },
+                            {
+                                ParameterKey: 'ProviderApiKeySecret',
+                                ParameterValue: 'mock-provider-api-key-secret'
+                            },
+                            { ParameterKey: 'VpcEnabled', ParameterValue: 'Yes' },
+                            { ParameterKey: 'CreateNewVpc', ParameterValue: 'No' },
+                            { ParameterKey: 'ExistingVpcId', ParameterValue: 'vpc-id' },
+                            { ParameterKey: 'ExistingPrivateSubnetIds', ParameterValue: 'subnet1,subnet2' },
+                            { ParameterKey: 'ExistingSecurityGroupIds', ParameterValue: 'sec1' }
                         ],
                         Outputs: [
                             {
@@ -62,6 +83,26 @@ describe('When performing storage management operations', () => {
                             {
                                 OutputKey: 'CloudFrontWebUrl',
                                 OutputValue: 'mock-cloudfront-url'
+                            },
+                            {
+                                OutputKey: 'KendraIndexId',
+                                OutputValue: 'mock-kendra-index'
+                            },
+                            {
+                                OutputKey: 'CloudwatchDashboardUrl',
+                                OutputValue: 'mock-cloudwatch-url'
+                            },
+                            {
+                                OutputKey: 'PrivateSubnetIds',
+                                OutputValue: 'subnet1,subnet2'
+                            },
+                            {
+                                OutputKey: 'SecurityGroupIds',
+                                OutputValue: 'sec1'
+                            },
+                            {
+                                OutputKey: 'VpcId',
+                                OutputValue: 'vpc-id'
                             }
                         ]
                     }
@@ -77,7 +118,18 @@ describe('When performing storage management operations', () => {
                 status: 'CREATE_COMPLETE',
                 webConfigKey: 'mock-webconfig-ssm-parameter-key',
                 chatConfigSSMParameterName: 'mock-chat-config-ssm-parameter-name',
-                cloudFrontWebUrl: 'mock-cloudfront-url'
+                cloudFrontWebUrl: 'mock-cloudfront-url',
+                defaultUserEmail: 'mock-default-user-email',
+                kendraIndexId: 'mock-kendra-index',
+                cloudwatchDashboardUrl: 'mock-cloudwatch-url',
+                useCaseUUID: 'mock-use-case-uuid',
+                ragEnabled: 'true',
+                providerApiKeySecret: 'mock-provider-api-key-secret',
+                vpcEnabled: 'Yes',
+                createNewVpc: 'No',
+                vpcId: 'vpc-id',
+                privateSubnetIds: ['subnet1', 'subnet2'],
+                securityGroupIds: ['sec1']
             });
         });
 

@@ -20,7 +20,13 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { UseCase } from '../model/use-case';
 import { logger, tracer } from '../power-tools-init';
-import { DYNAMODB_TTL_ATTRIBUTE_NAME, TTL_SECONDS, USE_CASES_TABLE_NAME_ENV_VAR } from '../utils/constants';
+import {
+    DYNAMODB_TTL_ATTRIBUTE_NAME,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
+    TTL_SECONDS,
+    USE_CASES_TABLE_NAME_ENV_VAR,
+    UseCaseTypes
+} from '../utils/constants';
 
 export abstract class CommandInputBuilder {
     useCase: UseCase;
@@ -158,7 +164,7 @@ export class DeleteItemCommandBuilder extends CommandInputBuilder {
  */
 export class GetItemCommandInputBuilder extends CommandInputBuilder {
     /**
-     * Method to create input to get an existing record in dynamodb
+     * Method to create input to get an existing record in the use cases dynamodb table
      *
      * @returns
      */
@@ -169,6 +175,34 @@ export class GetItemCommandInputBuilder extends CommandInputBuilder {
             TableName: process.env[USE_CASES_TABLE_NAME_ENV_VAR],
             Key: {
                 UseCaseId: { S: this.useCase.useCaseId }
+            }
+        } as GetItemCommandInput;
+    }
+}
+
+/**
+ * Builder to build input to get a model info record from dynamodb
+ */
+export class GetModelInfoCommandInputBuilder extends CommandInputBuilder {
+    /**
+     * Method to create input to get an existing record in model info dynamodb table
+     *
+     * @returns
+     */
+    @tracer.captureMethod({ captureResponse: false, subSegmentName: '###getModelInfoRecord' })
+    public build(): GetItemCommandInput {
+        logger.debug('Building GetItemCommandInput');
+        return {
+            TableName: process.env[MODEL_INFO_TABLE_NAME_ENV_VAR],
+            Key: {
+                UseCase: {
+                    S: this.useCase.configuration.LlmParams!.RAGEnabled ? UseCaseTypes.RAGChat : UseCaseTypes.CHAT
+                },
+                SortKey: {
+                    S: `${this.useCase.configuration.LlmParams!.ModelProvider}#${
+                        this.useCase.configuration.LlmParams!.ModelId
+                    }`
+                }
             }
         } as GetItemCommandInput;
     }

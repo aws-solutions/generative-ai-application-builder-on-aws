@@ -11,13 +11,14 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
+
 from typing import Dict, Optional
 
 from aws_lambda_powertools import Logger
 from clients.builders.llm_builder import LLMBuilder
-from llm_models.anthropic import AnthropicLLM
-from llm_models.rag.anthropic_retrieval import AnthropicRetrievalLLM
-from utils.constants import DEFAULT_ANTHROPIC_RAG_ENABLED_MODE
+from llms.anthropic import AnthropicLLM
+from llms.rag.anthropic_retrieval import AnthropicRetrievalLLM
+from utils.constants import DEFAULT_RAG_ENABLED_MODE, DEFAULT_RETURN_SOURCE_DOCS
 
 logger = Logger(utc=True)
 
@@ -37,10 +38,9 @@ class AnthropicBuilder(LLMBuilder):
     Methods:
         set_knowledge_base(): Sets the value for the knowledge base object that is used to supplement the LLM context using information from
             the user's knowledge base
-        set_memory_constants(): Sets the value of keys (memory, history, input) and prefixes (Human, AI) for the conversation memory object
         set_conversation_memory(): Sets the value for the conversation memory object that is used to store the user chat history
         set_api_key(): Sets the value of the API key for the LLM model
-        set_llm_model(): Sets the value of the lLM model in the builder. AnthropicBuilder sets an AnthropicLLM object
+        set_llm_model(): Sets the value of the LLM model as an AnthropicLLM or AnthropicRetrievalLLM object
         set_streaming_callbacks(): Sets the value of callbacks for the LLM model
     """
 
@@ -49,7 +49,7 @@ class AnthropicBuilder(LLMBuilder):
         llm_config: Dict,
         connection_id: str,
         conversation_id: str,
-        rag_enabled: Optional[bool] = DEFAULT_ANTHROPIC_RAG_ENABLED_MODE,
+        rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
     ) -> None:
         super().__init__(llm_config, connection_id, conversation_id, rag_enabled)
 
@@ -62,6 +62,14 @@ class AnthropicBuilder(LLMBuilder):
         if self.rag_enabled and not self.knowledge_base:
             raise ValueError("KnowledgeBase is required for RAG-enabled Anthropic chat model.")
         elif self.rag_enabled and self.knowledge_base:
-            self.llm_model = AnthropicRetrievalLLM(**self.model_params)
+            self.llm_model = AnthropicRetrievalLLM(
+                llm_params=self.model_params,
+                model_defaults=self.model_defaults,
+                return_source_docs=self.llm_config.get("KnowledgeBaseParams", {}).get(
+                    "ReturnSourceDocs", DEFAULT_RETURN_SOURCE_DOCS
+                ),
+            )
         else:
-            self.llm_model = AnthropicLLM(**self.model_params, rag_enabled=self.rag_enabled)
+            self.llm_model = AnthropicLLM(
+                llm_params=self.model_params, model_defaults=self.model_defaults, rag_enabled=False
+            )

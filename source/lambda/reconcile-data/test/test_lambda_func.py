@@ -12,12 +12,10 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-import pytest
 from fixtures.remove_case_event import ttl_remove_event
 from helper import get_service_client
 from lambda_func import handler
-from moto import mock_ssm, mock_secretsmanager
-from exceptions.operation_not_found import OperationNotFoundException
+from moto import mock_secretsmanager, mock_ssm
 
 
 @mock_ssm

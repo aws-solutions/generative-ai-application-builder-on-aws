@@ -35,6 +35,7 @@ SERVICE_TOKEN = "ServiceToken"
 EXISTING_CONFIG_SSM_PARAMETER = "AdditionalConfigurationSSMParameterName"
 IS_INTERNAL_USER = "IsInternalUser"
 USE_CASE_CONFIG = "UseCaseConfig"
+GAAB_SSM_CONFIG_PREFIX = "/gaab"
 
 # keys in the incoming event object which will not be saved to the web config
 CONFIG_EXCLUDE_KEYS = [RESOURCE, SSM_KEY, SERVICE_TOKEN, EXISTING_CONFIG_SSM_PARAMETER]
@@ -177,7 +178,9 @@ def delete(event, context):
     Raises
         botocore.exceptions.ClientError: Failures related to SSM Parameter store delete operation
     """
-    if event.get(PHYSICAL_RESOURCE_ID, None) not in ["", None]:
+    if event.get(PHYSICAL_RESOURCE_ID, None) not in ["", None] and event[PHYSICAL_RESOURCE_ID].startswith(
+        GAAB_SSM_CONFIG_PREFIX
+    ):
         ssm = get_service_client("ssm")
         try:
             ssm.delete_parameter(Name=event[PHYSICAL_RESOURCE_ID])

@@ -79,7 +79,7 @@ describe('When add lambda runtime command', () => {
         it('should execute runtime command for nodejs', () => {
             const command = lambdaRuntimeCommandFactory.getRuntimeCommand(lambda.RuntimeFamily.NODEJS);
             const result = command.getLambdaRuntime();
-            expect(result).toBe(lambda.Runtime.NODEJS_18_X.name);
+            expect(result).toMatch(/\${Token\[TOKEN.+]}/);
         });
     });
 

@@ -1,0 +1,21 @@
+{
+    "UseCase": "Chat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "anthropic.claude-instant-v1",
+    "AllowsStreaming": true,
+    "Prompt": "\n\nHuman: You are a friendly AI assistant that is helpful, honest, and harmless.\n\nHere is the current conversation:\n{history}\n\n{input}\n\nAssistant:",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "1",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "history",
+        "input": "input",
+        "context": null,
+        "ai_prefix": "A",
+        "human_prefix": "H",
+        "output": null
+    },
+    "MaxPromptSize": 2000,
+    "MaxChatMessageSize": 2500
+}

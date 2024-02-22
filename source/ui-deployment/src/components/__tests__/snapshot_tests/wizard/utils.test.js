@@ -13,16 +13,18 @@
 
 import {
     createDeployRequestPayload,
+    createUpdateRequestPayload,
     createUseCaseInfoApiParams,
     createConversationMemoryApiParams,
     createLLMParamsApiParams,
+    createVpcApiParams,
     createKnowledgeBaseApiParams
 } from '../../../wizard/utils';
 // eslint-disable-next-line jest/no-mocks-import
 import { sampleDeployUseCaseFormData } from '../../__mocks__/deployment-steps-form-data';
 
 describe('createDeployRequestPayload', () => {
-    it('should create valid knowledgebase params payload for existing kendra index', () => {
+    it('should create valid knowledgebase params payload for existing Kendra index', () => {
         const stepInfo = sampleDeployUseCaseFormData.knowledgeBase;
         expect(createKnowledgeBaseApiParams(stepInfo)).toEqual({
             KnowledgeBaseParams: {
@@ -35,7 +37,7 @@ describe('createDeployRequestPayload', () => {
 
     it('should create valid knowledgebase params payload', () => {
         const stepInfo = sampleDeployUseCaseFormData.knowledgeBase;
-        // modify form data to create new kendra idx
+        // modify form data to create new Kendra idx
         stepInfo.existingKendraIndex = 'no';
         stepInfo.kendraIndexName = 'new-fake-index';
         expect(createKnowledgeBaseApiParams(stepInfo)).toEqual({
@@ -52,7 +54,7 @@ describe('createDeployRequestPayload', () => {
 
     it('should create valid knowledgebase params payload if rag is disabled', () => {
         const stepInfo = sampleDeployUseCaseFormData.knowledgeBase;
-        // modify form data to create new kendra idx
+        // modify form data to create new Kendra idx
         stepInfo.existingKendraIndex = 'no';
         stepInfo.kendraIndexName = 'new-fake-index';
         stepInfo.isRagRequired = false;
@@ -103,6 +105,44 @@ describe('createDeployRequestPayload', () => {
         });
     });
 
+    it('should create vpc api params - when using provided vpc config', () => {
+        const vpcStepInfo = sampleDeployUseCaseFormData.vpc;
+        expect(createVpcApiParams(vpcStepInfo)).toEqual({
+            VPCParams: {
+                VpcEnabled: true,
+                CreateNewVpc: false,
+                ExistingVpcId: vpcStepInfo.vpcId,
+                ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
+                ExistingSecurityGroupIds: ['sg-24234']
+            }
+        });
+    });
+
+    it('should create vpc api params - when not using provided vpc config', () => {
+        const vpcStepInfo = {
+            isVpcRequired: true,
+            existingVpc: false
+        };
+        expect(createVpcApiParams(vpcStepInfo)).toEqual({
+            VPCParams: {
+                VpcEnabled: true,
+                CreateNewVpc: true
+            }
+        });
+    });
+
+    it('should create vpc api params - when not using vpc', () => {
+        const vpcStepInfo = {
+            isVpcRequired: false,
+            existingVpc: false
+        };
+        expect(createVpcApiParams(vpcStepInfo)).toEqual({
+            VPCParams: {
+                VpcEnabled: false
+            }
+        });
+    });
+
     it('should create valid deploy request payload', () => {
         sampleDeployUseCaseFormData.knowledgeBase.isRagRequired = true;
         const payload = createDeployRequestPayload(sampleDeployUseCaseFormData);
@@ -135,12 +175,67 @@ describe('createDeployRequestPayload', () => {
                 PromptTemplate: 'fake-prompt',
                 RAGEnabled: true
             },
+            VPCParams: {
+                VpcEnabled: true,
+                CreateNewVpc: false,
+                ExistingVpcId: sampleDeployUseCaseFormData.vpc.vpcId,
+                ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
+                ExistingSecurityGroupIds: ['sg-24234']
+            },
             ConversationMemoryType: 'DynamoDB',
             KnowledgeBaseType: 'Kendra',
             UseCaseName: 'test-use-case',
             UseCaseDescription: 'test use case description',
             ConsentToDataLeavingAWS: true,
             DefaultUserEmail: undefined
+        });
+    });
+});
+
+describe('createUpdateRequestPayload', () => {
+    it('should create valid update request payload with empty string valued items removed', () => {
+        sampleDeployUseCaseFormData.model.promptTemplate = '';
+        sampleDeployUseCaseFormData.model.isRagRequired = true;
+        sampleDeployUseCaseFormData.model.modelName = '';
+
+        const payload = createUpdateRequestPayload(sampleDeployUseCaseFormData);
+        expect(payload).toEqual({
+            KnowledgeBaseParams: {
+                ReturnSourceDocs: false,
+                QueryCapacityUnits: 0,
+                KendraIndexEdition: 'DEVELOPER_EDITION',
+                StorageCapacityUnits: 0,
+                NumberOfDocs: 10,
+                KendraIndexName: 'new-fake-index'
+            },
+            LlmParams: {
+                Streaming: true,
+                ApiKey: 'fake-api-key',
+                Verbose: false,
+                ModelProvider: 'HuggingFace',
+                ModelParams: {
+                    'fake-param': {
+                        Value: '1',
+                        Type: 'integer'
+                    },
+                    'fake-param2': {
+                        Value: '0.9',
+                        Type: 'float'
+                    }
+                },
+                Temperature: 0.1,
+                RAGEnabled: true
+            },
+            VPCParams: {
+                ExistingVpcId: sampleDeployUseCaseFormData.vpc.vpcId,
+                ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
+                ExistingSecurityGroupIds: ['sg-24234']
+            },
+            ConversationMemoryType: 'DynamoDB',
+            KnowledgeBaseType: 'Kendra',
+            UseCaseName: 'test-use-case',
+            ConsentToDataLeavingAWS: true,
+            UseCaseDescription: 'test use case description'
         });
     });
 });

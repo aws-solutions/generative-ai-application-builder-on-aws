@@ -18,12 +18,33 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
 import { DynamoDBAttributes } from '../utils/constants';
+import { UseCaseModelInfoStorage } from './use-case-model-info-storage';
 
 export class DynamoDBChatStorageParameters {
     /**
      * DynamoDB table name for the table which will store the conversation state and history
      */
     public readonly conversationTableName: string;
+
+    /**
+     * Name of the table which stores info/defaults for models. If not provided (passed an empty string), the table will be created.
+     */
+    public readonly existingModelInfoTableName: string;
+
+    /**
+     * Name of the table which stores info/defaults for models to be created. Must be provided if existingModelInfoTableName is not.
+     */
+    public readonly newModelInfoTableName: string;
+
+    /**
+     * Arn of the Lambda function to use for custom resource implementation.
+     */
+    public readonly customResourceLambdaArn: string;
+
+    /**
+     * Arn of the IAM role to use for custom resource implementation.
+     */
+    public readonly customResourceRoleArn: string;
 
     constructor(stack: IConstruct) {
         this.conversationTableName = new cdk.CfnParameter(stack, 'ConversationTableName', {
@@ -33,15 +54,35 @@ export class DynamoDBChatStorageParameters {
             description: 'DynamoDB table name for the table which will store the conversation state and history.'
         }).valueAsString;
 
-        // prettier-ignore
-        new cdk.CfnParameter(stack, 'UseCaseUUID', { // NOSONAR - Construct instantiation
+        this.existingModelInfoTableName = new cdk.CfnParameter(stack, 'ExistingModelInfoTableName', {
             type: 'String',
-            description: 
-                'UUID to identify this deployed use case within an application. Please provide an 8 character long UUID. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones',
-            allowedPattern: '^[0-9a-fA-F]{8}$',
-            maxLength: 8,
-            constraintDescription: 'Please provide an 8 character long UUID'
-        });
+            maxLength: 255,
+            allowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
+            default: '',
+            description: 'DynamoDB table name for the existing table which contains model info and defaults.'
+        }).valueAsString;
+
+        this.newModelInfoTableName = new cdk.CfnParameter(stack, 'NewModelInfoTableName', {
+            type: 'String',
+            maxLength: 255,
+            allowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
+            default: '',
+            description:
+                'DynamoDB table name for a new table which contains model info and defaults (used in standalone deployments).'
+        }).valueAsString;
+
+        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
+            type: 'String',
+            maxLength: 255,
+            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
+            description: 'Arn of the Lambda function to use for custom resource implementation.'
+        }).valueAsString;
+
+        this.customResourceRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
+            type: 'String',
+            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
+            description: 'Arn of the IAM role to use for custom resource implementation.'
+        }).valueAsString;
     }
 }
 
@@ -50,6 +91,11 @@ export class DynamoDBChatStorage extends cdk.NestedStack {
      * The DynamoDB table which will store the conversation state and history
      */
     public conversationTable: dynamodb.Table;
+
+    /**
+     * Construct managing the DynamoDB table which will store model info and defaults.
+     */
+    public modelInfoStorage: UseCaseModelInfoStorage;
 
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
@@ -67,11 +113,11 @@ export class DynamoDBChatStorage extends cdk.NestedStack {
     /**
      * Handles creation of DynamoDB table with given props
      *
-     * @param props properties as passed from constructor
+     * @param stackParams properties as passed from constructor
      */
-    private createDynamoDBTables(props: DynamoDBChatStorageParameters) {
+    private createDynamoDBTables(stackParams: DynamoDBChatStorageParameters) {
         this.conversationTable = new dynamodb.Table(this, 'ConversationTable', {
-            tableName: props.conversationTableName,
+            tableName: stackParams.conversationTableName,
             encryption: dynamodb.TableEncryption.AWS_MANAGED,
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             partitionKey: {
@@ -84,6 +130,13 @@ export class DynamoDBChatStorage extends cdk.NestedStack {
             },
             timeToLiveAttribute: DynamoDBAttributes.TIME_TO_LIVE,
             removalPolicy: cdk.RemovalPolicy.DESTROY
+        });
+
+        this.modelInfoStorage = new UseCaseModelInfoStorage(this, 'ModelInfoStorage', {
+            existingModelInfoTableName: stackParams.existingModelInfoTableName,
+            newModelInfoTableName: stackParams.newModelInfoTableName,
+            customResourceLambdaArn: stackParams.customResourceLambdaArn,
+            customResourceRoleArn: stackParams.customResourceRoleArn
         });
     }
 }

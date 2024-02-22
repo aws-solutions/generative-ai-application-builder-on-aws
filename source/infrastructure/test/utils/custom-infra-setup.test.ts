@@ -15,6 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 import * as rawCdkJson from '../../cdk.json';
+import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../../lib/utils/constants';
 import { CustomInfraSetup } from '../../lib/utils/custom-infra-setup';
 
 describe('When creating the custom resource infrastructure construct', () => {
@@ -45,7 +46,7 @@ describe('When creating the custom resource infrastructure construct', () => {
             },
             Description: 'A custom resource lambda function to perform operations based on operation type',
             Handler: 'lambda_func.handler',
-            Runtime: 'python3.11',
+            Runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name,
             TracingConfig: {
                 Mode: 'Active'
             }
@@ -155,6 +156,46 @@ describe('When creating the custom resource infrastructure construct', () => {
         });
     });
 
+    it('should have a dynamodb policy for the custom resource lambda function', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            'PolicyDocument': {
+                'Statement': [
+                    {
+                        'Action': ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
+                        'Effect': 'Allow',
+                        'Resource': {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        'Ref': 'AWS::Partition'
+                                    },
+                                    ':dynamodb:',
+                                    {
+                                        'Ref': 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        'Ref': 'AWS::AccountId'
+                                    },
+                                    ':table/*'
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                'Version': '2012-10-17'
+            },
+            'PolicyName': Match.anyValue(),
+            'Roles': [
+                {
+                    'Ref': customResourceLambdaRole.asString()
+                }
+            ]
+        });
+    });
+
     it('should have an anonymous metrics lambda definition', () => {
         template.hasResourceProperties('AWS::Lambda::Function', {
             Code: Match.anyValue(),
@@ -163,7 +204,7 @@ describe('When creating the custom resource infrastructure construct', () => {
             },
             Description: 'A lambda function that runs as per defined schedule to publish metrics',
             Handler: 'lambda_ops_metrics.handler',
-            Runtime: 'python3.11',
+            Runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name,
             TracingConfig: {
                 Mode: 'Active'
             },
@@ -194,7 +235,6 @@ describe('When creating the custom resource infrastructure construct', () => {
     });
 
     it('should have an anonymous metrics with roles', () => {
-        console.log(JSON.stringify(template));
         template.resourceCountIs('AWS::IAM::Role', 2);
         template.hasResourceProperties('AWS::IAM::Policy', {
             PolicyDocument: {

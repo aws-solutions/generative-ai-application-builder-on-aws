@@ -20,7 +20,7 @@ import { Breadcrumbs, GeneralConfig, PageHeader, ModelDetails, KnowledgeBaseDeta
 import { Navigation, InfoLink, Notifications } from '../commons/common-components';
 import { appLayoutAriaLabels } from '../../i18n-strings';
 import { ToolsContent } from './tools-content';
-import HomeContext from '../../home/home.context';
+import HomeContext from '../../contexts/home.context';
 import { parseStackName } from '../commons/table-config';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
 import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS } from '../../utils/constants';
@@ -101,7 +101,7 @@ export default function UseCaseView() {
             key: 'knowledgeBase'
         }
     ];
-
+  
     const onEditClickAction = () => {
         homeDispatch({
             field: 'selectedDeployment',
@@ -113,6 +113,18 @@ export default function UseCaseView() {
         });
         navigate(`/wizardView`);
     };
+
+    const onCloneClickAction = () => {
+        homeDispatch({
+            field: 'selectedDeployment',
+            value: selectedDeployment
+        });
+        homeDispatch({
+            field: 'deploymentAction',
+            value: DEPLOYMENT_ACTIONS.CLONE
+        });
+        navigate(`/wizardView`);
+    }
 
     const onFollowNavigationHandler = (event) => {
         navigate(event.detail.href);
@@ -138,6 +150,13 @@ export default function UseCaseView() {
                                     disabled={!isEditEnabled}
                                 >
                                     Edit
+                                </Button>,
+                                <Button
+                                    onClick={onCloneClickAction}
+                                    key={'clone-button'}
+                                    data-testid="use-case-view-clone-btn"
+                                >
+                                    Clone
                                 </Button>,
                                 <Button onClick={onDeleteInit} key={'delete-button'}>
                                     Delete

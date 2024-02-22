@@ -16,7 +16,11 @@ import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { PythonUserAgentLayer } from '../../lib/layers/python-user-agent';
 import * as util from '../../lib/utils/common-utils';
-import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../../lib/utils/constants';
+import {
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME
+} from '../../lib/utils/constants';
 
 describe('When python user agent config layer is injected as an aspect', () => {
     let template: Template;
@@ -29,7 +33,11 @@ describe('When python user agent config layer is injected as an aspect', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['python3.8', 'python3.9', 'python3.10', 'python3.11'],
+            CompatibleRuntimes: [
+                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
+                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
+                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
+            ],
             Content: Match.anyValue(),
             Description: 'This layer configures AWS Python SDK initialization to send user-agent information'
         });
@@ -60,7 +68,11 @@ describe('When local build fails', () => {
     it('should use docker image to build assets when local build fails', () => {
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['python3.8', 'python3.9', 'python3.10', 'python3.11'],
+            CompatibleRuntimes: [
+                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
+                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
+                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
+            ],
             Content: Match.anyValue(),
             Description: 'This layer configures AWS Python SDK initialization to send user-agent information'
         });
@@ -89,7 +101,7 @@ describe('When a non-supported runtime is provided', () => {
             });
         } catch (error) {
             expect((error as Error).message).toEqual(
-                'This lambda function uses a runtime that is incompatible with this layer (python3.7 is not in [python3.8, python3.9, python3.10, python3.11])'
+                `This lambda function uses a runtime that is incompatible with this layer (python3.7 is not in [${GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name}, ${LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name}, ${COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name}])`
             );
         }
     });
@@ -106,10 +118,9 @@ function buildStack(): cdk.Stack {
                 entry: '../lambda/layers/custom_boto3_init',
                 description: 'This layer configures AWS Python SDK initialization to send user-agent information',
                 compatibleRuntimes: [
-                    lambda.Runtime.PYTHON_3_8,
-                    lambda.Runtime.PYTHON_3_9,
-                    lambda.Runtime.PYTHON_3_10,
-                    lambda.Runtime.PYTHON_3_11
+                    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+                    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+                    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
                 ]
             })
         ]

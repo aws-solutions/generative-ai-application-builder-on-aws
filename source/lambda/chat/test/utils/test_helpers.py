@@ -12,8 +12,10 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
+from typing import Dict
+
 import pytest
-from utils.helpers import type_cast, validate_prompt_template
+from utils.helpers import count_keys, pop_null_values, type_cast, validate_prompt_placeholders
 
 
 @pytest.mark.parametrize(
@@ -21,30 +23,39 @@ from utils.helpers import type_cast, validate_prompt_template
     [
         ("Some template with no placeholders", []),
         ("Some template with {{placeholder1}}", ["placeholder1"]),
-        ("Some template with {{placeholder1}} and {{placeholder2}}", ["placeholder1", "placeholder2"]),
-        ("Some template with {{placeholder2}} and {{placeholder1}}", ["placeholder1", "placeholder2"]),
-        ("{{placeholder1}} and {{placeholder2}} and some more words", ["placeholder1", "placeholder2"]),
+        (
+            "Some template with {{placeholder1}} and {{placeholder2}}",
+            ["placeholder1", "placeholder2"],
+        ),
+        (
+            "Some template with {{placeholder2}} and {{placeholder1}}",
+            ["placeholder1", "placeholder2"],
+        ),
+        (
+            "{{placeholder1}} and {{placeholder2}} and some more words",
+            ["placeholder1", "placeholder2"],
+        ),
     ],
 )
 def test_validate_prompt_template_valid(prompt_template, required_placeholders):
-    validate_prompt_template(prompt_template, required_placeholders)
+    validate_prompt_placeholders(prompt_template, required_placeholders)
 
 
 def test_validate_prompt_template_invalid():
     with pytest.raises(ValueError):
-        validate_prompt_template(None, ["placeholder1"])
+        validate_prompt_placeholders(None, ["placeholder1"])
     with pytest.raises(ValueError):
-        validate_prompt_template("", ["placeholder1"])
+        validate_prompt_placeholders("", ["placeholder1"])
     with pytest.raises(ValueError):
-        validate_prompt_template("Some template with no placeholders", ["placeholder1"])
+        validate_prompt_placeholders("Some template with no placeholders", ["placeholder1"])
     with pytest.raises(ValueError):
-        validate_prompt_template("Some template with {{placeholder1}}", ["placeholder2"])
+        validate_prompt_placeholders("Some template with {{placeholder1}}", ["placeholder2"])
     with pytest.raises(ValueError):
-        validate_prompt_template("Some template with {{placeholder1}}", ["placeholder2"])
+        validate_prompt_placeholders("Some template with {{placeholder1}}", ["placeholder2"])
     with pytest.raises(ValueError):
-        validate_prompt_template("Some template with {{placeholder1}}", ["placeholder1", "placeholder2"])
+        validate_prompt_placeholders("Some template with {{placeholder1}}", ["placeholder1", "placeholder2"])
     with pytest.raises(ValueError):
-        validate_prompt_template("Some template with {{placeholder1}} and {{placeholder1}}", ["placeholder1"])
+        validate_prompt_placeholders("Some template with {{placeholder1}} and {{placeholder1}}", ["placeholder1"])
 
 
 @pytest.mark.parametrize(
@@ -52,13 +63,22 @@ def test_validate_prompt_template_invalid():
     [
         ("Some template with no placeholders", []),
         ("Some template with {{placeholder1}}", ["placeholder1"]),
-        ("Some template with {{placeholder1}} and {{placeholder2}}", ["placeholder1", "placeholder2"]),
-        ("Some template with {{placeholder2}} and {{placeholder1}}", ["placeholder1", "placeholder2"]),
-        ("{{placeholder1}} and {{placeholder2}} and some more words", ["placeholder1", "placeholder2"]),
+        (
+            "Some template with {{placeholder1}} and {{placeholder2}}",
+            ["placeholder1", "placeholder2"],
+        ),
+        (
+            "Some template with {{placeholder2}} and {{placeholder1}}",
+            ["placeholder1", "placeholder2"],
+        ),
+        (
+            "{{placeholder1}} and {{placeholder2}} and some more words",
+            ["placeholder1", "placeholder2"],
+        ),
     ],
 )
 def test_validate_prompt_template_valid(prompt_template, required_placeholders):
-    validate_prompt_template(prompt_template, required_placeholders)
+    validate_prompt_placeholders(prompt_template, required_placeholders)
 
 
 @pytest.mark.parametrize(
@@ -99,3 +119,43 @@ def test_valid_type_casting(value, data_type, response, response_type, setup_env
 )
 def test_invalid_casting(value, data_type, setup_environment):
     assert type_cast(value, data_type) is None
+
+
+@pytest.mark.parametrize(
+    "input_dict,expected_count",
+    [
+        ({"a": 1, "b": {"c": 2, "d": 3}}, 4),
+        ({"a": 1, "b": {"c": 2, "d": 3, "e": None}, "f": None}, 6),
+        (
+            {
+                "a": 1,
+                "b": {"c": 2, "d": 3, "e": {"g": 4, "h": {"i": 5, "j": None}}},
+                "f": None,
+            },
+            10,
+        ),
+    ],
+)
+def test_count_keys(input_dict, expected_count):
+    assert count_keys(input_dict) == expected_count
+
+
+@pytest.mark.parametrize(
+    "input_dict,expected_dict",
+    [
+        ({"a": 1, "b": None, "c": 2}, {"a": 1, "c": 2}),
+        (
+            {
+                "a": 1,
+                "b": {"c": 2, "d": 3, "e": {"g": 4, "h": {"i": 5, "j": None}}},
+                "f": None,
+            },
+            {
+                "a": 1,
+                "b": {"c": 2, "d": 3, "e": {"g": 4, "h": {"i": 5}}},
+            },
+        ),
+    ],
+)
+def test_dict_pop_null_values(input_dict, expected_dict):
+    assert pop_null_values(input_dict) == expected_dict

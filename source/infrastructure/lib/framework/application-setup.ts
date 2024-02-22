@@ -107,6 +107,11 @@ export class ApplicationSetup extends Construct {
     public readonly customResourceLambda: lambda.Function;
 
     /**
+     * The role assumed by the custom resource lambda
+     */
+    public readonly customResourceRole: iam.Role;
+
+    /**
      * The lambda that reads CW custom metrics and pushes data
      */
     public readonly scheduledMetricsLambda: lambda.Function;
@@ -153,6 +158,7 @@ export class ApplicationSetup extends Construct {
             sendAnonymousMetricsCondition: this.sendAnonymousMetricsCondition
         });
         this.customResourceLambda = customInfraSetup.customResourceLambda;
+        this.customResourceRole = customInfraSetup.lambdaServiceRole;
         this.scheduledMetricsLambda = customInfraSetup.scheduledMetricsLambda;
 
         NagSuppressions.addResourceSuppressions(this.accessLoggingBucket, [

@@ -13,6 +13,26 @@
 
 import { Conversation } from '../types/chat';
 
+export interface UseCaseConfigType {
+    UseCaseName: string;
+    ConversationMemoryType: string;
+    KnowledgeBaseType: string;
+    KnowledgeBaseParams: {
+        NumberOfDocs: number;
+        ReturnSourceDocs: boolean;
+    };
+    LlmParams: {
+        ModelProvider: string;
+        ModelId: string;
+        ModelParams: any;
+        PromptTemplate: string;
+        Streaming: boolean;
+        Verbose: boolean;
+        Temperature: number;
+        RAGEnabled: boolean;
+    };
+}
+
 export interface HomeInitialState {
     loading: boolean;
     messageIsStreaming: boolean;
@@ -20,6 +40,7 @@ export interface HomeInitialState {
     promptTemplate: string;
     defaultPromptTemplate: string;
     RAGEnabled: boolean;
+    useCaseConfig: UseCaseConfigType;
 }
 
 export const initialState: HomeInitialState = {
@@ -32,5 +53,6 @@ export const initialState: HomeInitialState = {
     },
     promptTemplate: '',
     defaultPromptTemplate: '',
-    RAGEnabled: false
+    RAGEnabled: false,
+    useCaseConfig: {} as UseCaseConfigType
 };

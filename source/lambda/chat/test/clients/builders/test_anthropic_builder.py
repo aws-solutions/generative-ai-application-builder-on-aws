@@ -20,50 +20,122 @@ from unittest.mock import patch
 import pytest
 from clients.builders.anthropic_builder import AnthropicBuilder
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
-from llm_models.anthropic import AnthropicLLM
-from llm_models.rag.anthropic_retrieval import AnthropicRetrievalLLM
+from llms.anthropic import AnthropicLLM
+from llms.rag.anthropic_retrieval import AnthropicRetrievalLLM
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from utils.constants import (
+    CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
-    DEFAULT_ANTHROPIC_PLACEHOLDERS,
-    DEFAULT_ANTHROPIC_PROMPT,
-    DEFAULT_ANTHROPIC_RAG_PLACEHOLDERS,
-    DEFAULT_ANTHROPIC_RAG_PROMPT,
+    DEFAULT_PLACEHOLDERS,
+    DEFAULT_RAG_PLACEHOLDERS,
     KENDRA_INDEX_ID_ENV_VAR,
-    MEMORY_CONFIG,
-    RAG_KEY,
+    RAG_CHAT_IDENTIFIER,
     USER_ID_EVENT_KEY,
 )
 from utils.enum_types import ConversationMemoryTypes, LLMProviderTypes
 
+ANTHROPIC_PROMPT = """\n\n{history}\n\n{input}"""
+ANTHROPIC_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+MEMORY_CONFIG = {
+    CHAT_IDENTIFIER: {
+        "history": "history",
+        "input": "input",
+        "context": None,
+        "ai_prefix": "A",
+        "human_prefix": "H",
+        "output": None,
+    },
+    RAG_CHAT_IDENTIFIER: {
+        "history": "chat_history",
+        "input": "question",
+        "context": "context",
+        "ai_prefix": "A",
+        "human_prefix": "H",
+        "output": "answer",
+    },
+}
+
 
 @pytest.mark.parametrize(
-    "is_streaming, rag_enabled, llm_type, prompt, placeholders, rag_key",
+    "use_case, is_streaming, rag_enabled, return_source_docs, llm_type, prompt, placeholders, model_id",
     [
-        (False, False, AnthropicLLM, DEFAULT_ANTHROPIC_PROMPT, DEFAULT_ANTHROPIC_PLACEHOLDERS, ""),
-        (True, False, AnthropicLLM, DEFAULT_ANTHROPIC_PROMPT, DEFAULT_ANTHROPIC_PLACEHOLDERS, ""),
         (
+            CHAT_IDENTIFIER,
+            False,
+            False,
+            False,
+            AnthropicLLM,
+            ANTHROPIC_PROMPT,
+            DEFAULT_PLACEHOLDERS,
+            "claude-1",
+        ),
+        (
+            CHAT_IDENTIFIER,
+            True,
+            False,
+            False,
+            AnthropicLLM,
+            ANTHROPIC_PROMPT,
+            DEFAULT_PLACEHOLDERS,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
             False,
             True,
+            False,
             AnthropicRetrievalLLM,
-            DEFAULT_ANTHROPIC_RAG_PROMPT,
-            DEFAULT_ANTHROPIC_RAG_PLACEHOLDERS,
-            RAG_KEY,
+            ANTHROPIC_RAG_PROMPT,
+            DEFAULT_RAG_PLACEHOLDERS,
+            "claude-1",
         ),
-        (True, True, AnthropicRetrievalLLM, DEFAULT_ANTHROPIC_RAG_PROMPT, DEFAULT_ANTHROPIC_RAG_PLACEHOLDERS, RAG_KEY),
+        (
+            RAG_CHAT_IDENTIFIER,
+            True,
+            True,
+            False,
+            AnthropicRetrievalLLM,
+            ANTHROPIC_RAG_PROMPT,
+            DEFAULT_RAG_PLACEHOLDERS,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            False,
+            True,
+            True,
+            AnthropicRetrievalLLM,
+            ANTHROPIC_RAG_PROMPT,
+            DEFAULT_RAG_PLACEHOLDERS,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            True,
+            True,
+            True,
+            AnthropicRetrievalLLM,
+            ANTHROPIC_RAG_PROMPT,
+            DEFAULT_RAG_PLACEHOLDERS,
+            "claude-1",
+        ),
     ],
 )
 def test_set_llm_model(
+    use_case,
     is_streaming,
+    model_id,
     rag_enabled,
+    return_source_docs,
     llm_type,
     prompt,
     placeholders,
-    rag_key,
     chat_event,
     llm_config,
     setup_environment,
     setup_secret,
+    dynamodb_resource,
+    anthropic_dynamodb_defaults_table,
 ):
     config = json.loads(llm_config["Parameter"]["Value"])
     chat_event_body = json.loads(chat_event["body"])
@@ -76,8 +148,9 @@ def test_set_llm_model(
     user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
     # Assign all the values to the builder attributes required to construct the LLMChat object
+    builder.set_model_defaults(LLMProviderTypes.ANTHROPIC, "claude-1")
+    builder.validate_event_input_sizes(chat_event_body)
     builder.set_knowledge_base()
-    builder.set_memory_constants(LLMProviderTypes.ANTHROPIC.value)
     builder.set_conversation_memory(user_id, chat_event_body[CONVERSATION_ID_EVENT_KEY])
     builder.set_api_key()
 
@@ -108,26 +181,11 @@ def test_set_llm_model(
         assert builder.llm_model.knowledge_base == None
     assert builder.llm_model.conversation_memory.memory_type == ConversationMemoryTypes.DynamoDB.value
     assert type(builder.llm_model.conversation_memory) == DynamoDBChatMemory
-    assert (
-        builder.llm_model.conversation_memory.memory_key
-        == MEMORY_CONFIG[LLMProviderTypes.ANTHROPIC.value + rag_key]["history"]
-    )
-    assert (
-        builder.llm_model.conversation_memory.input_key
-        == MEMORY_CONFIG[LLMProviderTypes.ANTHROPIC.value + rag_key]["input"]
-    )
-    assert (
-        builder.llm_model.conversation_memory.output_key
-        == MEMORY_CONFIG[LLMProviderTypes.ANTHROPIC.value + rag_key]["output"]
-    )
-    assert (
-        builder.llm_model.conversation_memory.human_prefix
-        == MEMORY_CONFIG[LLMProviderTypes.ANTHROPIC.value + rag_key]["human_prefix"]
-    )
-    assert (
-        builder.llm_model.conversation_memory.ai_prefix
-        == MEMORY_CONFIG[LLMProviderTypes.ANTHROPIC.value + rag_key]["ai_prefix"]
-    )
+    assert builder.llm_model.conversation_memory.memory_key == MEMORY_CONFIG[use_case]["history"]
+    assert builder.llm_model.conversation_memory.input_key == MEMORY_CONFIG[use_case]["input"]
+    assert builder.llm_model.conversation_memory.output_key == MEMORY_CONFIG[use_case]["output"]
+    assert builder.llm_model.conversation_memory.human_prefix == MEMORY_CONFIG[use_case]["human_prefix"]
+    assert builder.llm_model.conversation_memory.ai_prefix == MEMORY_CONFIG[use_case]["ai_prefix"]
 
     if is_streaming:
         assert builder.callbacks
@@ -136,25 +194,82 @@ def test_set_llm_model(
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled",
+    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
     [
-        (DEFAULT_ANTHROPIC_PROMPT, True, False),
-        (DEFAULT_ANTHROPIC_PROMPT, False, False),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, True, True),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, False, True),
+        (
+            CHAT_IDENTIFIER,
+            ANTHROPIC_PROMPT,
+            True,
+            False,
+            False,
+            "claude-1",
+        ),
+        (
+            CHAT_IDENTIFIER,
+            ANTHROPIC_PROMPT,
+            False,
+            False,
+            False,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            False,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            False,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            True,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            True,
+            "claude-1",
+        ),
     ],
 )
-def test_set_llm_model_throws_error_missing_memory(llm_config, chat_event, setup_environment, setup_secret):
+def test_set_llm_model_throws_error_missing_memory(
+    use_case,
+    rag_enabled,
+    model_id,
+    llm_config,
+    chat_event,
+    setup_environment,
+    setup_secret,
+    anthropic_dynamodb_defaults_table,
+):
     config = json.loads(llm_config["Parameter"]["Value"])
     builder = AnthropicBuilder(
         llm_config=config,
-        rag_enabled=False,
+        rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
+    chat_event_body = json.loads(chat_event["body"])
 
+    builder.set_model_defaults(LLMProviderTypes.ANTHROPIC, "claude-1")
+    builder.validate_event_input_sizes(chat_event_body)
     builder.set_knowledge_base()
     builder.set_api_key()
+
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
@@ -166,22 +281,69 @@ def test_set_llm_model_throws_error_missing_memory(llm_config, chat_event, setup
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled",
+    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
     [
-        (DEFAULT_ANTHROPIC_PROMPT, True, False),
-        (DEFAULT_ANTHROPIC_PROMPT, False, False),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, True, True),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, False, True),
+        (
+            CHAT_IDENTIFIER,
+            ANTHROPIC_PROMPT,
+            True,
+            False,
+            False,
+            "claude-1",
+        ),
+        (
+            CHAT_IDENTIFIER,
+            ANTHROPIC_PROMPT,
+            False,
+            False,
+            False,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            False,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            False,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            True,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            True,
+            "claude-1",
+        ),
     ],
 )
-def test_set_llm_model_with_errors(llm_config):
+def test_set_llm_model_with_errors(
+    use_case, rag_enabled, model_id, llm_config, setup_environment, anthropic_dynamodb_defaults_table
+):
     parsed_config = json.loads(llm_config["Parameter"]["Value"])
     builder = AnthropicBuilder(
         llm_config=parsed_config,
-        rag_enabled=False,
+        rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
+    builder.set_model_defaults(LLMProviderTypes.ANTHROPIC, "claude-1")
     builder.errors = ["some-error-1", "some-error-2"]
     builder.conversation_memory = ""
 
@@ -198,20 +360,58 @@ def test_set_llm_model_with_errors(llm_config):
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled",
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
     [
-        (DEFAULT_ANTHROPIC_PROMPT, True, False),
-        (DEFAULT_ANTHROPIC_PROMPT, False, False),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, True, True),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, False, True),
+        (
+            ANTHROPIC_PROMPT,
+            True,
+            False,
+            False,
+            "claude-1",
+        ),
+        (
+            ANTHROPIC_PROMPT,
+            False,
+            False,
+            False,
+            "claude-1",
+        ),
+        (
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            False,
+            "claude-1",
+        ),
+        (
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            False,
+            "claude-1",
+        ),
+        (
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            True,
+            "claude-1",
+        ),
+        (
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            True,
+            "claude-1",
+        ),
     ],
 )
-def test_set_llm_model_with_missing_config_fields(llm_config):
+def test_set_llm_model_with_missing_config_fields(rag_enabled, llm_config, setup_environment):
     parsed_config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
     del parsed_config["LlmParams"]
     builder = AnthropicBuilder(
         llm_config=parsed_config,
-        rag_enabled=False,
+        rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
@@ -226,15 +426,75 @@ def test_set_llm_model_with_missing_config_fields(llm_config):
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled, model",
+    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model, model_id",
     [
-        (DEFAULT_ANTHROPIC_PROMPT, False, False, AnthropicLLM),
-        (DEFAULT_ANTHROPIC_PROMPT, True, False, AnthropicLLM),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, False, True, AnthropicRetrievalLLM),
-        (DEFAULT_ANTHROPIC_RAG_PROMPT, True, True, AnthropicRetrievalLLM),
+        (
+            CHAT_IDENTIFIER,
+            ANTHROPIC_PROMPT,
+            False,
+            False,
+            False,
+            AnthropicLLM,
+            "claude-1",
+        ),
+        (
+            CHAT_IDENTIFIER,
+            ANTHROPIC_PROMPT,
+            True,
+            False,
+            False,
+            AnthropicLLM,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            False,
+            AnthropicRetrievalLLM,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            False,
+            AnthropicRetrievalLLM,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            False,
+            True,
+            True,
+            AnthropicRetrievalLLM,
+            "claude-1",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            ANTHROPIC_RAG_PROMPT,
+            True,
+            True,
+            True,
+            AnthropicRetrievalLLM,
+            "claude-1",
+        ),
     ],
 )
-def test_returned_anthropic_model(llm_config, chat_event, rag_enabled, model, setup_environment, setup_secret):
+def test_returned_anthropic_model(
+    use_case,
+    model_id,
+    llm_config,
+    chat_event,
+    rag_enabled,
+    model,
+    setup_environment,
+    setup_secret,
+    anthropic_dynamodb_defaults_table,
+):
     config = json.loads(llm_config["Parameter"]["Value"])
     chat_event_body = json.loads(chat_event["body"])
     builder = AnthropicBuilder(
@@ -245,8 +505,8 @@ def test_returned_anthropic_model(llm_config, chat_event, rag_enabled, model, se
     )
     user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
+    builder.set_model_defaults(LLMProviderTypes.ANTHROPIC, "claude-1")
     builder.set_knowledge_base()
-    builder.set_memory_constants(LLMProviderTypes.ANTHROPIC.value)
     builder.set_conversation_memory(user_id, chat_event_body[CONVERSATION_ID_EVENT_KEY])
     builder.set_api_key()
     with patch(

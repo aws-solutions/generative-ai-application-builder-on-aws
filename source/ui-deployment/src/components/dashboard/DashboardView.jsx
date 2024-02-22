@@ -34,7 +34,7 @@ import {
 } from '../../i18n-strings';
 import { useColumnWidths } from '../commons/use-column-widths';
 import { useLocalStorage } from '../commons/use-local-storage';
-import HomeContext from '../../home/home.context';
+import HomeContext from '../../contexts/home.context';
 import { DEFAULT_PREFERENCES, Preferences, parseStackName } from '../commons/table-config';
 import { listDeployedUseCases, statusIndicatorTypeSelector } from './deployments';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';

@@ -15,7 +15,7 @@ import { formatResponse, formatError } from '../../utils/http-response-formatter
 
 describe('When formatting messages as HTTP responses', () => {
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = '{ "customUserAgent": "AwsSolution/SO0999/v9.9.9" }';
+        process.env.AWS_SDK_USER_AGENT = '{ "customUserAgent": "AWSSOLUTION/SO0999/v9.9.9" }';
         process.env.AWS_REGION = 'us-east-1';
     });
 
@@ -60,7 +60,7 @@ describe('When formatting messages as HTTP responses', () => {
 
 describe('When formatting error responses as HTTP responses', () => {
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = '{ "customUserAgent": "AwsSolution/SO0999/v9.9.9" }';
+        process.env.AWS_SDK_USER_AGENT = '{ "customUserAgent": "AWSSOLUTION/SO0999/v9.9.9" }';
         process.env.AWS_REGION = 'us-east-1';
     });
 

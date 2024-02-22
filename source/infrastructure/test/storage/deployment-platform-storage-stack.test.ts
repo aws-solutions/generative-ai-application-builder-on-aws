@@ -17,6 +17,7 @@ import * as rawCdkJson from '../../cdk.json';
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 import { DeploymentPlatformStack } from '../../lib/deployment-platform-stack';
 import { DynamoDBDeploymentPlatformStorage } from '../../lib/storage/deployment-platform-storage-stack';
+import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../../lib/utils/constants';
 
 describe('When creating the nested stack for chat storage', () => {
     let nestedStack: DynamoDBDeploymentPlatformStorage;
@@ -38,8 +39,8 @@ describe('When creating the nested stack for chat storage', () => {
         expect(template).not.toBe(undefined);
     });
 
-    it('should create 1 dynamoDB table', () => {
-        template.resourceCountIs('AWS::DynamoDB::Table', 1);
+    it('should create 2 dynamoDB tables', () => {
+        template.resourceCountIs('AWS::DynamoDB::Table', 2);
 
         template.hasResource('AWS::DynamoDB::Table', {
             Properties: {
@@ -202,7 +203,7 @@ describe('When creating the nested stack for chat storage', () => {
             Role: {
                 'Fn::GetAtt': [lambdaPolicyCapture.asString(), 'Arn']
             },
-            Runtime: 'python3.11',
+            Runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name,
             TracingConfig: {
                 Mode: 'Active'
             }

@@ -17,7 +17,9 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { AwsNodeSdkLibLayer, Boto3SdkLibLayer } from '../../lib/layers/runtime-libs';
 import {
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
-    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME
 } from '../../lib/utils/constants';
 
 describe('When injecting Nodejs shared library and aws-sdk library layer', () => {
@@ -31,7 +33,7 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['nodejs18.x'],
+            CompatibleRuntimes: [GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME.name, COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name],
             Content: Match.anyValue()
         });
 
@@ -55,7 +57,7 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
             buildStack(lambda.Runtime.PYTHON_3_8);
         } catch (error) {
             expect((error as Error).message).toEqual(
-                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [nodejs18.x])`
+                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [python3.10, python3.12])`
             );
         }
     });
@@ -72,7 +74,10 @@ describe('When injecting Python shared library and boto3 library layer', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['python3.8', 'python3.9', 'python3.10', 'python3.11'],
+            CompatibleRuntimes: [
+                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
+                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
+            ],
             Content: Match.anyValue()
         });
 
@@ -101,7 +106,7 @@ function buildStack(runtime: lambda.Runtime): cdk.Stack {
                 new AwsNodeSdkLibLayer(stack, 'AwsSharedLibLayer', {
                     entry: '../lambda/layers/aws-sdk-lib',
                     description: 'A layer to add aws-sdk shared layer',
-                    compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
+                    compatibleRuntimes: [GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME, COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME]
                 })
             ]
         });
@@ -115,10 +120,8 @@ function buildStack(runtime: lambda.Runtime): cdk.Stack {
                     entry: '../lambda/layers/aws_boto3',
                     description: 'A layer to add boto3 shared layer',
                     compatibleRuntimes: [
-                        lambda.Runtime.PYTHON_3_8,
-                        lambda.Runtime.PYTHON_3_9,
-                        lambda.Runtime.PYTHON_3_10,
-                        lambda.Runtime.PYTHON_3_11
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
                     ]
                 })
             ]

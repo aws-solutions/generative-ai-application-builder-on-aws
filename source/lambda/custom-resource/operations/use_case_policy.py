@@ -13,6 +13,7 @@
 ######################################################################################################################
 
 import json
+import time
 import uuid
 
 import botocore
@@ -61,7 +62,7 @@ def verify_env_setup(event):
 
 
 @tracer.capture_method
-def create(event, context):
+def create(event, context, retries=3, retry_interval=5):
     """This method provides implementation for the 'Create' (and update) event for CloudFormation Custom Resource creation.
     This will create a new item in the policy table for the given group, allowing access to invoke the provided API.
     This also adds a statement to the policy of the admin group in the policy table to allow admin users access to the API.
@@ -69,6 +70,8 @@ def create(event, context):
     Args:
         event (LambdaEvent): An event object received by the lambda function that is passed by AWS services when invoking the function's handler
         context (LambdaContext): A context object received by the lambda function that is passed by AWS services when invoking the function's handler
+        retries (int): The number of times to retry. May be needed as sometimes IAM policy changes take time to propagate, which can mean we need to retry.
+        retry_interval (int): The number of seconds to wait between retries, in seconds.
 
     Raises:
         botocore.exceptions.ClientError: If the service call to put/create resource policy in DynamoDB fails
@@ -78,47 +81,69 @@ def create(event, context):
 
     ddb = get_service_resource("dynamodb")
 
-    try:
-        # Policy for this group is put in policy table (put overwrites existing, so this applies for updates as well)
-        new_policy_statement = {
-            "Sid": f"{group_name}-policy-statement",
-            "Effect": "Allow",
-            "Action": "execute-api:Invoke",
-            "Resource": [
-                f"{api_arn}",
-            ],
-        }
-        table = ddb.Table(event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME])
-        table.put_item(
-            Item={
-                "group": group_name,
-                "policy": {"Version": "2012-10-17", "Statement": [new_policy_statement]},
-            }
-        )
-
-        # Policy for the admin group updated to allow invoking this new API
-        admin_policy = {}
+    while retries > 0:
         try:
-            admin_policy = table.get_item(Key={"group": "admin"})["Item"]["policy"]
-            group_statement_existed = False
-            # checking if a policy statement for the given group exists already. If yes, replace it with the new one.
-            for idx, statement in enumerate(admin_policy["Statement"]):
-                if statement["Sid"] == f"{group_name}-policy-statement":
-                    logger.info(f"Policy statement for {group_name} already exists on the admin group. Replacing.")
-                    group_statement_existed = True
-                    admin_policy["Statement"][idx] = new_policy_statement
-                    break
-            if not group_statement_existed:
-                admin_policy["Statement"].append(new_policy_statement)
-        except KeyError:
-            logger.info("No policy found for the admin group. Creating one.")
-            admin_policy = {"Version": "2012-10-17", "Statement": [new_policy_statement]}
+            # Policy for this group is put in policy table (put overwrites existing, so this applies for updates as well)
+            new_policy_statement = {
+                "Sid": f"{group_name}-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    f"{api_arn}",
+                ],
+            }
+            table = ddb.Table(event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME])
+            table.put_item(
+                Item={
+                    "group": group_name,
+                    "policy": {"Version": "2012-10-17", "Statement": [new_policy_statement]},
+                }
+            )
 
-        table.put_item(Item={"group": "admin", "policy": admin_policy})
+            # Policy for the admin group updated to allow invoking this new API
+            admin_policy = _create_updated_admin_policy(group_name, new_policy_statement, table)
+            table.put_item(Item={"group": "admin", "policy": admin_policy})
+            break
 
-    except botocore.exceptions.ClientError as error:
-        logger.error(f"Error occurred when item in policy table, error is {error}")
-        raise error
+        except botocore.exceptions.ClientError as error:
+            logger.error(f"Error occurred when putting item in policy table, error is {error}")
+            retries -= 1
+            if retries == 0:
+                raise error
+            else:
+                logger.info(f"Retrying in {retry_interval} seconds. Retrying {retries} more times")
+                time.sleep(retry_interval)
+
+
+def _create_updated_admin_policy(group_name, new_policy_statement, table):
+    """creates the policy statement in the admin policy allowing access to the newly created group.
+    If the given policy statement already exists, we replace it. If the admin policy does not exist, creates one.
+
+    Args:
+        group_name (str): name of the user group the admin will get access to.
+        new_policy_statement (Object): Policy statement to be added
+        table (Table): table to retrieve admin policy from
+
+    Returns:
+        _type_: _description_
+    """
+    admin_policy = {}
+    try:
+        admin_policy = table.get_item(Key={"group": "admin"})["Item"]["policy"]
+        group_statement_existed = False
+        # checking if a policy statement for the given group exists already. If yes, replace it with the new one.
+        for idx, statement in enumerate(admin_policy["Statement"]):
+            if statement["Sid"] == f"{group_name}-policy-statement":
+                logger.info(f"Policy statement for {group_name} already exists on the admin group. Replacing.")
+                group_statement_existed = True
+                admin_policy["Statement"][idx] = new_policy_statement
+                break
+        if not group_statement_existed:
+            admin_policy["Statement"].append(new_policy_statement)
+    except KeyError:
+        logger.info("No policy found for the admin group. Creating one.")
+        admin_policy = {"Version": "2012-10-17", "Statement": [new_policy_statement]}
+    return admin_policy
 
 
 @tracer.capture_method

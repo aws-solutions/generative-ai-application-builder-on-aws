@@ -15,14 +15,23 @@ export interface Message {
     content: string;
 }
 
-export type Role = 'assistant' | 'user';
-
-export interface ChatBody {
-    messages: Message[];
+export interface SourceDocument {
+    result_id: string;
+    document_id: string;
+    source: string;
+    title: string;
+    excerpt: string;
+    document_attributes: any;
 }
+
+export interface MessageWithSource extends Message {
+    sourceDocuments?: SourceDocument[];
+}
+
+export type Role = 'assistant' | 'user';
 
 export interface Conversation {
     id: string;
     name: string;
-    messages: Message[];
+    messages: MessageWithSource[];
 }

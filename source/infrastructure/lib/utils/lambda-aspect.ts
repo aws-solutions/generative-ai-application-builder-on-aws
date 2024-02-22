@@ -21,7 +21,17 @@ import { PythonUserAgentLayer } from '../layers/python-user-agent';
 import { AwsNodeSdkLibLayer, Boto3SdkLibLayer } from '../layers/runtime-libs';
 import { PythonLangchainLayer } from '../layers/shared-lib';
 import { TSUserAgentLayer } from '../layers/ts-user-agent';
-import { ADDITIONAL_LLM_LIBRARIES, CloudWatchNamespace, LLM_LIBRARY_LAYER_TYPES } from '../utils/constants';
+import {
+    ADDITIONAL_LLM_LIBRARIES,
+    COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+    CloudWatchNamespace,
+    GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+    LLM_LIBRARY_LAYER_TYPES
+} from '../utils/constants';
+import { PipInstallArguments } from './asset-bundling';
 
 export interface LambdaAspectProps {
     /**
@@ -140,7 +150,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
         node.addLayers(this.getOrCreatePythonUserAgent(node));
         node.addEnvironment(
             'AWS_SDK_USER_AGENT',
-            `{ "user_agent_extra": "AwsSolution/${solutionID}/${solutionVersion}" }`
+            `{ "user_agent_extra": "AWSSOLUTION/${solutionID}/${solutionVersion}" }`
         );
         console.log(node.node.metadata);
         /**
@@ -191,7 +201,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
         node.addLayers(this.getOrCreateNodeUserAgent(node), this.getOrCreateAwsNodeSdkLibLayer(node));
         node.addEnvironment(
             'AWS_SDK_USER_AGENT',
-            `{ "customUserAgent": [["AwsSolution/${solutionID}/${solutionVersion}"]] }`
+            `{ "customUserAgent": [["AWSSOLUTION/${solutionID}/${solutionVersion}"]] }`
         );
         node.addEnvironment('AWS_NODEJS_CONNECTION_REUSE_ENABLED', '1');
     }
@@ -207,7 +217,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
                 new TSUserAgentLayer(this.getConstructToCreateLayer(node), 'NodeUserAgentLayer', {
                     entry: '../lambda/layers/aws-node-user-agent-config',
                     description: 'This layer configures AWS Node SDK initialization to send user-agent information',
-                    compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
+                    compatibleRuntimes: [GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME, COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME]
                 })
             );
         }
@@ -249,7 +259,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
                 new AwsNodeSdkLibLayer(this.getConstructToCreateLayer(node), 'AwsNodeSdkLayer', {
                     entry: '../lambda/layers/aws-sdk-lib',
                     description: 'AWS Javascript SDK v3 to be bundled with lambda functions as a layer',
-                    compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
+                    compatibleRuntimes: [GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME, COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME]
                 })
             );
         }
@@ -279,20 +289,23 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
     }
 
     /**
-     * This method checks if the layer defition exists. If not then creates a new one.
+     * This method checks if the layer definition exists. If not then creates a new one.
      *
-     * @returns Python runtime compatible LayerVersion for Langchain with all its required packages
+     * @returns Python runtime compatible LayerVersion for LangChain with all its required packages
      */
     private getOrCreateLangchainLayer(node: Construct): lambda.LayerVersion {
         const stackId = this.getStackIdFromNode(node);
         if (this.pythonLangchainLayer.get(stackId) === undefined) {
+            const pipInstallArgs = new PipInstallArguments();
+            pipInstallArgs.pythonVersion = lambda.Runtime.PYTHON_3_11.name.replace('python', '');
             this.pythonLangchainLayer.set(
                 stackId,
                 new PythonLangchainLayer(this.getConstructToCreateLayer(node), 'LangchainLayer', {
                     entry: '../lambda/layers/langchain',
                     description:
                         'This layer configures the LangChain python package to be bundled with python lambda functions',
-                    compatibleRuntimes: pythonCompatibleRuntimes
+                    compatibleRuntimes: pythonCompatibleRuntimes,
+                    pipOptions: pipInstallArgs
                 })
             );
         }
@@ -391,8 +404,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
 }
 
 const pythonCompatibleRuntimes = [
-    lambda.Runtime.PYTHON_3_8,
-    lambda.Runtime.PYTHON_3_9,
-    lambda.Runtime.PYTHON_3_10,
-    lambda.Runtime.PYTHON_3_11
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
 ];

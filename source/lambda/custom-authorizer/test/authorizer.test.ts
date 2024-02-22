@@ -42,7 +42,7 @@ describe('When the websocket handler receives an authorization event', () => {
     let ddbMockedClient: any;
 
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0084/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0084/v2.0.0" }`;
         process.env.COGNITO_POLICY_TABLE_NAME = 'fake-table-name';
         ddbMockedClient = mockClient(DynamoDBDocumentClient);
     });
@@ -121,7 +121,7 @@ describe('When the rest handler receives an authorization event', () => {
     let ddbMockedClient: any;
 
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0084/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0084/v2.0.0" }`;
         process.env.COGNITO_POLICY_TABLE_NAME = 'fake-table-name';
         ddbMockedClient = mockClient(DynamoDBDocumentClient);
     });

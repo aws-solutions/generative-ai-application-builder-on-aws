@@ -116,6 +116,8 @@ export class AppRegistry extends Construct implements cdk.IAspect {
                 }
 
                 const nestedStack = node;
+
+                // prettier-ignore
                 new CfnResourceAssociation(
                     nestedStack,
                     `ResourceAssociation${hashValues(cdk.Names.nodeUniqueId(nestedStack.node))}`,
@@ -141,7 +143,7 @@ export class AppRegistry extends Construct implements cdk.IAspect {
     private createAppForAppRegistry(stack: cdk.Stack): void {
         this.application.set(
             stack.stackId,
-            new appreg.Application(stack, 'RegistrySetup', {
+            new appreg.Application(stack, `RegistrySetup`, {
                 applicationName: this.applicationNameValue,
                 description: `Service Catalog application to track and manage all your resources for the solution ${this.solutionName}`
             })
@@ -175,7 +177,7 @@ export class AppRegistry extends Construct implements cdk.IAspect {
         if (!this.application.get(node.stackId)) {
             this.createAppForAppRegistry(node);
         }
-        this.attributeGroup = new appreg.AttributeGroup(node, 'AppAttributes', {
+        this.attributeGroup = new appreg.AttributeGroup(node, `AppAttributes`, {
             attributeGroupName: `AttrGrp-${cdk.Aws.STACK_NAME}`,
             description: 'Attributes for Solutions Metadata',
             attributes: {

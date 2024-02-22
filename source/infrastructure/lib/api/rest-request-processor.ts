@@ -13,30 +13,35 @@
  **********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as api from 'aws-cdk-lib/aws-apigateway';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 import { Construct } from 'constructs';
+import { DeploymentPlatformCognitoSetup } from '../auth/deployment-platform-cognito-setup';
 import { AppAssetBundler } from '../utils/asset-bundling';
+import { createDefaultLambdaRole } from '../utils/common-utils';
 import {
-    TYPESCRIPT,
+    CLIENT_ID_ENV_VAR,
+    COGNITO_POLICY_TABLE_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
     LAMBDA_TIMEOUT_MINS,
-    COGNITO_POLICY_TABLE_ENV_VAR,
-    USER_POOL_ID_ENV_VAR,
-    CLIENT_ID_ENV_VAR
+    TYPESCRIPT,
+    USER_POOL_ID_ENV_VAR
 } from '../utils/constants';
 import { DeploymentPlatformRestEndpoint } from './deployment-platform-rest-endpoint';
-import { DeploymentPlatformCognitoSetup } from '../auth/deployment-platform-cognito-setup';
-import { createDefaultLambdaRole } from '../utils/common-utils';
 
 export interface RestRequestProcessorProps {
     /**
      * The function to back the use case management API
      */
     useCaseManagementAPILambda: lambda.Function;
+
+    /**
+     * The function to back the model info API
+     */
+    modelInfoAPILambda: lambda.Function;
 
     /**
      * Default user email address used to create a cognito user in the user pool.
@@ -141,6 +146,7 @@ export class RestRequestProcessor extends Construct {
 
         this.restEndpoint = new DeploymentPlatformRestEndpoint(this, 'RestEndpoint', {
             useCaseManagementAPILambda: props.useCaseManagementAPILambda,
+            modelInfoApiLambda: props.modelInfoAPILambda,
             deploymentPlatformAuthorizer: authorizer
         });
 
@@ -158,10 +164,27 @@ export class RestRequestProcessor extends Construct {
                 }
             }
         );
-        const grant = cognitoSetup.cognitoGroupPolicyTable.grantReadWriteData(
-            iam.Role.fromRoleArn(this, 'AdminCognitoPolicyCustomResourceRole', props.customResourceRoleArn)
+
+        const customResourceLambdaRole = iam.Role.fromRoleArn(
+            this,
+            'AdminCognitoPolicyCustomResourceRole',
+            props.customResourceRoleArn
         );
+
+        const cognitoAdminGroupPolicy = new iam.Policy(this, 'CognitoAdminGroupPolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['dynamodb:PutItem', 'dynamodb:DeleteItem', 'dynamodb:GetItem'],
+                    resources: [
+                        `arn:aws:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${cognitoSetup.cognitoGroupPolicyTable.tableName}`
+                    ]
+                })
+            ]
+        });
+        cognitoAdminGroupPolicy.attachToRole(customResourceLambdaRole);
+        cognitoAdminGroupPolicyCustomResource.node.addDependency(cognitoAdminGroupPolicy);
         cognitoAdminGroupPolicyCustomResource.node.addDependency(cognitoSetup.cognitoGroupPolicyTable);
-        cognitoAdminGroupPolicyCustomResource.node.addDependency(grant);
+        cognitoAdminGroupPolicyCustomResource.node.addDependency(restAuthorizerLambda);
     }
 }

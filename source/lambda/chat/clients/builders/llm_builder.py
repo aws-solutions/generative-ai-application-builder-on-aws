@@ -14,16 +14,29 @@
 
 import os
 from abc import ABC
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from aws_lambda_powertools import Logger, Tracer
+from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError
 from clients.factories.conversation_memory_factory import ConversationMemoryFactory
 from clients.factories.knowledge_base_factory import KnowledgeBaseFactory
 from helper import get_service_client
+from llms.models.llm import LLM
 from shared.callbacks.websocket_streaming_handler import WebsocketStreamingCallbackHandler
-from utils.constants import LLM_PROVIDER_API_KEY_ENV_VAR, MEMORY_CONFIG, RAG_KEY, TRACE_ID_ENV_VAR
+from shared.defaults.model_defaults import ModelDefaults
+from utils.constants import (
+    DEFAULT_RAG_ENABLED_MODE,
+    DEFAULT_VERBOSE_MODE,
+    LLM_PROVIDER_API_KEY_ENV_VAR,
+    PROMPT_EVENT_KEY,
+    QUESTION_EVENT_KEY,
+    TRACE_ID_ENV_VAR,
+)
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces, LLMProviderTypes
+from utils.helpers import get_metrics_client
 
+metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
 logger = Logger(utc=True)
 tracer = Tracer()
 
@@ -35,7 +48,7 @@ class LLMBuilder(ABC):
 
     Attributes:
         llm_config (Dict): Specifies the configuration that the admin sets on a use-case, stored in SSM Parameter store
-        rag_enabled (Optional[bool]): Specifies whether the use-case is enabled for RAG. Defaults to True.
+        rag_enabled (Optional[bool]): Specifies whether the use-case is enabled for RAG. Defaults to DEFAULT_RAG_ENABLED_MODE.
         connection_id (str): The connection ID of the user's connection to the chat application through WebSockets
         conversation_id (str): The conversation ID which helps store and access user chat history
         is_streaming (bool): Specifies whether the use-case is streaming or not.
@@ -58,7 +71,6 @@ class LLMBuilder(ABC):
     Methods:
         set_knowledge_base(): Sets the value for the knowledge base object that is used to supplement the LLM context using information from
             the user's knowledge base
-        set_memory_constants(): Sets the value of keys (memory, history, input) and prefixes (Human, AI) for the conversation memory object
         set_conversation_memory(): Sets the value for the conversation memory object that is used to store the user chat history
         set_llm_model(): Sets the value of the lLM model in the builder based on the selected LLM Provider
         set_api_key(): Sets the value of the API key for the LLM model
@@ -66,25 +78,24 @@ class LLMBuilder(ABC):
     """
 
     def __init__(
-        self, llm_config: Dict, connection_id: str, conversation_id: str, rag_enabled: Optional[bool] = True
+        self,
+        llm_config: Dict,
+        connection_id: str,
+        conversation_id: str,
+        rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
     ) -> None:
         self._llm_config = llm_config
         self._rag_enabled = rag_enabled
         self._connection_id = connection_id
         self._conversation_id = conversation_id
-        self._is_streaming = False
+        self._model_defaults = None
         self._conversation_memory = None
         self._knowledge_base = None
         self._callbacks = None
         self._llm_model = None
         self._api_key = None
-        self._memory_key = None
-        self._input_key = None
-        self._output_key = None
-        self._context_key = None
-        self._human_prefix = None
-        self._ai_prefix = None
         self._model_params = None
+        self._is_streaming = None
         self._errors = []
 
     @property
@@ -152,46 +163,6 @@ class LLMBuilder(ABC):
         self._errors = errors
 
     @property
-    def memory_key(self) -> str:
-        return self._memory_key
-
-    @memory_key.setter
-    def memory_key(self, memory_key) -> None:
-        self._memory_key = memory_key
-
-    @property
-    def input_key(self) -> str:
-        return self._input_key
-
-    @input_key.setter
-    def input_key(self, input_key) -> None:
-        self._input_key = input_key
-
-    @property
-    def output_key(self) -> str:
-        return self._output_key
-
-    @output_key.setter
-    def output_key(self, output_key) -> None:
-        self._output_key = output_key
-
-    @property
-    def human_prefix(self) -> str:
-        return self._human_prefix
-
-    @human_prefix.setter
-    def human_prefix(self, human_prefix) -> None:
-        self._human_prefix = human_prefix
-
-    @property
-    def ai_prefix(self) -> str:
-        return self._ai_prefix
-
-    @ai_prefix.setter
-    def ai_prefix(self, ai_prefix) -> None:
-        self._ai_prefix = ai_prefix
-
-    @property
     def model_params(self) -> bool:
         return self._model_params
 
@@ -223,6 +194,65 @@ class LLMBuilder(ABC):
     def conversation_id(self, conversation_id) -> None:
         self._conversation_id = conversation_id
 
+    @property
+    def model_defaults(self) -> Dict[str, Any]:
+        return self._model_defaults
+
+    @property
+    def memory_key(self) -> str:
+        return self._model_defaults["history"]
+
+    @property
+    def input_key(self) -> str:
+        return self._model_defaults["input"]
+
+    @property
+    def output_key(self) -> str:
+        return self._model_defaults["output"]
+
+    @property
+    def context_key(self) -> str:
+        return self._model_defaults["context"]
+
+    @property
+    def human_prefix(self) -> str:
+        return self._model_defaults["human_prefix"]
+
+    @property
+    def ai_prefix(self) -> str:
+        return self._model_defaults["ai_prefix"]
+
+    def set_model_defaults(self, model_provider: LLMProviderTypes, model_name: str) -> None:
+        """
+        Fetches the default values for the builder
+        """
+        self._model_defaults = ModelDefaults(model_provider, model_name, self.rag_enabled)
+
+    def validate_event_input_sizes(self, event_body) -> None:
+        """
+        Validates the input sizes of prompt and user query using the defaults retrieved from ModelInfoStorage DynamoDB table
+        """
+        prompt = event_body.get(PROMPT_EVENT_KEY)
+        user_query = event_body.get(QUESTION_EVENT_KEY)
+        max_prompt_size = self.model_defaults.max_prompt_size
+        max_chat_message_size = int(self.model_defaults.max_chat_message_size)
+
+        error_list = []
+
+        if prompt and len(prompt) > max_prompt_size:
+            error_message = f"Prompt should be less than {max_prompt_size} characters. Provided prompt length has length: {len(prompt)}."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            error_list.append(error_message)
+
+        if len(user_query) > max_chat_message_size:
+            error_message = f"User query should be less than {max_chat_message_size} characters. Provided query has length: {len(user_query)}."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            error_list.append(error_message)
+
+        if error_list:
+            errors = "\n".join(error_list)
+            raise ValueError(errors)
+
     def set_knowledge_base(self) -> None:
         """
         Sets the knowledge base object that is used to supplement the LLM context using information from the user's knowledge base
@@ -231,18 +261,7 @@ class LLMBuilder(ABC):
             self.knowledge_base = KnowledgeBaseFactory().get_knowledge_base(self.llm_config, self.errors)
         else:
             self.knowledge_base = None
-            logger.info("Proceeding to build the LLM without the Knowledge Base as its not specified.")
-
-    def set_memory_constants(self, llm_provider) -> None:
-        memory_config_key = llm_provider + RAG_KEY if self.rag_enabled else llm_provider
-        keys = MEMORY_CONFIG[memory_config_key]
-        self.memory_key, self.input_key, self.output_key, self.human_prefix, self.ai_prefix = (
-            keys["history"],
-            keys["input"],
-            keys["output"],
-            keys["human_prefix"],
-            keys["ai_prefix"],
-        )
+            logger.debug("Proceeding to build the LLM without the Knowledge Base as its not specified.")
 
     def set_conversation_memory(self, user_id: str, conversation_id: str) -> None:
         """
@@ -253,11 +272,12 @@ class LLMBuilder(ABC):
             user_id=user_id,
             conversation_id=conversation_id,
             errors=self.errors,
-            memory_key=self.memory_key,
-            input_key=self.input_key,
-            output_key=self.output_key,
-            human_prefix=self.human_prefix,
-            ai_prefix=self.ai_prefix,
+            memory_key=self.model_defaults.memory_config["history"],
+            input_key=self.model_defaults.memory_config["input"],
+            output_key=self.model_defaults.memory_config["output"],
+            context_key=self.model_defaults.memory_config["context"],
+            human_prefix=self.model_defaults.memory_config["human_prefix"],
+            ai_prefix=self.model_defaults.memory_config["ai_prefix"],
         )
 
     @tracer.capture_method
@@ -284,6 +304,7 @@ class LLMBuilder(ABC):
                 WebsocketStreamingCallbackHandler(
                     connection_id=self.connection_id,
                     conversation_id=self.conversation_id,
+                    source_docs_formatter=self.knowledge_base.source_docs_formatter if self.knowledge_base else None,
                     is_streaming=self.is_streaming,
                 )
             ]
@@ -296,34 +317,61 @@ class LLMBuilder(ABC):
         """
         llm_params = self.llm_config.get("LlmParams")
         if llm_params:
-            self.is_streaming = llm_params.get("Streaming", False)
+            self.is_streaming = llm_params.get("Streaming", self.model_defaults.allows_streaming)
             self.set_streaming_callbacks()
         else:
             self.errors.append(
                 "Missing required field (LlmParams) containing LLM configuration in the config which is required to construct the LLM."
             )
 
-        if self.errors:
-            errors = "\n".join(self.errors)
-            error_message = f"There are errors in the following configuration parameters:\n{errors}"
-            logger.error(
-                error_message,
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-            )
-            raise ValueError(error_message)
+        try:
+            if self.errors:
+                errors = "\n".join(self.errors)
+                error_message = f"There are errors in the following configuration parameters:\n{errors}"
+                logger.error(
+                    error_message,
+                    xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
+                )
+                metrics.add_metric(
+                    name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
+                )
+                raise ValueError(error_message)
 
-        if not self.conversation_memory:
-            raise ValueError("Conversation Memory was set to null.")
+            if not self.conversation_memory:
+                error_message = "Conversation Memory was set to null."
+                logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+                metrics.add_metric(
+                    name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
+                )
+                raise ValueError(error_message)
+        finally:
+            metrics.flush_metrics()
 
-        self.model_params = {
-            "api_token": self.api_key,
-            "conversation_memory": self.conversation_memory,
-            "knowledge_base": self.knowledge_base,
-            "model": llm_params.get("ModelId"),
-            "model_params": llm_params.get("ModelParams"),
-            "prompt_template": llm_params.get("PromptTemplate"),
-            "streaming": self.is_streaming,
-            "verbose": llm_params.get("Verbose"),
-            "temperature": llm_params.get("Temperature"),
-            "callbacks": self.callbacks,
-        }
+        prompt_template = llm_params.get("PromptTemplate")
+        if prompt_template is None:
+            message = f"Prompt template not provided. Falling back to default prompt template"
+            logger.info(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            prompt_template = self.model_defaults.prompt
+
+        prompt_placeholders = [
+            self.model_defaults.memory_config["history"],
+            self.model_defaults.memory_config["input"],
+        ]
+        if self.rag_enabled:
+            prompt_placeholders.append(self.model_defaults.memory_config["context"])
+
+        self.model_params = LLM(
+            **{
+                "api_token": self.api_key,
+                "conversation_memory": self.conversation_memory,
+                "knowledge_base": self.knowledge_base,
+                "model": llm_params.get("ModelId"),
+                "model_params": llm_params.get("ModelParams"),
+                "prompt_template": prompt_template,
+                "prompt_placeholders": prompt_placeholders,
+                "streaming": self.is_streaming,
+                "verbose": llm_params.get("Verbose", DEFAULT_VERBOSE_MODE),
+                "temperature": llm_params.get("Temperature"),
+                "callbacks": self.callbacks,
+            }
+        )

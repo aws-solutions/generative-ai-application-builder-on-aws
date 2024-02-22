@@ -290,7 +290,7 @@ def test_execute_create_and_update(lambda_event, mock_lambda_context, requestTyp
                 method="PUT",
                 url="https://fakeurl/doesnotexist",
                 headers={"content-type": "", "content-length": "270"},
-                body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "/fake/new/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
+                body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "/gaab/new/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
             )
 
 
@@ -307,7 +307,7 @@ def test_execute_delete(setup_ssm, mock_lambda_context):
             method="PUT",
             url="https://fakeurl/doesnotexist",
             headers={"content-type": "", "content-length": "270"},
-            body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "/fake/old/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
+            body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "/gaab/old/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
         )
 
 
@@ -323,5 +323,5 @@ def test_execute_failure(monkeypatch, lambda_event, mock_lambda_context, request
             method="PUT",
             url="https://fakeurl/doesnotexist",
             headers={"content-type": "", "content-length": "315"},
-            body='{"Status": "FAILED", "Reason": "Any of SSMKey, ApiEndpoint, UserPoolId, UserPoolClientId has not been passed. Operation cannot be performed", "PhysicalResourceId": "/fake/old/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
+            body='{"Status": "FAILED", "Reason": "Any of SSMKey, ApiEndpoint, UserPoolId, UserPoolClientId has not been passed. Operation cannot be performed", "PhysicalResourceId": "/gaab/old/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
         )

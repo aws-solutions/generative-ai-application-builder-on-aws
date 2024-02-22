@@ -26,72 +26,28 @@ For reference, the string in the Parameter Store should look something like the 
 
 ```
 {
-  "KnowledgeBaseParams": {
-    "kendra": {
-      "MaxQueryCapacityUnits": "1",
-      "DefaultNewKendraIndexName": "GAABKnowledgeBaseIndex",
-      "MaxNumberOfDocs": "5",
-      "DefaultStorageCapacityUnits": "0",
-      "AvailableEditions": [
-        "DEVELOPER_EDITION",
-        "ENTERPRISE_EDITION"
-      ],
-      "MinNumberOfDocs": "1",
-      "MaxStorageCapacityUnits": "5",
-      "DefaultQueryCapacityUnits": "0",
-      "DefaultEdition": "DEVELOPER_EDITION",
-      "DefaultNumberOfDocs": "2"
-    }
-  },
-  "ModelProviders": {
-    "HuggingFace": {
-      "ModelProviderParams": {
-        "RAGPromptTemplate": <Prompt>
-      },
-      "SupportedModels": [
-        "google/flan-t5-xxl",
-        "google/flan-t5-xl",
-        "google/flan-t5-large",
-        "google/flan-t5-base",
-        "google/flan-t5-small"
-      ],
-      "AllowsStreaming": "false"
+    "KnowledgeBaseParams": {
+        "kendra": {
+            "MaxQueryCapacityUnits": "1",
+            "DefaultNewKendraIndexName": "GAABKnowledgeBaseIndex",
+            "MaxNumberOfDocs": "100",
+            "DefaultStorageCapacityUnits": "0",
+            "AvailableEditions": [
+                "DEVELOPER_EDITION",
+                "ENTERPRISE_EDITION"
+            ],
+            "MinNumberOfDocs": "1",
+            "MaxStorageCapacityUnits": "5",
+            "DefaultQueryCapacityUnits": "0",
+            "DefaultEdition": "DEVELOPER_EDITION",
+            "DefaultNumberOfDocs": "2"
+        }
     },
-    "Anthropic": {
-      "ModelProviderParams": <Prompt>,
-      "SupportedModels": [
-        "claude-instant-1",
-        "claude-1",
-        "claude-2"
-      ],
-      "AllowsStreaming": "true"
-    },
-    "Bedrock": {
-      "ModelFamilyParams": {
-        "amazon": <Prompt>,
-        "anthropic": <Prompt>,
-        "ai21": <Prompt>
-      },
-      "SupportedModels": [
-        "ai21.j2-ultra",
-        "ai21.j2-mid",
-        "amazon.titan-text-express-v1",
-        "anthropic.claude-v1",
-        "anthropic.claude-v2",
-        "anthropic.claude-instant-v1",
-        "meta.llama2-13b-chat-v1",
-        "meta.llama2-70b-chat-v1",
-        "cohere.command-text-v14",
-        "cohere.command-light-text-v14"
-      ],
-      "AllowsStreaming": "true"
-    }
-  },
-  "UserPoolId": "us-east-1_mCkSfPSu6",
-  "IsInternalUser": "true",
-  "ApiEndpoint": "https://anoc6xgfh7.execute-api.us-east-1.amazonaws.com/prod/",
-  "UserPoolClientId": "2s3s7luhoenog5stee92s5cgco",
-  "AwsRegion": "us-east-1"
+    "ApiEndpoint": "https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod/",
+    "UserPoolClientId": "xxxxxxxxx",
+    "UserPoolId": "us-east-1_xxxxxxxxx",
+    "IsInternalUser": "false",
+    "AwsRegion": "us-east-1"
 }
 ```
 

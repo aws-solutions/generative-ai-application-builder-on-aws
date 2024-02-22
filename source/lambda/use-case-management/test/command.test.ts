@@ -82,7 +82,7 @@ describe('When testing Use Case Commands', () => {
         cfnParameters.set('ExistingCognitoUserPoolId', 'fake-user-pool');
         cfnParameters.set('ExistingCognitoGroupPolicyTableName', 'fake-table-name');
 
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
         process.env[POWERTOOLS_METRICS_NAMESPACE_ENV_VAR] = 'UnitTest';
         process.env[USE_CASES_TABLE_NAME_ENV_VAR] = 'UseCaseTable';
         process.env[ARTIFACT_BUCKET_ENV_VAR] = 'fake-artifact-bucket';

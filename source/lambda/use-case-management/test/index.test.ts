@@ -10,7 +10,7 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
-
+import { APIGatewayEvent } from 'aws-lambda';
 import {
     CloudFormationClient,
     CreateStackCommand,
@@ -23,6 +23,7 @@ import {
     DynamoDBClient,
     PutItemCommand,
     ScanCommand,
+    GetItemCommand,
     UpdateItemCommand
 } from '@aws-sdk/client-dynamodb';
 import { DeleteSecretCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
@@ -39,6 +40,7 @@ import {
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     IS_INTERNAL_USER_ENV_VAR,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
@@ -47,15 +49,22 @@ import {
     USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR
 } from '../utils/constants';
 
+import { marshall } from '@aws-sdk/util-dynamodb';
+import {
+    createUseCaseApiEvent,
+    createUseCaseApiEventNoPrompt,
+    getUseCaseApiEvent,
+    updateUseCaseApiEvent
+} from './event-test-data';
+
 describe('When invoking the lambda function', () => {
     let cfnMockedClient: any;
     let ddbMockedClient: any;
     let ssmMockedClient: any;
     let secretsmanagerMockedClient: any;
-    let event: any;
 
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
         process.env[POWERTOOLS_METRICS_NAMESPACE_ENV_VAR] = 'UnitTest';
         process.env[USE_CASES_TABLE_NAME_ENV_VAR] = 'UseCaseTable';
         process.env[ARTIFACT_BUCKET_ENV_VAR] = 'fake-artifact-bucket';
@@ -66,62 +75,13 @@ describe('When invoking the lambda function', () => {
         process.env[TEMPLATE_FILE_EXTN_ENV_VAR] = '.json';
         process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR] = 'api-key';
         process.env[IS_INTERNAL_USER_ENV_VAR] = 'true';
-
-        event = {
-            body: JSON.stringify({
-                ConversationMemoryType: 'DDBMemoryType',
-                ConversationMemoryParams: 'ConversationMemoryParams',
-                KnowledgeBaseType: 'Kendra',
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '5',
-                    ReturnSourceDocs: '5'
-                },
-                LlmParams: {
-                    ModelProvider: 'HuggingFace',
-                    ModelId: 'google/flan-t5-xxl',
-                    ModelParams: 'Param1',
-                    PromptTemplate: 'Prompt1',
-                    Streaming: true,
-                    RAGEnabled: true,
-                    Temperature: 0.1
-                }
-            })
-        };
+        process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = 'fake-model-table';
 
         cfnMockedClient = mockClient(CloudFormationClient);
         ddbMockedClient = mockClient(DynamoDBClient);
         ssmMockedClient = mockClient(SSMClient);
         secretsmanagerMockedClient = mockClient(SecretsManagerClient);
     });
-
-    // describe('on cfn failure', () => {
-    //     beforeAll(() => {
-    //         cfnMockedClient.reset();
-    //         cfnMockedClient.on(CreateStackCommand).rejects(new Error('Fake error for testing'));
-    //         cfnMockedClient.on(UpdateStackCommand).rejects(new Error('Fake error for testing'));
-    //         cfnMockedClient.on(DeleteStackCommand).rejects(new Error('Fake error for testing'));
-
-    //         jest.spyOn(tracer, 'getRootXrayTraceId').mockImplementation(() => 'fake-trace-id');
-    //         expect(tracer.getRootXrayTraceId()).toEqual('fake-trace-id');
-    //     });
-
-    //     it('should return 500 error', async () => {
-    //         let lambda = import('../index');
-
-    //         const mockedEvent = {
-    //             ...event,
-    //             resource: '/deployments',
-    //             httpMethod: 'POST',
-    //             requestContext: { identity: { user: 'fake-user' } }
-    //         };
-    //         expect(await (await lambda).lambdaHandler(mockedEvent)).toEqual({ statusCode: 500 });
-    //     });
-
-    //     afterAll(() => {
-    //         cfnMockedClient.reset();
-    //         jest.clearAllMocks();
-    //     });
-    // });
 
     describe('on success', () => {
         beforeAll(() => {
@@ -160,22 +120,97 @@ describe('When invoking the lambda function', () => {
                     Value: '{"ApiEndpoint": "fake.example.com","UserPoolId": "fake-user-pool","UserPoolClientId": "fake-client-id"}'
                 }
             });
+
+            ddbMockedClient
+                .on(GetItemCommand, {
+                    TableName: 'fake-model-table',
+                    Key: { SortKey: { S: 'HuggingFace#google/flan-t5-xxl' }, UseCase: { S: 'RAGChat' } }
+                })
+                .resolves({
+                    Item: marshall({
+                        'UseCase': 'RAGChat',
+                        'SortKey': 'HuggingFace#google/flan-t5-xxl',
+                        'ModelProviderName': 'HuggingFace-InferenceEndpoint',
+                        'ModelName': 'google/flan-t5-xxl',
+                        'AllowsStreaming': false,
+                        'Prompt': 'Prompt2 {input}\n\n{history}\n\n{context}',
+                        'MaxTemperature': '100',
+                        'DefaultTemperature': '0.1',
+                        'MinTemperature': '0',
+                        'DefaultStopSequences': [],
+                        'MemoryConfig': {
+                            'history': 'chat_history',
+                            'input': 'question',
+                            'context': 'context',
+                            'ai_prefix': 'AI',
+                            'human_prefix': 'Human',
+                            'output': 'answer'
+                        },
+                        'MaxPromptSize': 2000,
+                        'MaxChatMessageSize': 2500
+                    })
+                });
+            ddbMockedClient
+                .on(GetItemCommand, {
+                    TableName: 'UseCaseTable',
+                    Key: { UseCaseId: { S: '11111111-222222222-33333333-44444444-55555555' } }
+                })
+                .resolves({
+                    Item: marshall({
+                        UseCaseId: 'fake-id',
+                        StackId: 'fake-stack-id',
+                        SSMParameterKey: '/config/fake-uuid/old'
+                    })
+                });
+            ssmMockedClient.on(GetParameterCommand).resolves({
+                Parameter: {
+                    Name: '/config/fake-uuid/old',
+                    Type: 'String',
+                    Value: '{"ParamKey1":"OldParamValue"}'
+                }
+            });
         });
 
         it('should create a stack and update ddb for create action', async () => {
             let lambda = import('../index');
 
-            const mockedEvent = {
-                ...event,
-                resource: '/deployments',
-                httpMethod: 'POST',
-                requestContext: {
-                    authorizer: {
-                        UserId: 'fake-user-id'
-                    }
-                }
-            };
-            expect(await (await lambda).lambdaHandler(mockedEvent)).toEqual({
+            expect(await (await lambda).lambdaHandler(createUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
+                'body': 'SUCCESS',
+                'headers': {
+                    'Access-Control-Allow-Credentials': true,
+                    'Access-Control-Allow-Headers': 'Origin,X-Requested-With,Content-Type,Accept',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                'isBase64Encoded': false,
+                'statusCode': 200
+            });
+        });
+
+        it('should create a stack, filling in a prompt template and update ddb for create action', async () => {
+            let lambda = import('../index');
+
+            expect(
+                await (await lambda).lambdaHandler(createUseCaseApiEventNoPrompt as unknown as APIGatewayEvent)
+            ).toEqual({
+                'body': 'SUCCESS',
+                'headers': {
+                    'Access-Control-Allow-Credentials': true,
+                    'Access-Control-Allow-Headers': 'Origin,X-Requested-With,Content-Type,Accept',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                'isBase64Encoded': false,
+                'statusCode': 200
+            });
+        });
+
+        it('should allow update to a stack', async () => {
+            let lambda = import('../index');
+
+            expect(await (await lambda).lambdaHandler(updateUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
                 'body': 'SUCCESS',
                 'headers': {
                     'Access-Control-Allow-Credentials': true,
@@ -259,17 +294,7 @@ describe('When invoking the lambda function', () => {
                 }
             });
 
-            const mockedEvent = {
-                ...event,
-                resource: '/deployments',
-                httpMethod: 'GET',
-                queryStringParameters: {
-                    pageSize: '10'
-                },
-                requestContext: { identity: { user: 'fake-user' } }
-            };
-
-            expect(await (await lambda).lambdaHandler(mockedEvent)).toEqual({
+            expect(await (await lambda).lambdaHandler(getUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
                 'body': JSON.stringify({
                     'deployments': [
                         {
@@ -327,13 +352,9 @@ describe('When invoking the lambda function', () => {
         it('Should fail to invoke lambda since env is not set up correctly', async () => {
             let lambda = import('../index');
 
-            const mockedEvent = {
-                ...event,
-                resource: '/deployments',
-                httpMethod: 'POST',
-                requestContext: { identity: { user: 'fake-user' } }
-            };
-            await expect((await lambda).lambdaHandler(mockedEvent)).rejects.toThrowError(
+            await expect(
+                (await lambda).lambdaHandler(createUseCaseApiEvent as unknown as APIGatewayEvent)
+            ).rejects.toThrowError(
                 'Missing required environment variables: USER_POOL_ID. This should not happen and indicates in issue with your deployment.'
             );
         });
@@ -355,6 +376,7 @@ describe('When invoking the lambda function', () => {
         delete process.env[TEMPLATE_FILE_EXTN_ENV_VAR];
         delete process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR];
         delete process.env[IS_INTERNAL_USER_ENV_VAR];
+        delete process.env[MODEL_INFO_TABLE_NAME_ENV_VAR];
 
         cfnMockedClient.restore();
         ddbMockedClient.restore();

@@ -36,6 +36,16 @@ export interface UseCaseManagementProps {
      * Custom lambda function to be passed as service token  for the custom infra setup
      */
     customInfra: lambda.Function;
+
+    /**
+     * Security group ids of the VPC to be passed to the nested stack as comma separated string
+     */
+    securityGroupIds?: string;
+
+    /**
+     * subnet ids in which lambda functions are to be deployed as comma separated string
+     */
+    privateSubnetIds?: string;
 }
 
 /**
@@ -64,7 +74,9 @@ export class UseCaseManagementSetup extends Construct {
                 ApplicationTrademarkName: props.applicationTrademarkName,
                 WebConfigSSMKey: props.webConfigSSMKey,
                 CustomResourceLambdaArn: props.customInfra.functionArn,
-                CustomResourceRoleArn: props.customInfra.role!.roleArn
+                CustomResourceRoleArn: props.customInfra.role!.roleArn,
+                ExistingSecurityGroupIds: props.securityGroupIds!,
+                ExistingPrivateSubnetIds: props.privateSubnetIds!
             },
             description:
                 'Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.)'

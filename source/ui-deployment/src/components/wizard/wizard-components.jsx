@@ -15,7 +15,7 @@ import BreadcrumbGroup from '@cloudscape-design/components/breadcrumb-group';
 import { APP_TRADEMARK_NAME } from '../../utils/constants';
 import { useNavigate } from 'react-router-dom';
 import { useContext } from 'react';
-import HomeContext from '../../home/home.context';
+import HomeContext from '../../contexts/home.context';
 
 export const Breadcrumbs = () => {
     const navigate = useNavigate();

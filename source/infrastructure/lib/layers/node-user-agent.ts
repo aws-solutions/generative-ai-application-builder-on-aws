@@ -17,14 +17,17 @@ import { Construct } from 'constructs';
 import * as path from 'path';
 import { getCommandsForNodejsDockerBuild } from '../utils/asset-bundling';
 import { getNodejsLayerLocalBundling, LayerProps } from '../utils/common-utils';
-import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME } from '../utils/constants';
+import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME } from '../utils/constants';
 
 /**
  * A class the defines the user-agent layer Construct for Node runtimes
  */
 export class NodeUserAgentLayer extends lambda.LayerVersion {
     constructor(scope: Construct, id: string, props: LayerProps) {
-        const compatibleRuntimes = props.compatibleRuntimes ?? [lambda.Runtime.NODEJS_18_X];
+        const compatibleRuntimes = props.compatibleRuntimes ?? [
+            GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
+            COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME
+        ];
 
         for (const runtime of compatibleRuntimes) {
             if (runtime && runtime.family !== lambda.RuntimeFamily.NODEJS) {

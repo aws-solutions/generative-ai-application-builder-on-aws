@@ -13,9 +13,10 @@
 ######################################################################################################################
 
 from abc import ABC, abstractmethod
+from typing import Any, List, Dict
 
 from aws_lambda_powertools import Logger
-from langchain.schema import BaseMemory, BaseRetriever
+from langchain.schema import BaseRetriever
 from utils.enum_types import KnowledgeBaseTypes
 
 logger = Logger(utc=True)
@@ -50,3 +51,13 @@ class KnowledgeBase(ABC):
         Returns: None
         """
         self._retriever = retriever
+
+    @abstractmethod
+    def source_docs_formatter(self, source_documents: List[Any]) -> List[Dict]:
+        """
+        Formats the source documents in a format to send to the websocket
+        Args:
+            source_documents (list): list of source documents.
+        Returns:
+            list: list of formatted source documents.
+        """

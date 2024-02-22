@@ -9,94 +9,73 @@
  *  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES *
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
  *  and limitations under the License.                                                                                *
- *********************************************************************************************************************/
+ **********************************************************************************************************************/
 
-import { useState, useCallback, useRef, useContext } from 'react';
-import { AppLayout, HelpPanel, Wizard, Box, Alert, SpaceBetween } from '@cloudscape-design/components';
+import { useTools } from '../../hooks/useTools';
+import { useState, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Breadcrumbs } from './wizard-components.jsx';
-import { appLayoutAriaLabels } from '../../i18n-strings';
-import UseCase from './stepComponents/step1.jsx';
-import KnowledgeBase from './stepComponents/step3.jsx';
-import Model from './stepComponents/step2.jsx';
-import Review from './stepComponents/step4.jsx';
-import { DEFAULT_STEP_INFO, MODEL_FAMILY_PROVIDER_OPTIONS, HF_INF_ENDPOINT_OPTION_IDX } from './steps-config.jsx';
-import { TOOLS_CONTENT } from './tools-content.jsx';
-import { ExternalLinkGroup, InfoLink, Notifications, Navigation } from '../commons';
-import { API } from 'aws-amplify';
+
+import HomeContext from '../../contexts/home.context';
 import {
     API_NAME,
     BEDROCK_MODEL_PROVIDER_NAME,
     DEPLOYMENT_ACTIONS,
     DEPLOYMENT_PLATFORM_API_ROUTES,
-    DEPLOYMENT_STATUS_NOTIFICATION
+    DEPLOYMENT_STATUS_NOTIFICATION,
+    SAGEMAKER_MODEL_PROVIDER_NAME
 } from '../../utils/constants';
+import { createDeployRequestPayload, createUpdateRequestPayload } from './utils';
 import { generateToken } from '../../utils/utils';
-import { createDeployRequestPayload } from './utils.js';
-import HomeContext from '../../home/home.context';
-import { ConfirmDeployModal } from '../commons/deploy-confirmation-modal.jsx';
+import { API } from 'aws-amplify';
+import { DEFAULT_STEP_INFO, MODEL_FAMILY_PROVIDER_OPTIONS } from './steps-config';
+import UseCase from './UseCase';
+import { InfoLink, Notifications, Navigation } from '../commons';
+import { AppLayout, Wizard, Box, Alert, SpaceBetween } from '@cloudscape-design/components';
+import { Breadcrumbs } from './wizard-components';
+import { ConfirmDeployModal } from '../commons/deploy-confirmation-modal';
+import { appLayoutAriaLabels } from '../../i18n-strings';
+import { TOOLS_CONTENT } from './tools-content';
+import Vpc from './VpcConfig';
+import Model from './Model';
+import Review from './Review';
+import { KnowledgeBase } from './KnowledgeBase';
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 const steps = [
     {
         title: 'Select use case',
         stateKey: 'useCase',
-        StepContent: UseCase
+        StepContent: UseCase,
+        isOptional: false
+    },
+    {
+        title: 'Select network configuration',
+        stateKey: 'vpc',
+        StepContent: Vpc,
+        isOptional: true
     },
     {
         title: 'Select model',
         stateKey: 'model',
-        StepContent: Model
+        StepContent: Model,
+        isOptional: false
     },
     {
         title: 'Select knowledge base',
         stateKey: 'knowledgeBase',
-        StepContent: KnowledgeBase
+        StepContent: KnowledgeBase,
+        isOptional: true
     },
     {
         title: 'Review and create',
         stateKey: 'review',
-        StepContent: Review
+        StepContent: Review,
+        isOptional: false
     }
 ];
-
-const getDefaultToolsContent = (activeIndex) => TOOLS_CONTENT[steps[activeIndex].stateKey].default;
-
-const getFormattedToolsContent = (tools) => (
-    <HelpPanel header={<h2>{tools.title}</h2>} footer={<ExternalLinkGroup items={tools.links} />}>
-        {tools.content}
-    </HelpPanel>
-);
-
-const useTools = () => {
-    const [toolsContent, setToolsContent] = useState(getFormattedToolsContent(getDefaultToolsContent(0)));
-    const [isToolsOpen, setIsToolsOpen] = useState(false);
-    const appLayoutRef = useRef();
-
-    const setFormattedToolsContent = (tools) => {
-        setToolsContent(getFormattedToolsContent(tools));
-    };
-
-    const setHelpPanelContent = (tools) => {
-        if (tools) {
-            setFormattedToolsContent(tools);
-        }
-        setIsToolsOpen(true);
-        appLayoutRef.current?.focusToolsClose();
-    };
-    const closeTools = () => setIsToolsOpen(false);
-
-    const onToolsChange = (evt) => setIsToolsOpen(evt.detail.open);
-
-    return {
-        toolsContent,
-        isToolsOpen,
-        setHelpPanelContent,
-        closeTools,
-        setFormattedToolsContent,
-        onToolsChange,
-        appLayoutRef
-    };
-};
 
 const formatModelParamsForAttributeEditor = (modelParams) => {
     if (Object.keys(modelParams).length === 0) {
@@ -118,12 +97,37 @@ const formatModelParamsForAttributeEditor = (modelParams) => {
     return formattedItems;
 };
 
+const formatStringListToAttrEditorList = (list) => {
+    return list.map((item) => ({
+        key: item
+    }));
+};
+
+const parseVpcInfoFromSelectedDeployment = (selectedDeployment) => {
+    try {
+        return {
+            isVpcRequired:
+                selectedDeployment.vpcEnabled.toLowerCase() === 'yes' ? true : DEFAULT_STEP_INFO.vpc.isVpcRequired,
+            existingVpc: selectedDeployment.createNewVpc.toLowerCase() === 'no' ? true : false,
+            vpcId: selectedDeployment.vpcId ?? DEFAULT_STEP_INFO.vpc.vpcId,
+            subnetIds:
+                formatStringListToAttrEditorList(selectedDeployment.privateSubnetIds) ??
+                DEFAULT_STEP_INFO.vpc.subnetIds,
+            securityGroupIds:
+                formatStringListToAttrEditorList(selectedDeployment.securityGroupIds) ??
+                DEFAULT_STEP_INFO.vpc.securityGroupIds
+        };
+    } catch (error) {
+        return DEFAULT_STEP_INFO.vpc;
+    }
+};
+
 const getWizardStepsInfo = (selectedDeployment, deploymentAction) => {
     let wizardStepsInfo = DEFAULT_STEP_INFO;
     if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT || deploymentAction === DEPLOYMENT_ACTIONS.CLONE) {
-        const modelProvider = selectedDeployment.LlmParams.InferenceEndpoint
-            ? MODEL_FAMILY_PROVIDER_OPTIONS.find((item) => item.label === 'HuggingFace - Inference Endpoint')
-            : MODEL_FAMILY_PROVIDER_OPTIONS.find((item) => item.label === selectedDeployment.LlmParams.ModelProvider);
+        const modelProvider = MODEL_FAMILY_PROVIDER_OPTIONS.find(
+            (item) => item.value === selectedDeployment.LlmParams.ModelProvider
+        );
         wizardStepsInfo = {
             useCase: {
                 useCase: DEFAULT_STEP_INFO.useCase.useCase,
@@ -135,6 +139,7 @@ const getWizardStepsInfo = (selectedDeployment, deploymentAction) => {
                 useCaseDescription: selectedDeployment.Description,
                 inError: false
             },
+            vpc: parseVpcInfoFromSelectedDeployment(selectedDeployment),
             knowledgeBase: {
                 isRagRequired: selectedDeployment.LlmParams.RAGEnabled,
                 knowledgeBaseType: DEFAULT_STEP_INFO.knowledgeBase.knowledgeBaseType,
@@ -149,7 +154,8 @@ const getWizardStepsInfo = (selectedDeployment, deploymentAction) => {
                     DEFAULT_STEP_INFO.knowledgeBase.maxNumDocs,
                 inError: false,
                 kendraIndexName:
-                    selectedDeployment.newKendraIndexName ?? DEFAULT_STEP_INFO.knowledgeBase.kendraIndexName
+                    selectedDeployment.newKendraIndexName ?? DEFAULT_STEP_INFO.knowledgeBase.kendraIndexName,
+                returnDocumentSource: selectedDeployment.KnowledgeBaseParams.ReturnSourceDocs ?? false
             },
             model: {
                 modelProvider: modelProvider,
@@ -160,13 +166,16 @@ const getWizardStepsInfo = (selectedDeployment, deploymentAction) => {
                 inError: false,
                 temperature: parseFloat(selectedDeployment.LlmParams.Temperature),
                 verbose: selectedDeployment.LlmParams.Verbose,
-                streaming: selectedDeployment.LlmParams.Streaming
+                streaming: selectedDeployment.LlmParams.Streaming,
+                sagemakerInputSchema: selectedDeployment.LlmParams.ModelInputPayloadSchema
+                    ? JSON.stringify(selectedDeployment.LlmParams.ModelInputPayloadSchema)
+                    : DEFAULT_STEP_INFO.model.sagemakerOutputSchema,
+                sagemakerOutputSchema:
+                    selectedDeployment.LlmParams.ModelOutputJSONPath ?? DEFAULT_STEP_INFO.model.sagemakerOutputSchema,
+                sagemakerEndpointName:
+                    selectedDeployment.LlmParams.InferenceEndpoint ?? DEFAULT_STEP_INFO.model.sagemakerEndpointName
             }
         };
-    }
-
-    if (selectedDeployment.LlmParams && selectedDeployment.LlmParams.InferenceEndpoint) {
-        wizardStepsInfo.model.modelProvider = MODEL_FAMILY_PROVIDER_OPTIONS[HF_INF_ENDPOINT_OPTION_IDX];
     }
 
     if (deploymentAction === DEPLOYMENT_ACTIONS.CLONE) {
@@ -174,6 +183,8 @@ const getWizardStepsInfo = (selectedDeployment, deploymentAction) => {
     }
     return wizardStepsInfo;
 };
+
+const getDefaultToolsContent = (activeIndex) => TOOLS_CONTENT[steps[activeIndex].stateKey].default;
 
 export const useWizard = (closeTools, setFormattedToolsContent) => {
     const {
@@ -227,7 +238,7 @@ export const useWizard = (closeTools, setFormattedToolsContent) => {
         try {
             if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
                 const endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.UPDATE_USE_CASE.route(selectedDeployment.UseCaseId);
-                const requestPayload = createDeployRequestPayload(stepsInfo);
+                const requestPayload = createUpdateRequestPayload(stepsInfo);
                 scrollToTop();
                 await updateUseCasePatchRequest(endpoint, requestPayload);
             } else {
@@ -265,7 +276,6 @@ export const useWizard = (closeTools, setFormattedToolsContent) => {
      */
     const deployUseCasePostRequest = async (endpoint, params = {}) => {
         setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.PENDING);
-
         const token = await generateToken();
         const response = await API.post(API_NAME, endpoint, {
             body: params,
@@ -298,7 +308,8 @@ const WizardView = () => {
         setFormattedToolsContent,
         onToolsChange,
         appLayoutRef
-    } = useTools();
+    } = useTools(steps[0].stateKey);
+
     const {
         activeStepIndex,
         stepsInfo,
@@ -321,7 +332,7 @@ const WizardView = () => {
     const onConfirmDeployInit = () => setShowConfirmDeployModal(true);
     const onConfirmDeployDiscard = () => setShowConfirmDeployModal(false);
 
-    const wizardSteps = steps.map(({ title, stateKey, StepContent }) => ({
+    const wizardSteps = steps.map(({ title, stateKey, StepContent, isOptional }) => ({
         title,
         info: (
             <InfoLink
@@ -338,7 +349,8 @@ const WizardView = () => {
                 setHelpPanelContent={setHelpPanelContent}
                 setActiveStepIndex={setActiveStepIndexAndCloseTools}
             />
-        )
+        ),
+        isOptional
     }));
 
     const i18nStrings = {
@@ -354,6 +366,7 @@ const WizardView = () => {
     };
 
     const onCancel = () => {
+        queryClient.invalidateQueries();
         navigate('/');
     };
 
@@ -367,50 +380,55 @@ const WizardView = () => {
     };
 
     const isThirdPartyProvider = () => {
-        return stepsInfo.model.modelProvider.value !== BEDROCK_MODEL_PROVIDER_NAME;
+        return !(
+            stepsInfo.model.modelProvider.value === BEDROCK_MODEL_PROVIDER_NAME ||
+            stepsInfo.model.modelProvider.value === SAGEMAKER_MODEL_PROVIDER_NAME
+        );
     };
 
     return (
-        <AppLayout
-            ref={appLayoutRef}
-            navigation={<Navigation />}
-            tools={toolsContent}
-            toolsOpen={isToolsOpen}
-            onToolsChange={onToolsChange}
-            breadcrumbs={<Breadcrumbs />}
-            contentType="wizard"
-            data-testid="wizard-view"
-            content={
-                <Box>
-                    <SpaceBetween size="m">
-                        <Wizard
-                            steps={wizardSteps}
-                            activeStepIndex={activeStepIndex}
-                            i18nStrings={i18nStrings}
-                            onNavigate={onNavigate}
-                            onCancel={onCancel}
-                            onSubmit={onConfirmDeployInit}
-                        />
-                        {showErrorAlert && (
-                            <Alert
-                                statusIconAriaLabel="Error"
-                                type="error"
-                                header="Please fill out any missing required fields and address any errors shown"
-                            ></Alert>
-                        )}
-                        <ConfirmDeployModal
-                            visible={showConfirmDeployModal}
-                            onDiscard={onConfirmDeployDiscard}
-                            onConfirm={onSubmit}
-                            deploymentAction={deploymentAction}
-                            isThirdPartyProvider={isThirdPartyProvider()}
-                        />
-                    </SpaceBetween>
-                </Box>
-            }
-            ariaLabels={appLayoutAriaLabels}
-            notifications={<Notifications status={useCaseDeployStatus} onSuccessButtonAction={onSuccessAction} />}
-        />
+        <QueryClientProvider client={queryClient}>
+            <AppLayout
+                ref={appLayoutRef}
+                navigation={<Navigation />}
+                tools={toolsContent}
+                toolsOpen={isToolsOpen}
+                onToolsChange={onToolsChange}
+                breadcrumbs={<Breadcrumbs />}
+                contentType="wizard"
+                data-testid="wizard-view"
+                content={
+                    <Box>
+                        <SpaceBetween size="m">
+                            <Wizard
+                                steps={wizardSteps}
+                                activeStepIndex={activeStepIndex}
+                                i18nStrings={i18nStrings}
+                                onNavigate={onNavigate}
+                                onCancel={onCancel}
+                                onSubmit={onConfirmDeployInit}
+                            />
+                            {showErrorAlert && (
+                                <Alert
+                                    statusIconAriaLabel="Error"
+                                    type="error"
+                                    header="Please fill out any missing required fields and address any errors shown"
+                                ></Alert>
+                            )}
+                            <ConfirmDeployModal
+                                visible={showConfirmDeployModal}
+                                onDiscard={onConfirmDeployDiscard}
+                                onConfirm={onSubmit}
+                                deploymentAction={deploymentAction}
+                                isThirdPartyProvider={isThirdPartyProvider()}
+                            />
+                        </SpaceBetween>
+                    </Box>
+                }
+                ariaLabels={appLayoutAriaLabels}
+                notifications={<Notifications status={useCaseDeployStatus} onSuccessButtonAction={onSuccessAction} />}
+            />
+        </QueryClientProvider>
     );
 };
 

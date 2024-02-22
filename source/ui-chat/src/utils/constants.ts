@@ -20,3 +20,6 @@ export const MAX_PROMPT_TEMPLATE_LENGTH = 2000;
 export const END_CONVERSATION_TOKEN = '##END_CONVERSATION##';
 
 export const INTERNAL_USER_GENAI_POLICY_URL = 'https://policy.a2z.com/docs/568686/publication';
+
+// for handling source documents
+export const SOURCE_DOCS_RESPONSE_PAYLOAD_KEY = 'sourceDocument';

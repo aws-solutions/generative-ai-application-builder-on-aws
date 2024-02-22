@@ -12,13 +12,14 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-from typing import Dict
+from typing import Dict, Union
 from uuid import UUID
 
 from aws_lambda_powertools import Logger
 from clients.builders.anthropic_builder import AnthropicBuilder
 from clients.llm_chat_client import LLMChatClient
-from llm_models.anthropic import AnthropicLLM
+from llms.anthropic import AnthropicLLM
+from llms.rag.anthropic_retrieval import AnthropicRetrievalLLM
 from utils.constants import CONVERSATION_ID_EVENT_KEY, LLM_PROVIDER_API_KEY_ENV_VAR
 from utils.enum_types import LLMProviderTypes
 
@@ -30,7 +31,8 @@ class AnthropicClient(LLMChatClient):
     Class that allows building a Anthropic LLM client that is used to generate content.
 
     Attributes:
-        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For Anthropic provider, this is AnthropicLLM
+        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For Anthropic provider, this is AnthropicLLM or
+            AnthropicRetrievalLLM
         llm_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from SSM Parameter store
         rag_enabled (bool): Whether or not RAG is enabled for the use-case
         connection_id (str): The connection ID for the websocket client
@@ -59,7 +61,7 @@ class AnthropicClient(LLMChatClient):
         """
         super().check_env([LLM_PROVIDER_API_KEY_ENV_VAR])
 
-    def get_model(self, event_body: Dict, user_id: UUID) -> AnthropicLLM:
+    def get_model(self, event_body: Dict, user_id: UUID) -> Union[AnthropicLLM, AnthropicRetrievalLLM]:
         """
         Retrieves the Anthropic client.
 
@@ -75,5 +77,6 @@ class AnthropicClient(LLMChatClient):
             conversation_id=event_body[CONVERSATION_ID_EVENT_KEY],
             rag_enabled=self.rag_enabled,
         )
-        self.construct_chat_model(user_id, event_body[CONVERSATION_ID_EVENT_KEY], LLMProviderTypes.ANTHROPIC.value)
+        model_name = self.llm_config.get("LlmParams", {}).get("ModelId", None)
+        self.construct_chat_model(user_id, event_body, LLMProviderTypes.ANTHROPIC.value, model_name)
         return self.builder.llm_model

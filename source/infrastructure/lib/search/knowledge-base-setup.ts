@@ -13,15 +13,14 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
-
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
-
 import { KendraKnowledgeBase } from './kendra-knowledge-base';
 
 export interface KnowledgeBaseProps {
     /**
      * UUID to identify this deployed use case within an application.
-     * Will be added to the kendra index name if one is deployed.
+     * Will be added to the Kendra index name if one is deployed.
      */
     useCaseUUID: string;
 
@@ -54,6 +53,11 @@ export interface KnowledgeBaseProps {
      * Whether or not to deploy the Kendra index conditionally
      */
     deployKendraIndexCondition: cdk.CfnCondition;
+
+    /**
+     * Custom lambda function to be passed as service token  for the custom infra setup
+     */
+    customInfra: lambda.Function;
 }
 
 /**
@@ -61,12 +65,12 @@ export interface KnowledgeBaseProps {
  */
 export class KnowledgeBaseSetup extends Construct {
     /**
-     * Nested stack that creates a new kendra index
+     * Nested stack that creates a new Kendra index
      */
     public readonly kendraKnowledgeBase: KendraKnowledgeBase;
 
     /**
-     * Kendra index iD for the newly created kendra index, or the existing index referenced by existingKendraIndexId
+     * Kendra index iD for the newly created Kendra index, or the existing index referenced by existingKendraIndexId
      */
     public readonly kendraIndexId: string;
 
@@ -79,14 +83,16 @@ export class KnowledgeBaseSetup extends Construct {
                 KendraIndexName: props.newKendraIndexName,
                 QueryCapacityUnits: props.newKendraQueryCapacityUnits.toString(),
                 StorageCapacityUnits: props.newKendraStorageCapacityUnits.toString(),
-                KendraIndexEdition: props.newKendraIndexEdition
+                KendraIndexEdition: props.newKendraIndexEdition,
+                CustomResourceLambdaArn: props.customInfra.functionArn,
+                CustomResourceRoleArn: props.customInfra.role!.roleArn
             },
             description: 'Nested Stack that creates the Kendra Index'
         });
         (this.kendraKnowledgeBase.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
             props.deployKendraIndexCondition;
 
-        // sets the value of kendraIndexId to the Kendra index ID if one was created, otherwise sets it to the empty string
+        // sets the value of kendraIndexId to the Kendra index ID if one was created, otherwise sets it to the existing index id
         this.kendraIndexId = cdk.Fn.conditionIf(
             props.deployKendraIndexCondition.logicalId,
             this.kendraKnowledgeBase.kendraKnowledgeBaseIndex.attrId,

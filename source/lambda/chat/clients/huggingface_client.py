@@ -12,14 +12,15 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-from typing import Dict
+from typing import Dict, Union
 from uuid import UUID
 
 from aws_lambda_powertools import Logger
 from clients.builders.huggingface_builder import HuggingFaceBuilder
 from clients.llm_chat_client import LLMChatClient
-from llm_models.huggingface import HuggingFaceLLM
-from utils.constants import CONVERSATION_ID_EVENT_KEY, LLM_PROVIDER_API_KEY_ENV_VAR
+from llms.huggingface import HuggingFaceLLM
+from llms.rag.huggingface_retrieval import HuggingFaceRetrievalLLM
+from utils.constants import CONVERSATION_ID_EVENT_KEY, DEFAULT_MODELS_MAP, LLM_PROVIDER_API_KEY_ENV_VAR
 from utils.enum_types import LLMProviderTypes
 
 logger = Logger(utc=True)
@@ -30,7 +31,8 @@ class HuggingFaceClient(LLMChatClient):
     Class that allows building a HuggingFace LLM client that is used to generate content.
 
     Attributes:
-        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For HuggingFace provider, this is HuggingFaceBuilder
+        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For HuggingFace provider, this is HuggingFaceLLM or
+            HuggingFaceRetrievalLLM
         llm_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from SSM Parameter store
         rag_enabled (bool): Whether or not RAG is enabled for the use-case
         connection_id (str): The connection ID for the websocket client
@@ -59,7 +61,7 @@ class HuggingFaceClient(LLMChatClient):
         """
         super().check_env([LLM_PROVIDER_API_KEY_ENV_VAR])
 
-    def get_model(self, event_body: Dict, user_id: UUID) -> HuggingFaceLLM:
+    def get_model(self, event_body: Dict, user_id: UUID) -> Union[HuggingFaceLLM, HuggingFaceRetrievalLLM]:
         """
         Retrieves the HuggingFace client.
 
@@ -75,5 +77,14 @@ class HuggingFaceClient(LLMChatClient):
             conversation_id=event_body[CONVERSATION_ID_EVENT_KEY],
             rag_enabled=self.rag_enabled,
         )
-        self.construct_chat_model(user_id, event_body[CONVERSATION_ID_EVENT_KEY], LLMProviderTypes.HUGGING_FACE.value)
+
+        inference_endpoint = self.llm_config.get("LlmParams", {}).get("InferenceEndpoint")
+        if inference_endpoint is None:
+            model_provider = LLMProviderTypes.HUGGINGFACE.value
+            model_name = self.llm_config.get("LlmParams", {}).get("ModelId", None)
+        else:
+            model_provider = LLMProviderTypes.HUGGINGFACE_ENDPOINT.value
+            # Currently assigning a default model for defaults. This will be moved towards a ModelId in the future as well.
+            model_name = DEFAULT_MODELS_MAP[LLMProviderTypes.HUGGINGFACE_ENDPOINT.value]
+        self.construct_chat_model(user_id, event_body, model_provider, model_name)
         return self.builder.llm_model

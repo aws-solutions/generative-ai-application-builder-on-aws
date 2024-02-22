@@ -32,6 +32,12 @@ exports[`Snapshot test 1`] = `
                 Edit
               </Button>,
               <Button
+                data-testid="use-case-view-clone-btn"
+                onClick={[Function]}
+              >
+                Clone
+              </Button>,
+              <Button
                 onClick={[Function]}
               >
                 Delete
@@ -77,7 +83,10 @@ exports[`Snapshot test 1`] = `
             "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
             "CreatedDate": "2023-07-31T04:37:23.824Z",
             "Description": "",
-            "KnowledgeBaseParams": Object {},
+            "KnowledgeBaseParams": Object {
+              "NumberOfDocs": 4,
+              "ReturnSourceDocs": false,
+            },
             "KnowledgeBaseType": "Kendra",
             "LlmParams": Object {
               "ModelId": "claude-v1",
@@ -101,11 +110,16 @@ exports[`Snapshot test 1`] = `
             "chatConfigSSMParameterName": "/gaab-ai/use-case-config/810ccef1",
             "cloudFrontWebUrl": "https://d22b0yb5zwh4d.cloudfront.net",
             "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul31-test-1-mp-810ccef1-us-west-2-Dashboard",
+            "createNewVpc": "No",
             "defaultUserEmail": "placeholder@example.com",
             "kendraIndexId": "",
+            "privateSubnetIds": "",
             "providerApiKeySecret": "810ccef1/api-key",
+            "securityGroupIds": "",
             "status": "CREATE_COMPLETE",
             "useCaseUUID": "810ccef1",
+            "vpcEnabled": "No",
+            "vpcId": "",
             "webConfigKey": "/jul31-test-1-mp-810ccef1/webconfig",
           }
         }

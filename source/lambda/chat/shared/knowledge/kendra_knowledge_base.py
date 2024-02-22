@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from aws_lambda_powertools import Logger
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
@@ -26,15 +26,18 @@ logger = Logger(utc=True)
 
 class KendraKnowledgeBase(KnowledgeBase):
     """
-    KendraKnowledgeBase adds context to the LLM memory using AWS Kendra.
+    KendraKnowledgeBase adds context to the LLM memory using Amazon Kendra.
 
     Args:
         kendra_index_id (str): An existing Kendra index ID
         number_of_docs (int): Number of documents to query for [Optional]
         return_source_documents (bool): if the source of documents should be returned or not [Optional]
+        attribute_filter (dict): Additional filtering of results based on metadata. See: https://docs.aws.amazon.com/kendra/latest/APIReference
+        user_context (dict): Provides information about the user context. See: https://docs.aws.amazon.com/kendra/latest/APIReference
+
 
     Methods:
-        _check_env_variables(): Checks if the kendra index id exists in the environment variables
+        _check_env_variables(): Checks if the Kendra index id exists in the environment variables
 
     """
 
@@ -51,21 +54,34 @@ class KendraKnowledgeBase(KnowledgeBase):
             "NumberOfDocs",
             DEFAULT_KENDRA_NUMBER_OF_DOCS,
         )
-
         self.return_source_documents = kendra_knowledge_base_params.get(
             "ReturnSourceDocs",
             DEFAULT_RETURN_SOURCE_DOCS,
         )
+        self.attribute_filter = kendra_knowledge_base_params.get("AttributeFilter")
+        self.user_context = None
 
         self.retriever = CustomKendraRetriever(
             index_id=self.kendra_index_id,
             top_k=self.number_of_docs,
             return_source_documents=self.return_source_documents,
+            attribute_filter=self.attribute_filter,
+            user_context=self.user_context,
         )
 
     def _check_env_variables(self) -> None:
         """
-        Checks if the kendra index id exists in the environment variables
+        Checks if the Kendra index id exists in the environment variables
         """
         if not os.environ.get(KENDRA_INDEX_ID_ENV_VAR):
             raise ValueError("Kendra index id env variable is not set")
+
+    def source_docs_formatter(self, source_documents: List[Any]) -> List[Dict]:
+        """
+        Formats the source documents in a format to send to the websocket
+        Args:
+            source_documents (list): list of source documents.
+        Returns:
+            list: list of formatted source documents.
+        """
+        return [item.metadata for item in source_documents]

@@ -13,7 +13,6 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3_assets from 'aws-cdk-lib/aws-s3-assets';
 import * as path from 'path';
 import { localBundling } from '../utils/common-utils';
@@ -83,10 +82,14 @@ class PythonAssetOptions implements AppAssetOptions {
                                 'rm -fr .venv*',
                                 'python3 -m venv .venv',
                                 '. .venv/bin/activate',
-                                `pip3 install -r requirements.txt -t ${outputDir}`,
+                                'python3 -m pip install poetry --upgrade',
+                                'poetry build',
+                                'poetry install --only main',
+                                `poetry run pip install -t ${outputDir} dist/*.whl`,
+                                `find ${outputDir} -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
                                 'deactivate',
                                 'rm -fr .venv*',
-                                `rm -fr ${outputDir}/.coverage`
+                                'rm -fr dist'
                             ].join(' && '),
                             entry,
                             outputDir
@@ -119,7 +122,9 @@ class PythonAssetOptionsWithPlatform implements AppAssetOptions {
                 assetHashType: cdk.AssetHashType.CUSTOM
             }),
             bundling: {
-                image: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.bundlingImage,
+                image: cdk.DockerImage.fromRegistry(
+                    `public.ecr.aws/sam/build-python${evaluatedPipOptions.pythonVersion}`
+                ),
                 user: 'root',
                 command: getCommandsForPythonDockerBuildWithPlatform('/asset-output', entry, evaluatedPipOptions),
                 securityOpt: 'no-new-privileges:true',
@@ -134,10 +139,14 @@ class PythonAssetOptionsWithPlatform implements AppAssetOptions {
                                 'rm -fr .venv*',
                                 'python3 -m venv .venv',
                                 '. .venv/bin/activate',
-                                `python -m pip install --python-version ${evaluatedPipOptions.pythonVersion} --platform ${evaluatedPipOptions.platform} --implementation ${evaluatedPipOptions.implementation} --only-binary=${evaluatedPipOptions.onlyBinary} -r ${evaluatedPipOptions.requirements} -t ${outputDir}`,
+                                'python3 -m pip install poetry --upgrade',
+                                'poetry build',
+                                'poetry install --only main',
+                                `poetry run pip install --python-version ${evaluatedPipOptions.pythonVersion} --platform ${evaluatedPipOptions.platform} --implementation ${evaluatedPipOptions.implementation} --only-binary=${evaluatedPipOptions.onlyBinary} -t ${outputDir} dist/*.whl`,
+                                `find ${outputDir} -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
                                 'deactivate',
                                 'rm -fr .venv*',
-                                `rm -fr ${outputDir}/.coverage`
+                                'rm -fr dist'
                             ].join(' && '),
                             entry,
                             outputDir
@@ -239,7 +248,7 @@ class ReactjsAssetOptions implements AppAssetOptions {
                 assetHashType: cdk.AssetHashType.CUSTOM
             }),
             bundling: {
-                image: lambda.Runtime.NODEJS_18_X.bundlingImage,
+                image: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.bundlingImage,
                 user: 'root',
                 command: getCommandsForReactjsDockerBuild('/asset-output', entry),
                 securityOpt: 'no-new-privileges:true',
@@ -328,8 +337,12 @@ export function getCommandsForPythonDockerBuild(outputDir: string, moduleName: s
             `mkdir -p ${outputDir}/`,
             'rm -fr .venv*',
             `cp -au /asset-input/* ${outputDir}/`,
-            `pip3 install -qr requirements.txt -t ${outputDir}/`,
-            `rm -fr ${outputDir}/.coverage`
+            'python3 -m pip install poetry --upgrade',
+            'poetry build',
+            'poetry install --only main',
+            `poetry run pip install -t ${outputDir} dist/*.whl`,
+            `find ${outputDir} -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete  -o -type d -name dist -delete`,
+            'rm -fr dist'
         ].join(' && ')
     ];
 }
@@ -354,8 +367,12 @@ export function getCommandsForPythonDockerBuildWithPlatform(
             `mkdir -p ${outputDir}/`,
             'rm -fr .venv*',
             `cp -au /asset-input/* ${outputDir}/`,
-            `python -m pip install --python-version ${pipOptions.pythonVersion} --platform ${pipOptions.platform} --implementation ${pipOptions.implementation} --only-binary=${pipOptions.onlyBinary} -qr ${pipOptions.requirements} -t ${outputDir}/`,
-            `rm -fr ${outputDir}/.coverage`
+            'python3 -m pip install poetry --upgrade',
+            'poetry build',
+            'poetry install --only main',
+            `poetry run pip install --python-version ${pipOptions.pythonVersion} --platform ${pipOptions.platform} --implementation ${pipOptions.implementation} --only-binary=${pipOptions.onlyBinary} -q -t ${outputDir} dist/*.whl`,
+            `find ${outputDir} -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
+            'rm -fr dist'
         ].join(' && ')
     ];
 }

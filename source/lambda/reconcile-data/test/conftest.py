@@ -24,7 +24,7 @@ def aws_credentials():
     os.environ["AWS_ACCESS_KEY_ID"] = "fakeId"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "fakeAccessKey"  # nosec B105
     os.environ["AWS_REGION"] = "us-east-1"  # must be a valid region
-    os.environ["AWS_SDK_USER_AGENT"] = '{ "user_agent_extra": "AwsSolution/SO000/v0.0.0" }'
+    os.environ["AWS_SDK_USER_AGENT"] = '{ "user_agent_extra": "AWSSOLUTION/SO000/v0.0.0" }'
     os.environ["POWERTOOLS_SERVICE_NAME"] = "test-custom-resource"
     os.environ[DEFAULT_APP_NAME] = "gen-ai-app-builder"
 

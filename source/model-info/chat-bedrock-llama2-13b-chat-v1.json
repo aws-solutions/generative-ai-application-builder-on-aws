@@ -1,0 +1,21 @@
+{
+    "UseCase": "Chat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "meta.llama2-13b-chat-v1",
+    "AllowsStreaming": true,
+    "Prompt": "[INST] {history}\n\n{input} [/INST]",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "0.5",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "history",
+        "input": "input",
+        "context": null,
+        "ai_prefix": "AI",
+        "human_prefix": "Human",
+        "output": null
+    },
+    "MaxPromptSize": 2000,
+    "MaxChatMessageSize": 2500
+}

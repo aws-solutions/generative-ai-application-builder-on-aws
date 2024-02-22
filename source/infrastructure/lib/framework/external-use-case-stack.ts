@@ -14,10 +14,11 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { Construct, IConstruct } from 'constructs';
 import { NagSuppressions } from 'cdk-nag';
-import { BaseStackProps } from '../framework/base-stack';
+import { Construct, IConstruct } from 'constructs';
 import { LLM_PROVIDER_API_KEY_ENV_VAR, THIRD_PARTY_LEGAL_DISCLAIMER } from '../utils/constants';
+import { VPCSetup } from '../vpc/vpc-setup';
+import { BaseStackProps } from './base-stack';
 import { UseCaseChat } from './use-case-stack';
 
 export class ExternalUseCaseChatParameters {
@@ -94,5 +95,15 @@ export abstract class ExternalUseCaseChat extends UseCaseChat {
                 }
             ]
         );
+    }
+
+    protected setupVPC(): VPCSetup {
+        return new VPCSetup(this, 'VPC', {
+            stackType: 'external-use-case',
+            deployVpcCondition: this.deployVpcCondition,
+            customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+            customResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+            iPamPoolId: this.iPamPoolId.valueAsString
+        });
     }
 }

@@ -19,11 +19,24 @@ from copy import deepcopy
 import pytest
 from clients.factories.conversation_memory_factory import ConversationMemoryFactory
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
-from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR, DEFAULT_HUGGINGFACE_PROMPT
+from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR
+
+HUGGINGFACE_PROMPT = """\n\n{history}\n\n{input}"""
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_ddb_memory_success(llm_config, dynamodb_resource):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [
+        (
+            HUGGINGFACE_PROMPT,
+            False,
+            False,
+            False,
+            "google/flan-t5-xxl",
+        )
+    ],
+)
+def test_get_ddb_memory_success(llm_config, model_id, dynamodb_resource):
     os.environ[CONVERSATION_TABLE_NAME_ENV_VAR] = "fake-table"
     config = json.loads(llm_config["Parameter"]["Value"])
     response = ConversationMemoryFactory().get_conversation_memory(config, "fake-user-id", "fake-conversation-id", [])
@@ -33,8 +46,19 @@ def test_get_ddb_memory_success(llm_config, dynamodb_resource):
     assert response.chat_memory.table == dynamodb_resource.Table(os.environ[CONVERSATION_TABLE_NAME_ENV_VAR])
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_ddb_memory_error(llm_config):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [
+        (
+            HUGGINGFACE_PROMPT,
+            False,
+            False,
+            False,
+            "google/flan-t5-xxl",
+        )
+    ],
+)
+def test_get_ddb_memory_error(llm_config, model_id, setup_environment):
     errors_list = []
     config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
     config["ConversationMemoryType"] = "RDS"
@@ -45,8 +69,19 @@ def test_get_ddb_memory_error(llm_config):
     assert errors_list == ["Unsupported Memory base type: RDS. Supported types are: ['DynamoDB']"]
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_ddb_memory_missing_table_name(llm_config):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [
+        (
+            HUGGINGFACE_PROMPT,
+            False,
+            False,
+            False,
+            "google/flan-t5-xxl",
+        )
+    ],
+)
+def test_get_ddb_memory_missing_table_name(model_id, llm_config):
     os.environ.pop(CONVERSATION_TABLE_NAME_ENV_VAR)
     errors_list = []
     config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
@@ -59,8 +94,19 @@ def test_get_ddb_memory_missing_table_name(llm_config):
     ]
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_ddb_memory_missing_memory_type(llm_config):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [
+        (
+            HUGGINGFACE_PROMPT,
+            False,
+            False,
+            False,
+            "google/flan-t5-xxl",
+        )
+    ],
+)
+def test_get_ddb_memory_missing_memory_type(llm_config, model_id):
     errors_list = []
     config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
     del config["ConversationMemoryType"]
