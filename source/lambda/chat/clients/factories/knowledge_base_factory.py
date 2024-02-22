@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from aws_lambda_powertools import Logger
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
@@ -30,7 +30,7 @@ class KnowledgeBaseFactory:
     in the llm_config.
     """
 
-    def get_knowledge_base(self, llm_config: Dict, errors: List[str]) -> KnowledgeBase:
+    def get_knowledge_base(self, llm_config: Dict, errors: List[str]) -> Optional[KnowledgeBase]:
         """
         Returns a KnowledgeBase object based on the knowledge-base object constructed with the provided configuration.
 

@@ -15,9 +15,9 @@ import '@testing-library/jest-dom';
 import { Dispatch } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import renderer from 'react-test-renderer';
-import HomeContext from '../../../../home/home.context';
+import HomeContext from '../../../../contexts/home.context';
 import { ActionType } from '../../../../hooks/useCreateReducer';
-import { HomeInitialState } from '../../../../home/home.state';
+import { HomeInitialState } from '../../../../contexts/home.state';
 import DashboardView from '../../../dashboard/DashboardView';
 
 // eslint-disable-next-line jest/no-mocks-import

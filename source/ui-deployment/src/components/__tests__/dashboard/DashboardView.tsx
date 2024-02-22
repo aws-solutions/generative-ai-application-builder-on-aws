@@ -17,17 +17,17 @@ import '@testing-library/jest-dom';
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import HomeContext from '../../../home/home.context';
-import { HomeInitialState } from '../../../home/home.state';
+import HomeContext from '../../../contexts/home.context';
+import { HomeInitialState } from '../../../contexts/home.state';
 import { ActionType } from '../../../hooks/useCreateReducer';
 import DashboardView from '../../dashboard/DashboardView';
 import { API, Auth } from 'aws-amplify';
 import { API_NAME } from '../../../utils/constants';
 import UseCaseView from '../../useCaseDetails/UseCaseView';
+import { mockReactMarkdown } from '@/utils';
 
 // eslint-disable-next-line jest/no-mocks-import
 import mockContext from '../__mocks__/mock-context.json';
-import WizardView from '../../wizard/WizardView';
 
 const mockAPI = {
     get: jest.fn(),
@@ -39,11 +39,18 @@ API.get = mockAPI.get;
 API.post = mockAPI.post;
 API.del = mockAPI.del;
 
+let WizardView: any;
+
 describe('Wizard', () => {
     const contextValue = {
         dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: mockContext
     };
+
+    beforeAll(() => {
+        mockReactMarkdown();
+        WizardView = require('../../wizard/WizardView').default;
+    });
 
     beforeEach(() => {
         mockAPI.get.mockReset();

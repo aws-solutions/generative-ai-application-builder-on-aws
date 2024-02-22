@@ -14,9 +14,9 @@
 import { DEFAULT_KENDRA_NUMBER_OF_DOCS, DEFAULT_KNOWLEDGE_BASE_TYPE } from '../../utils/constants';
 import {
     BEDROCK_MODEL_OPTION_IDX,
-    HF_INF_ENDPOINT_OPTION_IDX,
     HF_MODEL_OPTION_IDX,
-    MODEL_FAMILY_PROVIDER_OPTIONS
+    MODEL_FAMILY_PROVIDER_OPTIONS,
+    MODEL_PROVIDER_NAME_MAP
 } from './steps-config';
 
 export const getFieldOnChange =
@@ -40,8 +40,32 @@ export const createDeployRequestPayload = (stepsInfo) => {
         ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase),
         ...createLLMParamsApiParams(stepsInfo.model, stepsInfo.knowledgeBase.isRagRequired),
         ...createConversationMemoryApiParams(),
-        ...createUseCaseInfoApiParams(stepsInfo.useCase, stepsInfo.model)
+        ...createUseCaseInfoApiParams(stepsInfo.useCase, stepsInfo.model),
+        ...createVpcApiParams(stepsInfo.vpc)
     };
+
+    return payload;
+};
+
+const removeEmptyString = (obj) => {
+    for (const key in obj) {
+        if (typeof obj[key] === 'object') {
+            removeEmptyString(obj[key]);
+        } else if (obj[key] === '') {
+            delete obj[key];
+        }
+    }
+};
+
+export const createUpdateRequestPayload = (stepsInfo) => {
+    const payload = {
+        ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase),
+        ...createLLMParamsApiParams(stepsInfo.model, stepsInfo.knowledgeBase.isRagRequired),
+        ...createConversationMemoryApiParams(),
+        ...createUseCaseInfoApiParams(stepsInfo.useCase, stepsInfo.model),
+        ...updateVpcApiParams(stepsInfo.vpc)
+    };
+    removeEmptyString(payload);
 
     return payload;
 };
@@ -83,27 +107,27 @@ export const createConversationMemoryApiParams = (memoryStepInfo) => {
     };
 };
 
+export const formatValue = (value, type) => {
+    let newValue = value;
+    if (type === 'boolean') {
+        newValue = newValue.toLowerCase();
+    } else if (type === 'list') {
+        if (newValue[0] !== '[') {
+            newValue = '[' + newValue;
+        }
+        if (newValue[newValue.length - 1] !== ']') {
+            newValue = newValue + ']';
+        }
+    }
+    return newValue;
+};
+
 /**
  * Transform the model config step to the params required by the API
  * @param {Object} modelStepInfo
  * @returns
  */
 export const createLLMParamsApiParams = (modelStepInfo, isRagEnabled = true) => {
-    const formatValue = (value, type) => {
-        let newValue = value;
-        if (type === 'boolean') {
-            newValue = newValue.toLowerCase();
-        } else if (type === 'list') {
-            if (newValue[0] !== '[') {
-                newValue = '[' + newValue;
-            }
-            if (newValue[newValue.length - 1] !== ']') {
-                newValue = newValue + ']';
-            }
-        }
-        return newValue;
-    };
-
     const modelParamsObjectCreator = (modelParameters) => {
         if (!modelParameters || modelParameters.length === 0) {
             return {};
@@ -129,13 +153,18 @@ export const createLLMParamsApiParams = (modelStepInfo, isRagEnabled = true) => 
         RAGEnabled: isRagEnabled
     };
 
-    if (modelStepInfo.modelProvider !== MODEL_FAMILY_PROVIDER_OPTIONS[BEDROCK_MODEL_OPTION_IDX]) {
+    if (modelStepInfo.modelProvider.value !== MODEL_PROVIDER_NAME_MAP.Bedrock) {
         llmParamsPayload.ApiKey = modelStepInfo.apiKey;
     }
 
-    if (modelStepInfo.modelProvider === MODEL_FAMILY_PROVIDER_OPTIONS[HF_INF_ENDPOINT_OPTION_IDX]) {
+    if (modelStepInfo.modelProvider.value === MODEL_PROVIDER_NAME_MAP.HFInfEndpoint) {
         llmParamsPayload.ModelProvider = MODEL_FAMILY_PROVIDER_OPTIONS[HF_MODEL_OPTION_IDX].value;
         llmParamsPayload.InferenceEndpoint = modelStepInfo.inferenceEndpoint;
+    } else if (modelStepInfo.modelProvider.value === MODEL_PROVIDER_NAME_MAP.SageMaker) {
+        llmParamsPayload.ModelProvider = modelStepInfo.modelProvider.value;
+        llmParamsPayload.InferenceEndpoint = modelStepInfo.sagemakerEndpointName;
+        llmParamsPayload.ModelInputPayloadSchema = JSON.parse(modelStepInfo.sagemakerInputSchema);
+        llmParamsPayload.ModelOutputJSONPath = modelStepInfo.sagemakerOutputSchema;
     } else {
         llmParamsPayload.ModelProvider = modelStepInfo.modelProvider.value;
         llmParamsPayload.ModelId = modelStepInfo.modelName;
@@ -164,7 +193,7 @@ export const createKnowledgeBaseApiParams = (knowledgeBaseStepInfo) => {
             KnowledgeBaseParams: {
                 ExistingKendraIndexId: knowledgeBaseStepInfo.kendraIndexId,
                 NumberOfDocs: knowledgeBaseStepInfo.maxNumDocs ? parseInt(knowledgeBaseStepInfo.maxNumDocs) : 10,
-                ReturnSourceDocs: false
+                ReturnSourceDocs: knowledgeBaseStepInfo.returnDocumentSource
             }
         };
     }
@@ -182,9 +211,78 @@ export const createKnowledgeBaseApiParams = (knowledgeBaseStepInfo) => {
             NumberOfDocs: knowledgeBaseStepInfo.maxNumDocs
                 ? parseInt(knowledgeBaseStepInfo.maxNumDocs)
                 : DEFAULT_KENDRA_NUMBER_OF_DOCS,
-            ReturnSourceDocs: false
+            ReturnSourceDocs: knowledgeBaseStepInfo.returnDocumentSource
         }
     };
+};
+
+export const formatVpcAttributeItemsToArray = (vpcAttributeItems) => {
+    const attributeItems = [];
+    console.log('formatVpcAttributeItemsToArray:vpcAttributeItems', vpcAttributeItems);
+    vpcAttributeItems.forEach((item) => {
+        attributeItems.push(item.key);
+    });
+    return attributeItems;
+};
+
+/**
+ * Construct the params for the VPC config for the api.
+ * @param {*} vpcStepInfo Vpc step wizard details
+ * @returns
+ */
+export const createVpcApiParams = (vpcStepInfo) => {
+    const createNewVpc = !vpcStepInfo.existingVpc;
+    const vpcEnabled = vpcStepInfo.isVpcRequired;
+
+    if (vpcEnabled) {
+        if (!createNewVpc) {
+            return {
+                VPCParams: {
+                    VpcEnabled: vpcEnabled,
+                    CreateNewVpc: false,
+                    ExistingVpcId: vpcStepInfo.vpcId,
+                    ExistingPrivateSubnetIds: formatVpcAttributeItemsToArray(vpcStepInfo.subnetIds),
+                    ExistingSecurityGroupIds: formatVpcAttributeItemsToArray(vpcStepInfo.securityGroupIds)
+                }
+            };
+        }
+        return {
+            VPCParams: {
+                VpcEnabled: vpcEnabled,
+                CreateNewVpc: true
+            }
+        };
+    }
+
+    return {
+        VPCParams: {
+            VpcEnabled: vpcEnabled
+        }
+    };
+};
+
+/**
+ * Construct the params for the VPC config for the api.
+ * @param {*} vpcStepInfo Vpc step wizard details
+ * @returns
+ */
+export const updateVpcApiParams = (vpcStepInfo) => {
+    const createNewVpc = !vpcStepInfo.existingVpc;
+    const vpcEnabled = vpcStepInfo.isVpcRequired;
+
+    if (vpcEnabled) {
+        if (!createNewVpc) {
+            return {
+                VPCParams: {
+                    ExistingVpcId: vpcStepInfo.vpcId,
+                    ExistingPrivateSubnetIds: formatVpcAttributeItemsToArray(vpcStepInfo.subnetIds),
+                    ExistingSecurityGroupIds: formatVpcAttributeItemsToArray(vpcStepInfo.securityGroupIds)
+                }
+            };
+        }
+    }
+
+    return {};
 };
 
 /**
@@ -192,7 +290,7 @@ export const createKnowledgeBaseApiParams = (knowledgeBaseStepInfo) => {
  * the error message for a given form field.
  * @param {string} currErrorMessage
  * @param {string} errorState
- * @param {()=>void} setNumFieldsInError
+ * @param {Dispatch<SetStateAction<string>>} setNumFieldsInError
  */
 export const updateNumFieldsInError = (currErrorMessage, errorState, setNumFieldsInError) => {
     if (currErrorMessage.length > 0 && errorState.length === 0) {

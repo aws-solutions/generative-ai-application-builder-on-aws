@@ -34,14 +34,14 @@ from operations.webconfig import (
 @pytest.fixture
 def lambda_event(aws_credentials, custom_resource_event):
     custom_resource_event[RESOURCE_PROPERTIES] = {RESOURCE: operation_types.WEBCONFIG}
-    custom_resource_event[RESOURCE_PROPERTIES][SSM_KEY] = "/fake/new/keypath"
+    custom_resource_event[RESOURCE_PROPERTIES][SSM_KEY] = "/gaab/new/keypath"
     custom_resource_event[RESOURCE_PROPERTIES][API_ENDPOINT] = "https://non-existent/url/fakeapi"
     custom_resource_event[RESOURCE_PROPERTIES][USER_POOL_CLIENT_ID] = "fakeclientid"
     custom_resource_event[RESOURCE_PROPERTIES][USER_POOL_ID] = "fakepoolid"
     custom_resource_event[RESOURCE_PROPERTIES][SERVICE_TOKEN] = "fake-lambda-arn"
     custom_resource_event[RESOURCE_PROPERTIES][IS_INTERNAL_USER] = "false"
     custom_resource_event[RESOURCE_PROPERTIES]["SomeOtherParam"] = "someOtherValue"
-    custom_resource_event[PHYSICAL_RESOURCE_ID] = "/fake/old/keypath"
+    custom_resource_event[PHYSICAL_RESOURCE_ID] = "/gaab/old/keypath"
 
     yield custom_resource_event
 

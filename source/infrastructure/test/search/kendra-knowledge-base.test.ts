@@ -50,7 +50,7 @@ describe('When KendraKnowledgeBase construct is created', () => {
         jsonTemplate = template.toJSON();
     });
 
-    it('should have kendra index created, with correct props', () => {
+    it('should have Kendra index created, with correct props', () => {
         template.resourceCountIs('AWS::Kendra::Index', 1);
         template.resourceCountIs('AWS::IAM::Role', 1);
         template.hasResource('AWS::IAM::Role', {
@@ -112,7 +112,7 @@ describe('When KendraKnowledgeBase construct is created', () => {
             MaxLength: 64,
             AllowedPattern: '^[0-9a-zA-Z-]{1,64}$',
             Default: DEFAULT_NEW_KENDRA_INDEX_NAME,
-            Description: 'Name of the new kendra index to be created. Will have useCaseUUID appended'
+            Description: 'Name of the new Kendra index to be created. Will have useCaseUUID appended'
         });
 
         template.hasParameter('QueryCapacityUnits', {

@@ -49,7 +49,7 @@ describe('When testing performing secrets management tasks', () => {
         cfnParameters = new Map<string, string>();
         cfnParameters.set('LLMProviderName', 'HuggingFace');
 
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
         process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR] = 'api-key';
 
         secretsmanagerMockedClient = mockClient(SecretsManagerClient);

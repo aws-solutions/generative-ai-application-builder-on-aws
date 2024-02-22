@@ -14,9 +14,16 @@
 import * as cdk from 'aws-cdk-lib';
 import * as rawCdkJson from '../../cdk.json';
 
+import * as crypto from 'crypto';
+
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 
+import { AnthropicChat } from '../../lib/anthropic-chat-stack';
+import { BedrockChat } from '../../lib/bedrock-chat-stack';
 import { DeploymentPlatformStack } from '../../lib/deployment-platform-stack';
+import { BaseStack } from '../../lib/framework/base-stack';
+import { HuggingFaceChat } from '../../lib/hugging-face-chat-stack';
+import { SageMakerChat } from '../../lib/sagemaker-chat-stack';
 import { AppRegistry } from '../../lib/utils/app-registry-aspects';
 
 describe('When Solution Stack with a nested stack is registered with AppRegistry', () => {
@@ -30,8 +37,6 @@ describe('When Solution Stack with a nested stack is registered with AppRegistry
         'Solutions:SolutionName': 'generative-ai-application-builder-on-aws',
         'Solutions:SolutionVersion': rawCdkJson.context.solution_version
     };
-
-    const applicationName = `App-${rawCdkJson.context.app_registry_name}`;
 
     beforeAll(() => {
         app = new cdk.App({
@@ -98,9 +103,9 @@ describe('When Solution Stack with a nested stack is registered with AppRegistry
         template.hasResource('AWS::CloudFormation::Stack', {
             Type: 'AWS::CloudFormation::Stack',
             Properties: Match.anyValue(),
-            DependsOn: [Match.anyValue(), appRegApplicationCapture.asString(), 'WebConfig'],
-            UpdateReplacePolicy: Match.anyValue(),
-            DeletionPolicy: Match.anyValue(),
+            DependsOn: [Match.anyValue(), Match.anyValue(), 'WebConfig'],
+            UpdateReplacePolicy: 'Delete',
+            DeletionPolicy: 'Delete',
             Condition: 'DeployWebApp'
         });
     });
@@ -143,5 +148,53 @@ describe('When Solution Stack with a nested stack is registered with AppRegistry
             },
             Description: 'Attributes for Solutions Metadata'
         });
+    });
+});
+
+describe('When injecting AppRegistry aspect', () => {
+    it('The use case stack should have also have DependsOn with DeleteResourceAssociation', () => {
+        const stackList: (typeof BaseStack)[] = [HuggingFaceChat, AnthropicChat, BedrockChat, SageMakerChat];
+        const solutionID = rawCdkJson.context.solution_id;
+        const version = rawCdkJson.context.solution_version;
+        const solutionName = rawCdkJson.context.solution_name;
+        const applicationType = rawCdkJson.context.application_type;
+        const applicationName = rawCdkJson.context.app_registry_name;
+        const applicationTrademarkName = rawCdkJson.context.application_trademark_name;
+
+        for (const stack of stackList) {
+            const app = new cdk.App();
+            const instance = new stack(app, stack.name, {
+                description: `(${solutionID}-${stack.name}) - ${solutionName} - ${stack.name} - Version ${version}`,
+                synthesizer: new cdk.DefaultStackSynthesizer({
+                    generateBootstrapVersionRule: false
+                }),
+                solutionID: solutionID,
+                solutionVersion: version,
+                solutionName: `${solutionName}`,
+                applicationTrademarkName: applicationTrademarkName,
+                stackName: `${stack.name}-${crypto.randomUUID().substring(0, 8)}`
+            });
+
+            cdk.Aspects.of(instance).add(
+                new AppRegistry(instance, 'AppRegistry', {
+                    solutionID: solutionID,
+                    solutionVersion: version,
+                    solutionName: solutionName,
+                    applicationType: applicationType,
+                    applicationName: `${applicationName}-${cdk.Fn.ref('UseCaseUUID')}`
+                })
+            );
+
+            const template = Template.fromStack(instance);
+
+            if (instance.nested) {
+                const stackResources = template.findResources('AWS::ServiceCatalogAppRegistry::ResourceAssociation');
+                for (const stackResource in stackResources) {
+                    expect(
+                        stackResources[stackResource]['DependsOn'].includes('DeleteResourceAssociation')
+                    ).toBeTruthy();
+                }
+            }
+        }
     });
 });

@@ -12,7 +12,7 @@
  *********************************************************************************************************************/
 
 import { GetParameterCommandInput } from '@aws-sdk/client-ssm';
-import { UseCase } from '../../model/use-case';
+import { UseCase, UseCaseConfiguration } from '../../model/use-case';
 import { GetParameterCommandBuilder } from '../../ssm/web-config-builder';
 import { WEBCONFIG_SSM_KEY_ENV_VAR } from '../../utils/constants';
 
@@ -23,21 +23,25 @@ describe('When creating webconfig SSM ComandBuilders', () => {
         process.env[WEBCONFIG_SSM_KEY_ENV_VAR] = '/fake-webconfig/key';
 
         const config = {
+            UseCaseName: 'fake-test',
             ConversationMemoryType: 'DDBMemoryType',
-            ConversationMemoryParams: 'ConversationMemoryParams',
+            ConversationMemoryParams: {},
             KnowledgeBaseType: 'Kendra',
             KnowledgeBaseParams: {
-                NumberOfDocs: '5',
-                ReturnSourceDocs: '5'
+                NumberOfDocs: 5,
+                ReturnSourceDocs: true
             },
             LlmParams: {
+                ModelProvider: 'HuggingFace',
                 ModelId: 'google/flan-t5-xxl',
                 ModelParams: 'Param1',
                 PromptTemplate: 'Prompt1',
+                RAGEnabled: true,
                 Streaming: true,
                 Temperature: 0.1
-            }
-        };
+            },
+            IsInternalUser: 'false'
+        } as UseCaseConfiguration;
 
         const cfnParameters = new Map<string, string>();
         cfnParameters.set('LLMProviderName', 'HuggingFace');

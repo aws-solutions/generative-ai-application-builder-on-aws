@@ -12,6 +12,9 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+
 import { Construct } from 'constructs';
 import { DynamoDBChatStorage } from './chat-storage-stack';
 
@@ -20,6 +23,21 @@ export interface ChatStorageProps {
      * The 8-character UUID to add to resource names to ensure they are unique across deployments
      */
     useCaseUUID: string;
+
+    /**
+     * Name of the table which stores info/defaults for models. If not provided (passed an empty string), the table will be created.
+     */
+    existingModelInfoTableName: string;
+
+    /**
+     * Lambda function to use for custom resource implementation.
+     */
+    customResourceLambda: lambda.Function;
+
+    /**
+     * The IAM role to use for custom resource implementation.
+     */
+    customResourceRole: iam.Role;
 }
 
 /**
@@ -44,7 +62,10 @@ export class ChatStorageSetup extends Construct {
         this.chatStorage = new DynamoDBChatStorage(this, 'ChatStorage', {
             parameters: {
                 ConversationTableName: `ConversationTable-${props.useCaseUUID}`,
-                UseCaseUUID: `${props.useCaseUUID}`
+                ExistingModelInfoTableName: props.existingModelInfoTableName,
+                NewModelInfoTableName: `ModelInfoTable-${props.useCaseUUID}`,
+                CustomResourceLambdaArn: props.customResourceLambda.functionArn,
+                CustomResourceRoleArn: props.customResourceRole.roleArn
             },
             description: 'Nested Stack that creates the DynamoDB tables for the chat use case'
         });

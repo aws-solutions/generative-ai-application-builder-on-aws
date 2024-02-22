@@ -19,11 +19,16 @@ from copy import deepcopy
 import pytest
 from clients.factories.knowledge_base_factory import KnowledgeBaseFactory
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
-from utils.constants import DEFAULT_HUGGINGFACE_PROMPT, KENDRA_INDEX_ID_ENV_VAR
+from utils.constants import KENDRA_INDEX_ID_ENV_VAR
+
+HUGGINGFACE_PROMPT = """\n\n{history}\n\n{input}"""
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_kb_memory_success(llm_config, setup_environment):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [(HUGGINGFACE_PROMPT, False, False, False, "google/flan-t5-xxl")],
+)
+def test_get_kb_memory_success(llm_config, setup_environment, model_id):
     config = json.loads(llm_config["Parameter"]["Value"])
     errors_list = []
     response = KnowledgeBaseFactory().get_knowledge_base(config, errors_list)
@@ -34,8 +39,11 @@ def test_get_kb_memory_success(llm_config, setup_environment):
     assert errors_list == []
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_unsupported_kb(llm_config):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [(HUGGINGFACE_PROMPT, False, False, False, "google/flan-t5-xxl")],
+)
+def test_unsupported_kb(llm_config, model_id):
     errors_list = []
     config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
     config["KnowledgeBaseType"] = "OpenSearch"
@@ -44,8 +52,11 @@ def test_unsupported_kb(llm_config):
     assert errors_list == ["Unsupported KnowledgeBase type: OpenSearch. Supported types are: ['Kendra']"]
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_kb_missing_kendra_index(llm_config, setup_environment):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [(HUGGINGFACE_PROMPT, False, False, False, "google/flan-t5-xxl")],
+)
+def test_get_kb_missing_kendra_index(llm_config, model_id, setup_environment):
     errors_list = []
     config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
     os.environ.pop(KENDRA_INDEX_ID_ENV_VAR, None)
@@ -57,8 +68,11 @@ def test_get_kb_missing_kendra_index(llm_config, setup_environment):
         ]
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_kb_missing_config(llm_config):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [(HUGGINGFACE_PROMPT, False, False, False, "google/flan-t5-xxl")],
+)
+def test_get_kb_missing_config(llm_config, model_id):
     errors_list = []
     config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
     del config["KnowledgeBaseParams"]
@@ -69,8 +83,11 @@ def test_get_kb_missing_config(llm_config):
     ]
 
 
-@pytest.mark.parametrize("prompt, is_streaming, rag_enabled", [(DEFAULT_HUGGINGFACE_PROMPT, False, False)])
-def test_get_kb_missing_type(llm_config):
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [(HUGGINGFACE_PROMPT, False, False, False, "google/flan-t5-xxl")],
+)
+def test_get_kb_missing_type(llm_config, model_id):
     # When KnowledgeBaseType is not supplied, logs info and returns silently.
     errors_list = []
     config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))

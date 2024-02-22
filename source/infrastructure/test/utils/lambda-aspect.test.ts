@@ -20,6 +20,9 @@ import {
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
     COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
     CloudWatchNamespace,
+    GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
     LLM_LIBRARY_LAYER_TYPES
 } from '../../lib/utils/constants';
 import { LambdaAspects } from '../../lib/utils/lambda-aspect';
@@ -52,7 +55,7 @@ describe('When applying aspect to a Node based lambda function', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 2);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['nodejs18.x'],
+            CompatibleRuntimes: [GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME.name, COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name],
             Content: Match.anyValue(),
             Description: 'This layer configures AWS Node SDK initialization to send user-agent information'
         });
@@ -63,16 +66,16 @@ describe('When applying aspect to a Node based lambda function', () => {
 
         const jsonTemplate = template.toJSON();
 
-        expect(jsonTemplate['Resources'][layerCapture.asArray()[0]['Ref']]['Type']).toEqual(
-            'AWS::Lambda::LayerVersion'
-        );
-        expect(jsonTemplate['Resources'][layerCapture.asArray()[0]['Ref']]['Properties']['Description']).toEqual(
-            'This layer configures AWS Node SDK initialization to send user-agent information'
-        );
         expect(jsonTemplate['Resources'][layerCapture.asArray()[1]['Ref']]['Type']).toEqual(
             'AWS::Lambda::LayerVersion'
         );
         expect(jsonTemplate['Resources'][layerCapture.asArray()[1]['Ref']]['Properties']['Description']).toEqual(
+            'This layer configures AWS Node SDK initialization to send user-agent information'
+        );
+        expect(jsonTemplate['Resources'][layerCapture.asArray()[0]['Ref']]['Type']).toEqual(
+            'AWS::Lambda::LayerVersion'
+        );
+        expect(jsonTemplate['Resources'][layerCapture.asArray()[0]['Ref']]['Properties']['Description']).toEqual(
             'AWS Javascript SDK v3 to be bundled with lambda functions as a layer'
         );
     });
@@ -82,7 +85,7 @@ describe('When applying aspect to a Node based lambda function', () => {
             Environment: {
                 Variables: {
                     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
-                    AWS_SDK_USER_AGENT: `{ "customUserAgent": [["AwsSolution/SO0276/${rawCdkJson.context.solution_version}"]] }`
+                    AWS_SDK_USER_AGENT: `{ "customUserAgent": [["AWSSOLUTION/SO0276/${rawCdkJson.context.solution_version}"]] }`
                 }
             }
         });
@@ -138,7 +141,11 @@ describe('When applying aspect to a Python based lambda function', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 2);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['python3.8', 'python3.9', 'python3.10', 'python3.11'],
+            CompatibleRuntimes: [
+                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
+                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
+                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
+            ],
             Content: Match.anyValue(),
             Description: 'This layer configures AWS Python SDK initialization to send user-agent information'
         });
@@ -226,7 +233,11 @@ describe('When applying the langchain aspect', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 3);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['python3.8', 'python3.9', 'python3.10', 'python3.11'],
+            CompatibleRuntimes: [
+                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
+                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
+                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
+            ],
             Content: Match.anyValue(),
             Description: 'This layer configures the LangChain python package to be bundled with python lambda functions'
         });

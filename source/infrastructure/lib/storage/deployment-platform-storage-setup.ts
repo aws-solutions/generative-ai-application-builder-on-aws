@@ -20,13 +20,28 @@ import { DynamoDBDeploymentPlatformStorage } from './deployment-platform-storage
 
 import { LambdaToDynamoDB } from '@aws-solutions-constructs/aws-lambda-dynamodb';
 import { NagSuppressions } from 'cdk-nag';
-import { USE_CASES_TABLE_NAME_ENV_VAR } from '../utils/constants';
+import { MODEL_INFO_TABLE_NAME_ENV_VAR, USE_CASES_TABLE_NAME_ENV_VAR } from '../utils/constants';
 
 export interface DeploymentPlatformStorageProps {
     /**
      * Lambda which backs API calls interacting with the use cases
      */
     deploymentApiLambda: lambda.Function;
+
+    /**
+     * Lambda which backs API calls for retrieving model info
+     */
+    modelInfoApiLambda: lambda.Function;
+
+    /**
+     * Lambda function to use for custom resource implementation.
+     */
+    customResourceLambda: lambda.Function;
+
+    /**
+     * The IAM role to use for custom resource implementation.
+     */
+    customResourceRole: iam.Role;
 }
 
 /**
@@ -49,15 +64,33 @@ export class DeploymentPlatformStorageSetup extends Construct {
         this.scope = scope;
 
         this.deploymentPlatformStorage = new DynamoDBDeploymentPlatformStorage(this, 'DeploymentPlatformStorage', {
-            description: 'Nested Stack that creates the DynamoDB table to manage use cases'
+            description: 'Nested Stack that creates the DynamoDB table to manage use cases',
+            parameters: {
+                CustomResourceLambdaArn: props.customResourceLambda.functionArn,
+                CustomResourceRoleArn: props.customResourceRole.roleArn
+            }
         });
 
-        // connecting the lambda to the use cases table
+        // connecting the lambdas to the necessary tables
         new LambdaToDynamoDB(this, 'DeploymentAPILambdaToUseCaseDDB', {
             existingLambdaObj: props.deploymentApiLambda,
             existingTableObj: this.deploymentPlatformStorage.useCasesTable,
             tablePermissions: 'ReadWrite',
             tableEnvironmentVariableName: USE_CASES_TABLE_NAME_ENV_VAR
+        });
+
+        new LambdaToDynamoDB(this, 'DeploymentAPILambdaToModelInfoDDB', {
+            existingLambdaObj: props.deploymentApiLambda,
+            existingTableObj: this.deploymentPlatformStorage.modelInfoTable,
+            tablePermissions: 'Read',
+            tableEnvironmentVariableName: MODEL_INFO_TABLE_NAME_ENV_VAR
+        });
+
+        new LambdaToDynamoDB(this, 'ModelInfoLambdaToModelInfoDDB', {
+            existingLambdaObj: props.modelInfoApiLambda,
+            existingTableObj: this.deploymentPlatformStorage.modelInfoTable,
+            tablePermissions: 'Read',
+            tableEnvironmentVariableName: MODEL_INFO_TABLE_NAME_ENV_VAR
         });
 
         NagSuppressions.addResourceSuppressions(

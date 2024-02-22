@@ -17,7 +17,13 @@ import { Construct } from 'constructs';
 import * as path from 'path';
 import { getCommandsForNodejsDockerBuild, getCommandsForPythonDockerBuild } from '../utils/asset-bundling';
 import { localBundling } from '../utils/common-utils';
-import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../utils/constants';
+import {
+    COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME
+} from '../utils/constants';
 import { SharedLibLayerProps } from './shared-lib';
 
 /**
@@ -25,7 +31,10 @@ import { SharedLibLayerProps } from './shared-lib';
  */
 export class AwsNodeSdkLibLayer extends lambda.LayerVersion {
     constructor(scope: Construct, id: string, props: SharedLibLayerProps) {
-        const compatibleRuntimes = props.compatibleRuntimes ?? [lambda.Runtime.NODEJS_18_X];
+        const compatibleRuntimes = props.compatibleRuntimes ?? [
+            GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
+            COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME
+        ];
 
         for (const runtime of compatibleRuntimes) {
             if (runtime && runtime.family !== lambda.RuntimeFamily.NODEJS) {
@@ -62,10 +71,9 @@ export class AwsNodeSdkLibLayer extends lambda.LayerVersion {
 export class Boto3SdkLibLayer extends lambda.LayerVersion {
     constructor(scope: Construct, id: string, props: SharedLibLayerProps) {
         const compatibleRuntimes = props.compatibleRuntimes ?? [
-            lambda.Runtime.PYTHON_3_8,
-            lambda.Runtime.PYTHON_3_9,
-            lambda.Runtime.PYTHON_3_10,
-            lambda.Runtime.PYTHON_3_11
+            GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+            LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+            COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
         ];
 
         for (const runtime of compatibleRuntimes) {
@@ -87,7 +95,16 @@ export class Boto3SdkLibLayer extends lambda.LayerVersion {
                                 `cd ${entry}`,
                                 'echo "Trying local bundling of python modules"',
                                 'rm -fr .venv*',
-                                `pip3 install -r requirements.txt --target ${outputDir}/python/`
+                                'python3 -m venv .venv',
+                                '. .venv/bin/activate',
+                                'python3 -m pip install poetry --upgrade',
+                                'poetry build',
+                                'poetry install --only main',
+                                `poetry run pip install -t ${outputDir}/python dist/*.whl`,
+                                `find ${outputDir}/python -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
+                                'deactivate',
+                                'rm -fr dist',
+                                'rm -fr .venv*'
                             ].join(' && ');
                             const targetDirectory = `${outputDir}/python/`;
                             return localBundling(cliCommand, `${entry}/`, targetDirectory);

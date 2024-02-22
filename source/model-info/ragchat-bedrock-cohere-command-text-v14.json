@@ -1,0 +1,21 @@
+{
+    "UseCase": "RAGChat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "cohere.command-text-v14",
+    "AllowsStreaming": true,
+    "Prompt": "References:\n{context}\n\nCarefully read the reference passages above and try to truthfully answer the Human's question. If the answer is not explicitly contained within the references, respond with \"Sorry I don't know\". It is very important that you respond \"Sorry I don't know\" if the answer is not found within the references above. Do not make use of any information outside of the references. Try to be brief and write a response in no more than 5 complete sentences.\n\nCurrent conversation:\n{history}\n\nHuman: {input}\nAI:",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "0.9",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "chat_history",
+        "input": "question",
+        "context": "context",
+        "ai_prefix": "AI",
+        "human_prefix": "Human",
+        "output": "answer"
+    },
+    "MaxPromptSize": 2000,
+    "MaxChatMessageSize": 2500
+}

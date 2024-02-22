@@ -15,24 +15,22 @@
 import json
 import os
 from abc import ABC
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
 from clients.builders.llm_builder import LLMBuilder
 from helper import get_service_client
-from llm_models.base_langchain import BaseLangChainModel
+from llms.base_langchain import BaseLangChainModel
 from utils.constants import (
     CHAT_REQUIRED_ENV_VARS,
     CONVERSATION_ID_EVENT_KEY,
     LLM_PARAMETERS_SSM_KEY_ENV_VAR,
     PROMPT_EVENT_KEY,
-    PROMPT_LENGTH,
     QUESTION_EVENT_KEY,
     TRACE_ID_ENV_VAR,
     USER_ID_EVENT_KEY,
-    USER_QUERY_LENGTH,
 )
 from utils.enum_types import LLMProviderTypes
 
@@ -42,7 +40,7 @@ tracer = Tracer()
 
 class LLMChatClient(ABC):
     """
-    LLMChatClient is a class that allows building a Langchain LLM client that is used to interface with different LLM provider APIs.
+    LLMChatClient is a class that allows building a LangChain LLM client that is used to interface with different LLM provider APIs.
     Based on the llm_config that is fetched from the SSM Parameter store, a BaseLangChainModel model is built by calling the get_model
     method an the LLMChatClient.
     LLMChatClient also allows methods for validating the event and the environment.
@@ -131,11 +129,91 @@ class LLMChatClient(ABC):
             )
             raise ValueError(error_message)
 
-    def check_event(self, event: Dict) -> Dict:
+    def __validate_user_id(self, event) -> str:
+        """
+        Validates the user id.
+        Args:
+            event (str): the lambda event
+        Raises:
+            ValueError: If the user id is not provided.
+        """
+        user_id = event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
+        if not user_id:
+            error_message = f"{USER_ID_EVENT_KEY} is missing from the requestContext"
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            raise ValueError(error_message)
+
+        return user_id
+
+    def __validate_event_body(self, event: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validates the event body.
+        Args:
+            event (str): the lambda event
+        Returns:
+            (Dict) parsed event body
+        Raises:
+            ValueError: If the event body is empty or not provided.
+        """
+        event_body = event.get("body")
+        if not event_body:
+            error_message = "Event body is empty"
+            logger.error(
+                error_message,
+                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
+            )
+            raise ValueError(error_message)
+
+        parsed_event_body = json.loads(event_body)
+        return parsed_event_body
+
+    def __validate_user_query(self, event_body: Dict[str, Any]) -> List[str]:
+        """
+        Validates the user query.
+        Args:
+            event (str): the event body
+        Returns:
+            List of error messages if the user query is empty or not provided
+        """
+        user_query = event_body.get(QUESTION_EVENT_KEY)
+
+        if user_query is None:
+            error_message = f"{QUESTION_EVENT_KEY} is missing from the chat event"
+            logger.error(
+                error_message,
+                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
+            )
+            return [error_message]
+
+        if not len(user_query):
+            error_message = f"User query in event shouldn't be empty."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            return [error_message]
+
+        return []
+
+    def __validate_event_prompt(self, event_body: Dict[str, Any]) -> List[str]:
+        """
+         Validates the event prompt.
+         Args:
+             event (str): the event body
+        Returns:
+             List of error messages if prompt is provided but empty.
+        """
+        prompt = event_body.get(PROMPT_EVENT_KEY)
+
+        if prompt is not None and not len(prompt):
+            error_message = f"Prompt in event shouldn't be empty."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            return [error_message]
+
+        return []
+
+    def check_event(self, event: Dict[str, Any]) -> Dict:
         """
         Checks if the event it receives is as expected (checking for required fields),
         and adds the user id into the event body (comes from requestContext from custom authorizer).
-        If the event body does not contain the conversation_id, it also adds it in.
+        If the event body does not contain the conversation_id, it also generates and adds it in.
 
         Args:
             event (Dict): the lambda event
@@ -144,46 +222,14 @@ class LLMChatClient(ABC):
         Raises:
             ValueError: If the event it requires is not set.
         """
-        event_body = event.get("body")
-        if not event_body:
-            msg = "Event body is empty"
-            logger.error(
-                msg,
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-            )
-            raise ValueError(msg)
+        errors_list = []
+        parsed_event_body = self.__validate_event_body(event)
+        user_id = self.__validate_user_id(event)
+        errors_list.extend(self.__validate_user_query(parsed_event_body))
+        errors_list.extend(self.__validate_event_prompt(parsed_event_body))
 
-        user_id = event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
-        if not user_id:
-            error_message = f"{USER_ID_EVENT_KEY} is missing from the requestContext"
-            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            raise ValueError(error_message)
-
-        parsed_event_body = json.loads(event_body)
-        prompt = parsed_event_body.get(PROMPT_EVENT_KEY)
-        user_query = parsed_event_body.get(QUESTION_EVENT_KEY)
-        error_list = []
-
-        if not user_query:
-            error_message = f"{QUESTION_EVENT_KEY} is missing from the chat event"
-            logger.error(
-                error_message,
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-            )
-            raise ValueError(error_message)
-
-        if prompt and (len(prompt) > PROMPT_LENGTH or len(prompt) == 0):
-            error_message = f"Prompt shouldn't be empty and should be less than {PROMPT_LENGTH} characters. Provided prompt length has length: {len(prompt)}"
-            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            error_list.append(error_message)
-
-        if len(user_query) > USER_QUERY_LENGTH:
-            error_message = f"User query should be less than {USER_QUERY_LENGTH} characters. Provided query has length: {len(user_query)}"
-            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            error_list.append(error_message)
-
-        if error_list:
-            errors = "\n".join(error_list)
+        if errors_list:
+            errors = "\n".join(errors_list)
             raise ValueError(errors)
 
         parsed_event_body[CONVERSATION_ID_EVENT_KEY] = self.get_event_conversation_id(parsed_event_body)
@@ -233,18 +279,22 @@ class LLMChatClient(ABC):
                 raise jde
 
     @tracer.capture_method
-    def construct_chat_model(self, user_id: str, conversation_id: str, llm_provider: LLMProviderTypes) -> None:
+    def construct_chat_model(
+        self, user_id: str, event_body: Dict, llm_provider: LLMProviderTypes, model_name: str
+    ) -> None:
         """Constructs the chat model using the builder object that is passed to it. Acts like a Director for the builder.
 
         Args:
             user_id (str): cognito id of the user
             conversation_id (str): unique id of the conversation (used to reference the correct conversation memory)
             llm_provider (LLMProviderTypes): name of the LLM provider
+            model_name (str): name of the model to use for the LLM. It should be a model name supported by the family of
+                models supported by llm_provider
 
         Raises:
-            ValueError: If builder is not set up for the client
-            ValueError: If missing required params
+            ValueError: If builder is not set up for the client or if missing required params
         """
+        conversation_id = event_body.get(CONVERSATION_ID_EVENT_KEY, None)
         if user_id and conversation_id:
             if not self.builder:
                 logger.error(
@@ -253,8 +303,9 @@ class LLMChatClient(ABC):
                 )
                 raise ValueError(f"Builder is not set for this LLMChatClient.")
 
+            self.builder.set_model_defaults(llm_provider, model_name)
+            self.builder.validate_event_input_sizes(event_body)
             self.builder.set_knowledge_base()
-            self.builder.set_memory_constants(llm_provider)
             self.builder.set_conversation_memory(user_id, conversation_id)
             self.builder.set_api_key()
             self.builder.set_llm_model()

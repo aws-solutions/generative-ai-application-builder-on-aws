@@ -18,7 +18,7 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
-import { WebSocketApi, WebSocketStage } from '@aws-cdk/aws-apigatewayv2-alpha';
+import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
 import { Construct } from 'constructs';
 import { UseCaseCognitoSetup } from '../auth/use-case-cognito-setup';
 import { AppAssetBundler } from '../utils/asset-bundling';
@@ -35,7 +35,7 @@ import { WebSocketEndpoint } from './websocket-endpoint';
 
 export interface WebsocketRequestProcessorProps {
     /**
-     * The function to back the Langchain chat LLM model
+     * The function to back the LangChain chat LLM model
      */
     chatProviderLambda: lambda.Function;
 

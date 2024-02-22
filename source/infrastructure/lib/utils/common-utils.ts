@@ -348,11 +348,41 @@ export function createBasicLambdaCWPolicyDocument(): iam.PolicyDocument {
  * @param scope
  * @param id
  */
-export function createDefaultLambdaRole(scope: Construct, id: string): iam.Role {
+export function createDefaultLambdaRole(scope: Construct, id: string, deployVpcCondition?: cdk.CfnCondition): iam.Role {
     const role = new iam.Role(scope, id, {
         assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
         inlinePolicies: {
-            LambdaFunctionServiceRolePolicy: createBasicLambdaCWPolicyDocument()
+            LambdaFunctionServiceRolePolicy: createBasicLambdaCWPolicyDocument(),
+            ...(deployVpcCondition && {
+                VPCPolicy: new iam.PolicyDocument({
+                    statements: [
+                        new iam.PolicyStatement({
+                            actions: [
+                                'ec2:CreateNetworkInterface',
+                                'ec2:AssignPrivateIpAddresses',
+                                'ec2:UnassignPrivateIpAddresses'
+                            ],
+                            effect: iam.Effect.ALLOW,
+                            resources: [
+                                `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:network-interface/*`,
+                                `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:subnet/*`,
+                                `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:security-group/*`
+                            ]
+                        }),
+                        new iam.PolicyStatement({
+                            actions: [
+                                'ec2:DescribeNetworkInterfaces',
+                                'ec2:DeleteNetworkInterface',
+                                'ec2:DetachNetworkInterface'
+                            ],
+                            effect: iam.Effect.ALLOW,
+                            // any more restrictive the policy does not have affect and the Lambda function does not
+                            // remove the network interface it creates in the private subnet in the VPC.
+                            resources: ['*']
+                        })
+                    ]
+                })
+            })
         }
     });
 
@@ -373,11 +403,28 @@ export function createDefaultLambdaRole(scope: Construct, id: string): iam.Role 
         }
     ]);
 
+    if (deployVpcCondition) {
+        NagSuppressions.addResourceSuppressions(role, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'Networking resources are not known and hence "*". Also there are additional conditions to scope it down',
+                appliesTo: [
+                    'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:*',
+                    'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:network-interface/*',
+                    'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:subnet/*',
+                    'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:security-group/*',
+                    'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:instance*',
+                    'Resource::*'
+                ]
+            }
+        ]);
+    }
+
     return role;
 }
 
 /**
- * Generates a unique hash identfifer using SHA256 encryption algorithm.
+ * Generates a unique hash identifier using SHA256 encryption algorithm.
  */
 export function hashValues(...values: string[]): string {
     const sha256 = crypto.createHash('sha256');

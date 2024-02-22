@@ -1,0 +1,301 @@
+{
+    "authorized": true,
+    "selectedDeployment": {
+        "UseCaseId": "810ccef1-1c30-43a7-b959-5aaef2cb8c23",
+        "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+        "StackId": "arn:aws:cloudformation:us-west-2:111111111111:stack/jul31-test-1-mp-810ccef1/f14ba520-2f5b-11ee-8ffa-028cc380112b",
+        "CreatedDate": "2023-07-31T04:37:23.824Z",
+        "Name": "jul31-test-1-mp",
+        "status": "CREATE_COMPLETE",
+        "Description": "",
+        "chatConfigSSMParameterName": "/gaab-ai/use-case-config/810ccef1",
+        "defaultUserEmail": "placeholder@example.com",
+        "useCaseUUID": "810ccef1",
+        "webConfigKey": "/jul31-test-1-mp-810ccef1/webconfig",
+        "kendraIndexId": "",
+        "cloudFrontWebUrl": "https://d22b0yb5zwh4d.cloudfront.net",
+        "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul31-test-1-mp-810ccef1-us-west-2-Dashboard",
+        "providerApiKeySecret": "810ccef1/api-key",
+        "UseCaseName": "jul31-test-1-mp",
+        "ConversationMemoryType": "DynamoDB",
+        "KnowledgeBaseType": "Kendra",
+        "KnowledgeBaseParams": {
+            "NumberOfDocs": 4,
+            "ReturnSourceDocs": false
+        },
+        "LlmParams": {
+            "ModelProvider": "Anthropic",
+            "ModelId": "claude-v1",
+            "ModelParams": {
+                "epsilon": {
+                    "Value": "0.9",
+                    "Type": "float"
+                }
+            },
+            "PromptTemplate": "",
+            "Streaming": false,
+            "Verbose": false,
+            "Temperature": 0.1,
+            "RAGEnabled": false
+        }
+    },
+    "deploymentsData": [
+        {
+            "UseCaseId": "73b9315f-26c2-416f-b589-d0d18ab0a874",
+            "CreatedDate": "2023-07-28T17:27:21.477Z",
+            "UpdatedDate": "2023-08-01T04:18:51.539Z",
+            "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+            "Description": "",
+            "StackId": "arn:aws:cloudformation:us-west-2:111111111111:stack/jul28-test-4-no-rag-stream-73b9315f/01f7d0c0-2d6c-11ee-8685-0adc66c869ff",
+            "UpdatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+            "Name": "jul28-test-4-no-rag-stream",
+            "status": "UPDATE_COMPLETE",
+            "chatConfigSSMParameterName": "/gaab-ai/use-case-config/73b9315f",
+            "defaultUserEmail": "placeholder@example.com",
+            "useCaseUUID": "73b9315f",
+            "ragEnabled": "true",
+            "webConfigKey": "/jul28-test-4-no-rag-stream-73b9315f/webconfig",
+            "kendraIndexId": "1d73db02-fake-id-0000",
+            "cloudFrontWebUrl": "https://d5icr0kgmtv77.cloudfront.net",
+            "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul28-test-4-no-rag-stream-73b9315f-us-west-2-Dashboard",
+            "providerApiKeySecret": "73b9315f/api-key",
+            "UseCaseName": "jul28-test-4-no-rag-stream",
+            "ConversationMemoryType": "DynamoDB",
+            "KnowledgeBaseType": "Kendra",
+            "KnowledgeBaseParams": {},
+            "LlmParams": {
+                "ModelProvider": "Anthropic",
+                "ModelId": "claude-v1",
+                "ModelParams": {},
+                "PromptTemplate": "",
+                "Streaming": true,
+                "Verbose": false,
+                "Temperature": 0.3,
+                "RAGEnabled": true
+            }
+        },
+        {
+            "UseCaseId": "2d83afe3-0aed-4c57-a47c-346215b46c33",
+            "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+            "StackId": "arn:aws:cloudformation:us-west-2:111111111111:stack/jul28-test-3-no-rag-2d83afe3/ffa3e090-2d69-11ee-8cc9-06101dcc630f",
+            "CreatedDate": "2023-07-28T17:12:58.378Z",
+            "Name": "jul28-test-3-no-rag",
+            "status": "CREATE_COMPLETE",
+            "chatConfigSSMParameterName": "/gaab-ai/use-case-config/2d83afe3",
+            "defaultUserEmail": "placeholder@example.com",
+            "useCaseUUID": "2d83afe3",
+            "ragEnabled": "false",
+            "webConfigKey": "/jul28-test-3-no-rag-2d83afe3/webconfig",
+            "kendraIndexId": "",
+            "cloudFrontWebUrl": "https://d10wv727gsezx7.cloudfront.net",
+            "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul28-test-3-no-rag-2d83afe3-us-west-2-Dashboard",
+            "providerApiKeySecret": "2d83afe3/api-key",
+            "UseCaseName": "jul28-test-3-no-rag",
+            "ConversationMemoryType": "DynamoDB",
+            "KnowledgeBaseType": "Kendra",
+            "KnowledgeBaseParams": {},
+            "LlmParams": {
+                "ModelProvider": "Anthropic",
+                "ModelId": "claude-v1",
+                "ModelParams": {},
+                "PromptTemplate": "",
+                "Streaming": false,
+                "Verbose": false,
+                "Temperature": 0.1,
+                "RAGEnabled": false
+            }
+        },
+        {
+            "UseCaseId": "c3e546f9-5b3b-4d77-b713-6ff70774b26f",
+            "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+            "StackId": "arn:aws:cloudformation:us-west-2:111111111111:stack/jul28-test2-noRag-c3e546f9/cf160390-2d64-11ee-bc90-0268279574df",
+            "CreatedDate": "2023-07-28T16:35:49.594Z",
+            "Name": "jul28-test2-noRag",
+            "status": "CREATE_COMPLETE",
+            "chatConfigSSMParameterName": "/gaab-ai/use-case-config/c3e546f9",
+            "defaultUserEmail": "placeholder@example.com",
+            "useCaseUUID": "c3e546f9",
+            "ragEnabled": "false",
+            "webConfigKey": "/jul28-test2-noRag-c3e546f9/webconfig",
+            "kendraIndexId": "",
+            "cloudFrontWebUrl": "https://d242j4ohhovdmf.cloudfront.net",
+            "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul28-test2-noRag-c3e546f9-us-west-2-Dashboard",
+            "providerApiKeySecret": "c3e546f9/api-key",
+            "UseCaseName": "jul28-test2-noRag",
+            "ConversationMemoryType": "DynamoDB",
+            "KnowledgeBaseType": "Kendra",
+            "KnowledgeBaseParams": {},
+            "LlmParams": {
+                "ModelProvider": "Anthropic",
+                "ModelId": "claude-v1",
+                "ModelParams": {},
+                "PromptTemplate": "",
+                "Streaming": false,
+                "Verbose": false,
+                "Temperature": 0.1,
+                "RAGEnabled": false
+            }
+        },
+        {
+            "UseCaseId": "dd83f876-9f60-439a-a1ad-377851dcbc63",
+            "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+            "StackId": "arn:aws:cloudformation:us-west-2:111111111111:stack/jul28-NoRag-dd83f876/685937f0-2d5d-11ee-99da-02640ea6b981",
+            "CreatedDate": "2023-07-28T15:42:50.928Z",
+            "Name": "jul28-NoRag",
+            "status": "CREATE_COMPLETE",
+            "chatConfigSSMParameterName": "/gaab-ai/use-case-config/dd83f876",
+            "defaultUserEmail": "placeholder@example.com",
+            "useCaseUUID": "dd83f876",
+            "ragEnabled": "true",
+            "webConfigKey": "/jul28-NoRag-dd83f876/webconfig",
+            "kendraIndexId": "d008456b-3476-401d-8e40-a3871ef77ba2",
+            "cloudFrontWebUrl": "https://d2441m2whxa9vc.cloudfront.net",
+            "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul28-NoRag-dd83f876-us-west-2-Dashboard",
+            "providerApiKeySecret": "dd83f876/api-key",
+            "UseCaseName": "jul28-NoRag",
+            "ConversationMemoryType": "DynamoDB",
+            "KnowledgeBaseType": "Kendra",
+            "KnowledgeBaseParams": {},
+            "LlmParams": {
+                "ModelProvider": "Anthropic",
+                "ModelId": "claude-v1",
+                "ModelParams": {},
+                "PromptTemplate": "",
+                "Streaming": false,
+                "Verbose": false,
+                "Temperature": 0.1,
+                "RAGEnabled": false
+            }
+        },
+        {
+            "UseCaseId": "810ccef1-1c30-43a7-b959-5aaef2cb8c23",
+            "CreatedBy": "e83173d0-9091-70d1-7d3d-bac24be1a464",
+            "StackId": "arn:aws:cloudformation:us-west-2:111111111111:stack/jul31-test-1-mp-810ccef1/f14ba520-2f5b-11ee-8ffa-028cc380112b",
+            "CreatedDate": "2023-07-31T04:37:23.824Z",
+            "Name": "jul31-test-1-mp",
+            "status": "CREATE_COMPLETE",
+            "chatConfigSSMParameterName": "/gaab-ai/use-case-config/810ccef1",
+            "defaultUserEmail": "placeholder@example.com",
+            "useCaseUUID": "810ccef1",
+            "ragEnabled": "false",
+            "webConfigKey": "/jul31-test-1-mp-810ccef1/webconfig",
+            "kendraIndexId": "",
+            "cloudFrontWebUrl": "https://d22b0yb5zwh4d.cloudfront.net",
+            "cloudwatchDashboardUrl": "https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards/dashboard/jul31-test-1-mp-810ccef1-us-west-2-Dashboard",
+            "providerApiKeySecret": "810ccef1/api-key",
+            "UseCaseName": "jul31-test-1-mp",
+            "ConversationMemoryType": "DynamoDB",
+            "KnowledgeBaseType": "Kendra",
+            "KnowledgeBaseParams": {},
+            "LlmParams": {
+                "ModelProvider": "Anthropic",
+                "ModelId": "claude-v1",
+                "ModelParams": {
+                    "epsilon": {
+                        "Value": "0.9",
+                        "Type": "float"
+                    }
+                },
+                "PromptTemplate": "",
+                "Streaming": false,
+                "Verbose": false,
+                "Temperature": 0.1,
+                "RAGEnabled": false
+            }
+        }
+    ],
+    "deploymentAction": "CREATE",
+    "reloadData": false,
+    "runtimeConfig": {
+        "ApiEndpoint": "https://gjxz1166ke.execute-api.us-east-1.amazonaws.com/prod/",
+        "ModelProviders": {
+            "HuggingFace": {
+                "ModelProviderParams": {
+                    "RAGPromptTemplate": "References:\n{context}\nCarefully read the reference passages above and try to truthfully answer the Human's question. If the answer is not explicitly contained within the references, respond with \"Sorry I don't know\". It is very important that you respond \"Sorry I don't know\" if the answer is not found within the references above. Do not make use of any information outside of the references. Try to be brief and write a response in no more than 5 complete sentences.\nCurrent conversation:\n{history}\n\nHuman: {input}\nAI:",
+                    "MaxTemperature": "100",
+                    "DefaultTemperature": "1",
+                    "MinTemperature": "0",
+                    "ChatPromptTemplate": "The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details. If the AI does not know the answer to a question, it truthfully says \"Sorry I don't know\".\nCurrent conversation:\n{history}\nHuman: {input}\nAI:"
+                },
+                "SupportedModels": [
+                    "google/flan-t5-xxl",
+                    "google/flan-t5-xl",
+                    "google/flan-t5-large",
+                    "google/flan-t5-base",
+                    "google/flan-t5-small"
+                ],
+                "AllowsStreaming": "false"
+            },
+            "Anthropic": {
+                "ModelProviderParams": {
+                    "RAGPromptTemplate": "Human: You are a friendly AI assistant. You provide answers only based on the provided reference passages. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question.\n\nHere are reference passages in <references></references> tags:\n<references>\n{context}\n</references>\n\nCarefully read the references above and thoughtfully answer the question below. If the answer can not be deduced from the references, then respond with \"Sorry I don't know\". It is very important that you only use information found within the references to answer. Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:",
+                    "MaxTemperature": "1",
+                    "DefaultTemperature": "1",
+                    "MinTemperature": "0",
+                    "ChatPromptTemplate": "Human: You are a friendly AI assistant. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question. If you do not know the answer, then respond with \"Sorry I don't know\". Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:"
+                },
+                "SupportedModels": [
+                    "claude-instant-1",
+                    "claude-1",
+                    "claude-2"
+                ],
+                "AllowsStreaming": "true"
+            },
+            "Bedrock": {
+                "ModelFamilyParams": {
+                    "amazon": {
+                        "RAGPromptTemplate": "Human: You are a friendly AI assistant. You provide answers only based on the provided reference passages. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question.\n\nHere are reference passages in <references></references> tags:\n<references>\n{context}\n</references>\n\nCarefully read the references above and thoughtfully answer the question below. If the answer can not be deduced from the references, then respond with \"Sorry I don't know\". It is very important that you only use information found within the references to answer. Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:",
+                        "MaxTemperature": "1",
+                        "DefaultTemperature": "1",
+                        "MinTemperature": "0",
+                        "ChatPromptTemplate": "Human: You are a friendly AI assistant. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question. If you do not know the answer, then respond with \"Sorry I don't know\". Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:"
+                    },
+                    "anthropic": {
+                        "RAGPromptTemplate": "Human: You are a friendly AI assistant. You provide answers only based on the provided reference passages. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question.\n\nHere are reference passages in <references></references> tags:\n<references>\n{context}\n</references>\n\nCarefully read the references above and thoughtfully answer the question below. If the answer can not be deduced from the references, then respond with \"Sorry I don't know\". It is very important that you only use information found within the references to answer. Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:",
+                        "MaxTemperature": "1",
+                        "DefaultTemperature": "1",
+                        "MinTemperature": "0",
+                        "ChatPromptTemplate": "Human: You are a friendly AI assistant. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question. If you do not know the answer, then respond with \"Sorry I don't know\". Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:"
+                    },
+                    "ai21": {
+                        "RAGPromptTemplate": "Human: You are a friendly AI assistant. You provide answers only based on the provided reference passages. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question.\n\nHere are reference passages in <references></references> tags:\n<references>\n{context}\n</references>\n\nCarefully read the references above and thoughtfully answer the question below. If the answer can not be deduced from the references, then respond with \"Sorry I don't know\". It is very important that you only use information found within the references to answer. Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:",
+                        "MaxTemperature": "1",
+                        "DefaultTemperature": "1",
+                        "MinTemperature": "0",
+                        "ChatPromptTemplate": "Human: You are a friendly AI assistant. When I write BEGIN DIALOGUE you will enter this role, and all further input from the \"Human:\" will be from a user seeking support with a question. If you do not know the answer, then respond with \"Sorry I don't know\". Try to be brief and write a response in no more than 5 complete sentences. Do not ask any follow up questions.\nBEGIN DIALOGUE\n{history}\n\nHuman: {input}\n\nAssistant:"
+                    }
+                },
+                "SupportedModels": [
+                    "ai21.j2-ultra",
+                    "ai21.j2-mid",
+                    "amazon.titan-text-express-v1",
+                    "anthropic.claude-v1",
+                    "anthropic.claude-v2",
+                    "anthropic.claude-instant-v1"
+                ],
+                "AllowsStreaming": "false"
+            }
+        },
+        "UserPoolId": "us-east-1_GycPkRPbg",
+        "IsInternalUser": "true",
+        "UserPoolClientId": "7rsghtom121n8vq77kj2bpj2kc",
+        "KnowledgeBaseParams": {
+            "kendra": {
+                "MaxQueryCapacityUnits": "1",
+                "DefaultNewKendraIndexName": "GAABKnowledgeBaseIndex",
+                "MaxNumberOfDocs": "5",
+                "DefaultStorageCapacityUnits": "0",
+                "AvailableEditions": [
+                    "DEVELOPER_EDITION",
+                    "ENTERPRISE_EDITION"
+                ],
+                "MinNumberOfDocs": "1",
+                "MaxStorageCapacityUnits": "5",
+                "DefaultQueryCapacityUnits": "0",
+                "DefaultEdition": "DEVELOPER_EDITION",
+                "DefaultNumberOfDocs": "2"
+            }
+        },
+        "AwsRegion": "us-east-1"
+    }
+}

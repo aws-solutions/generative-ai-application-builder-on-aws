@@ -23,18 +23,19 @@ export const PLACEHOLDER_EMAIL = 'placeholder@example.com';
 export const INTERNAL_EMAIL_DOMAIN = 'amazon';
 
 export const LAMBDA_TIMEOUT_MINS = 15;
-export const COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime = lambda.Runtime.NODEJS_18_X;
+export const COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime = lambda.Runtime.NODEJS_20_X;
 export const GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime = lambda.Runtime.NODEJS_18_X;
-export const COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_11;
-export const GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_9;
-export const COMMERCIAL_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_17;
-export const GOV_CLOUD_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_11;
+export const COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_12;
+export const LANGCHAIN_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_11;
+export const GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_10;
+export const COMMERCIAL_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_21;
+export const GOV_CLOUD_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_17;
 export const TYPESCRIPT = 'TypeScript';
 export const SERVICE_NAME = 'UseCaseManagement';
 
 export const PYTHON_PIP_BUILD_PLATFORM: string = 'manylinux2014_x86_64';
 export const PYTHON_PIP_WHEEL_IMPLEMENTATION: string = 'cp';
-export const PYTHON_VERSION: string = COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name.replace('python', '');
+export const PYTHON_VERSION: string = LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name.replace('python', '');
 
 export enum CloudWatchNamespace {
     API_GATEWAY = 'AWS/ApiGateway',
@@ -107,6 +108,8 @@ export enum DynamoDBAttributes {
     SESSION_TABLE_SORT_KEY = 'SessionToken',
     USE_CASES_TABLE_PARTITION_KEY = 'UseCaseId',
     USE_CASES_TABLE_SECONDARY_INDEX_KEY = 'Status',
+    MODEL_INFO_TABLE_PARTITION_KEY = 'UseCase',
+    MODEL_INFO_TABLE_SORT_KEY = 'SortKey',
     TIME_TO_LIVE = 'TTL',
     COGNITO_TABLE_PARTITION_KEY = 'group'
 }
@@ -115,140 +118,15 @@ export enum DynamoDBAttributes {
 export const enum CHAT_PROVIDERS {
     HUGGING_FACE = 'HuggingFace',
     ANTHROPIC = 'Anthropic',
-    BEDROCK = 'Bedrock'
+    BEDROCK = 'Bedrock',
+    SAGEMAKER = 'SageMaker'
 }
-export const SUPPORTED_CHAT_PROVIDERS = [CHAT_PROVIDERS.HUGGING_FACE, CHAT_PROVIDERS.ANTHROPIC, CHAT_PROVIDERS.BEDROCK];
-
-export const enum BEDROCK_MODEL_FAMILIES {
-    AI21 = 'ai21',
-    AMAZON = 'amazon',
-    ANTHROPIC = 'anthropic',
-    COHERE = 'cohere',
-    META = 'meta'
-}
-
-export const SUPPORTED_BEDROCK_CHAT_MODELS = [
-    `${BEDROCK_MODEL_FAMILIES.AI21}.j2-ultra`,
-    `${BEDROCK_MODEL_FAMILIES.AI21}.j2-mid`,
-    `${BEDROCK_MODEL_FAMILIES.AMAZON}.titan-text-express-v1`,
-    `${BEDROCK_MODEL_FAMILIES.AMAZON}.titan-text-lite-v1`,
-    `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-v1`,
-    `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-v2`,
-    `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-v2:1`,
-    `${BEDROCK_MODEL_FAMILIES.ANTHROPIC}.claude-instant-v1`,
-    `${BEDROCK_MODEL_FAMILIES.COHERE}.command-text-v14`,
-    `${BEDROCK_MODEL_FAMILIES.COHERE}.command-light-text-v14`,
-    `${BEDROCK_MODEL_FAMILIES.META}.llama2-13b-chat-v1`,
-    `${BEDROCK_MODEL_FAMILIES.META}.llama2-70b-chat-v1`
+export const SUPPORTED_CHAT_PROVIDERS = [
+    CHAT_PROVIDERS.HUGGING_FACE,
+    CHAT_PROVIDERS.ANTHROPIC,
+    CHAT_PROVIDERS.BEDROCK,
+    CHAT_PROVIDERS.SAGEMAKER
 ];
-
-export const DEFAULT_HUGGINGFACE_TEMPERATURE = 1;
-export const MIN_HUGGINGFACE_TEMPERATURE = 0;
-export const MAX_HUGGINGFACE_TEMPERATURE = 100;
-
-export const SUPPORTED_HUGGINGFACE_CHAT_MODELS = [
-    'google/flan-t5-xxl',
-    'google/flan-t5-xl',
-    'google/flan-t5-large',
-    'google/flan-t5-base',
-    'google/flan-t5-small'
-];
-
-export const DEFAULT_CHAT_PROMPT = `{history}
-
-{input}`;
-
-export const DEFAULT_HUGGINGFACE_CHAT_PROMPT = DEFAULT_CHAT_PROMPT;
-export const DEFAULT_HUGGINGFACE_RAG_PROMPT = `References:
-{context}
-
-Carefully read the reference passages above and try to truthfully answer the Human's question. If the answer is not explicitly contained within the references, respond with "Sorry I don't know". It is very important that you respond "Sorry I don't know" if the answer is not found within the references above. Do not make use of any information outside of the references. Try to be brief and write a response in no more than 5 complete sentences.
-
-Current conversation:
-{history}
-
-Human: {input}
-AI:`;
-
-export const DEFAULT_META_CHAT_PROMPT = `[INST] ${DEFAULT_CHAT_PROMPT} [/INST]`;
-export const DEFAULT_META_RAG_PROMPT = `[INST] ${DEFAULT_HUGGINGFACE_RAG_PROMPT} [/INST]`
-
-export const SUPPORTED_ANTHROPIC_CHAT_MODELS = ['claude-instant-1', 'claude-1', 'claude-2'];
-export const DEFAULT_ANTHROPIC_TEMPERATURE = 1;
-export const MIN_ANTHROPIC_TEMPERATURE = 0;
-export const MAX_ANTHROPIC_TEMPERATURE = 1;
-// 2 newlines are required for Anthropic prompts before Human/Assistant dialogs. For reference, see: https://docs.anthropic.com/claude/docs/introduction-to-prompt-design
-export const DEFAULT_ANTHROPIC_CHAT_PROMPT = `
-
-Human: You are a friendly AI assistant that is helpful, honest, and harmless.
-
-Here is the current conversation:
-{history}
-
-{input}
-
-Assistant:`;
-
-export const DEFAULT_ANTHROPIC_RAG_PROMPT = `
-
-Human: You are a friendly AI assistant. You provide answers only based on the provided reference passages.
-
-Here are reference passages in <references></references> tags:
-<references>
-{context}
-</references>
-
-Carefully read the references above and thoughtfully answer the question below. If the answer can not be extracted from the references, then respond with "Sorry I don't know". It is very important that you only use information found within the references to answer. Try to be brief in your response.
-
-Here is the current chat history:
-{history}
-
-Question: {input}
-
-Assistant:`;
-
-export const DEFAULT_BEDROCK_AMAZON_PROMPT = DEFAULT_CHAT_PROMPT;
-export const DEFAULT_BEDROCK_ANTHROPIC_PROMPT = DEFAULT_ANTHROPIC_CHAT_PROMPT;
-export const DEFAULT_BEDROCK_AI21_PROMPT = DEFAULT_CHAT_PROMPT;
-export const DEFAULT_BEDROCK_COHERE_PROMPT = DEFAULT_CHAT_PROMPT;
-export const DEFAULT_BEDROCK_META_PROMPT = DEFAULT_META_CHAT_PROMPT;
-
-export const DEFAULT_BEDROCK_AMAZON_RAG_PROMPT = `Instructions: You are an AI Assistant created to help answer the User's question. You are only to answer the User's question using the provided references. You are not allowed to make things up or use your own knowledge. Only use what is provided between the <references> XML tags.
-
-Here are the only references you can use:
-<references>
-{context}
-</references>
-
-Given the references provided above, answer the User's question. If the answer is not explicitly in the provided references, respond with "Sorry, I don't know". It is very important that you say "Sorry, I don't know" if the answer isn't in the references. Take your time, think step by step, and do not make anything up.
-
-{history}
-User: {input}
-Bot:`;
-export const DEFAULT_BEDROCK_ANTHROPIC_RAG_PROMPT = DEFAULT_ANTHROPIC_RAG_PROMPT;
-export const DEFAULT_BEDROCK_AI21_RAG_PROMPT = DEFAULT_HUGGINGFACE_RAG_PROMPT;
-export const DEFAULT_BEDROCK_COHERE_RAG_PROMPT = DEFAULT_HUGGINGFACE_RAG_PROMPT;
-export const DEFAULT_BEDROCK_META_RAG_PROMPT = DEFAULT_META_RAG_PROMPT;
-
-export const DEFAULT_BEDROCK_ANTHROPIC_TEMPERATURE = DEFAULT_ANTHROPIC_TEMPERATURE;
-export const MIN_BEDROCK_ANTHROPIC_TEMPERATURE = MIN_ANTHROPIC_TEMPERATURE;
-export const MAX_BEDROCK_ANTHROPIC_TEMPERATURE = MAX_ANTHROPIC_TEMPERATURE;
-
-export const DEFAULT_BEDROCK_AMAZON_TEMPERATURE = 0.5;
-export const MIN_BEDROCK_AMAZON_TEMPERATURE = 0;
-export const MAX_BEDROCK_AMAZON_TEMPERATURE = 1;
-
-export const DEFAULT_BEDROCK_AI21_TEMPERATURE = 1;
-export const MIN_BEDROCK_AI21_TEMPERATURE = 0;
-export const MAX_BEDROCK_AI21_TEMPERATURE = 1;
-
-export const DEFAULT_BEDROCK_COHERE_TEMPERATURE = 0.75;
-export const MIN_BEDROCK_COHERE_TEMPERATURE = 0;
-export const MAX_BEDROCK_COHERE_TEMPERATURE = 1;
-
-export const DEFAULT_BEDROCK_META_TEMPERATURE = 0.5;
-export const MIN_BEDROCK_META_TEMPERATURE = 0;
-export const MAX_BEDROCK_META_TEMPERATURE = 1;
 
 export const KENDRA_EDITIONS = ['DEVELOPER_EDITION', 'ENTERPRISE_EDITION'];
 export const DEFAULT_KENDRA_EDITION = 'DEVELOPER_EDITION';
@@ -257,6 +135,7 @@ export const DEFAULT_KENDRA_EDITION = 'DEVELOPER_EDITION';
 export const LLM_PARAMETERS_SSM_KEY_ENV_VAR = 'SSM_LLM_CONFIG_KEY';
 export const LLM_PROVIDER_API_KEY_ENV_VAR = 'LLM_API_KEY_NAME';
 export const CONVERSATION_TABLE_NAME_ENV_VAR = 'CONVERSATION_TABLE_NAME';
+export const MODEL_INFO_TABLE_NAME_ENV_VAR = 'MODEL_INFO_TABLE_NAME';
 export const KENDRA_INDEX_ID_ENV_VAR = 'KENDRA_INDEX_ID';
 export const COGNITO_POLICY_TABLE_ENV_VAR = 'COGNITO_POLICY_TABLE_NAME';
 export const USER_POOL_ID_ENV_VAR = 'USER_POOL_ID';
@@ -298,74 +177,12 @@ export const USE_CASE_CONFIG_SSM_PARAMETER_PREFIX = '/gaab-ai/use-case-config';
 export const WEB_CONFIG_PREFIX = '/gaab-webconfig';
 
 // default rag enabled status
-export const DEFAULT_RAG_ENABLED_STATUS = 'true';
+export const DEFAULT_RAG_ENABLED_STATUS = 'false';
+
+// default VPC enabled status
+export const DEFAULT_VPC_ENABLED_STATUS = 'false';
 
 export const additionalDeploymentPlatformConfigValues = {
-    ModelProviders: {
-        [CHAT_PROVIDERS.HUGGING_FACE]: {
-            SupportedModels: SUPPORTED_HUGGINGFACE_CHAT_MODELS,
-            AllowsStreaming: false,
-            ModelProviderParams: {
-                ChatPromptTemplate: DEFAULT_HUGGINGFACE_CHAT_PROMPT,
-                RAGPromptTemplate: DEFAULT_HUGGINGFACE_RAG_PROMPT,
-                DefaultTemperature: DEFAULT_HUGGINGFACE_TEMPERATURE,
-                MinTemperature: MIN_HUGGINGFACE_TEMPERATURE,
-                MaxTemperature: MAX_HUGGINGFACE_TEMPERATURE
-            }
-        },
-        [CHAT_PROVIDERS.ANTHROPIC]: {
-            SupportedModels: SUPPORTED_ANTHROPIC_CHAT_MODELS,
-            AllowsStreaming: true,
-            ModelProviderParams: {
-                ChatPromptTemplate: DEFAULT_ANTHROPIC_CHAT_PROMPT,
-                RAGPromptTemplate: DEFAULT_ANTHROPIC_RAG_PROMPT,
-                DefaultTemperature: DEFAULT_ANTHROPIC_TEMPERATURE,
-                MinTemperature: MIN_ANTHROPIC_TEMPERATURE,
-                MaxTemperature: MAX_ANTHROPIC_TEMPERATURE
-            }
-        },
-        [CHAT_PROVIDERS.BEDROCK]: {
-            SupportedModels: SUPPORTED_BEDROCK_CHAT_MODELS,
-            AllowsStreaming: true,
-            ModelFamilyParams: {
-                [BEDROCK_MODEL_FAMILIES.AI21]: {
-                    ChatPromptTemplate: DEFAULT_BEDROCK_AI21_PROMPT,
-                    RAGPromptTemplate: DEFAULT_BEDROCK_AI21_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_BEDROCK_AI21_TEMPERATURE,
-                    MinTemperature: MIN_BEDROCK_AI21_TEMPERATURE,
-                    MaxTemperature: MAX_BEDROCK_AI21_TEMPERATURE
-                },
-                [BEDROCK_MODEL_FAMILIES.AMAZON]: {
-                    ChatPromptTemplate: DEFAULT_BEDROCK_AMAZON_PROMPT,
-                    RAGPromptTemplate: DEFAULT_BEDROCK_AMAZON_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_BEDROCK_AMAZON_TEMPERATURE,
-                    MinTemperature: MIN_BEDROCK_AMAZON_TEMPERATURE,
-                    MaxTemperature: MAX_BEDROCK_AMAZON_TEMPERATURE
-                },
-                [BEDROCK_MODEL_FAMILIES.ANTHROPIC]: {
-                    ChatPromptTemplate: DEFAULT_BEDROCK_ANTHROPIC_PROMPT,
-                    RAGPromptTemplate: DEFAULT_BEDROCK_ANTHROPIC_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_BEDROCK_ANTHROPIC_TEMPERATURE,
-                    MinTemperature: MIN_BEDROCK_ANTHROPIC_TEMPERATURE,
-                    MaxTemperature: MAX_BEDROCK_ANTHROPIC_TEMPERATURE
-                },
-                [BEDROCK_MODEL_FAMILIES.COHERE]: {
-                    ChatPromptTemplate: DEFAULT_BEDROCK_COHERE_PROMPT,
-                    RAGPromptTemplate: DEFAULT_BEDROCK_COHERE_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_BEDROCK_COHERE_TEMPERATURE,
-                    MinTemperature: MIN_BEDROCK_COHERE_TEMPERATURE,
-                    MaxTemperature: MAX_BEDROCK_COHERE_TEMPERATURE
-                },
-                [BEDROCK_MODEL_FAMILIES.META]: {
-                    ChatPromptTemplate: DEFAULT_BEDROCK_META_PROMPT,
-                    RAGPromptTemplate: DEFAULT_BEDROCK_META_RAG_PROMPT,
-                    DefaultTemperature: DEFAULT_BEDROCK_META_TEMPERATURE,
-                    MinTemperature: MIN_BEDROCK_META_TEMPERATURE,
-                    MaxTemperature: MAX_BEDROCK_META_TEMPERATURE
-                }
-            }
-        }
-    },
     KnowledgeBaseParams: {
         [KnowledgeBaseProviders.KENDRA]: {
             AvailableEditions: KENDRA_EDITIONS,
@@ -379,20 +196,5 @@ export const additionalDeploymentPlatformConfigValues = {
             MaxNumberOfDocs: MAX_KENDRA_NUMBER_OF_DOCS,
             MinNumberOfDocs: MIN_KENDRA_NUMBER_OF_DOCS
         }
-    }
-};
-
-export const additionalChatUseCaseConfigValues = {
-    [CHAT_PROVIDERS.HUGGING_FACE]: {
-        ModelProviderName: CHAT_PROVIDERS.HUGGING_FACE,
-        ...additionalDeploymentPlatformConfigValues.ModelProviders[CHAT_PROVIDERS.HUGGING_FACE]
-    },
-    [CHAT_PROVIDERS.ANTHROPIC]: {
-        ModelProviderName: CHAT_PROVIDERS.ANTHROPIC,
-        ...additionalDeploymentPlatformConfigValues.ModelProviders[CHAT_PROVIDERS.ANTHROPIC]
-    },
-    [CHAT_PROVIDERS.BEDROCK]: {
-        ModelProviderName: CHAT_PROVIDERS.BEDROCK,
-        ...additionalDeploymentPlatformConfigValues.ModelProviders[CHAT_PROVIDERS.BEDROCK]
     }
 };

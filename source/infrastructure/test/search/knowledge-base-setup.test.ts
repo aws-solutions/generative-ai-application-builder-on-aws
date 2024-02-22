@@ -15,9 +15,11 @@ import * as cdk from 'aws-cdk-lib';
 
 import { Match, Template } from 'aws-cdk-lib/assertions';
 
+import * as rawCdkJson from '../../cdk.json';
+import { ApplicationSetup } from '../../lib/framework/application-setup';
 import { KnowledgeBaseSetup } from '../../lib/search/knowledge-base-setup';
 
-describe('When a new kendra index is to be created', () => {
+describe('When a new Kendra index is to be created', () => {
     let template: Template;
     let knowledgeBaseSetup: KnowledgeBaseSetup;
 
@@ -38,7 +40,11 @@ describe('When a new kendra index is to be created', () => {
                     },
                     ''
                 )
-            })
+            }),
+            customInfra: new ApplicationSetup(stack, 'ApplicationSetup', {
+                solutionID: rawCdkJson.context.solution_id,
+                solutionVersion: rawCdkJson.context.solution_version
+            }).customResourceLambda
         });
 
         template = Template.fromStack(stack);
@@ -90,7 +96,7 @@ describe('When a new kendra index is to be created', () => {
     });
 });
 
-describe('When using an existing kendra index', () => {
+describe('When using an existing Kendra index', () => {
     let template: Template;
     let knowledgeBaseSetup: KnowledgeBaseSetup;
 
@@ -111,13 +117,17 @@ describe('When using an existing kendra index', () => {
                     },
                     ''
                 )
-            })
+            }),
+            customInfra: new ApplicationSetup(stack, 'ApplicationSetup', {
+                solutionID: rawCdkJson.context.solution_id,
+                solutionVersion: rawCdkJson.context.solution_version
+            }).customResourceLambda
         });
 
         template = Template.fromStack(stack);
     });
 
-    it('has condition to deploy kendra if no index is provided', () => {
+    it('has condition to deploy Kendra if no index is provided', () => {
         template.hasCondition('DeployKendraIndexCondition', {
             'Fn::Equals': [
                 {

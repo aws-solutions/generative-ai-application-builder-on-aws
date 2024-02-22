@@ -30,9 +30,11 @@ class ConversationMemoryTypes(str, Enum):
 class LLMProviderTypes(str, Enum):
     """Supported provider types that can be used to create an LLM model"""
 
-    HUGGING_FACE = "HuggingFace"
+    HUGGINGFACE = "HuggingFace"
+    HUGGINGFACE_ENDPOINT = "HuggingFace-InferenceEndpoint"
     ANTHROPIC = "Anthropic"
     BEDROCK = "Bedrock"
+    SAGEMAKER = "SageMaker"
 
 
 class BedrockModelProviders(str, Enum):

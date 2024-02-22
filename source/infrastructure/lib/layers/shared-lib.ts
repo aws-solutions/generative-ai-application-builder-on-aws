@@ -22,7 +22,7 @@ import {
     resolvePipOptions
 } from '../utils/asset-bundling';
 import { localBundling } from '../utils/common-utils';
-import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../utils/constants';
+import { GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME, LANGCHAIN_LAMBDA_PYTHON_RUNTIME } from '../utils/constants';
 
 export interface SharedLibLayerProps {
     /**
@@ -55,7 +55,10 @@ export interface SharedLibLayerProps {
 
 export class PythonLangchainLayer extends lambda.LayerVersion {
     constructor(scope: Construct, id: string, props: SharedLibLayerProps) {
-        const compatibleRuntimes = props.compatibleRuntimes ?? [COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME];
+        const compatibleRuntimes = props.compatibleRuntimes ?? [
+            GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+            LANGCHAIN_LAMBDA_PYTHON_RUNTIME
+        ];
 
         for (const runtime of compatibleRuntimes) {
             if (runtime && runtime.family !== lambda.RuntimeFamily.PYTHON) {
@@ -69,7 +72,7 @@ export class PythonLangchainLayer extends lambda.LayerVersion {
         super(scope, id, {
             code: lambda.Code.fromAsset(entry, {
                 bundling: {
-                    image: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.bundlingImage,
+                    image: LANGCHAIN_LAMBDA_PYTHON_RUNTIME.bundlingImage,
                     user: 'root',
                     local: {
                         tryBundle(outputDir: string) {
@@ -77,7 +80,16 @@ export class PythonLangchainLayer extends lambda.LayerVersion {
                                 `cd ${entry}`,
                                 'echo "Trying local bundling of python modules"',
                                 'rm -fr .venv*',
-                                `pip3 install --platform ${pipOptions.platform} --implementation ${pipOptions.implementation} --python-version ${pipOptions.pythonVersion} --only-binary=${pipOptions.onlyBinary} -r requirements.txt --target ${outputDir}/python/`
+                                'python3 -m venv .venv',
+                                '. .venv/bin/activate',
+                                'python3 -m pip install poetry --upgrade',
+                                'poetry build',
+                                'poetry install --only main',
+                                `poetry run pip install --platform ${pipOptions.platform} --implementation ${pipOptions.implementation} --python-version ${pipOptions.pythonVersion} --only-binary=${pipOptions.onlyBinary} --target ${outputDir}/python/ dist/*.whl`,
+                                `find ${outputDir}/python -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
+                                'deactivate',
+                                'rm -fr dist',
+                                'rm -fr .venv*'
                             ].join(' && ');
                             const targetDirectory = `${outputDir}/python/`;
                             return localBundling(cliCommand, `${entry}/`, targetDirectory);

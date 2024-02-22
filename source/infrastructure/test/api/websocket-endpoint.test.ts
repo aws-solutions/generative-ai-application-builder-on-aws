@@ -102,7 +102,7 @@ describe('When creating a WebSocketEndpoint', () => {
 
         template.hasResourceProperties('AWS::Lambda::Function', {
             Handler: 'index.handler',
-            Runtime: 'nodejs18.x',
+            Runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
             Code: {
                 S3Bucket: {
                     'Fn::Sub': Match.anyValue()

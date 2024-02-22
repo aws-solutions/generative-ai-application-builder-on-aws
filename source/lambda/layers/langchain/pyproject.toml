@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "langchain-layer"
+version = "1.3.0"
+authors = [ "Amazon Web Services" ]
+description = "Layer for LangChain libraries"
+packages = [
+    { include = "*.toml" },
+    { include = "*.lock" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+numpy = "1.26.3"
+langchain = "0.1.1"
+langchain-core = "0.1.13"
+langchain-community = "0.0.13"
+
+
+[build-system]
+requires = [ "poetry-core>=1.0.8" ]
+build-backend = "poetry.core.masonry.api"

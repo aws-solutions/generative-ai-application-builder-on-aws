@@ -15,10 +15,10 @@ import '@testing-library/jest-dom';
 import { Dispatch } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import renderer from 'react-test-renderer';
-import WizardView from '../../../wizard/WizardView';
-import HomeContext from '../../../../home/home.context';
+import HomeContext from '../../../../contexts/home.context';
 import { ActionType } from '../../../../hooks/useCreateReducer';
-import { HomeInitialState } from '../../../../home/home.state';
+import { HomeInitialState } from '../../../../contexts/home.state';
+import { mockReactMarkdown } from '@/utils';
 
 jest.mock('@cloudscape-design/components', () => {
     const Components = jest.genMockFromModule('@cloudscape-design/components') as any;
@@ -37,6 +37,10 @@ const contextValue = {
         'authorized': true
     }
 };
+
+let WizardView: any;
+mockReactMarkdown();
+WizardView = require('../../../wizard/WizardView').default;
 
 test('Snapshot test', async () => {
     const tree = renderer

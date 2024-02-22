@@ -19,8 +19,12 @@ export const createCfnLink = (stackId) => {
 };
 
 export const parseStackName = (stackId) => {
-    const stackName = stackId.split(':').splice(-1)[0].replace('stack/', '');
-    return stackName;
+    try {
+        return stackId.split(':').splice(-1)[0].replace('stack/', '');
+    } catch (error) {
+        console.error('Error parsing stack name', error);
+        return '';
+    }
 };
 
 export const serverSideErrorsStore = new Map();

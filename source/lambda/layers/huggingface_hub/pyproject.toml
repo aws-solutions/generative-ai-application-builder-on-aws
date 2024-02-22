@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "huggingface-layer"
+version = "1.3.0"
+authors = [ "Amazon Web Services" ]
+description = "Layer for HuggingFace LLM libraries"
+packages = [
+    { include = "*.toml" },
+    { include = "*.lock" },
+]
+
+[tool.poetry.dependencies]
+huggingface-hub = "0.20.1"
+python = "^3.11"
+
+[build-system]
+requires = [ "poetry-core>=1.0.8", "packaging" ]
+build-backend = "poetry.core.masonry.api"

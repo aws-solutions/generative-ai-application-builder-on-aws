@@ -12,7 +12,6 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-
 # This script runs all tests for the root CDK project, as well as any microservices, Lambda functions, or dependency
 # source code packages. These include unit tests, and integration tests
 #
@@ -37,9 +36,8 @@ setup_python_env() {
 	source .venv-test/bin/activate
 	echo "Installing python packages"
 	pip install --upgrade pip
-	pip install wheel
-	pip install -r requirements.txt
-	pip install -r requirements-dev.txt
+	pip install poetry
+	poetry install
 	echo "deactivate virtual environment"
 	deactivate
 }
@@ -65,7 +63,7 @@ run_python_lambda_test() {
 	echo "coverage report path set to $coverage_report_path"
 
 	# Use -vv for debugging
-	python3 -m pytest -sv -vv --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path"
+	poetry run pytest -sv -vv --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path"
 	if [ "$?" = "1" ]; then
 		echo "(source/run-all-tests.sh) ERROR: there is likely output above." 1>&2
 		exit 1
@@ -98,16 +96,16 @@ run_javascript_lambda_test() {
 		echo "(source/run-all-tests.sh) ERROR: there is likely output above." 1>&2
 		exit 1
 	fi
-    [ "${CLEAN:-true}" = "true" ] && rm -rf coverage/lcov-report
-    mkdir -p $source_dir/test/coverage-reports/jest/$lambda_name
-    coverage_report_path=$source_dir/test/coverage-reports/jest/$lambda_name
-    rm -fr $coverage_report_path
-    mv coverage $coverage_report_path
+	[ "${CLEAN:-true}" = "true" ] && rm -rf coverage/lcov-report
+	mkdir -p $source_dir/test/coverage-reports/jest/$lambda_name
+	coverage_report_path=$source_dir/test/coverage-reports/jest/$lambda_name
+	rm -fr $coverage_report_path
+	mv coverage $coverage_report_path
 }
 
 run_cdk_project_test() {
 	component_description=$1
-    component_name=infrastructure
+	component_name=infrastructure
 	echo "------------------------------------------------------------------------------"
 	echo "[Test] $component_description"
 	echo "------------------------------------------------------------------------------"
@@ -122,16 +120,16 @@ run_cdk_project_test() {
 	echo "setting override warning to $overrideWarningsEnabled"
 
 	npm run test
-	
+
 	if [ "$?" = "1" ]; then
 		echo "(source/run-all-tests.sh) ERROR: there is likely output above." 1>&2
 		exit 1
 	fi
-    [ "${CLEAN:-true}" = "true" ] && rm -rf coverage/lcov-report
-    mkdir -p $source_dir/test/coverage-reports/jest
-    coverage_report_path=$source_dir/test/coverage-reports/jest/$component_name
-    rm -fr $coverage_report_path
-    mv coverage $coverage_report_path
+	[ "${CLEAN:-true}" = "true" ] && rm -rf coverage/lcov-report
+	mkdir -p $source_dir/test/coverage-reports/jest
+	coverage_report_path=$source_dir/test/coverage-reports/jest/$component_name
+	rm -fr $coverage_report_path
+	mv coverage $coverage_report_path
 
 	# Unsetting the set variable to suppress warnings
 	unset overrideWarningsEnabled
@@ -141,7 +139,7 @@ run_ui_project_test() {
 	component_name=$1
 	echo "------------------------------------------------------------------------------"
 	echo "[Test] $component_name"
-	echo "------------------------------------------------------------------------------"	
+	echo "------------------------------------------------------------------------------"
 	cd $source_dir/$component_name
 
 	[ "${CLEAN:-true}" = "true" ] && npm run clean
@@ -152,13 +150,12 @@ run_ui_project_test() {
 		echo "(source/run-all-tests.sh) ERROR: there is likely output above." 1>&2
 		exit 1
 	fi
-    [ "${CLEAN:-true}" = "true" ] && rm -rf coverage/lcov-report
-    mkdir -p $source_dir/test/coverage-reports/jest/$component_name
-    coverage_report_path=$source_dir/test/coverage-reports/jest/$component_name
-    rm -fr $coverage_report_path
-    mv coverage $coverage_report_path
+	[ "${CLEAN:-true}" = "true" ] && rm -rf coverage/lcov-report
+	mkdir -p $source_dir/test/coverage-reports/jest/$component_name
+	coverage_report_path=$source_dir/test/coverage-reports/jest/$component_name
+	rm -fr $coverage_report_path
+	mv coverage $coverage_report_path
 }
-
 
 # Save the current working directory and set source directory
 source_dir=$PWD
@@ -212,7 +209,8 @@ echo "---------------------------------------"
 run_python_lambda_test chat "Chat Use Case"
 run_javascript_lambda_test custom-authorizer "Custom Authorizer"
 run_python_lambda_test custom-resource "Custom Resource"
-run_python_lambda_test reconcile-data
+run_javascript_lambda_test model-info "Backing function for Model Info API"
+run_python_lambda_test reconcile-data "Reconcile data between DynamoDB and CloudFormation stacks"
 run_javascript_lambda_test use-case-management "Deployment Platform Use Case Management Lambda"
 run_javascript_lambda_test websocket-connectors "Websocket Connector Lambda"
 

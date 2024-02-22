@@ -19,6 +19,7 @@ import {
     ARTIFACT_BUCKET_ENV_VAR,
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
+    COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
     EMAIL_REGEX_PATTERN,
     IS_INTERNAL_USER_ENV_VAR,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
@@ -136,7 +137,7 @@ describe('When creating a use case management Stack', () => {
         template.hasResourceProperties('AWS::Lambda::Function', {
             Code: Match.anyValue(),
             Handler: 'index.handler',
-            Runtime: 'nodejs18.x',
+            Runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
             Role: {
                 'Fn::GetAtt': [lambdaRoleCapture, 'Arn']
             },
@@ -184,43 +185,6 @@ describe('When creating a use case management Stack', () => {
                     'Fn::GetAtt': [dlqCapture.asString(), 'Arn']
                 }
             }
-        });
-    });
-
-    it('should have a policy to allows s3 access to asset artifacts and attach it to the lambda role and cfn deploy role', () => {
-        template.hasResourceProperties('AWS::IAM::Policy', {
-            PolicyDocument: {
-                Statement: [
-                    {
-                        Action: 's3:GetObject',
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    Match.anyValue(),
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    '-',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    '/*'
-                                ]
-                            ]
-                        }
-                    }
-                ]
-            },
-            Roles: [
-                {
-                    Ref: lambdaRoleCapture.asString()
-                },
-                {
-                    Ref: cfnDeployRoleCapture.asString()
-                }
-            ]
         });
     });
 
@@ -492,73 +456,69 @@ describe('When creating a use case management Stack', () => {
                                 ]
                             },
                             {
-                                Action: ['lambda:AddPermission', 'lambda:RemovePermission', 'lambda:InvokeFunction'],
-                                Condition: {
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':lambda:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            ':',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':function:*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
                                 Action: [
+                                    'lambda:AddPermission',
+                                    'lambda:RemovePermission',
+                                    'lambda:InvokeFunction',
                                     'lambda:CreateFunction',
                                     'lambda:DeleteFunction',
                                     'lambda:TagResource',
                                     'lambda:GetFunction',
                                     'lambda:UpdateFunctionConfiguration',
                                     'lambda:ListTags',
-                                    'lambda:UpdateFunctionCode'
+                                    'lambda:UpdateFunctionCode',
+                                    'lambda:PublishLayerVersion',
+                                    'lambda:DeleteLayerVersion',
+                                    'lambda:GetLayerVersion'
                                 ],
                                 Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
                                     'ForAllValues:StringEquals': {
                                         'aws:TagKeys': ['createdVia', 'userId']
                                     }
                                 },
                                 Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':lambda:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            ':',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':function:*'
+                                Resource: [
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':lambda:',
+                                                {
+                                                    Ref: 'AWS::Region'
+                                                },
+                                                ':',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':function:*'
+                                            ]
                                         ]
-                                    ]
-                                }
+                                    },
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':lambda:',
+                                                {
+                                                    Ref: 'AWS::Region'
+                                                },
+                                                ':',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':layer:*'
+                                            ]
+                                        ]
+                                    }
+                                ]
                             },
                             {
                                 Action: [
@@ -641,46 +601,68 @@ describe('When creating a use case management Stack', () => {
                                     'servicecatalog:GetAttributeGroup',
                                     'servicecatalog:AssociateAttributeGroup',
                                     'servicecatalog:DisassociateAttributeGroup',
-                                    'servicecatalog:UpdateAttributeGroup'
+                                    'servicecatalog:UpdateAttributeGroup',
+                                    'servicecatalog:DeleteApplication',
+                                    'servicecatalog:AssociateResource',
+                                    'servicecatalog:UpdateApplication',
+                                    'servicecatalog:DisassociateResource',
+                                    'servicecatalog:CreateApplication',
+                                    'servicecatalog:GetApplication'
                                 ],
                                 Condition: {
                                     'ForAnyValue:StringEquals': {
                                         'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
                                     }
                                 },
                                 Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':servicecatalog:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            ':',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':/attribute-groups/*'
+                                Resource: [
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':servicecatalog:',
+                                                {
+                                                    Ref: 'AWS::Region'
+                                                },
+                                                ':',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':/attribute-groups/*'
+                                            ]
                                         ]
-                                    ]
-                                }
+                                    },
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':servicecatalog:',
+                                                {
+                                                    Ref: 'AWS::Region'
+                                                },
+                                                ':',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':/applications/*'
+                                            ]
+                                        ]
+                                    }
+                                ]
                             },
                             {
                                 Action: 'cloudformation:DescribeStacks',
                                 Condition: {
                                     'ForAnyValue:StringEquals': {
                                         'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
                                     }
                                 },
                                 Effect: 'Allow',
@@ -707,172 +689,16 @@ describe('When creating a use case management Stack', () => {
                             },
                             {
                                 Action: [
-                                    'servicecatalog:DeleteApplication',
-                                    'servicecatalog:AssociateResource',
-                                    'servicecatalog:UpdateApplication',
-                                    'servicecatalog:DisassociateResource',
-                                    'servicecatalog:AssociateAttributeGroup',
-                                    'servicecatalog:DisassociateAttributeGroup'
-                                ],
-                                Condition: {
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    },
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':servicecatalog:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            ':',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':/applications/*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: [
-                                    'servicecatalog:CreateApplication',
-                                    'servicecatalog:GetApplication',
-                                    'servicecatalog:TagResource'
-                                ],
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':servicecatalog:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            ':',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':/applications/*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: [
-                                    'lambda:PublishLayerVersion',
-                                    'lambda:DeleteLayerVersion',
-                                    'lambda:GetLayerVersion'
-                                ],
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':lambda:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            ':',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':layer:*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: [
                                     'apigateway:CreateRestApi',
                                     'apigateway:CreateStage',
                                     'apigateway:DeleteRestApi',
-                                    'apigateway:DeleteStage'
+                                    'apigateway:DeleteStage',
+                                    'apigateway:TagResource',
+                                    'apigateway:POST',
+                                    'apigateway:GET',
+                                    'apigateway:DELETE',
+                                    'apigateway:PATCH'
                                 ],
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':apigateway:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            '::/apis/*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: 'apigateway:TagResource',
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':apigateway:',
-                                            {
-                                                Ref: 'AWS::Region'
-                                            },
-                                            '::/apis/*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: ['apigateway:POST', 'apigateway:GET', 'apigateway:DELETE', 'apigateway:PATCH'],
                                 Condition: {
                                     'ForAnyValue:StringEquals': {
                                         'aws:CalledVia': ['cloudformation.amazonaws.com']
@@ -896,6 +722,7 @@ describe('When creating a use case management Stack', () => {
                                     ]
                                 }
                             },
+
                             {
                                 Action: [
                                     'cognito-idp:CreateGroup',
@@ -906,7 +733,9 @@ describe('When creating a use case management Stack', () => {
                                     'cognito-idp:DeleteUserPoolClient',
                                     'cognito-idp:AdminAddUserToGroup',
                                     'cognito-idp:AdminRemoveUserFromGroup',
-                                    'cognito-idp:AdminListGroupsForUser'
+                                    'cognito-idp:AdminListGroupsForUser',
+                                    'cognito-idp:SetUserPoolMfaConfig',
+                                    'cognito-idp:DeleteUserPool'
                                 ],
                                 Condition: {
                                     'ForAnyValue:StringEquals': {
@@ -984,7 +813,25 @@ describe('When creating a use case management Stack', () => {
                                     'cloudfront:DescribeFunction',
                                     'cloudfront:DeleteFunction',
                                     'cloudfront:PublishFunction',
-                                    'cloudfront:GetFunction'
+                                    'cloudfront:GetFunction',
+                                    'cloudfront:CreateOriginAccessControl',
+                                    'cloudfront:DeleteOriginAccessControl',
+                                    'cloudfront:GetOriginAccessControl',
+                                    'cloudfront:UpdateOriginAccessControl',
+                                    'cloudfront:GetOriginAccessControlConfig',
+                                    'cloudfront:CreateDistribution',
+                                    'cloudfront:DeleteDistribution',
+                                    'cloudfront:GetDistribution',
+                                    'cloudfront:TagResource',
+                                    'cloudfront:UpdateDistribution',
+                                    'cloudfront:GetDistributionConfig',
+                                    'cloudfront:ListTagsForResource',
+                                    'cloudfront:GetInvalidation',
+                                    'cloudfront:CreateInvalidation',
+                                    'cloudfront:CreateResponseHeadersPolicy',
+                                    'cloudfront:UpdateResponseHeadersPolicy',
+                                    'cloudfront:DeleteResponseHeadersPolicy',
+                                    'cloudfront:GetResponseHeadersPolicy'
                                 ],
                                 Condition: {
                                     'ForAnyValue:StringEquals': {
@@ -995,22 +842,72 @@ describe('When creating a use case management Stack', () => {
                                     }
                                 },
                                 Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':cloudfront::',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':function/*'
+                                Resource: [
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':cloudfront::',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':function/*'
+                                            ]
                                         ]
-                                    ]
-                                }
+                                    },
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':cloudfront::',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':origin-access-control/*'
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':cloudfront::',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':distribution/*'
+                                            ]
+                                        ]
+                                    },
+                                    {
+                                        'Fn::Join': [
+                                            '',
+                                            [
+                                                'arn:',
+                                                {
+                                                    Ref: 'AWS::Partition'
+                                                },
+                                                ':cloudfront::',
+                                                {
+                                                    Ref: 'AWS::AccountId'
+                                                },
+                                                ':response-headers-policy/*'
+                                            ]
+                                        ]
+                                    }
+                                ]
                             },
                             {
                                 Action: 'cloudfront:UpdateFunction',
@@ -1033,110 +930,6 @@ describe('When creating a use case management Stack', () => {
                                                 Ref: 'AWS::AccountId'
                                             },
                                             ':function/*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: [
-                                    'cloudfront:CreateOriginAccessControl',
-                                    'cloudfront:DeleteOriginAccessControl',
-                                    'cloudfront:GetOriginAccessControl',
-                                    'cloudfront:UpdateOriginAccessControl',
-                                    'cloudfront:GetOriginAccessControlConfig'
-                                ],
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':cloudfront::',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':origin-access-control/*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: [
-                                    'cloudfront:CreateDistribution',
-                                    'cloudfront:DeleteDistribution',
-                                    'cloudfront:GetDistribution',
-                                    'cloudfront:TagResource',
-                                    'cloudfront:UpdateDistribution',
-                                    'cloudfront:GetDistributionConfig',
-                                    'cloudfront:ListTagsForResource',
-                                    'cloudfront:GetInvalidation',
-                                    'cloudfront:CreateInvalidation'
-                                ],
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':cloudfront::',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':distribution/*'
-                                        ]
-                                    ]
-                                }
-                            },
-                            {
-                                Action: [
-                                    'cloudfront:CreateResponseHeadersPolicy',
-                                    'cloudfront:DeleteResponseHeadersPolicy',
-                                    'cloudfront:GetResponseHeadersPolicy'
-                                ],
-                                Condition: {
-                                    'ForAnyValue:StringEquals': {
-                                        'aws:CalledVia': ['cloudformation.amazonaws.com']
-                                    },
-                                    'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
-                                    }
-                                },
-                                Effect: 'Allow',
-                                Resource: {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                Ref: 'AWS::Partition'
-                                            },
-                                            ':cloudfront::',
-                                            {
-                                                Ref: 'AWS::AccountId'
-                                            },
-                                            ':response-headers-policy/*'
                                         ]
                                     ]
                                 }
@@ -1316,6 +1109,379 @@ describe('When creating a use case management Stack', () => {
                             }
                         ]
                     }
+                }
+            ]
+        });
+    });
+
+    it('should have an IAM policy for vpc creation', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: [
+                    {
+                        Action: [
+                            'ec2:CreateFlowLogs',
+                            'ec2:CreateRouteTable',
+                            'ec2:CreateRoute',
+                            'ec2:DeleteRoute',
+                            'ec2:CreateTags',
+                            'ec2:createVPC',
+                            'ec2:CreateVpcEndpoint',
+                            'ec2:DescribeVpcs',
+                            'ec2:ModifyVpcAttribute',
+                            'ec2:DeleteVpc',
+                            'ec2:DeleteRouteTable',
+                            'ec2:DeleteVpcEndpoints',
+                            'ec2:DeleteFlowLogs',
+                            'ec2:CreateSubnet',
+                            'ec2:DeleteSubnet',
+                            'ec2:ModifySubnetAttribute',
+                            'ec2:AssociateRouteTable',
+                            'ec2:DisassociateRouteTable',
+                            'ec2:CreateInternetGateway',
+                            'ec2:DeleteInternetGateway',
+                            'ec2:AttachInternetGateway',
+                            'ec2:DetachInternetGateway',
+                            'ec2:AllocateAddress',
+                            'ec2:ReleaseAddress',
+                            'ec2:DisassociateAddress',
+                            'ec2:CreateNatGateway',
+                            'ec2:DeleteNatGateway',
+                            'ec2:UpdateSecurityGroupRuleDescriptionsEgress',
+                            'ec2:UpdateSecurityGroupRuleDescriptionsIngress',
+                            'ec2:CreateNetworkAcl',
+                            'ec2:DeleteNetworkAcl',
+                            'ec2:ReplaceNetworkAclAssociation',
+                            'ec2:CreateNetworkAclEntry',
+                            'ec2:DeleteNetworkAclEntry',
+                            'ec2:ReplaceNetworkAclEntry'
+                        ],
+                        Condition: {
+                            'ForAnyValue:StringEquals': {
+                                'aws:CalledVia': ['cloudformation.amazonaws.com']
+                            }
+                        },
+                        Effect: 'Allow',
+                        Resource: [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':route-table/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':security-group/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':vpc*/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':subnet/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':internet-gateway/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':elastic-ip/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':natgateway/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':network-interface/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':network-acl/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':ipam-pool/*'
+                                    ]
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        Action: [
+                            'ec2:DescribeVpcs',
+                            'ec2:DescribeRouteTables',
+                            'ec2:DescribeFlowLogs',
+                            'ec2:DescribeVpcEndpoints',
+                            'ec2:DescribeInternetGateways',
+                            'ec2:DescribeSecurityGroups',
+                            'ec2:DescribeAvailabilityZones',
+                            'ec2:DescribeAccountAttributes',
+                            'ec2:DescribeSubnets',
+                            'ec2:DescribeAddresses',
+                            'ec2:DescribeNatGateways',
+                            'ec2:DescribeNetworkInterfaces',
+                            'ec2:DescribeNetworkAcls'
+                        ],
+                        Effect: 'Allow',
+                        Resource: '*'
+                    },
+                    {
+                        Action: [
+                            'ec2:CreateSecurityGroup',
+                            'ec2:DeleteSecurityGroup',
+                            'ec2:RevokeSecurityGroupEgress',
+                            'ec2:AuthorizeSecurityGroupIngress',
+                            'ec2:AuthorizeSecurityGroupEgress',
+                            'ec2:RevokeSecurityGroupIngress',
+                            'ec2:CreateTags'
+                        ],
+                        Effect: 'Allow',
+                        Resource: [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':security-group/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':ec2:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':vpc/*'
+                                    ]
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        Action: [
+                            'logs:CreateLogGroup',
+                            'logs:TagResource',
+                            'logs:PutRetentionPolicy',
+                            'logs:DescribeLogGroups'
+                        ],
+                        Condition: {
+                            'ForAnyValue:StringEquals': {
+                                'aws:CalledVia': ['cloudformation.amazonaws.com']
+                            },
+                            'ForAllValues:StringEquals': {
+                                'aws:TagKeys': ['createdVia', 'userId']
+                            }
+                        },
+                        Effect: 'Allow',
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        'Ref': 'AWS::Partition'
+                                    },
+                                    ':logs:',
+                                    {
+                                        'Ref': 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        'Ref': 'AWS::AccountId'
+                                    },
+                                    ':log-group:*'
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                Version: '2012-10-17'
+            },
+            PolicyName: Match.stringLikeRegexp('VpcCreationPolicy*'),
+            Roles: [
+                {
+                    Ref: Match.stringLikeRegexp('CfnDeployRole*')
                 }
             ]
         });

@@ -44,6 +44,7 @@ describe('When creating rest endpoints', () => {
 
         new DeploymentPlatformRestEndpoint(stack, 'TestEndpointCreation', {
             useCaseManagementAPILambda: new lambda.Function(stack, 'MockGetRequestFunction', mockLambdaFuncProps),
+            modelInfoApiLambda: new lambda.Function(stack, 'MockModelInfoFunction', mockLambdaFuncProps),
             deploymentPlatformAuthorizer: testAuthorizer
         });
 
@@ -117,10 +118,10 @@ describe('When creating rest endpoints', () => {
 
     it('should provide create permissions to invoke lambda functions for specific resource invocations', () => {
         const restApiCapture = new Capture();
-        const restApiDeploymentCapture = new Capture();
+        const restApiStageCapture = new Capture();
         const lambdaCapture = new Capture();
 
-        template.resourceCountIs('AWS::Lambda::Permission', 9);
+        template.resourceCountIs('AWS::Lambda::Permission', 17);
         template.hasResourceProperties('AWS::Lambda::Permission', {
             Action: 'lambda:InvokeFunction',
             FunctionName: {
@@ -149,7 +150,7 @@ describe('When creating rest endpoints', () => {
                         },
                         '/',
                         {
-                            Ref: restApiDeploymentCapture
+                            Ref: restApiStageCapture
                         },
                         '/GET/deployments'
                     ]
@@ -184,7 +185,7 @@ describe('When creating rest endpoints', () => {
                         },
                         '/',
                         {
-                            Ref: restApiDeploymentCapture
+                            Ref: restApiStageCapture
                         },
                         '/POST/deployments'
                     ]
@@ -219,7 +220,7 @@ describe('When creating rest endpoints', () => {
                         },
                         '/',
                         {
-                            Ref: restApiDeploymentCapture
+                            Ref: restApiStageCapture
                         },
                         '/PATCH/deployments/*'
                     ]
@@ -254,7 +255,7 @@ describe('When creating rest endpoints', () => {
                         },
                         '/',
                         {
-                            Ref: restApiDeploymentCapture
+                            Ref: restApiStageCapture
                         },
                         '/DELETE/deployments/*'
                     ]
@@ -262,9 +263,151 @@ describe('When creating rest endpoints', () => {
             }
         });
 
-        expect(jsonTemplate['Resources'][restApiDeploymentCapture.asString()]['Type']).toEqual(
-            'AWS::ApiGateway::Stage'
-        );
+        template.hasResourceProperties('AWS::Lambda::Permission', {
+            Action: 'lambda:InvokeFunction',
+            FunctionName: {
+                'Fn::GetAtt': [lambdaCapture, 'Arn']
+            },
+            Principal: 'apigateway.amazonaws.com',
+            SourceArn: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'arn:',
+                        {
+                            'Ref': 'AWS::Partition'
+                        },
+                        ':execute-api:',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        ':',
+                        {
+                            'Ref': 'AWS::AccountId'
+                        },
+                        ':',
+                        {
+                            'Ref': restApiCapture
+                        },
+                        '/',
+                        {
+                            'Ref': restApiStageCapture
+                        },
+                        '/GET/model-info/*/providers'
+                    ]
+                ]
+            }
+        });
+
+        template.hasResourceProperties('AWS::Lambda::Permission', {
+            Action: 'lambda:InvokeFunction',
+            FunctionName: {
+                'Fn::GetAtt': [lambdaCapture, 'Arn']
+            },
+            Principal: 'apigateway.amazonaws.com',
+            SourceArn: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'arn:',
+                        {
+                            'Ref': 'AWS::Partition'
+                        },
+                        ':execute-api:',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        ':',
+                        {
+                            'Ref': 'AWS::AccountId'
+                        },
+                        ':',
+                        {
+                            'Ref': restApiCapture
+                        },
+                        '/',
+                        {
+                            'Ref': restApiStageCapture
+                        },
+                        '/GET/model-info/*/*'
+                    ]
+                ]
+            }
+        });
+
+        template.hasResourceProperties('AWS::Lambda::Permission', {
+            Action: 'lambda:InvokeFunction',
+            FunctionName: {
+                'Fn::GetAtt': [lambdaCapture, 'Arn']
+            },
+            Principal: 'apigateway.amazonaws.com',
+            SourceArn: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'arn:',
+                        {
+                            'Ref': 'AWS::Partition'
+                        },
+                        ':execute-api:',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        ':',
+                        {
+                            'Ref': 'AWS::AccountId'
+                        },
+                        ':',
+                        {
+                            'Ref': restApiCapture
+                        },
+                        '/',
+                        {
+                            'Ref': restApiStageCapture
+                        },
+                        '/GET/model-info/*/*/*'
+                    ]
+                ]
+            }
+        });
+
+        template.hasResourceProperties('AWS::Lambda::Permission', {
+            Action: 'lambda:InvokeFunction',
+            FunctionName: {
+                'Fn::GetAtt': [lambdaCapture, 'Arn']
+            },
+            Principal: 'apigateway.amazonaws.com',
+            SourceArn: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'arn:',
+                        {
+                            'Ref': 'AWS::Partition'
+                        },
+                        ':execute-api:',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        ':',
+                        {
+                            'Ref': 'AWS::AccountId'
+                        },
+                        ':',
+                        {
+                            'Ref': restApiCapture
+                        },
+                        '/',
+                        {
+                            'Ref': restApiStageCapture
+                        },
+                        '/GET/model-info/use-case-types'
+                    ]
+                ]
+            }
+        });
+
+        expect(jsonTemplate['Resources'][restApiStageCapture.asString()]['Type']).toEqual('AWS::ApiGateway::Stage');
         expect(jsonTemplate['Resources'][restApiCapture.asString()]['Type']).toEqual('AWS::ApiGateway::RestApi');
     });
 
@@ -328,7 +471,7 @@ describe('When creating rest endpoints', () => {
     it('should create path based resources', () => {
         const restApiCapture = new Capture();
 
-        template.resourceCountIs('AWS::ApiGateway::Resource', 2);
+        template.resourceCountIs('AWS::ApiGateway::Resource', 8);
 
         template.hasResourceProperties('AWS::ApiGateway::Resource', {
             ParentId: {
@@ -345,6 +488,16 @@ describe('When creating rest endpoints', () => {
                 Ref: Match.stringLikeRegexp('TestEndpointCreationEndPointLambdaRestApideployments*')
             },
             PathPart: '{useCaseId}',
+            RestApiId: {
+                Ref: restApiCapture.asString()
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            ParentId: {
+                'Fn::GetAtt': [restApiCapture.asString(), 'RootResourceId']
+            },
+            PathPart: 'model-info',
             RestApiId: {
                 Ref: restApiCapture.asString()
             }

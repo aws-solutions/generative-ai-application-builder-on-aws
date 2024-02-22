@@ -14,14 +14,14 @@
 import { StackNotFoundException } from '@aws-sdk/client-cloudformation';
 import { ResourceNotFoundException } from '@aws-sdk/client-secrets-manager';
 import { ParameterNotFound } from '@aws-sdk/client-ssm';
-import { parse, validate } from '@aws-sdk/util-arn-parser';
 import { StackManagement, UseCaseStackDetails } from './cfn/stack-management';
 import { StorageManagement } from './ddb/storage-management';
-import { ListUseCasesAdapter, StackInfo, UseCaseRecord } from './model/list-use-cases';
+import { ListUseCasesAdapter, UseCaseRecord } from './model/list-use-cases';
 import { UseCase } from './model/use-case';
 import { logger, tracer } from './power-tools-init';
 import { SecretManagement } from './secretsmanager/secret-management';
 import { ConfigManagement } from './ssm/config-management';
+import { UseCaseValidator } from './model/use-case-validator';
 
 export enum Status {
     SUCCESS = 'SUCCESS',
@@ -31,7 +31,7 @@ export enum Status {
 export type DeploymentDetails = {
     useCaseRecord: UseCaseRecord;
     useCaseDeploymentDetails: UseCaseStackDetails;
-    useCaseConfigDetails: string;
+    useCaseConfigDetails: Object;
 };
 
 export interface CaseCommand {
@@ -46,12 +46,14 @@ export abstract class UseCaseMgmtCommand implements CaseCommand {
     storageMgmt: StorageManagement;
     configMgmt: ConfigManagement;
     secretMgmt: SecretManagement;
+    validator: UseCaseValidator;
 
     constructor() {
         this.stackMgmt = new StackManagement();
         this.storageMgmt = new StorageManagement();
         this.configMgmt = new ConfigManagement();
         this.secretMgmt = new SecretManagement();
+        this.validator = new UseCaseValidator(this.storageMgmt, this.configMgmt);
     }
 
     /**
@@ -69,6 +71,7 @@ export class CreateUseCaseCommand extends UseCaseMgmtCommand {
     public async execute(useCase: UseCase): Promise<Status> {
         let stackId: string;
         try {
+            useCase = await this.validator.validateNewUseCase(useCase);
             stackId = await this.stackMgmt.createStack(useCase);
             useCase.stackId = stackId;
         } catch (error) {
@@ -76,7 +79,6 @@ export class CreateUseCaseCommand extends UseCaseMgmtCommand {
             logger.warn('Stack creation failed, hence aborting further steps');
             return Status.FAILED;
         }
-
         try {
             await this.storageMgmt.createUseCaseRecord(useCase);
         } catch (error) {
@@ -115,6 +117,7 @@ export class UpdateUseCaseCommand extends UseCaseMgmtCommand {
             const useCaseRecord = await this.storageMgmt.getUseCaseRecord(useCase);
             oldSSMParamName = useCaseRecord.SSMParameterKey;
             useCase.stackId = useCaseRecord.StackId;
+            useCase = await this.validator.validateUpdateUseCase(useCase, oldSSMParamName);
             await this.stackMgmt.updateStack(useCase);
         } catch (error) {
             // If the update fails don't add to DLQ. hence do not throw the error
@@ -316,9 +319,7 @@ export class ListUseCasesCommand implements CaseCommand {
         try {
             for (const element of useCaseRecords) {
                 const useCaseRecord = element;
-                const stackDetails = await this.stackMgmt.getStackDetails(
-                    this.createStackInfoFromDdbRecord(useCaseRecord)
-                );
+                const stackDetails = await this.stackMgmt.getStackDetailsFromUseCaseRecord(useCaseRecord);
 
                 if (!stackDetails.chatConfigSSMParameterName) {
                     logger.error('ChatConfigSSMParameterName missing in the stack details');
@@ -367,7 +368,7 @@ export class ListUseCasesCommand implements CaseCommand {
                 formattedData.push({
                     ...value.useCaseRecord,
                     ...value.useCaseDeploymentDetails,
-                    ...JSON.parse(value.useCaseConfigDetails)
+                    ...value.useCaseConfigDetails
                 });
             });
 
@@ -382,28 +383,5 @@ export class ListUseCasesCommand implements CaseCommand {
             logger.error('Deployments data formatting error. Likely use case config JSON parsing error');
             throw error;
         }
-    };
-
-    /**
-     *
-     * @param useCaseRecord Use case record object created from DDB record
-     * @returns
-     */
-    private createStackInfoFromDdbRecord = (useCaseRecord: UseCaseRecord): StackInfo => {
-        console.debug(`useCaseRecord: ${JSON.stringify(useCaseRecord)}`);
-        if (!validate(useCaseRecord.StackId)) {
-            throw new Error(`Invalid stackId ARN provided in DDB record: ${useCaseRecord.StackId}`);
-        }
-        const parsedArn = parse(useCaseRecord.StackId);
-
-        // parsedArn.resource has the form `stack/stack-name/unique-id`
-        // `stack/` has to be removed from the resource to get the valid stack name
-
-        return {
-            stackArn: useCaseRecord.StackId,
-            stackId: parsedArn.resource.replace('stack/', ''),
-            stackInstanceAccount: parsedArn.accountId,
-            stackInstanceRegion: parsedArn.region
-        } as StackInfo;
     };
 }

@@ -26,13 +26,14 @@ import { createDefaultLambdaRole } from './utils/common-utils';
 import {
     ADDITIONAL_LLM_LIBRARIES,
     CHAT_PROVIDERS,
-    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
     LAMBDA_TIMEOUT_MINS,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
     LLM_LIBRARY_LAYER_TYPES,
     PYTHON_PIP_BUILD_PLATFORM,
     PYTHON_PIP_WHEEL_IMPLEMENTATION,
     PYTHON_VERSION
 } from './utils/constants';
+import { VPCSetup } from './vpc/vpc-setup';
 
 /**
  * The main stack creating the chat use case infrastructure
@@ -40,6 +41,17 @@ import {
 export class BedrockChat extends UseCaseChat {
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
+    }
+
+    protected setupVPC(): VPCSetup {
+        return new VPCSetup(this, 'VPC', {
+            stackType: 'bedrock-use-case',
+            deployVpcCondition: this.deployVpcCondition,
+            ragEnabled: this.stackParameters.ragEnabled.valueAsString,
+            customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+            customResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+            iPamPoolId: this.iPamPoolId.valueAsString
+        });
     }
 
     /**
@@ -57,8 +69,8 @@ export class BedrockChat extends UseCaseChat {
                         implementation: PYTHON_PIP_WHEEL_IMPLEMENTATION
                     })
             ),
-            role: createDefaultLambdaRole(this, 'ChatLlmProviderLambdaRole'),
-            runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+            role: createDefaultLambdaRole(this, 'ChatLlmProviderLambdaRole', this.deployVpcCondition),
+            runtime: LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
             handler: 'bedrock_handler.lambda_handler',
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
             memorySize: 256,
@@ -67,7 +79,10 @@ export class BedrockChat extends UseCaseChat {
             },
             description: 'Lambda serving the websocket based API for Bedrock chat'
         });
-        (this.chatLlmProviderLambda.node.defaultChild as lambda.CfnFunction).addMetadata(
+
+        const cfnFunction = this.chatLlmProviderLambda.node.defaultChild as lambda.CfnFunction;
+
+        cfnFunction.addMetadata(
             ADDITIONAL_LLM_LIBRARIES,
             [LLM_LIBRARY_LAYER_TYPES.LANGCHAIN_LIB_LAYER, LLM_LIBRARY_LAYER_TYPES.BOTO3_LIB_LAYER].join(',')
         );

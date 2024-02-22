@@ -30,10 +30,12 @@ class DynamoDBChatMemory(BaseChatMemory):
     # Mimicking ConversationBufferMemory and other such memory classes provided by langchain
     memory_type: ConversationMemoryTypes = ConversationMemoryTypes.DynamoDB.value
     memory_key: str  #: :meta private:
+    context_key: Optional[str] = None
     input_key: Optional[str] = None
     human_prefix: str = "Human"
     ai_prefix: Optional[str] = "AI"
     output_key: Optional[str] = None
+    return_messages: bool = False
 
     def __init__(
         self,
@@ -41,6 +43,7 @@ class DynamoDBChatMemory(BaseChatMemory):
         memory_key: Optional[str] = None,
         input_key: Optional[str] = None,
         output_key: Optional[str] = None,
+        context_key: Optional[str] = None,
         human_prefix: Optional[str] = None,
         ai_prefix: Optional[str] = None,
         return_messages: bool = False,
@@ -63,9 +66,11 @@ class DynamoDBChatMemory(BaseChatMemory):
         super().__init__(
             memory_key=memory_key, input_key=input_key, output_key=output_key, return_messages=return_messages
         )
+        self.context_key = context_key
         self.human_prefix = human_prefix if human_prefix else self.human_prefix
         self.ai_prefix = ai_prefix if ai_prefix else self.ai_prefix
         self.chat_memory = chat_message_history
+        self.return_messages = return_messages
 
     @property
     def buffer(self) -> Any:

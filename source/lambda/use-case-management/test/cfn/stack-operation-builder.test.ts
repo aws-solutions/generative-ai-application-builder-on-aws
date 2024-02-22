@@ -29,14 +29,22 @@ import {
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     CHAT_PROVIDERS,
     COGNITO_POLICY_TABLE_ENV_VAR,
+    CfnParameterKeys,
     IS_INTERNAL_USER_ENV_VAR,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
     USE_CASE_API_KEY_SUFFIX_ENV_VAR,
     USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR
 } from '../../utils/constants';
 
-import { createUseCaseEvent, deleteUseCaseEvent, updateUseCaseEvent } from '../event-test-data';
+import {
+    createUseCaseEvent,
+    createUseCaseEventVPC,
+    deleteUseCaseEvent,
+    updateUseCaseEvent,
+    updateUseCaseVPCEvent
+} from '../event-test-data';
 jest.mock('crypto', () => {
     return {
         ...jest.requireActual('crypto'),
@@ -58,6 +66,7 @@ describe('When creating StackCommandBuilders', () => {
         process.env[TEMPLATE_FILE_EXTN_ENV_VAR] = '.template.json';
         process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR] = 'api-key';
         process.env[IS_INTERNAL_USER_ENV_VAR] = 'true';
+        process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = 'model-info-table-name';
 
         createEvent = { ...createUseCaseEvent };
         createEvent.body = JSON.stringify(createUseCaseEvent.body);
@@ -150,6 +159,7 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
                 { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
                 { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
+                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
                 { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
                 { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' },
                 { ParameterKey: 'ConsentToDataLeavingAWS', ParameterValue: 'Yes' }
@@ -200,9 +210,106 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
                 { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
                 { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
+                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
                 { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
                 { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' }
             ]);
+            expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
+            expect(createStackCommandInput.Capabilities).toEqual([
+                'CAPABILITY_IAM',
+                'CAPABILITY_AUTO_EXPAND',
+                'CAPABILITY_NAMED_IAM'
+            ]);
+            expect(createStackCommandInput.Tags).toEqual([
+                {
+                    Key: 'createdVia',
+                    Value: 'deploymentPlatform'
+                },
+                {
+                    Key: 'userId',
+                    Value: 'fake-user-id'
+                }
+            ]);
+        });
+    });
+
+    describe('When creating CreateStackCommandInputBuilder with a UseCaseAdapter from createEvent with VPC settings', () => {
+        let createStackCommandInput: CreateStackCommandInput;
+
+        beforeAll(async () => {
+            let event = { ...createUseCaseEventVPC } as any;
+            event.body.LlmParams.ModelProvider = CHAT_PROVIDERS.BEDROCK;
+            event.body = JSON.stringify(event.body);
+
+            const useCase = new ChatUseCaseDeploymentAdapter(event);
+            useCase.templateName = 'fake-template-file-name';
+            const createStackInputBuilder = new CreateStackCommandInputBuilder(useCase);
+
+            try {
+                createStackCommandInput = await createStackInputBuilder.build();
+            } catch (error) {
+                console.error(`Error occurred, error is ${error}`);
+            }
+        });
+
+        it('should create a CreateStackCommandInputBuilder with the correct properties for bedrock', () => {
+            expect(createStackCommandInput.Parameters).toEqual([
+                { ParameterKey: 'NewKendraIndexName', ParameterValue: 'fake-index-name' },
+                { ParameterKey: 'RAGEnabled', ParameterValue: 'true' },
+                { ParameterKey: 'DefaultUserEmail', ParameterValue: 'fake-email@example.com' },
+                { ParameterKey: 'VpcEnabled', ParameterValue: 'Yes' },
+                { ParameterKey: 'CreateNewVpc', ParameterValue: 'No' },
+                { ParameterKey: 'ExistingVpcId', ParameterValue: 'vpc-id' },
+                { ParameterKey: 'ExistingPrivateSubnetIds', ParameterValue: 'subnet-id-1,subnet-id-2' },
+                { ParameterKey: 'ExistingSecurityGroupIds', ParameterValue: 'sg-id-1' },
+                { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
+                { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
+                { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
+                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
+                { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
+                { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' }
+            ]);
+            expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
+            expect(createStackCommandInput.Capabilities).toEqual([
+                'CAPABILITY_IAM',
+                'CAPABILITY_AUTO_EXPAND',
+                'CAPABILITY_NAMED_IAM'
+            ]);
+            expect(createStackCommandInput.Tags).toEqual([
+                {
+                    Key: 'createdVia',
+                    Value: 'deploymentPlatform'
+                },
+                {
+                    Key: 'userId',
+                    Value: 'fake-user-id'
+                }
+            ]);
+        });
+    });
+
+    describe('When creating CreateStackCommandInputBuilder with a UseCaseAdapter from createEvent for a SageMaker endpoint', () => {
+        it('should create a CreateStackCommandInputBuilder with the correct properties for sagemaker', async () => {
+            let event = { ...createUseCaseEvent } as any;
+            event.body.LlmParams.ModelProvider = CHAT_PROVIDERS.SAGEMAKER;
+            event.body.LlmParams.ModelId = undefined;
+            event.body = JSON.stringify(event.body);
+            const useCaseSagemaker = new ChatUseCaseDeploymentAdapter(event);
+            const createStackInputBuilder = new CreateStackCommandInputBuilder(useCaseSagemaker);
+            const createStackCommandInput = await createStackInputBuilder.build();
+
+            expect(createStackCommandInput.Parameters).toEqual([
+                { ParameterKey: 'NewKendraIndexName', ParameterValue: 'fake-index-name' },
+                { ParameterKey: 'RAGEnabled', ParameterValue: 'true' },
+                { ParameterKey: 'DefaultUserEmail', ParameterValue: 'fake-email@example.com' },
+                { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
+                { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
+                { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
+                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
+                { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
+                { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' }
+            ]);
+            expect(useCaseSagemaker.configuration.LlmParams?.ModelId).toEqual('default');
             expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -266,15 +373,27 @@ describe('When creating StackCommandBuilders', () => {
 
         it('should create a CreateStackCommandInputBuilder with the correct properties', () => {
             expect(updateStackInput.Parameters).toEqual([
-                { ParameterKey: 'NewKendraIndexName', ParameterValue: 'fake-index-name' },
-                { ParameterKey: 'RAGEnabled', ParameterValue: 'true' },
-                { ParameterKey: 'DefaultUserEmail', ParameterValue: 'fake-email@example.com' },
-                { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
-                { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
-                { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
-                { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
-                { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' },
-                { ParameterKey: 'ConsentToDataLeavingAWS', ParameterValue: 'No' }
+                { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                {
+                    ParameterKey: CfnParameterKeys.ChatConfigSSMParameterName,
+                    ParameterValue: 'fake-config-name/11111111/11111111'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                {
+                    ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                    ParameterValue: 'fake-table-name'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' },
+                { ParameterKey: CfnParameterKeys.ProviderApiKeySecret, ParameterValue: '11111111/api-key' },
+                { ParameterKey: CfnParameterKeys.ConsentToDataLeavingAWS, ParameterValue: 'No' },
+                { ParameterKey: CfnParameterKeys.VpcEnabled, UsePreviousValue: true },
+                { ParameterKey: CfnParameterKeys.CreateNewVpc, UsePreviousValue: true },
+                { ParameterKey: CfnParameterKeys.ExistingVpcId, UsePreviousValue: true },
+                { ParameterKey: CfnParameterKeys.ExistingPrivateSubnetIds, UsePreviousValue: true },
+                { ParameterKey: CfnParameterKeys.ExistingSecurityGroupIds, UsePreviousValue: true }
             ]);
             expect(updateStackInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(updateStackInput.Capabilities).toEqual([
@@ -283,6 +402,56 @@ describe('When creating StackCommandBuilders', () => {
                 'CAPABILITY_NAMED_IAM'
             ]);
             expect(updateStackInput.Tags).toEqual([
+                {
+                    Key: 'createdVia',
+                    Value: 'deploymentPlatform'
+                },
+                {
+                    Key: 'userId',
+                    Value: 'fake-user-id'
+                }
+            ]);
+        });
+
+        it('should create a CreateStackCommandInputBuilder with the correct properties if some retained values are passed', async () => {
+            let vpcEvent: any = updateUseCaseVPCEvent;
+            vpcEvent.body = JSON.stringify(vpcEvent.body);
+            const useCase2 = new ChatUseCaseDeploymentAdapter(vpcEvent);
+            const updateStackInput2 = await new UpdateStackCommandInputBuilder(useCase2).build();
+
+            expect(updateStackInput2.Parameters).toEqual([
+                { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                {
+                    ParameterKey: CfnParameterKeys.ExistingPrivateSubnetIds,
+                    ParameterValue: 'subnet-id-1,subnet-id-2,subnet-id-3'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingSecurityGroupIds, ParameterValue: 'sg-id-1,sg-id-2' },
+                {
+                    ParameterKey: CfnParameterKeys.ChatConfigSSMParameterName,
+                    ParameterValue: 'fake-config-name/11111111/11111111'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                {
+                    ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                    ParameterValue: 'fake-table-name'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' },
+                { ParameterKey: CfnParameterKeys.ProviderApiKeySecret, ParameterValue: '11111111/api-key' },
+                { ParameterKey: CfnParameterKeys.ConsentToDataLeavingAWS, ParameterValue: 'No' },
+                { ParameterKey: CfnParameterKeys.VpcEnabled, UsePreviousValue: true },
+                { ParameterKey: CfnParameterKeys.CreateNewVpc, UsePreviousValue: true },
+                { ParameterKey: CfnParameterKeys.ExistingVpcId, UsePreviousValue: true }
+            ]);
+            expect(updateStackInput2.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
+            expect(updateStackInput2.Capabilities).toEqual([
+                'CAPABILITY_IAM',
+                'CAPABILITY_AUTO_EXPAND',
+                'CAPABILITY_NAMED_IAM'
+            ]);
+            expect(updateStackInput2.Tags).toEqual([
                 {
                     Key: 'createdVia',
                     Value: 'deploymentPlatform'

@@ -1,5 +1,0 @@
-coverage==7.3.1
-pytest==7.4.2
-pytest-cov==4.1.0
-mock==5.1.0
--r ../aws_boto3/requirements.txt

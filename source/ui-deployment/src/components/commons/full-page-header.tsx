@@ -14,7 +14,7 @@
 import { Button, Header, HeaderProps, SpaceBetween } from '@cloudscape-design/components';
 import React, { useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import HomeContext from '../../home/home.context';
+import HomeContext from '../../contexts/home.context';
 import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS } from '../../utils/constants';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 import { InfoLink } from './info-link';

@@ -42,6 +42,7 @@ import {
     USE_CASE_MANAGEMENT_NAMESPACE,
     WEBCONFIG_SSM_KEY_ENV_VAR
 } from '../utils/constants';
+import { ExistingVPCParameters } from '../vpc/exisiting-vpc-params';
 
 export class UseCaseManagementParameters {
     /**
@@ -68,6 +69,26 @@ export class UseCaseManagementParameters {
      * The ARN of the IAM role to use for custom resource implementation.
      */
     customResourceRoleArn: string;
+
+    /**
+     * ID of an existing VPC to be used for the use case. If none is provided, a new VPC will be created.
+     */
+    existingVpcId: cdk.CfnParameter;
+
+    /**
+     * ID of an existing Private Subnet to be used for the use case.
+     */
+    existingPrivateSubnetIds: cdk.CfnParameter;
+
+    /**
+     * SecurityGroup IDs associated with the subnet
+     */
+    existingSecurityGroupIds: cdk.CfnParameter;
+
+    /**
+     * AZs for the VPC
+     */
+    vpcAzs: cdk.CfnParameter;
 
     constructor(stack: IConstruct) {
         this.defaultUserEmail = new cdk.CfnParameter(stack, 'DefaultUserEmail', {
@@ -104,6 +125,12 @@ export class UseCaseManagementParameters {
             allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
             description: 'Arn of the IAM role to use for custom resource implementation.'
         }).valueAsString;
+
+        const captureExistingVPCParamerters = new ExistingVPCParameters(stack);
+        this.existingVpcId = captureExistingVPCParamerters.existingVpcId;
+        this.existingPrivateSubnetIds = captureExistingVPCParamerters.existingPrivateSubnetIds;
+        this.existingSecurityGroupIds = captureExistingVPCParamerters.securityGroupIds;
+        this.vpcAzs = captureExistingVPCParamerters.vpcAzs;
     }
 }
 
@@ -115,7 +142,12 @@ export class UseCaseManagement extends cdk.NestedStack {
     /**
      * The lambda backing use case management API calls
      */
-    public readonly apiLambda: lambda.Function;
+    public readonly useCaseManagementApiLambda: lambda.Function;
+
+    /**
+     * The lambda backing model info API calls
+     */
+    public readonly modelInfoApiLambda: lambda.Function;
 
     /**
      * The API being served to allow use case management
@@ -152,9 +184,19 @@ export class UseCaseManagement extends cdk.NestedStack {
      */
     public readonly objectPrefix: string;
 
+    /**
+     * condition to check if vpc configuration should be applied to lambda functions
+     */
+    protected readonly deployVPCCondition: cdk.CfnCondition;
+
+    /**
+     * Parameters for nested stack
+     */
+    protected readonly stackParameters: UseCaseManagementParameters;
+
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
-        const stackParameters = new UseCaseManagementParameters(cdk.Stack.of(this));
+        this.stackParameters = new UseCaseManagementParameters(cdk.Stack.of(this));
 
         const version = process.env.VERSION ?? this.node.tryGetContext('solution_version');
         const solutionName = process.env.SOLUTION_NAME ?? this.node.tryGetContext('solution_name');
@@ -187,19 +229,36 @@ export class UseCaseManagement extends cdk.NestedStack {
             expression: cdk.Fn.conditionEquals(
                 cdk.Fn.select(
                     0,
-                    cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', stackParameters.defaultUserEmail)))
+                    cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', this.stackParameters.defaultUserEmail)))
                 ),
                 INTERNAL_EMAIL_DOMAIN
             )
         });
 
-        this.apiLambda = new lambda.Function(this, 'UseCaseMgmt', {
+        this.deployVPCCondition = new cdk.CfnCondition(this, 'DeployVPCCondition', {
+            expression: cdk.Fn.conditionNot(
+                cdk.Fn.conditionOr(
+                    cdk.Fn.conditionEquals(
+                        cdk.Fn.join('', this.stackParameters.existingPrivateSubnetIds.valueAsList),
+                        ''
+                    ),
+                    cdk.Fn.conditionEquals(
+                        cdk.Fn.join('', this.stackParameters.existingSecurityGroupIds.valueAsList),
+                        ''
+                    )
+                )
+            )
+        });
+
+        const useCaseMgmtRole = createDefaultLambdaRole(this, 'UseCaseMgmtLambdaRole', this.deployVPCCondition);
+
+        this.useCaseManagementApiLambda = new lambda.Function(this, 'UseCaseMgmt', {
             description: 'Lambda function backing the REST API for use case management',
             code: lambda.Code.fromAsset(
                 '../lambda/use-case-management',
                 AppAssetBundler.assetOptionsFactory.assetOptions(TYPESCRIPT).options('../lambda/use-case-management')
             ),
-            role: createDefaultLambdaRole(this, 'UseCaseMgmtLambdaRole'),
+            role: useCaseMgmtRole,
             runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
             handler: 'index.handler',
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
@@ -212,7 +271,7 @@ export class UseCaseManagement extends cdk.NestedStack {
                 [CFN_DEPLOY_ROLE_ARN_ENV_VAR]: cfnRoleForDeploy.roleArn,
                 [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: USE_CASE_MANAGEMENT_NAMESPACE,
                 [USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR]: USE_CASE_CONFIG_SSM_PARAMETER_PREFIX,
-                [WEBCONFIG_SSM_KEY_ENV_VAR]: stackParameters.webConfigSSMKey,
+                [WEBCONFIG_SSM_KEY_ENV_VAR]: this.stackParameters.webConfigSSMKey,
                 [TEMPLATE_FILE_EXTN_ENV_VAR]: process.env.TEMPLATE_OUTPUT_BUCKET ? '.template' : '.template.json',
                 [USE_CASE_API_KEY_SUFFIX_ENV_VAR]: 'api-key',
                 [IS_INTERNAL_USER_ENV_VAR]: cdk.Fn.conditionIf(
@@ -224,6 +283,11 @@ export class UseCaseManagement extends cdk.NestedStack {
             deadLetterQueue: lambdaDlq
         });
 
+        // Since creating a L2 vpc construct from `fromAttributes` is difficult with conditions, resorting
+        // to L1 construct and using escape hatches to set vpc configuration. The L1 construct only requires
+        // security group ids, subnet ids to create and configure the ENI for the lambda.
+        this.createVpcConfigForLambda(this.useCaseManagementApiLambda);
+
         const lambdaS3AssetPolicy = new iam.Policy(this, 'S3AssetAccess', {
             statements: [
                 new iam.PolicyStatement({
@@ -233,8 +297,7 @@ export class UseCaseManagement extends cdk.NestedStack {
                 })
             ]
         });
-        lambdaS3AssetPolicy.attachToRole(this.apiLambda.role!);
-        lambdaS3AssetPolicy.attachToRole(cfnRoleForDeploy);
+        lambdaS3AssetPolicy.attachToRole(this.useCaseManagementApiLambda.role!);
 
         const lambdaCloudFormationPolicy = new iam.Policy(this, 'CloudFormationAccess', {
             statements: [
@@ -302,12 +365,12 @@ export class UseCaseManagement extends cdk.NestedStack {
                     effect: iam.Effect.ALLOW,
                     actions: ['ssm:GetParameter'],
                     resources: [
-                        `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter${stackParameters.webConfigSSMKey}`
+                        `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter${this.stackParameters.webConfigSSMKey}`
                     ]
                 })
             ]
         });
-        lambdaCloudFormationPolicy.attachToRole(this.apiLambda.role!);
+        lambdaCloudFormationPolicy.attachToRole(this.useCaseManagementApiLambda.role!);
 
         // allows writing and updating the config params for deployed use cases
         const lambdaSSMPolicy = new iam.Policy(this, 'SSMConfigAccess', {
@@ -320,7 +383,26 @@ export class UseCaseManagement extends cdk.NestedStack {
                 })
             ]
         });
-        lambdaSSMPolicy.attachToRole(this.apiLambda.role!);
+        lambdaSSMPolicy.attachToRole(this.useCaseManagementApiLambda.role!);
+
+        this.modelInfoApiLambda = new lambda.Function(this, 'ModelInfo', {
+            description: 'Lambda function backing the REST API for model info',
+            code: lambda.Code.fromAsset(
+                '../lambda/model-info',
+                AppAssetBundler.assetOptionsFactory.assetOptions(TYPESCRIPT).options('../lambda/model-info')
+            ),
+            role: createDefaultLambdaRole(this, 'ModelInfoLambdaRole', this.deployVPCCondition),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler',
+            timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueue: lambdaDlq
+        });
+
+        // Since creating a L2 vpc construct from `fromAttributes` is difficult with conditions, resorting
+        // to L1 construct and using escape hatches to set vpc configuration. The L1 construct only requires
+        // security group ids, subnet ids to create and configure the ENI for the lambda.
+        this.createVpcConfigForLambda(this.modelInfoApiLambda);
 
         // allows writing and updating the API key for deployments in secrets manager
         const lambdaSecretsManagerPolicy = new iam.Policy(this, 'SecretsManagerAccess', {
@@ -338,15 +420,16 @@ export class UseCaseManagement extends cdk.NestedStack {
                 })
             ]
         });
-        lambdaSecretsManagerPolicy.attachToRole(this.apiLambda.role!);
+        lambdaSecretsManagerPolicy.attachToRole(this.useCaseManagementApiLambda.role!);
 
         // api related resources
         const requestProcessor = new RestRequestProcessor(this, 'RequestProcessor', {
-            useCaseManagementAPILambda: this.apiLambda,
-            defaultUserEmail: stackParameters.defaultUserEmail,
-            applicationTrademarkName: stackParameters.applicationTrademarkName,
-            customResourceLambdaArn: stackParameters.customResourceLambdaArn,
-            customResourceRoleArn: stackParameters.customResourceRoleArn
+            useCaseManagementAPILambda: this.useCaseManagementApiLambda,
+            modelInfoAPILambda: this.modelInfoApiLambda,
+            defaultUserEmail: this.stackParameters.defaultUserEmail,
+            applicationTrademarkName: this.stackParameters.applicationTrademarkName,
+            customResourceLambdaArn: this.stackParameters.customResourceLambdaArn,
+            customResourceRoleArn: this.stackParameters.customResourceRoleArn
         });
         this.restApi = requestProcessor.restEndpoint.restApi;
         this.apiRootResource = requestProcessor.restEndpoint.apiRootResource;
@@ -355,7 +438,17 @@ export class UseCaseManagement extends cdk.NestedStack {
         this.userAuthorizer = requestProcessor.userAuthorizer;
 
         NagSuppressions.addResourceSuppressions(
-            this.apiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            this.useCaseManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'The IAM role allows the Lambda function to perform x-ray tracing'
+                }
+            ]
+        );
+
+        NagSuppressions.addResourceSuppressions(
+            this.modelInfoApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
             [
                 {
                     id: 'AwsSolutions-IAM5',
@@ -409,6 +502,23 @@ export class UseCaseManagement extends cdk.NestedStack {
             }
         ]);
     }
+
+    /**
+     * Method to add vpc configuration to lambda functions
+     *
+     * @param lambdaFunction
+     */
+    protected createVpcConfigForLambda(lambdaFunction: lambda.Function) {
+        const cfnLambdaFunction = lambdaFunction.node.defaultChild as lambda.CfnFunction;
+        cfnLambdaFunction.vpcConfig = cdk.Fn.conditionIf(
+            this.deployVPCCondition.logicalId,
+            {
+                SubnetIds: this.stackParameters.existingPrivateSubnetIds,
+                SecurityGroupIds: this.stackParameters.existingSecurityGroupIds
+            } as lambda.CfnFunction.VpcConfigProperty,
+            cdk.Aws.NO_VALUE
+        );
+    }
 }
 
 const buildCfnDeployRole = (scope: Construct): iam.Role => {
@@ -454,30 +564,26 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                     }),
                     new iam.PolicyStatement({
                         effect: iam.Effect.ALLOW,
-                        actions: ['lambda:AddPermission', 'lambda:RemovePermission', 'lambda:InvokeFunction'],
-                        resources: [
-                            `arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:function:*`
-                        ],
-                        conditions: {
-                            ...awsTagKeysCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
                         actions: [
+                            'lambda:AddPermission',
+                            'lambda:RemovePermission',
+                            'lambda:InvokeFunction',
                             'lambda:CreateFunction',
                             'lambda:DeleteFunction',
                             'lambda:TagResource',
                             'lambda:GetFunction',
                             'lambda:UpdateFunctionConfiguration',
                             'lambda:ListTags',
-                            'lambda:UpdateFunctionCode'
+                            'lambda:UpdateFunctionCode',
+                            'lambda:PublishLayerVersion',
+                            'lambda:DeleteLayerVersion',
+                            'lambda:GetLayerVersion'
                         ],
                         resources: [
-                            `arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:function:*`
+                            `arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:function:*`,
+                            `arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:layer:*`
                         ],
                         conditions: {
-                            ...awsCalledViaCondition,
                             ...awsTagKeysCondition
                         }
                     }),
@@ -530,14 +636,21 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                             'servicecatalog:GetAttributeGroup',
                             'servicecatalog:AssociateAttributeGroup',
                             'servicecatalog:DisassociateAttributeGroup',
-                            'servicecatalog:UpdateAttributeGroup'
+                            'servicecatalog:UpdateAttributeGroup',
+                            'servicecatalog:DeleteApplication',
+                            'servicecatalog:AssociateResource',
+                            'servicecatalog:UpdateApplication',
+                            'servicecatalog:DisassociateResource',
+                            'servicecatalog:CreateApplication',
+                            'servicecatalog:GetApplication',
+                            'servicecatalog:TagResource'
                         ],
                         resources: [
-                            `arn:${cdk.Aws.PARTITION}:servicecatalog:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:/attribute-groups/*`
+                            `arn:${cdk.Aws.PARTITION}:servicecatalog:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:/attribute-groups/*`,
+                            `arn:${cdk.Aws.PARTITION}:servicecatalog:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:/applications/*`
                         ],
                         conditions: {
-                            ...awsCalledViaCondition,
-                            ...awsTagKeysCondition
+                            ...awsCalledViaCondition
                         }
                     }),
                     new iam.PolicyStatement({
@@ -554,69 +667,16 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                     new iam.PolicyStatement({
                         effect: iam.Effect.ALLOW,
                         actions: [
-                            'servicecatalog:DeleteApplication',
-                            'servicecatalog:AssociateResource',
-                            'servicecatalog:UpdateApplication',
-                            'servicecatalog:DisassociateResource',
-                            'servicecatalog:AssociateAttributeGroup',
-                            'servicecatalog:DisassociateAttributeGroup'
-                        ],
-                        resources: [
-                            `arn:${cdk.Aws.PARTITION}:servicecatalog:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:/applications/*`
-                        ],
-                        conditions: {
-                            ...awsTagKeysCondition,
-                            ...awsCalledViaCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: [
-                            'servicecatalog:CreateApplication',
-                            'servicecatalog:GetApplication',
-                            'servicecatalog:TagResource'
-                        ],
-                        resources: [
-                            `arn:${cdk.Aws.PARTITION}:servicecatalog:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:/applications/*`
-                        ],
-                        conditions: {
-                            ...awsCalledViaCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: ['lambda:PublishLayerVersion', 'lambda:DeleteLayerVersion', 'lambda:GetLayerVersion'],
-                        resources: [`arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:layer:*`],
-                        conditions: {
-                            ...awsCalledViaCondition,
-                            ...awsTagKeysCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: [
                             'apigateway:CreateRestApi',
                             'apigateway:CreateStage',
                             'apigateway:DeleteRestApi',
-                            'apigateway:DeleteStage'
+                            'apigateway:DeleteStage',
+                            'apigateway:TagResource',
+                            'apigateway:POST',
+                            'apigateway:GET',
+                            'apigateway:DELETE',
+                            'apigateway:PATCH'
                         ],
-                        resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/apis/*`],
-                        conditions: {
-                            ...awsCalledViaCondition,
-                            ...awsTagKeysCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: ['apigateway:TagResource'],
-                        resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/apis/*`],
-                        conditions: {
-                            ...awsCalledViaCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: ['apigateway:POST', 'apigateway:GET', 'apigateway:DELETE', 'apigateway:PATCH'],
                         resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/*`],
                         conditions: {
                             ...awsCalledViaCondition
@@ -634,7 +694,9 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                             'cognito-idp:DeleteUserPoolClient',
                             'cognito-idp:AdminAddUserToGroup',
                             'cognito-idp:AdminRemoveUserFromGroup',
-                            'cognito-idp:AdminListGroupsForUser'
+                            'cognito-idp:AdminListGroupsForUser',
+                            'cognito-idp:SetUserPoolMfaConfig',
+                            'cognito-idp:DeleteUserPool'
                         ],
                         resources: [
                             `arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`
@@ -670,9 +732,32 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                             'cloudfront:DescribeFunction',
                             'cloudfront:DeleteFunction',
                             'cloudfront:PublishFunction',
-                            'cloudfront:GetFunction'
+                            'cloudfront:GetFunction',
+                            'cloudfront:CreateOriginAccessControl',
+                            'cloudfront:DeleteOriginAccessControl',
+                            'cloudfront:GetOriginAccessControl',
+                            'cloudfront:UpdateOriginAccessControl',
+                            'cloudfront:GetOriginAccessControlConfig',
+                            'cloudfront:CreateDistribution',
+                            'cloudfront:DeleteDistribution',
+                            'cloudfront:GetDistribution',
+                            'cloudfront:TagResource',
+                            'cloudfront:UpdateDistribution',
+                            'cloudfront:GetDistributionConfig',
+                            'cloudfront:ListTagsForResource',
+                            'cloudfront:GetInvalidation',
+                            'cloudfront:CreateInvalidation',
+                            'cloudfront:CreateResponseHeadersPolicy',
+                            'cloudfront:UpdateResponseHeadersPolicy',
+                            'cloudfront:DeleteResponseHeadersPolicy',
+                            'cloudfront:GetResponseHeadersPolicy'
                         ],
-                        resources: [`arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:function/*`],
+                        resources: [
+                            `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:function/*`,
+                            `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:origin-access-control/*`,
+                            `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:distribution/*`,
+                            `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:response-headers-policy/*`
+                        ],
                         conditions: {
                             ...awsCalledViaCondition,
                             ...awsTagKeysCondition
@@ -684,57 +769,6 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                         resources: [`arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:function/*`],
                         conditions: {
                             ...awsCalledViaCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: [
-                            'cloudfront:CreateOriginAccessControl',
-                            'cloudfront:DeleteOriginAccessControl',
-                            'cloudfront:GetOriginAccessControl',
-                            'cloudfront:UpdateOriginAccessControl',
-                            'cloudfront:GetOriginAccessControlConfig'
-                        ],
-                        resources: [
-                            `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:origin-access-control/*`
-                        ],
-                        conditions: {
-                            ...awsCalledViaCondition,
-                            ...awsTagKeysCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: [
-                            'cloudfront:CreateDistribution',
-                            'cloudfront:DeleteDistribution',
-                            'cloudfront:GetDistribution',
-                            'cloudfront:TagResource',
-                            'cloudfront:UpdateDistribution',
-                            'cloudfront:GetDistributionConfig',
-                            'cloudfront:ListTagsForResource',
-                            'cloudfront:GetInvalidation',
-                            'cloudfront:CreateInvalidation'
-                        ],
-                        resources: [`arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:distribution/*`],
-                        conditions: {
-                            ...awsCalledViaCondition,
-                            ...awsTagKeysCondition
-                        }
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: [
-                            'cloudfront:CreateResponseHeadersPolicy',
-                            'cloudfront:DeleteResponseHeadersPolicy',
-                            'cloudfront:GetResponseHeadersPolicy'
-                        ],
-                        resources: [
-                            `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:response-headers-policy/*`
-                        ],
-                        conditions: {
-                            ...awsCalledViaCondition,
-                            ...awsTagKeysCondition
                         }
                     }),
                     new iam.PolicyStatement({
@@ -817,16 +851,150 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                         conditions: {
                             ...awsTagKeysCondition
                         }
-                        })
+                    })
                 ]
             })
         }
     });
 
+    const vpcCreationPolicy = new iam.Policy(scope, 'VpcCreationPolicy', {
+        statements: [
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                    'ec2:CreateFlowLogs',
+                    'ec2:CreateRouteTable',
+                    'ec2:CreateRoute',
+                    'ec2:DeleteRoute',
+                    'ec2:CreateTags',
+                    'ec2:createVPC',
+                    'ec2:CreateVpcEndpoint',
+                    'ec2:DescribeVpcs',
+                    'ec2:ModifyVpcAttribute',
+                    'ec2:DeleteVpc',
+                    'ec2:DeleteRouteTable',
+                    'ec2:DeleteVpcEndpoints',
+                    'ec2:DeleteFlowLogs',
+                    'ec2:CreateSubnet',
+                    'ec2:DeleteSubnet',
+                    'ec2:ModifySubnetAttribute',
+                    'ec2:AssociateRouteTable',
+                    'ec2:DisassociateRouteTable',
+                    'ec2:CreateInternetGateway',
+                    'ec2:DeleteInternetGateway',
+                    'ec2:AttachInternetGateway',
+                    'ec2:DetachInternetGateway',
+                    'ec2:AllocateAddress',
+                    'ec2:ReleaseAddress',
+                    'ec2:DisassociateAddress',
+                    'ec2:CreateNatGateway',
+                    'ec2:DeleteNatGateway',
+                    'ec2:UpdateSecurityGroupRuleDescriptionsEgress',
+                    'ec2:UpdateSecurityGroupRuleDescriptionsIngress',
+                    'ec2:CreateNetworkAcl',
+                    'ec2:DeleteNetworkAcl',
+                    'ec2:ReplaceNetworkAclAssociation',
+                    'ec2:CreateNetworkAclEntry',
+                    'ec2:DeleteNetworkAclEntry',
+                    'ec2:ReplaceNetworkAclEntry'
+                ],
+                resources: [
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:route-table/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:security-group/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:vpc*/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:subnet/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:internet-gateway/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:elastic-ip/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:natgateway/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:network-interface/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:network-acl/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:ipam-pool/*`
+                ],
+                conditions: {
+                    ...awsCalledViaCondition
+                }
+            }),
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                    'ec2:DescribeVpcs',
+                    'ec2:DescribeRouteTables',
+                    'ec2:DescribeFlowLogs',
+                    'ec2:DescribeVpcEndpoints',
+                    'ec2:DescribeInternetGateways',
+                    'ec2:DescribeSecurityGroups',
+                    'ec2:DescribeAvailabilityZones',
+                    'ec2:DescribeAccountAttributes',
+                    'ec2:DescribeSubnets',
+                    'ec2:DescribeAddresses',
+                    'ec2:DescribeNatGateways',
+                    'ec2:DescribeNetworkInterfaces',
+                    'ec2:DescribeNetworkAcls'
+                ],
+                resources: ['*']
+            }),
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                    'ec2:CreateSecurityGroup',
+                    'ec2:DeleteSecurityGroup',
+                    'ec2:RevokeSecurityGroupEgress',
+                    'ec2:AuthorizeSecurityGroupIngress',
+                    'ec2:AuthorizeSecurityGroupEgress',
+                    'ec2:RevokeSecurityGroupIngress',
+                    'ec2:CreateTags'
+                ],
+                resources: [
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:security-group/*`,
+                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:vpc/*`
+                ]
+            }),
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                    'logs:CreateLogGroup',
+                    'logs:TagResource',
+                    'logs:PutRetentionPolicy',
+                    'logs:DescribeLogGroups'
+                ],
+                resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:*`],
+                conditions: {
+                    ...awsCalledViaCondition,
+                    ...awsTagKeysCondition
+                }
+            })
+        ]
+    });
+
+    vpcCreationPolicy.attachToRole(cfnDeployRole);
+
     NagSuppressions.addResourceSuppressions(cfnDeployRole, [
         {
             id: 'AwsSolutions-IAM5',
             reason: 'This the minimum policy required for CloudFormation service to deploy the stack. Where possible there is a condition using aws:CalledVia for supported services'
+        }
+    ]);
+
+    NagSuppressions.addResourceSuppressions(vpcCreationPolicy, [
+        {
+            id: 'AwsSolutions-IAM5',
+            reason: 'Even though the resource is "*", the actions have been scoped down only to the ones required by the solution',
+            appliesTo: [
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:vpc/*',
+                'Resource::*',
+                'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:security-group/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:route-table/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:vpc-flow-log/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:elastic-ip/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:internet-gateway/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:natgateway/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:network-interface/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:subnet/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:vpc*/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:network-acl/*',
+                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:ipam-pool/*'
+            ]
         }
     ]);
 

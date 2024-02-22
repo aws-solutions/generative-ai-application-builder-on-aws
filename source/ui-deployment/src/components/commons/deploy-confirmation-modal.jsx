@@ -12,7 +12,7 @@
  **********************************************************************************************************************/
 
 import { Alert, Box, Button, Link, Modal, SpaceBetween } from '@cloudscape-design/components';
-import HomeContext from '../../home/home.context';
+import HomeContext from '../../contexts/home.context';
 import { useContext } from 'react';
 
 import { INTERNAL_USER_GENAI_POLICY_URL, LEGAL_DISCLAIMER, deploymentActionText } from '../../utils/constants';

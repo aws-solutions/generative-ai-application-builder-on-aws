@@ -25,7 +25,8 @@ export const sampleDeployUseCaseFormData = {
         },
         'maxNumDocs': '10',
         'identifier': '',
-        'inError': false
+        'inError': false,
+        'returnDocumentSource': false
     },
     'model': {
         'modelProvider': {
@@ -35,7 +36,6 @@ export const sampleDeployUseCaseFormData = {
         'apiKey': 'fake-api-key',
         'modelName': 'fake-model',
         'promptTemplate': 'fake-prompt',
-        'noHitMessage': '',
         'modelParameters': [
             {
                 'key': 'fake-param',
@@ -64,5 +64,13 @@ export const sampleDeployUseCaseFormData = {
         'stopSequences': [''],
         'verbose': false,
         'streaming': true
+    },
+    'vpc': {
+        'isVpcRequired': true,
+        'existingVpc': true,
+        'vpcId': 'vpc-234q23',
+        'subnetIds': [{ key: 'subnet-asdf' }, { key: 'subnet-asdf34r' }],
+        'securityGroupIds': [{ key: 'sg-24234' }],
+        'inError': false
     }
 };

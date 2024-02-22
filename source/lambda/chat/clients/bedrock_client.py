@@ -13,18 +13,21 @@
 ######################################################################################################################
 
 import os
-from typing import Dict
+from typing import Dict, Union
 from uuid import UUID
 
 from aws_lambda_powertools import Logger, Tracer
 from clients.builders.bedrock_builder import BedrockBuilder
 from clients.llm_chat_client import LLMChatClient
-from llm_models.bedrock import BedrockLLM
+from llms.bedrock import BedrockLLM
+from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from utils.constants import CONVERSATION_ID_EVENT_KEY, TRACE_ID_ENV_VAR, USER_ID_EVENT_KEY
-from utils.enum_types import LLMProviderTypes
+from utils.enum_types import CloudWatchNamespaces, LLMProviderTypes
+from utils.helpers import get_metrics_client
 
 logger = Logger(utc=True)
 tracer = Tracer()
+metrics = get_metrics_client(CloudWatchNamespaces.COLD_STARTS)
 
 
 class BedrockClient(LLMChatClient):
@@ -32,7 +35,8 @@ class BedrockClient(LLMChatClient):
     Class that allows building a Bedrock LLM client that is used to generate content.
 
     Attributes:
-        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For Bedrock provider, this is BedrockLLM
+        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For Bedrock provider, this is BedrockLLM or
+            BedrockRetrievalLLM
         llm_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from SSM Parameter store
         rag_enabled (bool): Whether or not RAG is enabled for the use-case
         connection_id (str): The connection ID for the websocket client
@@ -49,7 +53,7 @@ class BedrockClient(LLMChatClient):
     def __init__(self, connection_id: str, rag_enabled: bool) -> None:
         super().__init__(connection_id=connection_id, rag_enabled=rag_enabled)
 
-    def get_model(self, event_body: Dict, user_id: UUID) -> BedrockLLM:
+    def get_model(self, event_body: Dict, user_id: UUID) -> Union[BedrockLLM, BedrockRetrievalLLM]:
         """
         Retrieves the Bedrock client.
 
@@ -65,22 +69,27 @@ class BedrockClient(LLMChatClient):
             conversation_id=event_body[CONVERSATION_ID_EVENT_KEY],
             rag_enabled=self.rag_enabled,
         )
-        self.construct_chat_model(user_id, event_body[CONVERSATION_ID_EVENT_KEY], LLMProviderTypes.BEDROCK.value)
+        model_name = self.llm_config.get("LlmParams", {}).get("ModelId", None)
+        self.construct_chat_model(user_id, event_body, LLMProviderTypes.BEDROCK.value, model_name)
         return self.builder.llm_model
 
     @tracer.capture_method
-    def construct_chat_model(self, user_id: str, conversation_id: str, llm_provider: LLMProviderTypes) -> None:
+    def construct_chat_model(
+        self, user_id: str, event_body: Dict, llm_provider: LLMProviderTypes, model_name: str
+    ) -> None:
         """Constructs the chat model using the builder object that is passed to it. Acts like a Director for the builder.
 
         Args:
             user_id (str): cognito id of the user
             conversation_id (str): unique id of the conversation (used to reference the correct conversation memory)
             llm_provider (LLMProviderTypes): name of the LLM provider
-
+            model_name (str): name of the model to use for the LLM. It should be a model name supported by the family of
+                models supported by llm_provider
         Raises:
             ValueError: If builder is not set up for the client
             ValueError: If missing required params
         """
+        conversation_id = event_body.get(CONVERSATION_ID_EVENT_KEY)
         if user_id and conversation_id:
             if not self.builder:
                 logger.error(
@@ -89,8 +98,9 @@ class BedrockClient(LLMChatClient):
                 )
                 raise ValueError(f"Builder is not set for this LLMChatClient.")
 
+            self.builder.set_model_defaults(llm_provider, model_name)
+            self.builder.validate_event_input_sizes(event_body)
             self.builder.set_knowledge_base()
-            self.builder.set_memory_constants(llm_provider)
             self.builder.set_conversation_memory(user_id, conversation_id)
             self.builder.set_llm_model()
 

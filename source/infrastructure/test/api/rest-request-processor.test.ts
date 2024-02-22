@@ -40,6 +40,7 @@ describe('When deploying', () => {
 
         new RestRequestProcessor(stack, 'WebSocketEndpoint', {
             useCaseManagementAPILambda: new lambda.Function(stack, 'chatLambda', mockLambdaFuncProps),
+            modelInfoAPILambda: new lambda.Function(stack, 'modelInfoLambda', mockLambdaFuncProps),
             applicationTrademarkName: 'fake-name',
             defaultUserEmail: 'testuser@example.com',
             customResourceLambdaArn: crLambda.functionArn,
@@ -50,8 +51,8 @@ describe('When deploying', () => {
         jsonTemplate = template.toJSON();
     });
 
-    it('Should have lambdas for custom resource, management API, and Authorization', () => {
-        template.resourceCountIs('AWS::Lambda::Function', 3);
+    it('Should have lambdas for custom resource, management APIs, and Authorization', () => {
+        template.resourceCountIs('AWS::Lambda::Function', 4);
 
         template.hasResourceProperties('AWS::Lambda::Function', {
             'Role': {
@@ -73,7 +74,7 @@ describe('When deploying', () => {
                 }
             },
             'Handler': 'rest-authorizer.handler',
-            'Runtime': 'nodejs18.x',
+            'Runtime': COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
             'Timeout': 900
         });
     });
