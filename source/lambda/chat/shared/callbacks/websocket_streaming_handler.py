@@ -13,19 +13,15 @@
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+from uuid import UUID
 
 import botocore
 from aws_lambda_powertools import Logger
 from helper import get_service_client
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain.schema.messages import BaseMessage
-from utils.constants import (
-    CONVERSATION_ID_EVENT_KEY,
-    END_CONVERSATION_TOKEN,
-    TRACE_ID_ENV_VAR,
-    WEBSOCKET_CALLBACK_URL_ENV_VAR,
-)
+from utils.constants import CONVERSATION_ID_EVENT_KEY, TRACE_ID_ENV_VAR, WEBSOCKET_CALLBACK_URL_ENV_VAR
 
 logger = Logger(utc=True)
 
@@ -33,7 +29,7 @@ logger = Logger(utc=True)
 class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
     """
     This async websocket handler is used to send streaming LLM responses to a websocket client, for a provided connection ID.
-    Inherits AsyncIteratorCallbackHandler Langchain callback handler class and overrides its abstract methods
+    Inherits AsyncIteratorCallbackHandler LangChain callback handler class and overrides its abstract methods
 
     Attributes:
         connection_url (str): The connection URL for the websocket client.
@@ -41,13 +37,15 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         conversation_id (str): The conversation ID for the websocket client, retrieved from the event object
         is_streaming (bool): Flag to indicate if streaming is enabled.
         client (botocore.client): client that establishes the connection to the websocket API
+        source_documents_formatter(Callable): Function that formats the source documents per the specific
+            knowledge base on_chain_end
 
     Methods:
-        post_token_to_connection(response): Sends a response to the client that is connected to a websocket.
+        post_token_to_connection(payload): Sends a payload to the client that is connected to a websocket.
         on_llm_new_token(token, **kwargs): Executed when the llm creates a new token
-        on_llm_end(self, response: any, **kwargs: any): Executes once the LLM completes generating a response
+        on_llm_end(self, payload: any, **kwargs: any): Executes once the LLM completes generating a payload
         on_llm_error(self, error: Exception, **kwargs: any): Executes when the underlying llm errors out.
-        format_response(response): Formats the response in a format that the websocket accepts
+        format_response(payload): Formats the payload in a format that the websocket accepts
 
     """
 
@@ -56,46 +54,46 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
     _conversation_id: Optional[str] = None
     _is_streaming: bool = False
     _client: botocore.client = None
+    _source_documents_formatter: Callable = None
 
-    def __init__(self, connection_id: str, conversation_id: str, is_streaming: bool = False) -> None:
+    def __init__(
+        self,
+        connection_id: str,
+        conversation_id: str,
+        source_docs_formatter: Callable,
+        is_streaming: bool = False,
+    ) -> None:
         self._connection_url = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
         self._connection_id = connection_id
         self._conversation_id = conversation_id
         self._is_streaming = is_streaming
-        self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self._connection_url)
+        self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self.connection_url)
+        self._source_documents_formatter = source_docs_formatter
         super().__init__()
 
     @property
     def is_streaming(self) -> str:
         return self._is_streaming
 
-    @is_streaming.setter
-    def is_streaming(self, is_streaming) -> None:
-        self._is_streaming = is_streaming
-
     @property
     def connection_id(self) -> str:
         return self._connection_id
 
-    @connection_id.setter
-    def connection_id(self, connection_id) -> None:
-        self._connection_id = connection_id
+    @property
+    def connection_url(self) -> str:
+        return self._connection_url
 
     @property
     def conversation_id(self) -> str:
         return self._conversation_id
 
-    @conversation_id.setter
-    def conversation_id(self, conversation_id) -> None:
-        self._conversation_id = conversation_id
-
     @property
     def client(self) -> str:
         return self._client
 
-    @client.setter
-    def client(self, client) -> None:
-        self._client = client
+    @property
+    def source_documents_formatter(self) -> str:
+        return self._source_documents_formatter
 
     def on_chat_model_start(
         self,
@@ -104,20 +102,22 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Run when LLM starts running."""
-        logger.info("Chat model started")
+        logger.debug("Streaming chat model started.")
 
-    def post_token_to_connection(self, response: str) -> None:
+    def post_token_to_connection(self, payload: str, payload_key: str = "data") -> None:
         """
-        Sends a response to the client that is connected to a websocket.
+        Sends a payload to the client that is connected to a websocket.
 
         Args:
-            response (str): Response to send to the client.
+            payload (str): payload to send to the client.
 
         Raises:
-            ex: _description_
+            Exception: if there is an error posting the payload to the connection
         """
         try:
-            self.client.post_to_connection(ConnectionId=self.connection_id, Data=self.format_response(response))
+            self.client.post_to_connection(
+                ConnectionId=self.connection_id, Data=self.format_response(payload, payload_key)
+            )
         except Exception as ex:
             logger.error(
                 f"Error sending token to connection {self.connection_id}: {ex}",
@@ -127,8 +127,8 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
 
     def on_llm_new_token(self, token: str, **kwargs: any) -> None:
         """
-        Executes when the llm creates a new token. It is used to send tokens to the client connected, as a post request,
-        to the websocket using the aws-sdk.
+        Executes when the llm creates a new token.
+        It is used to send tokens to the client connected, as a post request, to the websocket using the aws-sdk.
 
         Args:
             token (str): Token to send to the client.
@@ -136,26 +136,30 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         if self.is_streaming:
             self.post_token_to_connection(token)
 
-    def on_llm_end(self, response: any, **kwargs: any) -> any:
-        """
-        Executes once the LLM completes generating a response. If streaming was disabled then the entire response text is dispatched
-        upon completion. Finally a completion message is also dispatched.
+    def send_references(self, source_documents: List):
+        payload = self.source_documents_formatter(source_documents)
 
-        Args:
-            response (any): Response object from the LLM
+        for document in payload:
+            self.post_token_to_connection(document, "sourceDocument")
 
-        Returns:
-            any: return
-        """
-        if not self.is_streaming:
-            self.post_token_to_connection(response.generations[0][0].text)
+    def on_chain_end(
+        self,
+        outputs: Dict[str, Any],
+        *,
+        run_id: UUID,
+        parent_run_id: Optional[UUID] = None,
+        tags: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Run when chain ends running."""
+        if "source_documents" in outputs and outputs["source_documents"]:
+            self.send_references(outputs["source_documents"])
 
-        self.post_token_to_connection(END_CONVERSATION_TOKEN)
-        logger.info(f"The LLM has finished sending tokens to the connection: {self.connection_id}")
+        logger.debug(f"The LLM has finished sending tokens to the connection: {self.connection_id}")
 
     def on_llm_error(self, error: Exception, **kwargs: any) -> None:
         """
-        Executes when the underlying llm errors out. As of now it sends the error as a post response to the connected client.
+        Executes when the underlying llm errors out. As of now it sends the error as a post payload to the connected client.
 
         Args:
             error (Exception): error to send
@@ -163,16 +167,11 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         tracer_id = os.environ[TRACE_ID_ENV_VAR]
         logger.error(f"LLM Error: {error}", xray_trace_id=tracer_id)
 
-    def format_response(self, response: str) -> str:
+    def format_response(self, payload: str, payload_key: str = "data") -> str:
         """
-        Formats the response of in a format that the websocket accepts
+        Formats the payload of in a format that the websocket accepts
 
         Args:
-            response (str): The value of the "data" key in the websocket response
+            payload (str): The value of the "data" key in the websocket payload
         """
-        return json.dumps(
-            {
-                "data": response,
-                CONVERSATION_ID_EVENT_KEY: self.conversation_id,
-            }
-        )
+        return json.dumps({payload_key: payload, CONVERSATION_ID_EVENT_KEY: self.conversation_id})

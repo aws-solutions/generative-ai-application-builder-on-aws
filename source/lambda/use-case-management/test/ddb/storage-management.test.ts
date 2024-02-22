@@ -24,7 +24,7 @@ describe('When performing storage management operations', () => {
 
     describe('When sucessfully invoking the commands', () => {
         beforeAll(() => {
-            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0276/v2.0.0" }`;
+            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
 
             const inputLastEvaluatedKey = {
                 'Description': { 'S': 'test case 1' },

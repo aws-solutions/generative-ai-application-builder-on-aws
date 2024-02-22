@@ -57,9 +57,11 @@ exports[`Snapshot test 1`] = `
                         "kendraIndexName": "",
                         "knowledgeBaseType": Object {
                           "label": "Kendra",
-                          "value": "kendra",
+                          "value": "Kendra",
                         },
                         "maxNumDocs": 2,
+                        "outputPathSchema": "",
+                        "returnDocumentSource": false,
                       },
                       "model": Object {
                         "apiKey": "",
@@ -69,10 +71,18 @@ exports[`Snapshot test 1`] = `
                         "modelName": "",
                         "modelParameters": Array [],
                         "modelProvider": Object {
-                          "label": "Bedrock",
-                          "value": "Bedrock",
+                          "label": "",
+                          "value": "",
                         },
                         "promptTemplate": "",
+                        "sagemakerEndpointName": "",
+                        "sagemakerInputSchema": "{
+  \\"input\\": \\"<<prompt>>\\",
+  \\"parameters\\": {
+    \\"temperature\\": \\"<<temperature>>\\"
+  }
+}",
+                        "sagemakerOutputSchema": "",
                         "streaming": false,
                         "temperature": 0.1,
                         "verbose": false,
@@ -87,6 +97,13 @@ exports[`Snapshot test 1`] = `
                         "useCaseDescription": "",
                         "useCaseName": "",
                       },
+                      "vpc": Object {
+                        "existingVpc": false,
+                        "isVpcRequired": false,
+                        "securityGroupIds": Array [],
+                        "subnetIds": Array [],
+                        "vpcId": "",
+                      },
                     }
                   }
                   onChange={[Function]}
@@ -97,7 +114,86 @@ exports[`Snapshot test 1`] = `
                   ariaLabel="Information about Select use case."
                   onFollow={[Function]}
                 />,
+                "isOptional": false,
                 "title": "Select use case",
+              },
+              Object {
+                "content": <Vpc
+                  info={
+                    Object {
+                      "knowledgeBase": Object {
+                        "existingKendraIndex": "",
+                        "inError": false,
+                        "isRagRequired": false,
+                        "kendraAdditionalQueryCapacity": 0,
+                        "kendraAdditionalStorageCapacity": 0,
+                        "kendraEdition": Object {
+                          "label": "Developer",
+                          "value": "developer",
+                        },
+                        "kendraIndexId": "",
+                        "kendraIndexName": "",
+                        "knowledgeBaseType": Object {
+                          "label": "Kendra",
+                          "value": "Kendra",
+                        },
+                        "maxNumDocs": 2,
+                        "outputPathSchema": "",
+                        "returnDocumentSource": false,
+                      },
+                      "model": Object {
+                        "apiKey": "",
+                        "inError": false,
+                        "inferenceEndpoint": "",
+                        "modelFamily": "",
+                        "modelName": "",
+                        "modelParameters": Array [],
+                        "modelProvider": Object {
+                          "label": "",
+                          "value": "",
+                        },
+                        "promptTemplate": "",
+                        "sagemakerEndpointName": "",
+                        "sagemakerInputSchema": "{
+  \\"input\\": \\"<<prompt>>\\",
+  \\"parameters\\": {
+    \\"temperature\\": \\"<<temperature>>\\"
+  }
+}",
+                        "sagemakerOutputSchema": "",
+                        "streaming": false,
+                        "temperature": 0.1,
+                        "verbose": false,
+                      },
+                      "useCase": Object {
+                        "defaultUserEmail": "",
+                        "inError": false,
+                        "useCase": Object {
+                          "label": "Text",
+                          "value": "Chat",
+                        },
+                        "useCaseDescription": "",
+                        "useCaseName": "",
+                      },
+                      "vpc": Object {
+                        "existingVpc": false,
+                        "isVpcRequired": false,
+                        "securityGroupIds": Array [],
+                        "subnetIds": Array [],
+                        "vpcId": "",
+                      },
+                    }
+                  }
+                  onChange={[Function]}
+                  setActiveStepIndex={[Function]}
+                  setHelpPanelContent={[Function]}
+                />,
+                "info": <InfoLink
+                  ariaLabel="Information about Select network configuration."
+                  onFollow={[Function]}
+                />,
+                "isOptional": true,
+                "title": "Select network configuration",
               },
               Object {
                 "content": <Model
@@ -117,9 +213,11 @@ exports[`Snapshot test 1`] = `
                         "kendraIndexName": "",
                         "knowledgeBaseType": Object {
                           "label": "Kendra",
-                          "value": "kendra",
+                          "value": "Kendra",
                         },
                         "maxNumDocs": 2,
+                        "outputPathSchema": "",
+                        "returnDocumentSource": false,
                       },
                       "model": Object {
                         "apiKey": "",
@@ -129,10 +227,18 @@ exports[`Snapshot test 1`] = `
                         "modelName": "",
                         "modelParameters": Array [],
                         "modelProvider": Object {
-                          "label": "Bedrock",
-                          "value": "Bedrock",
+                          "label": "",
+                          "value": "",
                         },
                         "promptTemplate": "",
+                        "sagemakerEndpointName": "",
+                        "sagemakerInputSchema": "{
+  \\"input\\": \\"<<prompt>>\\",
+  \\"parameters\\": {
+    \\"temperature\\": \\"<<temperature>>\\"
+  }
+}",
+                        "sagemakerOutputSchema": "",
                         "streaming": false,
                         "temperature": 0.1,
                         "verbose": false,
@@ -147,6 +253,13 @@ exports[`Snapshot test 1`] = `
                         "useCaseDescription": "",
                         "useCaseName": "",
                       },
+                      "vpc": Object {
+                        "existingVpc": false,
+                        "isVpcRequired": false,
+                        "securityGroupIds": Array [],
+                        "subnetIds": Array [],
+                        "vpcId": "",
+                      },
                     }
                   }
                   onChange={[Function]}
@@ -157,6 +270,7 @@ exports[`Snapshot test 1`] = `
                   ariaLabel="Information about Select model."
                   onFollow={[Function]}
                 />,
+                "isOptional": false,
                 "title": "Select model",
               },
               Object {
@@ -177,9 +291,11 @@ exports[`Snapshot test 1`] = `
                         "kendraIndexName": "",
                         "knowledgeBaseType": Object {
                           "label": "Kendra",
-                          "value": "kendra",
+                          "value": "Kendra",
                         },
                         "maxNumDocs": 2,
+                        "outputPathSchema": "",
+                        "returnDocumentSource": false,
                       },
                       "model": Object {
                         "apiKey": "",
@@ -189,10 +305,18 @@ exports[`Snapshot test 1`] = `
                         "modelName": "",
                         "modelParameters": Array [],
                         "modelProvider": Object {
-                          "label": "Bedrock",
-                          "value": "Bedrock",
+                          "label": "",
+                          "value": "",
                         },
                         "promptTemplate": "",
+                        "sagemakerEndpointName": "",
+                        "sagemakerInputSchema": "{
+  \\"input\\": \\"<<prompt>>\\",
+  \\"parameters\\": {
+    \\"temperature\\": \\"<<temperature>>\\"
+  }
+}",
+                        "sagemakerOutputSchema": "",
                         "streaming": false,
                         "temperature": 0.1,
                         "verbose": false,
@@ -207,6 +331,13 @@ exports[`Snapshot test 1`] = `
                         "useCaseDescription": "",
                         "useCaseName": "",
                       },
+                      "vpc": Object {
+                        "existingVpc": false,
+                        "isVpcRequired": false,
+                        "securityGroupIds": Array [],
+                        "subnetIds": Array [],
+                        "vpcId": "",
+                      },
                     }
                   }
                   onChange={[Function]}
@@ -217,6 +348,7 @@ exports[`Snapshot test 1`] = `
                   ariaLabel="Information about Select knowledge base."
                   onFollow={[Function]}
                 />,
+                "isOptional": true,
                 "title": "Select knowledge base",
               },
               Object {
@@ -237,9 +369,11 @@ exports[`Snapshot test 1`] = `
                         "kendraIndexName": "",
                         "knowledgeBaseType": Object {
                           "label": "Kendra",
-                          "value": "kendra",
+                          "value": "Kendra",
                         },
                         "maxNumDocs": 2,
+                        "outputPathSchema": "",
+                        "returnDocumentSource": false,
                       },
                       "model": Object {
                         "apiKey": "",
@@ -249,10 +383,18 @@ exports[`Snapshot test 1`] = `
                         "modelName": "",
                         "modelParameters": Array [],
                         "modelProvider": Object {
-                          "label": "Bedrock",
-                          "value": "Bedrock",
+                          "label": "",
+                          "value": "",
                         },
                         "promptTemplate": "",
+                        "sagemakerEndpointName": "",
+                        "sagemakerInputSchema": "{
+  \\"input\\": \\"<<prompt>>\\",
+  \\"parameters\\": {
+    \\"temperature\\": \\"<<temperature>>\\"
+  }
+}",
+                        "sagemakerOutputSchema": "",
                         "streaming": false,
                         "temperature": 0.1,
                         "verbose": false,
@@ -267,6 +409,13 @@ exports[`Snapshot test 1`] = `
                         "useCaseDescription": "",
                         "useCaseName": "",
                       },
+                      "vpc": Object {
+                        "existingVpc": false,
+                        "isVpcRequired": false,
+                        "securityGroupIds": Array [],
+                        "subnetIds": Array [],
+                        "vpcId": "",
+                      },
                     }
                   }
                   onChange={[Function]}
@@ -277,6 +426,7 @@ exports[`Snapshot test 1`] = `
                   ariaLabel="Information about Review and create."
                   onFollow={[Function]}
                 />,
+                "isOptional": false,
                 "title": "Review and create",
               },
             ]
@@ -284,7 +434,7 @@ exports[`Snapshot test 1`] = `
         />
         <ConfirmDeployModal
           deploymentAction="CREATE"
-          isThirdPartyProvider={false}
+          isThirdPartyProvider={true}
           onConfirm={[Function]}
           onDiscard={[Function]}
           visible={false}

@@ -12,8 +12,11 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Template } from 'aws-cdk-lib/assertions';
 import { ChatStorageSetup } from '../../lib/storage/chat-storage-setup';
+import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME } from '../../lib/utils/constants';
 
 describe('When creating the chat storage construct', () => {
     let template: Template;
@@ -22,8 +25,18 @@ describe('When creating the chat storage construct', () => {
         const app = new cdk.App();
         const stack = new cdk.Stack(app, 'TestStack');
 
+        const mockLambdaFuncProps = {
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler'
+        };
+        const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
+
         const chatStorageSetup = new ChatStorageSetup(stack, 'TestSetup', {
-            useCaseUUID: '11111111'
+            useCaseUUID: '11111111',
+            existingModelInfoTableName: '',
+            customResourceLambda: crLambda,
+            customResourceRole: crLambda.role! as iam.Role
         });
         template = Template.fromStack(stack);
         nestedStackTemplate = Template.fromStack(chatStorageSetup.chatStorage);
@@ -34,7 +47,41 @@ describe('When creating the chat storage construct', () => {
     });
 
     it('nested stack has both ddb tables', () => {
-        // NOTE: actual table configuration tested in chat-storage-stack.test.ts
-        nestedStackTemplate.resourceCountIs('AWS::DynamoDB::Table', 1);
+        // NOTE: actual table configuration tested in model-info-storage.test.ts
+        nestedStackTemplate.resourceCountIs('AWS::DynamoDB::Table', 2);
+    });
+});
+
+describe('When creating the chat storage construct with an existing model info table', () => {
+    let template: Template;
+    let nestedStackTemplate: Template;
+    beforeAll(() => {
+        const app = new cdk.App();
+        const stack = new cdk.Stack(app, 'TestStack');
+
+        const mockLambdaFuncProps = {
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler'
+        };
+        const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
+
+        const chatStorageSetup = new ChatStorageSetup(stack, 'TestSetup', {
+            useCaseUUID: '11111111',
+            existingModelInfoTableName: 'fake-model-table',
+            customResourceLambda: crLambda,
+            customResourceRole: crLambda.role! as iam.Role
+        });
+        template = Template.fromStack(stack);
+        nestedStackTemplate = Template.fromStack(chatStorageSetup.chatStorage);
+    });
+
+    it('nested stack is created', () => {
+        template.resourceCountIs('AWS::CloudFormation::Stack', 1);
+    });
+
+    it('nested stack has 2 ddb tables', () => {
+        // NOTE: actual table configuration tested in model-info-storage.test.ts
+        nestedStackTemplate.resourceCountIs('AWS::DynamoDB::Table', 2);
     });
 });

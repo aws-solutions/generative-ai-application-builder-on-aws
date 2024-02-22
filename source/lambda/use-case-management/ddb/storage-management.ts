@@ -22,11 +22,12 @@ import {
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { customAwsConfig } from 'aws-node-user-agent-config';
 import { ListUseCasesAdapter, UseCaseRecord } from '../model/list-use-cases';
-import { UseCase } from '../model/use-case';
+import { UseCase, ModelInfoRecord } from '../model/use-case';
 import { logger, tracer } from '../power-tools-init';
 import {
     DeleteItemCommandBuilder,
     GetItemCommandInputBuilder,
+    GetModelInfoCommandInputBuilder,
     MarkItemForDeletionCommandBuilder,
     PutItemCommandInputBuilder,
     UpdateItemCommandBuilder
@@ -131,6 +132,28 @@ export class StorageManagement {
             return unmarshall(response.Item!) as UseCaseRecord;
         } catch (error) {
             const errMessage = `Failed to get Use Case Record: ${error}`;
+            logger.error(errMessage);
+            throw error;
+        }
+    }
+
+    /**
+     * Method to get a single record from the model info table
+     *
+     * @param useCase
+     */
+    @tracer.captureMethod({ captureResponse: false, subSegmentName: '###getModelInfo' })
+    public async getModelInfo(useCase: UseCase): Promise<ModelInfoRecord> {
+        const input = await new GetModelInfoCommandInputBuilder(useCase).build(); //NOSONAR - without await, input is empty
+        try {
+            const response = await this.client.send(new GetItemCommand(input));
+            logger.debug(`Got DDB response: ${JSON.stringify(response)}`);
+            if (response.Item === undefined) {
+                throw new Error(`No model info found for command: ${JSON.stringify(input)}`);
+            }
+            return unmarshall(response.Item!) as ModelInfoRecord;
+        } catch (error) {
+            const errMessage = `Failed to get model info: ${error}`;
             logger.error(errMessage);
             throw error;
         }

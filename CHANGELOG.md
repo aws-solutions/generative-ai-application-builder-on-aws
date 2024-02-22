@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2024-02-22
+
+### Added
+
+-   Support for SageMaker as an LLM provider through SageMaker inference endpoints.
+-   Ability to deploy both the deployment dashboard and use cases within a VPC, including bringing an existing VPC and allowing the solution to deploy one.
+-   Option to return and display the source documents that were referenced when generating a response in RAG use cases.
+-   New model-info API in the deployment dashboard stack which can retrieve available providers, models, and model info. Default parameters are now stored for each model and provider combination and are used to pre-populate values in the wizard.
+
+### Changed
+
+-   Refactoring of UI components in the deployment dashboard.
+-   Switch to poetry for Python package management, replacing requirements.txt files.
+-   Updates to Node and Python package versions.
+
 ## [1.2.3] - 2024-02-06
 
 ### Fixed

@@ -50,23 +50,7 @@ function getBedrockModelFamily(modelId) {
 }
 
 function getDefaultPrompt(config) {
-    const modelProvider = config.UseCaseConfig.LlmParams.ModelProvider;
-
-    const llmParamsPromptTemplate = config.UseCaseConfig.LlmParams.PromptTemplate;
-    if (llmParamsPromptTemplate) {
-        return llmParamsPromptTemplate;
-    }
-
-    if (modelProvider === 'Bedrock') {
-        const modelFamily = getBedrockModelFamily(config.UseCaseConfig.LlmParams.ModelId);
-
-        return config.UseCaseConfig.LlmParams.RAGEnabled
-            ? config.ModelFamilyParams[modelFamily].RAGPromptTemplate
-            : config.ModelFamilyParams[modelFamily].ChatPromptTemplate;
-    }
-    return config.UseCaseConfig.LlmParams.RAGEnabled
-        ? config.ModelProviderParams.RAGPromptTemplate
-        : config.ModelProviderParams.ChatPromptTemplate;
+    return config.UseCaseConfig.LlmParams.PromptTemplate;
 }
 
 getRuntimeConfig().then(function (config) {
@@ -82,6 +66,7 @@ getRuntimeConfig().then(function (config) {
                 useCaseName={config.UseCaseConfig.UseCaseName}
                 RAGEnabled={config.UseCaseConfig.LlmParams.RAGEnabled}
                 isInternalUser={isInternalUser}
+                useCaseConfig={config.UseCaseConfig}
             />
         </React.StrictMode>
     );

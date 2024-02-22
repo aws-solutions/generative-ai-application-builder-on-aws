@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "reconcile-data"
+version = "1.3.0"
+authors = [ "Amazon Web Services" ]
+description = "Reconciles data between AWS CloudFormation, DynamoDB, and SSM Parameter Store"
+packages = [
+    { include = "*.py" },
+    { include = "./operations/*.py" },
+    { include = "./exceptions/*.py" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: Apache-2.0",
+]
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+[tool.poetry.group.test.dependencies]
+mock = "5.1.0"
+moto = "4.2.12"
+pytest = "7.4.4"
+pytest-cov = "4.1.0"
+pytest-env = "1.1.3"
+PyYAML = "6.0.1"
+setuptools = "69.0.3"
+boto3-layer =  { path = "../layers/aws_boto3/", develop = true }
+custom_boto3_init = { path = "../layers/custom_boto3_init", develop = true }
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+line_length = 120
+profile = "black"
+
+[build-system]
+requires = [ "poetry-core>=1.0.8" ]
+build-backend = "poetry.core.masonry.api"

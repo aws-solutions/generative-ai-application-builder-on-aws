@@ -16,23 +16,24 @@ import os
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
-from aws_lambda_powertools import Logger, Metrics, Tracer
+from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError
 from helper import get_service_client
 from langchain.retrievers.kendra import AmazonKendraRetriever, ResultItem, clean_excerpt
 from langchain.schema import Document
-from utils.constants import DEFAULT_KENDRA_NUMBER_OF_DOCS, METRICS_SERVICE_NAME, TRACE_ID_ENV_VAR
+from utils.constants import DEFAULT_KENDRA_NUMBER_OF_DOCS, TRACE_ID_ENV_VAR
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
+from utils.helpers import get_metrics_client
 
 logger = Logger(utc=True)
 tracer = Tracer()
-metrics = Metrics(namespace=CloudWatchNamespaces.AWS_KENDRA.value, service=METRICS_SERVICE_NAME)
+metrics = get_metrics_client(CloudWatchNamespaces.AWS_KENDRA)
 
 
 class CustomKendraRetriever(AmazonKendraRetriever):
     """
-    Retrieves documents from Amazon Kendra index. It inherits from Langchain AmazonKendraRetriever and overrides certain functionalities
+    Retrieves documents from Amazon Kendra index. It inherits from LangChain AmazonKendraRetriever and overrides certain functionalities
     for a custom implementation.
 
     Attributes:
@@ -40,11 +41,12 @@ class CustomKendraRetriever(AmazonKendraRetriever):
         kendra_client (Any): Amazon Kendra client
         top_k (int): Number of documents to return
         return_source_documents (bool): Whether source documents to be returned
-        attribute_filter (Dict): Additional filtering of results based on metadata. See: https://docs.aws.amazon.com/kendra/latest/APIReference
+        attribute_filter (dict): Additional filtering of results based on metadata. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_AttributeFilter.html
+        user_context (dict): Provides information about the user context. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_UserContext.html
 
     Methods:
         get_relevant_documents(query): Run search on Kendra index and get top k documents.
-        kendra_query(query, top_k, attribute_filter): Execute a query on the kendra index and return a list of processed responses.
+        kendra_query(query, top_k, attribute_filter): Execute a query on the Kendra index and return a list of processed responses.
         get_clean_docs(docs): Parses the documents returned from Kendra and cleans them.
 
     """
@@ -84,7 +86,7 @@ class CustomKendraRetriever(AmazonKendraRetriever):
         docs = get_relevant_documents('This is my query')
 
         Returns:
-            List[Document]: List of Langchain document objects.
+            List[Document]: List of LangChain document objects.
         """
         with tracer.provider.in_subsegment("## kendra_query") as subsegment:
             subsegment.put_annotation("service", "kendra")
@@ -113,7 +115,6 @@ class CustomKendraRetriever(AmazonKendraRetriever):
                     f"Kendra query failed, returning empty docs. Query received: {query}\nException: {ex}",
                     xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
                 )
-
             metrics.add_metric(name=CloudWatchMetrics.KENDRA_NO_HITS.value, unit=MetricUnit.Count, value=1)
             metrics.add_metric(name=CloudWatchMetrics.KENDRA_FAILURES.value, unit=MetricUnit.Count, value=1)
             return []
@@ -122,13 +123,13 @@ class CustomKendraRetriever(AmazonKendraRetriever):
     def _kendra_query(self, query: str) -> Sequence[ResultItem]:
         """
         @overrides AmazonKendraRetriever._kendra_query
-        Execute a query on the kendra index and return a list of processed responses.
+        Execute a query on the Kendra index and return a list of processed responses.
 
         Args:
-            query (str): Query to search for in the kendra index
+            query (str): Query to search for in the Kendra index
 
         Returns:
-            Sequence[ResultItem]: List of kendra query response items of type ResultItem
+            Sequence[ResultItem]: List of Kendra query response items of type ResultItem
         """
         docs = super()._kendra_query(query=query)
         cleaned_docs = self._get_clean_docs(docs)
@@ -140,7 +141,7 @@ class CustomKendraRetriever(AmazonKendraRetriever):
             logger.info(f"Kendra query returned no docs. Query: {query}")
             metrics.add_metric(name=CloudWatchMetrics.KENDRA_NO_HITS.value, unit=MetricUnit.Count, value=1)
         else:
-            logger.debug(f"Kendra query processed top docs : {cleaned_docs}")
+            logger.debug(f"Kendra query processed top docs: {cleaned_docs}")
 
         return cleaned_docs
 
@@ -149,10 +150,10 @@ class CustomKendraRetriever(AmazonKendraRetriever):
         Parses the documents returned from Kendra and cleans them.
 
         Args:
-            docs (List[Any]): List of kendra query response items of type ResultItem
+            docs (List[Any]): List of Kendra query response items of type ResultItem
 
         Returns:
-            Sequence[ResultItem]: List of Langchain document objects.
+            Sequence[ResultItem]: List of LangChain document objects.
         """
 
         for doc in docs:

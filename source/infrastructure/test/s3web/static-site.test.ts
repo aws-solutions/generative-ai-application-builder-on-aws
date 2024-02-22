@@ -122,11 +122,7 @@ describe('When static website is created', () => {
                                     'Fn::Join': [
                                         '',
                                         [
-                                            'arn:',
-                                            {
-                                                'Ref': 'AWS::Partition'
-                                            },
-                                            ':cloudfront::',
+                                            'arn:aws:cloudfront::',
                                             {
                                                 Ref: 'AWS::AccountId'
                                             },
@@ -160,8 +156,46 @@ describe('When static website is created', () => {
             }
         });
 
+        template.hasResource('AWS::S3::BucketPolicy', {
+            Properties: Match.anyValue(),
+            DependsOn: [Match.stringLikeRegexp('SiteUICloudFrontDistribution')]
+        });
+
         const jsonTemplate = template.toJSON();
         expect(jsonTemplate['Resources'][cdnCapture.asString()]['Type']).toEqual('AWS::CloudFront::Distribution');
+
+        //cloudfront-logging bucket
+        template.hasResourceProperties('AWS::S3::Bucket', {
+            AccessControl: 'LogDeliveryWrite',
+            BucketEncryption: {
+                ServerSideEncryptionConfiguration: [
+                    {
+                        ServerSideEncryptionByDefault: {
+                            SSEAlgorithm: 'AES256'
+                        }
+                    }
+                ]
+            },
+            LoggingConfiguration: {
+                DestinationBucketName: {
+                    Ref: Match.stringLikeRegexp('AccessLog*')
+                },
+                LogFilePrefix: 'cloudfrontlogs-logging/'
+            },
+            OwnershipControls: {
+                Rules: [
+                    {
+                        ObjectOwnership: 'ObjectWriter'
+                    }
+                ]
+            },
+            PublicAccessBlockConfiguration: {
+                BlockPublicAcls: true,
+                BlockPublicPolicy: true,
+                IgnorePublicAcls: true,
+                RestrictPublicBuckets: true
+            }
+        });
     });
 
     it('should create a response header policy', () => {
@@ -184,7 +218,7 @@ describe('When static website is created', () => {
                 SecurityHeadersConfig: {
                     ContentSecurityPolicy: {
                         ContentSecurityPolicy:
-                            "default-src 'self' data: wss: *.amazonaws.com; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'",
+                            "default-src 'self' data: wss: *.amazonaws.com; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none'; worker-src blob:",
                         Override: true
                     },
                     FrameOptions: {
@@ -201,16 +235,7 @@ describe('When static website is created', () => {
         template.hasResourceProperties('AWS::CloudFront::OriginAccessControl', {
             OriginAccessControlConfig: {
                 Name: {
-                    'Fn::Join': [
-                        '',
-                        [
-                            'BucketOriginAccessControl-',
-                            {
-                                Ref: 'AWS::Region'
-                            },
-                            Match.anyValue()
-                        ]
-                    ]
+                    'Fn::Join': ['', ['aws-cloudfront-s3-UI-', Match.anyValue()]]
                 },
                 OriginAccessControlOriginType: 's3',
                 SigningBehavior: 'always',
@@ -260,10 +285,7 @@ describe('When static website is created', () => {
                         },
                         Id: Match.stringLikeRegexp('^TestStackSiteUICloudFrontDistributionOrigin[\\S+]*$'),
                         OriginAccessControlId: {
-                            'Fn::GetAtt': [Match.stringLikeRegexp('^SiteOAC[\\S+]*$'), 'Id']
-                        },
-                        S3OriginConfig: {
-                            OriginAccessIdentity: ''
+                            'Fn::GetAtt': [Match.stringLikeRegexp('^SiteUICloudFrontOac[\\S+]*$'), 'Id']
                         }
                     }
                 ]
@@ -299,6 +321,7 @@ describe('When static website is created', () => {
     });
 
     it('should have a custom resource to update bucket policy', () => {
+        template.resourceCountIs('Custom::UpdateBucketPolicy', 2);
         template.hasResourceProperties('Custom::UpdateBucketPolicy', {
             ServiceToken: {
                 'Ref': 'CustomResourceLambdaArn'
@@ -311,6 +334,25 @@ describe('When static website is created', () => {
                 Ref: Match.stringLikeRegexp('AccessLog*')
             },
             SOURCE_PREFIX: 'webappbucket'
+        });
+
+        template.hasResource('Custom::UpdateBucketPolicy', {
+            Type: 'Custom::UpdateBucketPolicy',
+            Properties: {
+                ServiceToken: {
+                    Ref: 'CustomResourceLambdaArn'
+                },
+                Resource: 'UPDATE_BUCKET_POLICY',
+                SOURCE_BUCKET_NAME: {
+                    Ref: Match.stringLikeRegexp('SiteUICloudfrontLoggingBucket*')
+                },
+                LOGGING_BUCKET_NAME: {
+                    Ref: Match.stringLikeRegexp('AccessLog*')
+                },
+                SOURCE_PREFIX: 'cloudfrontlogs-logging'
+            },
+            UpdateReplacePolicy: 'Delete',
+            DeletionPolicy: 'Delete'
         });
     });
 

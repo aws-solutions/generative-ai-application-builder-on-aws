@@ -1,0 +1,22 @@
+{
+    "UseCase": "RAGChat",
+    "ModelProviderName": "Anthropic",
+    "ModelName": "claude-1",
+    "AllowsStreaming": true,
+    "Prompt": "\n\nHuman: You are a friendly AI assistant. You provide answers only based on the provided reference passages.\n\nHere are reference passages in <references></references> tags:\n<references>\n{context}\n</references>\n\nCarefully read the references above and thoughtfully answer the question below. If the answer can not be extracted from the references, then respond with \"Sorry I don't know\". It is very important that you only use information found within the references to answer. Try to be brief in your response.\n\nHere is the current chat history:\n{history}\n\nQuestion: {input}\n\nAssistant:",
+    "DisambiguationPrompt": "Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "1",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "chat_history",
+        "input": "question",
+        "context": "context",
+        "ai_prefix": "A",
+        "human_prefix": "H",
+        "output": "answer"
+    },
+    "MaxPromptSize": 2000,
+    "MaxChatMessageSize": 2500
+}

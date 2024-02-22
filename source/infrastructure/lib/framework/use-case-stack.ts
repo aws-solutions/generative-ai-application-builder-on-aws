@@ -13,6 +13,7 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct, IConstruct } from 'constructs';
@@ -21,7 +22,7 @@ import { LambdaToDynamoDB } from '@aws-solutions-constructs/aws-lambda-dynamodb'
 import { NagSuppressions } from 'cdk-nag';
 import { WebsocketRequestProcessor } from '../api/websocket-request-processor';
 import { ApplicationSetup } from '../framework/application-setup';
-import { BaseStackProps } from '../framework/base-stack';
+import { BaseStack, BaseStackProps } from '../framework/base-stack';
 import { DashboardType } from '../metrics/custom-dashboard';
 import { KnowledgeBaseSetup } from '../search/knowledge-base-setup';
 import { ChatStorageSetup } from '../storage/chat-storage-setup';
@@ -43,15 +44,16 @@ import {
     LLM_PARAMETERS_SSM_KEY_ENV_VAR,
     MAX_KENDRA_QUERY_CAPACITY_UNITS,
     MAX_KENDRA_STORAGE_CAPACITY_UNITS,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
     PLACEHOLDER_EMAIL,
     RAG_ENABLED_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
     USE_CASE_UUID_ENV_VAR,
     UseCaseNames,
     WEBSOCKET_API_ID_ENV_VAR,
-    WEB_CONFIG_PREFIX,
-    additionalChatUseCaseConfigValues
+    WEB_CONFIG_PREFIX
 } from '../utils/constants';
+import { VPCSetup } from '../vpc/vpc-setup';
 import { UIAssets } from './ui-asset';
 
 export class UseCaseChatParameters {
@@ -71,27 +73,27 @@ export class UseCaseChatParameters {
     public readonly providerApiKeySecret: cdk.CfnParameter;
 
     /**
-     * Index ID of an existing kendra index to be used for the use case. If none is provided, a new index will be created.
+     * Index ID of an existing Kendra index to be used for the use case. If none is provided, a new index will be created.
      */
     public readonly existingKendraIndexId: cdk.CfnParameter;
 
     /**
-     * Name for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
+     * Name for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
      */
     public readonly newKendraIndexName: cdk.CfnParameter;
 
     /**
-     * Additional query capacity units for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
+     * Additional query capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
      */
     public readonly newKendraQueryCapacityUnits: cdk.CfnParameter;
 
     /**
-     * Additional storage capacity units for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
+     * Additional storage capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
      */
     public readonly newKendraStorageCapacityUnits: cdk.CfnParameter;
 
     /**
-     * The edition of kendra to use for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
+     * The edition of Kendra to use for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.
      */
     public readonly newKendraIndexEdition: cdk.CfnParameter;
 
@@ -119,6 +121,11 @@ export class UseCaseChatParameters {
     public readonly existingCognitoGroupPolicyTableName: cdk.CfnParameter;
 
     /**
+     * Name of the table which stores info/defaults for models. If not provided (passed an empty string), the table will be created.
+     */
+    public readonly existingModelInfoTableName: cdk.CfnParameter;
+
+    /**
      * If set to 'false', the deployed use case stack will only interact with the LLM provider directly, and will not reference a knowledge base.
      */
     public readonly ragEnabled: cdk.CfnParameter;
@@ -142,7 +149,7 @@ export class UseCaseChatParameters {
             type: 'String',
             allowedPattern: '^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
             description:
-                'Index ID of an existing kendra index to be used for the use case. If none is provided, a new index will be created for you.',
+                'Index ID of an existing Kendra index to be used for the use case. If none is provided, a new index will be created for you.',
             default: ''
         });
 
@@ -151,14 +158,14 @@ export class UseCaseChatParameters {
             allowedPattern: '^$|^[0-9a-zA-Z-]{1,64}$',
             maxLength: 64,
             description:
-                'Name for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.',
+                'Name for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.',
             default: DEFAULT_NEW_KENDRA_INDEX_NAME
         });
 
         this.newKendraQueryCapacityUnits = new cdk.CfnParameter(stack, 'NewKendraQueryCapacityUnits', {
             type: 'Number',
             description:
-                'Additional query capacity units for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
+                'Additional query capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
             default: DEFAULT_KENDRA_QUERY_CAPACITY_UNITS,
             maxValue: MAX_KENDRA_QUERY_CAPACITY_UNITS,
             minValue: 0,
@@ -168,7 +175,7 @@ export class UseCaseChatParameters {
         this.newKendraStorageCapacityUnits = new cdk.CfnParameter(stack, 'NewKendraStorageCapacityUnits', {
             type: 'Number',
             description:
-                'Additional storage capacity units for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
+                'Additional storage capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
             default: DEFAULT_KENDRA_STORAGE_CAPACITY_UNITS,
             maxValue: MAX_KENDRA_STORAGE_CAPACITY_UNITS,
             minValue: 0,
@@ -179,7 +186,7 @@ export class UseCaseChatParameters {
             type: 'String',
             allowedValues: KENDRA_EDITIONS,
             description:
-                'The edition of kendra to use for the new kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/dg/kendra-editions.html',
+                'The edition of Kendra to use for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/dg/kendra-editions.html',
             default: DEFAULT_KENDRA_EDITION
         });
 
@@ -218,12 +225,20 @@ export class UseCaseChatParameters {
             default: ''
         });
 
+        this.existingModelInfoTableName = new cdk.CfnParameter(stack, 'ExistingModelInfoTableName', {
+            type: 'String',
+            maxLength: 255,
+            allowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
+            default: '',
+            description: 'DynamoDB table name for the table which contains model info and defaults.'
+        });
+
         this.ragEnabled = new cdk.CfnParameter(stack, 'RAGEnabled', {
             type: 'String',
             allowedValues: ['true', 'false'],
             default: DEFAULT_RAG_ENABLED_STATUS,
             description:
-                'If set to "true", the deployed use case stack will use the provided/created kendra index to provide RAG functionality. If set to false, the user interacts directly with the LLM.'
+                'If set to "true", the deployed use case stack will use the provided/created Kendra index to provide RAG functionality. If set to false, the user interacts directly with the LLM.'
         });
 
         this.deployUI = new cdk.CfnParameter(stack, 'DeployUI', {
@@ -231,6 +246,39 @@ export class UseCaseChatParameters {
             allowedValues: ['Yes', 'No'],
             default: 'Yes',
             description: 'Please select the option to deploy the front end UI for this deployment'
+        });
+
+        const cfnStack = cdk.Stack.of(stack);
+        let existingParameterGroups =
+            cfnStack.templateOptions.metadata !== undefined &&
+            cfnStack.templateOptions.metadata.hasOwnProperty('AWS::CloudFormation::Interface') &&
+            cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
+                ? cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
+                : [];
+
+        existingParameterGroups.unshift({
+            Label: { default: 'Please provide Kendra configuration if using RAG based architecture' },
+            Parameters: [
+                this.ragEnabled.logicalId,
+                this.existingKendraIndexId.logicalId,
+                this.newKendraIndexName.logicalId,
+                this.newKendraQueryCapacityUnits.logicalId,
+                this.newKendraStorageCapacityUnits.logicalId,
+                this.newKendraIndexEdition.logicalId
+            ]
+        });
+
+        existingParameterGroups.unshift({
+            Label: { default: 'Please provide configuration for the use case' },
+            Parameters: [
+                this.deployUI.logicalId,
+                this.useCaseUUID.logicalId,
+                this.chatConfigSSMParameterName.logicalId,
+                this.existingModelInfoTableName.logicalId,
+                this.defaultUserEmail.logicalId,
+                this.existingCognitoUserPoolId.logicalId,
+                this.existingCognitoGroupPolicyTableName.logicalId
+            ]
         });
 
         // prettier-ignore
@@ -287,7 +335,7 @@ export class UseCaseChatParameters {
 /**
  * Abstract class containing the generic chat stack resource creation. Providers will implement their own child of this class, implementing llmProviderSetup
  */
-export abstract class UseCaseChat extends cdk.Stack {
+export abstract class UseCaseChat extends BaseStack {
     /**
      * Construct managing the chat storage nested stack
      */
@@ -295,7 +343,7 @@ export abstract class UseCaseChat extends cdk.Stack {
 
     /**
      * Construct managing the knowledge base to be used by this chat use case.
-     * Will conditionally either create a kendra index or use an existing one.
+     * Will conditionally either create a Kendra index or use an existing one.
      */
     public readonly knowledgeBaseSetup: KnowledgeBaseSetup;
 
@@ -319,11 +367,13 @@ export abstract class UseCaseChat extends cdk.Stack {
      */
     public chatLlmProviderLambda: lambda.Function;
 
+    /**
+     * Stack parameters for use case stacks
+     */
     protected stackParameters: UseCaseChatParameters;
 
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
-        this.stackParameters = new UseCaseChatParameters(cdk.Stack.of(this));
 
         // unused as of now, should be for metrics
         // prettier-ignore
@@ -353,7 +403,7 @@ export abstract class UseCaseChat extends cdk.Stack {
             expression: cdk.Fn.conditionEquals(this.stackParameters.ragEnabled, 'true')
         });
 
-        // the nested stack for kendra will only be deployed if the existing kendra index ID is blank and we are deploying with RAG
+        // the nested stack for Kendra will only be deployed if the existing Kendra index ID is blank and we are deploying with RAG
         const deployKendraIndexCondition = new cdk.CfnCondition(this, 'DeployKendraIndexCondition', {
             expression: cdk.Fn.conditionAnd(
                 cdk.Fn.conditionEquals(this.stackParameters.existingKendraIndexId.valueAsString, ''),
@@ -377,12 +427,6 @@ export abstract class UseCaseChat extends cdk.Stack {
             )
         });
 
-        const applicationSetup = new ApplicationSetup(this, 'UseCaseSetup', {
-            solutionID: props.solutionID,
-            solutionVersion: props.solutionVersion,
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString
-        });
-
         this.knowledgeBaseSetup = new KnowledgeBaseSetup(this, 'KnowledgeBaseSetup', {
             useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
             existingKendraIndexId: this.stackParameters.existingKendraIndexId.valueAsString,
@@ -390,14 +434,19 @@ export abstract class UseCaseChat extends cdk.Stack {
             newKendraQueryCapacityUnits: this.stackParameters.newKendraQueryCapacityUnits.valueAsNumber,
             newKendraStorageCapacityUnits: this.stackParameters.newKendraStorageCapacityUnits.valueAsNumber,
             newKendraIndexEdition: this.stackParameters.newKendraIndexEdition.valueAsString,
-            deployKendraIndexCondition: deployKendraIndexCondition
+            deployKendraIndexCondition: deployKendraIndexCondition,
+            customInfra: this.applicationSetup.customResourceLambda
         });
 
         this.chatStorageSetup = new ChatStorageSetup(this, 'ChatStorageSetup', {
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString
+            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
+            existingModelInfoTableName: this.stackParameters.existingModelInfoTableName.valueAsString,
+            customResourceLambda: this.applicationSetup.customResourceLambda,
+            customResourceRole: this.applicationSetup.customResourceRole
         });
 
         this.llmProviderSetup();
+        this.createVpcConfigForLambda(this.chatLlmProviderLambda);
         this.setLlmProviderPermissions(ragEnabledCondition);
 
         this.requestProcessor = new WebsocketRequestProcessor(this, 'WebsocketRequestProcessor', {
@@ -406,13 +455,13 @@ export abstract class UseCaseChat extends cdk.Stack {
             defaultUserEmail: this.stackParameters.defaultUserEmail.valueAsString,
             existingCognitoUserPoolId: this.stackParameters.existingCognitoUserPoolId.valueAsString,
             existingCognitoGroupPolicyTableName: this.stackParameters.existingCognitoGroupPolicyTableName.valueAsString,
-            customResourceLambda: applicationSetup.customResourceLambda,
+            customResourceLambda: this.applicationSetup.customResourceLambda,
             useCaseUUID: this.stackParameters.useCaseUUID.valueAsString
         });
 
         // Note: chatConfigSSMParameterName has a leading / included
         const webConfigSsmKey = `${WEB_CONFIG_PREFIX}${this.stackParameters.chatConfigSSMParameterName.valueAsString}`;
-        applicationSetup.createWebConfigStorage(
+        this.applicationSetup.createWebConfigStorage(
             {
                 apiEndpoint: this.requestProcessor.webSocketApi.apiEndpoint,
                 userPoolId: this.requestProcessor.userPool.userPoolId,
@@ -421,13 +470,13 @@ export abstract class UseCaseChat extends cdk.Stack {
                 isInternalUserCondition: isInternalUserCondition,
                 additionalProperties: {
                     SocketURL: `${this.requestProcessor.webSocketApi.apiEndpoint}/${this.requestProcessor.websocketApiStage.stageName}`,
-                    ...additionalChatUseCaseConfigValues[this.getLlmProviderName()]
+                    ModelProviderName: this.getLlmProviderName()
                 }
             },
             webConfigSsmKey
         );
 
-        const cloudwatchDashboard = applicationSetup.addCustomDashboard(
+        const cloudwatchDashboard = this.applicationSetup.addCustomDashboard(
             {
                 apiName: this.requestProcessor.webSocketApi.apiId,
                 userPoolId: this.requestProcessor.userPool.userPoolId,
@@ -439,38 +488,38 @@ export abstract class UseCaseChat extends cdk.Stack {
 
         this.uiInfrastructure = new UIInfrastructure(this, 'WebApp', {
             webRuntimeConfigKey: webConfigSsmKey,
-            customInfra: applicationSetup.customResourceLambda,
-            accessLoggingBucket: applicationSetup.accessLoggingBucket,
+            customInfra: this.applicationSetup.customResourceLambda,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             uiAssetFolder: 'ui-chat',
             useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
             deployWebApp: this.stackParameters.deployUI.valueAsString
         });
         this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
-            applicationSetup.webConfigCustomResource
+            this.applicationSetup.webConfigCustomResource
         );
         this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
-            applicationSetup.accessLoggingBucket.node
+            this.applicationSetup.accessLoggingBucket.node
                 .tryFindChild('Policy')
                 ?.node.tryFindChild('Resource') as cdk.CfnResource
         );
 
-        applicationSetup.scheduledMetricsLambda.addEnvironment(
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             KENDRA_INDEX_ID_ENV_VAR,
             this.knowledgeBaseSetup.kendraIndexId
         );
-        applicationSetup.scheduledMetricsLambda.addEnvironment(
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             WEBSOCKET_API_ID_ENV_VAR,
             this.requestProcessor.webSocketApi.apiId
         );
-        applicationSetup.scheduledMetricsLambda.addEnvironment(
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             USER_POOL_ID_ENV_VAR,
             this.requestProcessor.userPool.userPoolId
         );
-        applicationSetup.scheduledMetricsLambda.addEnvironment(
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             CLIENT_ID_ENV_VAR,
             this.requestProcessor.userPoolClient.ref
         );
-        applicationSetup.scheduledMetricsLambda.addEnvironment(
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             USE_CASE_UUID_ENV_VAR,
             this.stackParameters.useCaseUUID.valueAsString
         );
@@ -496,21 +545,26 @@ export abstract class UseCaseChat extends cdk.Stack {
         if (process.env.DIST_OUTPUT_BUCKET) {
             generateSourceCodeMapping(this, props.solutionName, props.solutionVersion);
             generateSourceCodeMapping(this.uiInfrastructure.nestedUIStack, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(this.chatStorageSetup.chatStorage, props.solutionName, props.solutionVersion);
         }
 
-        applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
+        this.applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
             NEW_KENDRA_INDEX_CREATED: cdk.Fn.conditionIf(deployKendraIndexCondition.logicalId, 'Yes', 'No'),
             ...(this.stackParameters.newKendraIndexEdition.valueAsString && {
                 KENDRA_EDITION: this.stackParameters.newKendraIndexEdition.valueAsString
             }),
             SSM_CONFIG_KEY: this.stackParameters.chatConfigSSMParameterName.valueAsString,
-            UUID: this.stackParameters.useCaseUUID.valueAsString
+            UUID: this.stackParameters.useCaseUUID.valueAsString,
+            VPC_ENABLED: this.vpcEnabled.valueAsString,
+            CREATE_VPC: this.createNewVpc.valueAsString
         });
         (
-            applicationSetup.solutionHelper.node
+            this.applicationSetup.solutionHelper.node
                 .tryFindChild('AnonymousData')
                 ?.node.tryFindChild('Default') as cdk.CfnResource
-        ).addDependency(applicationSetup.webConfigCustomResource.node.tryFindChild('Default') as cdk.CfnCustomResource);
+        ).addDependency(
+            this.applicationSetup.webConfigCustomResource.node.tryFindChild('Default') as cdk.CfnCustomResource
+        );
     }
 
     /**
@@ -523,6 +577,12 @@ export abstract class UseCaseChat extends cdk.Stack {
      * Returns the name of the provider
      */
     public abstract getLlmProviderName(): CHAT_PROVIDERS;
+
+    protected abstract setupVPC(): VPCSetup;
+
+    protected initializeCfnParameters(): void {
+        this.stackParameters = new UseCaseChatParameters(cdk.Stack.of(this));
+    }
 
     /**
      * Provides the correct environment variables and permissions to the llm provider lambda
@@ -539,7 +599,25 @@ export abstract class UseCaseChat extends cdk.Stack {
             tableEnvironmentVariableName: CONVERSATION_TABLE_NAME_ENV_VAR
         });
 
-        // connection to the kendra knowledge base (optional)
+        // connection to the model info table.
+        const newModelInfoTableCondition = new cdk.CfnCondition(this, 'NewModelInfoTableCondition', {
+            expression: cdk.Fn.conditionEquals(this.stackParameters.existingModelInfoTableName, '')
+        });
+        const modelInfoTableName = cdk.Fn.conditionIf(
+            newModelInfoTableCondition.logicalId,
+            this.chatStorageSetup.chatStorage.modelInfoStorage.newModelInfoTableName,
+            this.stackParameters.existingModelInfoTableName
+        ).toString();
+        const modelInfoTable = dynamodb.Table.fromTableName(this, 'ModelInfoTable', modelInfoTableName);
+        // prettier-ignore
+        new LambdaToDynamoDB(this, 'ChatProviderLambdaToModelInfoTable', { // NOSONAR - construct instantiation)
+            existingLambdaObj: this.chatLlmProviderLambda,
+            existingTableObj: modelInfoTable as dynamodb.Table,
+            tablePermissions: 'Read',
+            tableEnvironmentVariableName: MODEL_INFO_TABLE_NAME_ENV_VAR
+        });
+
+        // connection to the Kendra knowledge base (optional)
         this.chatLlmProviderLambda.addEnvironment(KENDRA_INDEX_ID_ENV_VAR, this.knowledgeBaseSetup.kendraIndexId);
         const lambdaQueryKendraIndexPolicy = new iam.Policy(this, 'LambdaQueryKendraIndexPolicy', {
             statements: [
@@ -594,5 +672,43 @@ export abstract class UseCaseChat extends cdk.Stack {
                 reason: 'The lambda uses python 3.10'
             }
         ]);
+    }
+
+    /**
+     * Define core setup of infrastructure resources like s3 logging bucket, custom resorce defintions
+     * which are used by root and nested stacks. The root stack should invoke this method and then pass
+     * the resources/ resource arns to the nested stack
+     *
+     * @param props
+     * @returns
+     */
+    protected createApplicationSetup(props: BaseStackProps): ApplicationSetup {
+        return new ApplicationSetup(this, 'UseCaseSetup', {
+            solutionID: props.solutionID,
+            solutionVersion: props.solutionVersion,
+            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString
+        });
+    }
+
+    /**
+     * Method to add vpc configuration to lambda functions
+     *
+     * @param lambdaFunction
+     */
+    protected createVpcConfigForLambda(lambdaFunction: lambda.Function): void {
+        if (lambdaFunction === undefined) {
+            throw new Error('This method should be called after the lambda function is defined');
+        }
+        const cfnFunction = lambdaFunction.node.defaultChild as lambda.CfnFunction;
+        cfnFunction.addPropertyOverride('VpcConfig', {
+            'Fn::If': [
+                this.vpcEnabledCondition.logicalId,
+                {
+                    SubnetIds: cdk.Fn.split(',', this.transpiredPrivateSubnetIds),
+                    SecurityGroupIds: cdk.Fn.split(',', this.transpiredSecurityGroupIds)
+                },
+                cdk.Aws.NO_VALUE
+            ]
+        });
     }
 }

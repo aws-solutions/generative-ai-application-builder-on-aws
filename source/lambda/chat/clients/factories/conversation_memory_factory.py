@@ -40,6 +40,7 @@ class ConversationMemoryFactory:
         memory_key: Optional[str] = None,
         input_key: Optional[str] = None,
         output_key: Optional[str] = None,
+        context_key: Optional[str] = None,
         human_prefix: Optional[str] = None,
         ai_prefix: Optional[str] = None,
     ) -> BaseMemory:
@@ -101,6 +102,7 @@ class ConversationMemoryFactory:
                 memory_key=memory_key,
                 input_key=input_key,
                 output_key=output_key,
+                context_key=context_key,
                 human_prefix=human_prefix,
                 ai_prefix=ai_prefix,
             )

@@ -44,6 +44,8 @@ This software includes third party software subject to the following copyrights:
 @smithy/types                                               Apache-2.0
 @tabler/icons-react                                         MIT
 @tailwindcss/typography                                     MIT
+@tanstack/react-query                                       MIT
+@tanstack/react-query-devtools                              MIT
 @testing-library/jest-dom                                   MIT
 @testing-library/react                                      MIT
 @testing-library/user-event                                 MIT
@@ -64,6 +66,7 @@ MarkupSafe                                                  BSD-3-Clause
 PyYAML                                                      MIT
 SQLAlchemy                                                  MIT
 Werkzeug                                                    BSD-3-Clause
+ace-builds                                                  BSD-3-Clause
 aiohttp                                                     Apache-2.0
 aiosignal                                                   Apache-2.0
 annotated-types                                             MIT

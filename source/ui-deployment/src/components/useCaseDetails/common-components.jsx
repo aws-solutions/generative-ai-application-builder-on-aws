@@ -23,13 +23,13 @@ import {
     SpaceBetween
 } from '@cloudscape-design/components';
 import { useNavigate } from 'react-router-dom';
-import HomeContext from '../../home/home.context';
+import HomeContext from '../../contexts/home.context';
 import { DEFAULT_STEP_INFO, MODEL_FAMILY_PROVIDER_OPTIONS, HF_INF_ENDPOINT_OPTION_IDX } from '../wizard/steps-config';
 import { createCfnLink, parseStackName } from '../commons/table-config';
 import { ExternalLinkWarningModal } from '../commons/external-link-warning-modal';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 import { useComponentId } from '../commons/use-component-id';
-import { BEDROCK_MODEL_PROVIDER_NAME } from '../../utils/constants';
+import { BEDROCK_MODEL_PROVIDER_NAME, CFN_STACK_STATUS_INDICATOR } from '../../utils/constants';
 
 const resourcesBreadcrumbs = [
     {
@@ -91,7 +91,7 @@ export const dateOptions = {
     minute: 'numeric'
 };
 
-// function to create a direct link to the kendra console given a kendra index id
+// function to create a direct link to the Kendra console given a Kendra index id
 export const createKendraConsoleLink = (region, kendraIndexId) => {
     return `https://console.aws.amazon.com/kendra/home?region=${region}#/indexes/${kendraIndexId}/details`;
 };
@@ -107,6 +107,8 @@ export const GeneralConfig = () => {
     const isEmptyOrUndefined = (value) => {
         return value === undefined || value === '' || value === null;
     };
+
+    const isVpcEnabled = selectedDeployment.vpcEnabled ? selectedDeployment.vpcEnabled.toLowerCase() === 'yes' : false;
 
     return (
         <Container header={<Header variant="h2">Deployment details</Header>} data-testid="deployment-details-container">
@@ -185,6 +187,30 @@ export const GeneralConfig = () => {
                         />
                     </Box>
                 )}
+
+                <ValueWithLabel label="VPC Enabled">
+                    <StatusIndicator
+                        type={isVpcEnabled ? CFN_STACK_STATUS_INDICATOR.SUCCESS : CFN_STACK_STATUS_INDICATOR.WARNING}
+                    >
+                        {selectedDeployment.vpcEnabled}
+                    </StatusIndicator>
+                </ValueWithLabel>
+
+                {isVpcEnabled && selectedDeployment.vpcId && (
+                    <ValueWithLabel label={'VPC ID'}>{selectedDeployment.vpcId}</ValueWithLabel>
+                )}
+
+                {isVpcEnabled && selectedDeployment.privateSubnetIds && (
+                    <ValueWithLabel label={'Subnet IDs'}>
+                        {selectedDeployment.privateSubnetIds.join(', ')}
+                    </ValueWithLabel>
+                )}
+
+                {isVpcEnabled && selectedDeployment.securityGroupIds && (
+                    <ValueWithLabel label={'Security Group IDs'}>
+                        {selectedDeployment.securityGroupIds.join(', ')}
+                    </ValueWithLabel>
+                )}
             </ColumnLayout>
         </Container>
     );
@@ -204,7 +230,7 @@ const cleanProviderName = (modelProvider) => {
         : modelProvider;
 };
 
-export const getSystemPromptFromRuntimeConfig = (runtimeConfig, modelProvider, isRagEnabled, modelName = undefined) => {
+export const getSystemPromptFromRuntimeConfig = (runtimeConfig, modelProvider, isRagEnabled, modelName) => {
     const cleanedModelProviderName = cleanProviderName(modelProvider);
     const modelProviderInfo = runtimeConfig.ModelProviders[cleanedModelProviderName];
     let modelProviderParam;
@@ -277,25 +303,44 @@ export const ModelDetails = () => {
                   selectedDeployment.LlmParams.ModelId
               );
 
+    const componentId = useComponentId();
+
     return (
-        <ColumnLayout columns={4} variant="text-grid" data-testid="model-details-tab">
+        <ColumnLayout columns={3} variant="text-grid" data-testid="model-details-tab">
             <SpaceBetween size="l">
                 {selectedDeployment.LlmParams && selectedDeployment.LlmParams.InferenceEndpoint ? (
-                    <div>
-                        <ValueWithLabel label={'Model provider'}>
-                            {MODEL_FAMILY_PROVIDER_OPTIONS[HF_INF_ENDPOINT_OPTION_IDX].label}
+                    <SpaceBetween size="l">
+                        <ValueWithLabel label={'Model Provider'}>
+                            {selectedDeployment.LlmParams.ModelProvider}
                         </ValueWithLabel>
                         <ValueWithLabel label={'Inference Endpoint'}>
                             {selectedDeployment.LlmParams.InferenceEndpoint}
                         </ValueWithLabel>
-                    </div>
+                    </SpaceBetween>
                 ) : (
-                    <div>
-                        <ValueWithLabel label={'Model provider'}>
+                    <SpaceBetween size="l">
+                        <ValueWithLabel label={'Model Provider'}>
                             {selectedDeployment.LlmParams.ModelProvider}
                         </ValueWithLabel>
-                        <ValueWithLabel label={'Model name'}>{selectedDeployment.LlmParams.ModelId}</ValueWithLabel>
-                    </div>
+                        <ValueWithLabel label={'Model Name'}>{selectedDeployment.LlmParams.ModelId}</ValueWithLabel>
+                    </SpaceBetween>
+                )}
+
+                {selectedDeployment.LlmParams.ModelInputPayloadSchema && (
+                    <SpaceBetween size="l">
+                        <ValueWithLabel label={'SageMaker Model Output JSON Path'}>
+                            <Box variant="code">{selectedDeployment.LlmParams.ModelOutputJSONPath}</Box>
+                        </ValueWithLabel>
+
+                        <ValueWithLabel label={'SageMaker Input Payload Schema'}>
+                            <Box variant="code">
+                                {escapedNewLineToLineBreakTag(
+                                    JSON.stringify(selectedDeployment.LlmParams.ModelInputPayloadSchema, null, '\t'),
+                                    componentId
+                                )}
+                            </Box>
+                        </ValueWithLabel>
+                    </SpaceBetween>
                 )}
 
                 {Object.keys(selectedDeployment.LlmParams.ModelParams).length > 0 && (
@@ -305,15 +350,14 @@ export const ModelDetails = () => {
 
             <SpaceBetween size="l">
                 <ValueWithLabel label={'Temperature'}>{selectedDeployment.LlmParams.Temperature}</ValueWithLabel>
-                <ValueWithLabel label={'Verbose'}>
-                    {!selectedDeployment.LlmParams.Verbose ? 'no' : 'yes'}
-                </ValueWithLabel>
+                <ValueWithLabel label={'Verbose'}>{selectedDeployment.LlmParams.Verbose ? 'on' : 'off'}</ValueWithLabel>
                 <ValueWithLabel label={'Streaming'}>
-                    {!selectedDeployment.LlmParams.Streaming ? 'off' : 'on'}
+                    {selectedDeployment.LlmParams.Streaming ? 'on' : 'off'}
                 </ValueWithLabel>
             </SpaceBetween>
+
             <SpaceBetween size="l">
-                <ValueWithLabel label={'System prompt'}>
+                <ValueWithLabel label={'System Prompt'}>
                     <Box variant="code">{escapedNewLineToLineBreakTag(promptTemplate, useComponentId())}</Box>
                 </ValueWithLabel>
             </SpaceBetween>
@@ -396,6 +440,10 @@ export const KnowledgeBaseDetails = ({ isInProgress }) => {
 
                 <ValueWithLabel label={'Maximum number of documents'}>
                     {selectedDeployment.KnowledgeBaseParams.NumberOfDocs?.toString()}
+                </ValueWithLabel>
+
+                <ValueWithLabel label={'Display document source'}>
+                    {selectedDeployment.KnowledgeBaseParams.ReturnSourceDocs ? 'Yes' : 'No'}
                 </ValueWithLabel>
             </SpaceBetween>
         </ColumnLayout>

@@ -16,15 +16,53 @@ import * as crypto from 'crypto';
 import { MissingValueError } from '../exception/missing-value-error';
 import { logger } from '../power-tools-init';
 import {
-    CHAT_CONFIG_CFN_PARAMETER_NAME,
-    CHAT_PROVIDERS,
     COGNITO_POLICY_TABLE_ENV_VAR,
+    CfnParameterKeys,
+    EXTERNAL_PROVIDERS,
     IS_INTERNAL_USER_ENV_VAR,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
     PROVIDERS_REQUIRING_API_KEY,
     USER_POOL_ID_ENV_VAR,
     USE_CASE_API_KEY_SUFFIX_ENV_VAR,
     USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR
 } from '../utils/constants';
+
+/**
+ * Interface to describe a record in the ModelInfo dynamoDB table
+ */
+export interface ModelInfoRecord {
+    UseCase: string;
+    SortKey: string;
+    ModelProviderName: string;
+    ModelName: string;
+    AllowsStreaming: boolean;
+    Prompt: string;
+    DefaultTemperature: number;
+}
+
+export interface LlmParams {
+    ModelProvider?: string;
+    ModelId?: string;
+    InferenceEndpoint?: string;
+    ModelParams?: Object;
+    ModelInputPayloadSchema?: Object;
+    ModelOutputJSONPath?: string;
+    PromptTemplate?: string;
+    Temperature?: number;
+    RAGEnabled?: boolean;
+    Streaming?: boolean;
+    Verbose?: boolean;
+}
+
+export interface UseCaseConfiguration {
+    UseCaseName?: string;
+    ConversationMemoryType?: string;
+    ConversationMemoryParams?: Object;
+    KnowledgeBaseType?: string;
+    KnowledgeBaseParams?: Object;
+    LlmParams?: LlmParams;
+    IsInternalUser?: string;
+}
 
 /**
  * Data Model to store capture use case specific information
@@ -63,7 +101,7 @@ export class UseCase {
     /**
      * Additional configuration for the use case, stored as a JSON object in SSM
      */
-    public configuration: Object;
+    public configuration: UseCaseConfiguration;
 
     /**
      * The template which should be used to deploy the use case
@@ -91,7 +129,7 @@ export class UseCase {
         name: string,
         description: string | undefined,
         cfnParameters: Map<string, string> | undefined,
-        configuration: Object,
+        configuration: UseCaseConfiguration,
         userId: string,
         providerName: string,
         useCaseType: string,
@@ -118,7 +156,7 @@ export class UseCase {
     }
 
     public getSSMParameterKey(): string | undefined {
-        return this.cfnParameters?.get(CHAT_CONFIG_CFN_PARAMETER_NAME);
+        return this.cfnParameters?.get(CfnParameterKeys.ChatConfigSSMParameterName);
     }
 
     public setSSMParameterKey(ssmParameterKey: string) {
@@ -126,7 +164,7 @@ export class UseCase {
             this.cfnParameters = new Map<string, string>();
         }
 
-        this.cfnParameters.set(CHAT_CONFIG_CFN_PARAMETER_NAME, ssmParameterKey);
+        this.cfnParameters.set(CfnParameterKeys.ChatConfigSSMParameterName, ssmParameterKey);
     }
 
     /**
@@ -142,8 +180,11 @@ export class UseCase {
             new Map<string, string>(this.cfnParameters),
             { ...this.configuration },
             this.userId,
-            this.templateName.split(/(?=[A-Z])/)[0], // provider name, split by capital letters
-            this.templateName.split(/(?=[A-Z])/)[1], // use case type
+            this.templateName
+                .split(/(?=[A-Z])/)
+                .slice(0, -1)
+                .join(''), // provider name
+            this.templateName.split(/(?=[A-Z])/).pop()!, // use case type, the last capitalized portion
             this.apiKey
         );
 
@@ -195,71 +236,117 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
         const shortUUID = this.generateShortUUID(useCaseId);
         const ssmParamSuffixUUID = this.generateShortUUID(crypto.randomUUID());
 
+        // Kendra related Params
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
-            'ExistingKendraIndexId',
+            CfnParameterKeys.ExistingKendraIndexId,
             eventBody.KnowledgeBaseParams?.ExistingKendraIndexId
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
-            'NewKendraIndexName',
+            CfnParameterKeys.NewKendraIndexName,
             eventBody.KnowledgeBaseParams?.KendraIndexName
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
-            'NewKendraQueryCapacityUnits',
+            CfnParameterKeys.NewKendraQueryCapacityUnits,
             eventBody.KnowledgeBaseParams?.QueryCapacityUnits
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
-            'NewKendraStorageCapacityUnits',
+            CfnParameterKeys.NewKendraStorageCapacityUnits,
             eventBody.KnowledgeBaseParams?.StorageCapacityUnits
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
-            'NewKendraIndexEdition',
+            CfnParameterKeys.NewKendraIndexEdition,
             eventBody.KnowledgeBaseParams?.KendraIndexEdition
         );
         // in order to set this as a cfnParameter, note the boolean will be converted to a string (e.g. "true")
-        ChatUseCaseDeploymentAdapter.setParameterIfExists(cfnParameters, 'RAGEnabled', eventBody.LlmParams?.RAGEnabled);
+        ChatUseCaseDeploymentAdapter.setParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.RAGEnabled,
+            eventBody.LlmParams?.RAGEnabled
+        );
 
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
-            'DefaultUserEmail',
+            CfnParameterKeys.DefaultUserEmail,
             eventBody.DefaultUserEmail
+        );
+
+        // VPC related params
+        ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.VpcEnabled,
+            eventBody.VPCParams?.VpcEnabled
+        );
+
+        ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.CreateNewVpc,
+            eventBody.VPCParams?.CreateNewVpc
+        );
+
+        ChatUseCaseDeploymentAdapter.setParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.ExistingVpcId,
+            eventBody.VPCParams?.ExistingVpcId
+        );
+
+        ChatUseCaseDeploymentAdapter.setListParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.ExistingPrivateSubnetIds,
+            eventBody.VPCParams?.ExistingPrivateSubnetIds
+        );
+
+        ChatUseCaseDeploymentAdapter.setListParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.ExistingSecurityGroupIds,
+            eventBody.VPCParams?.ExistingSecurityGroupIds
         );
 
         // fixed/mandatory parameters for the deployment
 
         // each new deployment or update requires a new SSM param in order to properly have cloudformation update all resources on a deploy
         cfnParameters.set(
-            CHAT_CONFIG_CFN_PARAMETER_NAME,
+            CfnParameterKeys.ChatConfigSSMParameterName,
             `${process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR]!}/${shortUUID}/${ssmParamSuffixUUID}`
         );
-        cfnParameters.set('ExistingCognitoUserPoolId', process.env[USER_POOL_ID_ENV_VAR]!);
-        cfnParameters.set('ExistingCognitoGroupPolicyTableName', process.env[COGNITO_POLICY_TABLE_ENV_VAR]!);
-        cfnParameters.set('UseCaseUUID', `${shortUUID}`);
+        cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, process.env[USER_POOL_ID_ENV_VAR]!);
+        cfnParameters.set(
+            CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+            process.env[COGNITO_POLICY_TABLE_ENV_VAR]!
+        );
+        cfnParameters.set(CfnParameterKeys.ExistingModelInfoTableName, process.env[MODEL_INFO_TABLE_NAME_ENV_VAR]!);
+        cfnParameters.set(CfnParameterKeys.UseCaseUUID, `${shortUUID}`);
 
         // only setting the param for API key if it exists
-        if (eventBody.LlmParams?.ApiKey !== undefined) {
-            cfnParameters.set('ProviderApiKeySecret', `${shortUUID}/${process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR]}`);
+        if (eventBody.LlmParams?.ApiKey) {
+            cfnParameters.set(
+                CfnParameterKeys.ProviderApiKeySecret,
+                `${shortUUID}/${process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR]}`
+            );
         }
 
         // Mapping the bool input from the API payload to the expected format for the CFN parameter
-        if (
-            eventBody.ConsentToDataLeavingAWS !== undefined &&
-            eventBody.LlmParams.ModelProvider !== CHAT_PROVIDERS.BEDROCK
-        ) {
-            if (eventBody.ConsentToDataLeavingAWS) {
-                cfnParameters.set('ConsentToDataLeavingAWS', 'Yes');
-            } else {
-                cfnParameters.set('ConsentToDataLeavingAWS', 'No');
-            }
+        if (EXTERNAL_PROVIDERS.includes(eventBody.LlmParams.ModelProvider)) {
+            ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
+                cfnParameters,
+                CfnParameterKeys.ConsentToDataLeavingAWS,
+                eventBody.ConsentToDataLeavingAWS
+            );
         }
-
         return cfnParameters;
     }
 
+    /**
+     * If the provided value is defined, sets the correct Cloudformation Parameter to that value as a string.
+     *
+     * @param cfnParameters The parameter map to set the value in
+     * @param paramName Name of the Cloudformation Parameter to set
+     * @param value value to set
+     */
     private static setParameterIfExists(
         cfnParameters: Map<string, string>,
         paramName: string,
@@ -270,7 +357,53 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
         }
     }
 
-    private static createConfiguration(eventBody: any): Object {
+    /**
+     * If the provided value is defined, sets the correct Cloudformation Parameter to 'Yes' or 'No' accordingly.
+     *
+     * @param cfnParameters The parameter map to set the value in
+     * @param paramName Name of the Cloudformation Parameter to set
+     * @param value boolean value to set
+     */
+    private static setBooleanParameterIfExists(
+        cfnParameters: Map<string, string>,
+        paramName: string,
+        value: boolean | undefined
+    ): void {
+        if (value !== undefined) {
+            if (value) {
+                cfnParameters.set(paramName, 'Yes');
+            } else {
+                cfnParameters.set(paramName, 'No');
+            }
+        }
+    }
+
+    /**
+     * If the provided value is defined, sets the correct Cloudformation Parameter to a comma separated list of the values.
+     *
+     * @param cfnParameters The parameter map to set the value in
+     * @param paramName Name of the Cloudformation Parameter to set
+     * @param values Array of values to set
+     */
+    private static setListParameterIfExists(
+        cfnParameters: Map<string, string>,
+        paramName: string,
+        values: Array<any> | undefined
+    ): void {
+        if (values !== undefined) {
+            let valueString = '';
+            for (const item of values) {
+                valueString += item.toString() + ',';
+            }
+            // remove trailing comma
+            if (valueString.charAt(valueString.length - 1) == ',') {
+                valueString = valueString.slice(0, -1);
+            }
+            cfnParameters.set(paramName, valueString);
+        }
+    }
+
+    private static createConfiguration(eventBody: any): UseCaseConfiguration {
         return {
             UseCaseName: eventBody.UseCaseName,
             ConversationMemoryType: eventBody.ConversationMemoryType,
@@ -282,14 +415,16 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
             },
             LlmParams: {
                 ModelProvider: eventBody.LlmParams.ModelProvider,
-                ModelId: eventBody.LlmParams.ModelId,
+                ModelId: eventBody.LlmParams.ModelId !== undefined ? eventBody.LlmParams.ModelId : 'default',
                 InferenceEndpoint: eventBody.LlmParams.InferenceEndpoint,
                 ModelParams: eventBody.LlmParams.ModelParams,
                 PromptTemplate: eventBody.LlmParams.PromptTemplate,
                 Streaming: eventBody.LlmParams.Streaming,
                 Verbose: eventBody.LlmParams.Verbose,
                 Temperature: eventBody.LlmParams.Temperature,
-                RAGEnabled: eventBody.LlmParams.RAGEnabled
+                RAGEnabled: eventBody.LlmParams.RAGEnabled,
+                ModelInputPayloadSchema: eventBody.LlmParams.ModelInputPayloadSchema,
+                ModelOutputJSONPath: eventBody.LlmParams.ModelOutputJSONPath
             },
             IsInternalUser: process.env[IS_INTERNAL_USER_ENV_VAR]! // env var value is set as 'true' or 'false' on deployment of management stack
         };

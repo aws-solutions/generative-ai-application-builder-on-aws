@@ -1,0 +1,89 @@
+/**********************************************************************************************************************
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                *
+ *                                                                                                                    *
+ *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    *
+ *  with the License. A copy of the License is located at                                                             *
+ *                                                                                                                    *
+ *      http://www.apache.org/licenses/LICENSE-2.0                                                                    *
+ *                                                                                                                    *
+ *  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES *
+ *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
+ *  and limitations under the License.                                                                                *
+ **********************************************************************************************************************/
+
+import SubnetIdAttrEditor from '../SubnetIdAttrEditor';
+import { mockFormComponentCallbacks, cloudscapeRender } from '@/utils';
+import { screen } from '@testing-library/react';
+
+describe('Subnet Id Attribute Editor', () => {
+    const mockVpcData = {
+        subnetIds: [
+            {
+                'key': 'subnet-12312312'
+            },
+            {
+                'key': 'subnet-12312312'
+            },
+            {
+                'key': 'subnet-2342342s'
+            },
+            {
+                'key': 'subnet-asdfasdf'
+            }
+        ]
+    };
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('Sec group attribute editor should render correctly', () => {
+        const callbacks = mockFormComponentCallbacks();
+
+        const { cloudscapeWrapper } = cloudscapeRender(<SubnetIdAttrEditor vpcData={mockVpcData} {...callbacks} />);
+
+        expect(screen.getByTestId('subnet-ids-field')).toBeDefined();
+        const editor = cloudscapeWrapper?.findAttributeEditor();
+
+        const rows = editor?.findRows();
+        expect(rows?.length).toBe(4);
+
+        const firstRow = editor?.findRow(1);
+        const rowDef = firstRow?.findFields();
+
+        expect(rowDef?.length).toBe(1);
+    });
+
+    test('Should add another item using onChange function', () => {
+        const callbacks = mockFormComponentCallbacks();
+
+        const { cloudscapeWrapper } = cloudscapeRender(<SubnetIdAttrEditor vpcData={mockVpcData} {...callbacks} />);
+
+        const editor = cloudscapeWrapper?.findAttributeEditor();
+        const addButton = editor?.findAddButton();
+        addButton?.click();
+
+        editor?.findRow(5)?.findInput()?.setInputValue('subnet-fake1123');
+        expect(callbacks.onChangeFn).toHaveBeenCalled();
+        expect(callbacks.onChangeFn).toHaveBeenCalledWith({
+            subnetIds: [...mockVpcData.subnetIds, { key: 'subnet-fake1123' }]
+        });
+    });
+
+    test('should set error to true in invalid security group id entered', () => {
+        const callbacks = mockFormComponentCallbacks();
+
+        const { cloudscapeWrapper } = cloudscapeRender(<SubnetIdAttrEditor vpcData={mockVpcData} {...callbacks} />);
+
+        const editor = cloudscapeWrapper?.findAttributeEditor();
+        const addButton = editor?.findAddButton();
+        addButton?.click();
+
+        editor?.findRow(5)?.findInput()?.setInputValue('fake1123123123-');
+        expect(callbacks.onChangeFn).toHaveBeenCalled();
+
+        expect(editor?.findRow(5)?.findField(1)?.findError()?.getElement().innerHTML).toEqual(
+            'Must start with "subnet-" and be of valid length'
+        );
+    });
+});

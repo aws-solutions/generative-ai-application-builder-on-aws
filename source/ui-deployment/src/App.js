@@ -17,13 +17,13 @@ import './App.css';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Alert, AppLayout, TopNavigation } from '@cloudscape-design/components';
 import DashboardView from './components/dashboard/DashboardView';
-import WizardView from './components/wizard/WizardView.jsx';
+import WizardView from './components/wizard/WizardView';
 import UseCaseView from './components/useCaseDetails/UseCaseView';
 import { withAuthenticator } from '@aws-amplify/ui-react';
 import { APP_TRADEMARK_NAME } from './utils/constants';
 import { useCreateReducer } from './hooks/useCreateReducer';
-import { initialState, insertRuntimeConfig } from './home/home.state';
-import { HomeContextProvider } from './home/home.context';
+import { initialState, insertRuntimeConfig } from './contexts/home.state';
+import { HomeContextProvider } from './contexts/home.context';
 import { Auth } from 'aws-amplify';
 import { useEffect } from 'react';
 

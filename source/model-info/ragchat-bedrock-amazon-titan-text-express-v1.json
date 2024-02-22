@@ -1,0 +1,22 @@
+{
+    "UseCase": "RAGChat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "amazon.titan-text-express-v1",
+    "AllowsStreaming": true,
+    "Prompt": "Instructions: You are an AI Assistant created to help answer the User's question. You are only to answer the User's question using the provided references. You are not allowed to make things up or use your own knowledge. Only use what is provided between the <references> XML tags.\n\nHere are the only references you can use:\n<references>\n{context}\n</references>\n\nGiven the references provided above, answer the User's question. If the answer is not explicitly in the provided references, respond with \"Sorry, I don't know\". It is very important that you say \"Sorry, I don't know\" if the answer isn't in the references. Take your time, think step by step, and do not make anything up.\n\n{history}\nUser: {input}\nBot:",
+    "DisambiguationPrompt": "Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "0.0",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "chat_history",
+        "input": "question",
+        "context": "context",
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
+        "output": "answer"
+    },
+    "MaxPromptSize": 2000,
+    "MaxChatMessageSize": 2500
+}

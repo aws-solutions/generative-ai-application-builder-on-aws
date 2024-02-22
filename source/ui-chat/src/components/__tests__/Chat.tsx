@@ -79,7 +79,12 @@ describe('Chat', () => {
                 messages: []
             },
             promptTemplate: '',
-            defaultPromptTemplate: ''
+            defaultPromptTemplate: '',
+            useCaseConfig: {
+                KnowledgeBaseParams: {
+                    ReturnSourceDocs: false
+                }
+            }
         },
         handleUpdateConversation: jest.fn()
     };

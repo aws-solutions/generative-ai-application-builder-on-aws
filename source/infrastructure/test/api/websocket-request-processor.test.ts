@@ -58,7 +58,7 @@ describe('When deploying', () => {
                 'Fn::GetAtt': [Match.stringLikeRegexp('onConnectLambdaRole*'), 'Arn']
             },
             'Handler': 'connect-handler.handler',
-            'Runtime': 'nodejs18.x',
+            'Runtime': COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
             'Timeout': 900
         });
 
@@ -67,7 +67,7 @@ describe('When deploying', () => {
                 'Fn::GetAtt': [Match.stringLikeRegexp('onDisconnectLambdaRole*'), 'Arn']
             },
             'Handler': 'disconnect-handler.handler',
-            'Runtime': 'nodejs18.x',
+            'Runtime': COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
             'Timeout': 900
         });
 
@@ -103,7 +103,7 @@ describe('When deploying', () => {
                 }
             },
             'Handler': 'websocket-authorizer.handler',
-            'Runtime': 'nodejs18.x',
+            'Runtime': COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
             'Timeout': 900
         });
     });

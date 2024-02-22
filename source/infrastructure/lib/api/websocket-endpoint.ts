@@ -15,10 +15,9 @@
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
-import { WebSocketApi, WebSocketStage } from '@aws-cdk/aws-apigatewayv2-alpha';
-import { WebSocketLambdaAuthorizer } from '@aws-cdk/aws-apigatewayv2-authorizers-alpha';
-import { WebSocketLambdaIntegration } from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
-import { CfnRoute, CfnStage } from 'aws-cdk-lib/aws-apigatewayv2';
+import { CfnRoute, CfnStage, WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
+import { WebSocketLambdaAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
+import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 

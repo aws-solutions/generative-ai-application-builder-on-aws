@@ -18,7 +18,11 @@ import { Construct } from 'constructs';
 import * as path from 'path';
 import { getCommandsForPythonDockerBuild } from '../utils/asset-bundling';
 import { LayerProps, localBundling } from '../utils/common-utils';
-import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../utils/constants';
+import {
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME
+} from '../utils/constants';
 
 /**
  * A class that defines user-agent layer for Python runtimes
@@ -26,10 +30,9 @@ import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../utils/constants';
 export class PythonUserAgentLayer extends lambda.LayerVersion {
     constructor(scope: Construct, id: string, props: LayerProps) {
         const compatibleRuntimes = props.compatibleRuntimes ?? [
-            lambda.Runtime.PYTHON_3_8,
-            lambda.Runtime.PYTHON_3_9,
-            lambda.Runtime.PYTHON_3_10,
-            lambda.Runtime.PYTHON_3_11
+            GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+            LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+            COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
         ];
 
         for (const runtime of compatibleRuntimes) {
@@ -50,8 +53,17 @@ export class PythonUserAgentLayer extends lambda.LayerVersion {
                                 `cd ${entry}`,
                                 'echo "Trying local bundling of python modules"',
                                 'rm -fr .venv*',
-                                `pip3 install -r requirements.txt --target ${outputDir}/python/`,
-                                `rm -fr ${outputDir}/python/boto*`
+                                'python3 -m venv .venv',
+                                '. .venv/bin/activate',
+                                'python3 -m pip install poetry --upgrade',
+                                'poetry build',
+                                'poetry install --only main',
+                                `poetry run pip install -t ${outputDir}/python dist/*.whl`,
+                                `find ${outputDir}/python -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
+                                `rm -fr ${outputDir}/python/boto*`,
+                                'deactivate',
+                                'rm -fr .venv*',
+                                'rm -fr dist'
                             ].join(' && ');
                             const targetDirectory = `${outputDir}/python/`;
                             return localBundling(cliCommand, entry, targetDirectory);

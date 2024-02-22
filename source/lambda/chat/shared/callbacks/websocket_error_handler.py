@@ -33,23 +33,19 @@ class WebsocketErrorHandler:
         client (botocore.client): client that establishes the connection to the websocket API
 
     Methods:
-        post_token_to_connection(response): Sends a response to the client that is connected to a websocket.
-        format_response(response): Formats the response in a format that the websocket accepts
+        post_token_to_connection(payload): Sends a payload to the client that is connected to a websocket.
+        format_response(payload): Formats the payload in a format that the websocket accepts
     """
 
     def __init__(self, connection_id: str, trace_id: Optional[str]) -> None:
         self._connection_url = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
         self._connection_id = connection_id
         self._trace_id = trace_id
-        self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self._connection_url)
+        self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self.connection_url)
 
     @property
-    def connection_id(self) -> str:
-        return self._connection_id
-
-    @connection_id.setter
-    def connection_id(self, connection_id) -> None:
-        self._connection_id = connection_id
+    def connection_url(self) -> str:
+        return self._connection_url
 
     @property
     def trace_id(self) -> str:
@@ -63,25 +59,24 @@ class WebsocketErrorHandler:
     def client(self) -> str:
         return self._client
 
-    @client.setter
-    def client(self, client) -> None:
-        self._client = client
+    @property
+    def connection_id(self) -> str:
+        return self._connection_id
 
-    def post_token_to_connection(self, response) -> None:
+    def post_token_to_connection(self, payload) -> None:
         """
-        Sends an error response to the client that is connected to a websocket. Also sends an END_CONVERSATION_TOKEN once the
-        message response ends
+        Sends an error payload to the client that is connected to a websocket. Also sends an END_CONVERSATION_TOKEN once the
+        message payload ends
 
         Args:
-            response (str): Token to send to the client.
+            payload (str): Token to send to the client.
 
         Raises:
-            ex: _description_
+            Exception: if there is an error posting the payload to the connection
         """
         try:
             self.client.post_to_connection(
-                ConnectionId=self.connection_id,
-                Data=self.format_response(errorMessage=response, traceId=self.trace_id),
+                ConnectionId=self.connection_id, Data=self.format_response(errorMessage=payload, traceId=self.trace_id)
             )
             self.client.post_to_connection(
                 ConnectionId=self.connection_id, Data=self.format_response(data=END_CONVERSATION_TOKEN)
@@ -95,7 +90,7 @@ class WebsocketErrorHandler:
 
     def format_response(self, **kwargs) -> str:
         """
-        Formats the response in a format that the websocket accepts
+        Formats the payload in a format that the websocket accepts
 
         Args:
             kwargs: The keyword arguments which will be converted to a json string

@@ -29,10 +29,11 @@ import { saveConversation } from './utils/conversation';
 import './styles/globals.css';
 import { INTERNAL_USER_GENAI_POLICY_URL } from './utils/constants';
 
-function App({ signOut, socketUrl, defaultPromptTemplate, useCaseName, RAGEnabled, isInternalUser }) {
+function App({ signOut, socketUrl, defaultPromptTemplate, useCaseName, RAGEnabled, isInternalUser, useCaseConfig }) {
     initialState.defaultPromptTemplate = defaultPromptTemplate;
     initialState.promptTemplate = defaultPromptTemplate;
     initialState.RAGEnabled = RAGEnabled;
+    initialState.useCaseConfig = useCaseConfig;
 
     const [alertVisible, setAlertVisible] = useState(true);
 
@@ -62,7 +63,8 @@ function App({ signOut, socketUrl, defaultPromptTemplate, useCaseName, RAGEnable
 
     return (
         <HomeContext.Provider
-            value={{
+            // prettier-ignore
+            value={{ //NOSONAR - javascript:S6481 - useMemo does not work as expected
                 ...contextValue,
                 handleUpdateConversation
             }}

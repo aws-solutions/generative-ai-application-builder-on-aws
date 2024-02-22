@@ -19,10 +19,15 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 from langchain.docstore.document import Document
+from langchain.retrievers.kendra import DocumentAttribute, DocumentAttributeValue, RetrieveResultItem
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
-from langchain.retrievers.kendra import RetrieveResultItem, DocumentAttribute, DocumentAttributeValue
 
 KENDRA_RESPONSE = None
+attribute_filter = {
+    "AndAllFilters": [
+        {"EqualsTo": {"Key": "user_id", "Value": {"StringValue": "12345"}}},
+    ]
+}
 
 
 @pytest.fixture(scope="function")
@@ -31,6 +36,8 @@ def kendra_retriever(kendra_stubber):
         index_id="00000000-0000-0000-0000-000000000000",
         top_k=10,
         return_source_documents=False,
+        attribute_filter=attribute_filter,
+        user_context={"Token": "fake-token"},
     )
 
 
@@ -39,9 +46,11 @@ def get_kendra_result_stubbed(kendra_stubber):
     kendra_stubber.add_response(
         "retrieve",
         expected_params={
+            "AttributeFilter": attribute_filter,
             "IndexId": "00000000-0000-0000-0000-000000000000",
             "PageSize": 10,
             "QueryText": "sample query",
+            "UserContext": {"Token": "fake-token"},
         },
         service_response=responses,
     )

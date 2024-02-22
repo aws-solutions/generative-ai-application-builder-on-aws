@@ -29,6 +29,7 @@ from operations import (
     update_s3_policy,
     use_case_policy,
     webconfig,
+    copy_model_info_to_ddb,
 )
 from operations.operation_types import FAILED, RESOURCE, RESOURCE_PROPERTIES
 
@@ -48,6 +49,7 @@ operations_dictionary = {
     operation_types.COPY_API_KEY: copy_api_key.execute,
     operation_types.USE_CASE_POLICY: use_case_policy.execute,
     operation_types.ADMIN_POLICY: admin_policy.execute,
+    operation_types.COPY_MODEL_INFO: copy_model_info_to_ddb.execute,
 }
 
 

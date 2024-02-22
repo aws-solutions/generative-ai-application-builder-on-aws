@@ -18,7 +18,7 @@ import { Alert, Box, Button, Checkbox, Link, Modal, SpaceBetween } from '@clouds
 import { deleteDeployment } from '../dashboard/deployments';
 import { DeleteNotifications } from './delete-notifications';
 import { DELAY_AFTER_DELETE_MS, DEPLOYMENT_STATUS_NOTIFICATION, IG_DOCS } from '../../utils/constants';
-import HomeContext from '../../home/home.context';
+import HomeContext from '../../contexts/home.context';
 
 export const onDeleteConfirm = async (deployment, permanentDelete, setUseCaseDeleteStatus) => {
     try {

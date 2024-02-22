@@ -30,7 +30,7 @@ describe('When deployment platform stack is created', () => {
 
     describe('when nested stacks are created', () => {
         it('should create nested stack for ddb storage, and UI', () => {
-            template.resourceCountIs('AWS::CloudFormation::Stack', 3);
+            template.resourceCountIs('AWS::CloudFormation::Stack', 4);
 
             template.hasResource('AWS::CloudFormation::Stack', {
                 Type: 'AWS::CloudFormation::Stack',

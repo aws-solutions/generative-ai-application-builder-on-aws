@@ -1,0 +1,21 @@
+{
+    "UseCase": "Chat",
+    "ModelProviderName": "HuggingFace",
+    "ModelName": "google/flan-t5-xl",
+    "AllowsStreaming": false,
+    "Prompt": "{history}\n\nHuman: {input}\nAI:",
+    "MaxTemperature": "100",
+    "DefaultTemperature": "0.1",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "history",
+        "input": "input",
+        "context": null,
+        "ai_prefix": "AI",
+        "human_prefix": "Human",
+        "output": null
+    },
+    "MaxPromptSize": 2000,
+    "MaxChatMessageSize": 2500
+}

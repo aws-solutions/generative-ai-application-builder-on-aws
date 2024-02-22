@@ -28,7 +28,7 @@ export const KENDRA_EDITIONS = [
     { value: 'enterprise', label: 'Enterprise' }
 ];
 
-export const KNOWLEDGE_BASE_TYPES = [{ value: 'kendra', label: 'Kendra' }];
+export const KNOWLEDGE_BASE_TYPES = [{ value: 'Kendra', label: 'Kendra' }];
 
 export const BEDROCK_MODEL_OPTION_IDX = 0;
 export const ANTHROPIC_MODEL_OPTION_IDX = 1;
@@ -51,8 +51,40 @@ export const MODEL_FAMILY_PROVIDER_OPTIONS = [
     {
         label: 'HuggingFace - Inference Endpoint',
         value: 'HuggingFace-InferenceEndpoint'
+    },
+    {
+        label: 'SageMaker',
+        value: 'SageMaker'
     }
 ];
+
+export const MODEL_PROVIDER_NAME_MAP = {
+    Bedrock: 'Bedrock',
+    Anthropic: 'Anthropic',
+    HFInfEndpoint: 'HuggingFace-InferenceEndpoint',
+    HuggingFace: 'HuggingFace',
+    SageMaker: 'SageMaker'
+};
+
+export const MODEL_ADVANCED_PARAMETERS_TYPE = {
+    integer: 'integer',
+    string: 'string',
+    boolean: 'boolean',
+    float: 'float',
+    list: 'list',
+    dictionary: 'dictionary'
+};
+
+export const KNOWLEDGE_BASE_PROVIDERS = {
+    kendra: 'Kendra'
+};
+
+export const WIZARD_PAGE_INDEX = {
+    USE_CASE: 0,
+    VPC: 1,
+    MODEL: 2,
+    KNOWLEDGE_BASE: 3
+};
 
 export const INCLUDE_UI_OPTIONS = [
     {
@@ -75,6 +107,13 @@ export const DEFAULT_STEP_INFO = {
         defaultUserEmail: '',
         inError: false
     },
+    vpc: {
+        isVpcRequired: false,
+        existingVpc: false,
+        vpcId: '',
+        subnetIds: [],
+        securityGroupIds: []
+    },
     knowledgeBase: {
         isRagRequired: false,
         knowledgeBaseType: KNOWLEDGE_BASE_TYPES[0],
@@ -85,10 +124,12 @@ export const DEFAULT_STEP_INFO = {
         kendraEdition: KENDRA_EDITIONS[0],
         maxNumDocs: DEFAULT_KENDRA_NUMBER_OF_DOCS,
         inError: false,
-        kendraIndexName: ''
+        kendraIndexName: '',
+        returnDocumentSource: false,
+        outputPathSchema: ''
     },
     model: {
-        modelProvider: MODEL_FAMILY_PROVIDER_OPTIONS[0],
+        modelProvider: { label: '', value: '' },
         apiKey: '',
         modelName: '',
         modelFamily: '',
@@ -98,8 +139,21 @@ export const DEFAULT_STEP_INFO = {
         inError: false,
         temperature: 0.1,
         verbose: false,
-        streaming: false
+        streaming: false,
+        sagemakerInputSchema: JSON.stringify(
+            {
+                input: '<<prompt>>',
+                parameters: {
+                    temperature: '<<temperature>>'
+                }
+            },
+            null,
+            2
+        ),
+        sagemakerOutputSchema: '',
+        sagemakerEndpointName: ''
     }
 };
 
-export const BEDROCK_MODEL_PROVIDERS_WITH_STREAMING = ['amazon', 'anthropic', 'cohere', 'meta'];
+export const MAX_NUM_SUBNETS = 16;
+export const MAX_NUM_SECURITY_GROUPS = 5;

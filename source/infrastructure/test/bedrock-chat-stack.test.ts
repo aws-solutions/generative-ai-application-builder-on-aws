@@ -17,6 +17,7 @@ import * as rawCdkJson from '../cdk.json';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 
 import { BedrockChat } from '../lib/bedrock-chat-stack';
+import { LANGCHAIN_LAMBDA_PYTHON_RUNTIME } from '../lib/utils/constants';
 
 describe('When Chat use case is created', () => {
     let template: Template;
@@ -30,7 +31,7 @@ describe('When Chat use case is created', () => {
         template.hasResourceProperties('AWS::Lambda::Function', {
             'Handler': 'bedrock_handler.lambda_handler',
             'MemorySize': 256,
-            'Runtime': 'python3.11',
+            'Runtime': LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
             'Timeout': 900,
             'Environment': {
                 'Variables': {
@@ -107,6 +108,7 @@ describe('When Chat use case is created', () => {
                             ]
                         }
                     },
+                    Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue()

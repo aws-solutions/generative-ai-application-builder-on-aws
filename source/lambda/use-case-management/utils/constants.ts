@@ -22,6 +22,7 @@ export const POWERTOOLS_METRICS_NAMESPACE_ENV_VAR = 'POWERTOOLS_METRICS_NAMESPAC
 export const USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR = 'USE_CASE_CONFIG_SSM_PARAMETER_PREFIX';
 export const WEBCONFIG_SSM_KEY_ENV_VAR = 'WEBCONFIG_SSM_KEY';
 export const USE_CASES_TABLE_NAME_ENV_VAR = 'USE_CASES_TABLE_NAME';
+export const MODEL_INFO_TABLE_NAME_ENV_VAR = 'MODEL_INFO_TABLE_NAME';
 export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
 export const USE_CASE_API_KEY_SUFFIX_ENV_VAR = 'API_KEY_SUFFIX';
 export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
@@ -34,14 +35,13 @@ export const REQUIRED_ENV_VARS = [
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
     USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR,
     USE_CASES_TABLE_NAME_ENV_VAR,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USE_CASE_API_KEY_SUFFIX_ENV_VAR,
     IS_INTERNAL_USER_ENV_VAR
 ];
 
 export const DEFAULT_LIST_USE_CASES_PAGE_SIZE = 10;
-
-export const CHAT_CONFIG_CFN_PARAMETER_NAME = 'ChatConfigSSMParameterName';
 
 export const TTL_SECONDS = 60 * 60 * 24 * 89; // 89 days, 90 days CFN deleted stack is not available
 export const DYNAMODB_TTL_ATTRIBUTE_NAME = 'TTL';
@@ -91,6 +91,54 @@ export enum CloudWatchMetrics {
 export const enum CHAT_PROVIDERS {
     HUGGING_FACE = 'HuggingFace',
     ANTHROPIC = 'Anthropic',
-    BEDROCK = 'Bedrock'
+    BEDROCK = 'Bedrock',
+    SAGEMAKER = 'SageMaker'
 }
 export const PROVIDERS_REQUIRING_API_KEY = [CHAT_PROVIDERS.HUGGING_FACE.valueOf(), CHAT_PROVIDERS.ANTHROPIC.valueOf()];
+export const EXTERNAL_PROVIDERS = [CHAT_PROVIDERS.HUGGING_FACE.valueOf(), CHAT_PROVIDERS.ANTHROPIC.valueOf()];
+
+export const enum ModelInfoTableKeys {
+    MODEL_INFO_TABLE_PARTITION_KEY = 'UseCase',
+    MODEL_INFO_TABLE_SORT_KEY = 'SortKey',
+    MODEL_INFO_TABLE_PROVIDER_NAME_KEY = 'ModelProviderName',
+    MODEL_INFO_TABLE_MODEL_NAME_KEY = 'ModelName'
+}
+
+export const enum UseCaseTypes {
+    CHAT = 'Chat',
+    RAGChat = 'RAGChat'
+}
+
+export const enum CfnParameterKeys {
+    ExistingKendraIndexId = 'ExistingKendraIndexId',
+    NewKendraIndexName = 'NewKendraIndexName',
+    NewKendraQueryCapacityUnits = 'NewKendraQueryCapacityUnits',
+    NewKendraStorageCapacityUnits = 'NewKendraStorageCapacityUnits',
+    NewKendraIndexEdition = 'NewKendraIndexEdition',
+    DefaultUserEmail = 'DefaultUserEmail',
+    VpcEnabled = 'VpcEnabled',
+    CreateNewVpc = 'CreateNewVpc',
+    ExistingVpcId = 'ExistingVpcId',
+    ExistingPrivateSubnetIds = 'ExistingPrivateSubnetIds',
+    ExistingSecurityGroupIds = 'ExistingSecurityGroupIds',
+    ChatConfigSSMParameterName = 'ChatConfigSSMParameterName',
+    ExistingCognitoUserPoolId = 'ExistingCognitoUserPoolId',
+    ExistingCognitoGroupPolicyTableName = 'ExistingCognitoGroupPolicyTableName',
+    ExistingModelInfoTableName = 'ExistingModelInfoTableName',
+    UseCaseUUID = 'UseCaseUUID',
+    ProviderApiKeySecret = 'ProviderApiKeySecret',
+    ConsentToDataLeavingAWS = 'ConsentToDataLeavingAWS',
+    RAGEnabled = 'RAGEnabled'
+}
+
+// On update, these parameters should keep the previous values
+export const RetainedCfnParameterKeys = [
+    CfnParameterKeys.VpcEnabled,
+    CfnParameterKeys.CreateNewVpc,
+    CfnParameterKeys.ExistingVpcId,
+    CfnParameterKeys.ExistingPrivateSubnetIds,
+    CfnParameterKeys.ExistingSecurityGroupIds
+];
+
+export const ChatRequiredPlaceholders = ['{input}', '{history}'];
+export const RAGChatRequiredPlaceholders = ['{input}', '{context}', '{history}'];

@@ -21,14 +21,13 @@ import {
 import { mockClient } from 'aws-sdk-client-mock';
 import { UseCase } from '../../model/use-case';
 import { ConfigManagement } from '../../ssm/config-management';
-import { CHAT_CONFIG_CFN_PARAMETER_NAME, USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR } from '../../utils/constants';
+import { CfnParameterKeys, USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR } from '../../utils/constants';
 
 describe('When testing performing config management tasks', () => {
     let config: any;
     let cfnParameters: Map<string, string>;
     let ssmMockedClient: any;
     let configManagement: ConfigManagement;
-    let useCase: UseCase;
 
     beforeAll(() => {
         config = {
@@ -52,9 +51,9 @@ describe('When testing performing config management tasks', () => {
         };
         cfnParameters = new Map<string, string>();
         cfnParameters.set('LLMProviderName', 'HuggingFace');
-        cfnParameters.set(CHAT_CONFIG_CFN_PARAMETER_NAME, '/config/fake-id');
+        cfnParameters.set(CfnParameterKeys.ChatConfigSSMParameterName, '/config/fake-id');
 
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AwsSolution/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
         process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR] = '/config';
 
         ssmMockedClient = mockClient(SSMClient);
@@ -77,19 +76,6 @@ describe('When testing performing config management tasks', () => {
 
         it('should update a parameter with new values', async () => {
             const updateConfig = {
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '10'
-                },
-                LlmParams: {
-                    ModelParams: {
-                        param1: { Value: 'value1', Type: 'string' },
-                        param2: { Value: 'value2', Type: 'string' },
-                        param3: { Value: 'value3', Type: 'string' }
-                    },
-                    PromptTemplate: 'Prompt2'
-                }
-            };
-            const expectedConfig = {
                 ConversationMemoryType: 'DDBMemoryType',
                 ConversationMemoryParams: 'ConversationMemoryParams',
                 KnowledgeBaseType: 'Kendra',
@@ -124,23 +110,14 @@ describe('When testing performing config management tasks', () => {
                 '/config/old-fake-id'
             );
 
-            expect(ssmMockedClient.commandCalls(GetParameterCommand).length).toEqual(1);
-
             let putCalls = ssmMockedClient.commandCalls(PutParameterCommand);
             expect(putCalls.length).toEqual(1);
             expect(putCalls[0].args[0].input.Name).toEqual('/config/fake-id');
-            expect(JSON.parse(putCalls[0].args[0].input.Value)).toEqual(expectedConfig);
+            expect(JSON.parse(putCalls[0].args[0].input.Value)).toEqual(updateConfig);
         });
 
         it('should overwrite modelparams from new config', async () => {
             const updateConfig = {
-                LlmParams: {
-                    ModelParams: {
-                        param3: { Value: 'value3', Type: 'string' }
-                    }
-                }
-            };
-            const expectedConfig = {
                 ConversationMemoryType: 'DDBMemoryType',
                 ConversationMemoryParams: 'ConversationMemoryParams',
                 KnowledgeBaseType: 'Kendra',
@@ -173,18 +150,14 @@ describe('When testing performing config management tasks', () => {
                 '/config/old-fake-id'
             );
 
-            expect(ssmMockedClient.commandCalls(GetParameterCommand).length).toEqual(1);
             let putCalls = ssmMockedClient.commandCalls(PutParameterCommand);
-            expect(JSON.parse(putCalls[0].args[0].input.Value)).toEqual(expectedConfig);
+            expect(putCalls.length).toEqual(1);
+            expect(JSON.parse(putCalls[0].args[0].input.Value)).toEqual(updateConfig);
+            expect(ssmMockedClient.commandCalls(DeleteParameterCommand).length).toEqual(1);
         });
 
-        it('should remove modelParams if new udpate config request has empty object', async () => {
+        it('should remove modelParams if new update config request has empty object', async () => {
             const updateConfig = {
-                LlmParams: {
-                    ModelParams: {}
-                }
-            };
-            const expectedConfig = {
                 ConversationMemoryType: 'DDBMemoryType',
                 ConversationMemoryParams: 'ConversationMemoryParams',
                 KnowledgeBaseType: 'Kendra',
@@ -215,10 +188,8 @@ describe('When testing performing config management tasks', () => {
                 '/config/old-fake-id'
             );
 
-            expect(ssmMockedClient.commandCalls(GetParameterCommand).length).toEqual(1);
-
             let putCalls = ssmMockedClient.commandCalls(PutParameterCommand);
-            expect(JSON.parse(putCalls[0].args[0].input.Value)).toEqual(expectedConfig);
+            expect(JSON.parse(putCalls[0].args[0].input.Value)).toEqual(updateConfig);
         });
 
         it('should create a new parameter', async () => {
@@ -275,7 +246,7 @@ describe('When testing performing config management tasks', () => {
             let calls = ssmMockedClient.commandCalls(GetParameterCommand);
             expect(calls.length).toEqual(1);
             expect(calls[0].args[0].input.Name).toEqual('/config/fake-id');
-            expect(response).toEqual(JSON.stringify(config));
+            expect(response).toEqual(config);
         });
 
         afterEach(() => ssmMockedClient.reset());
@@ -354,7 +325,7 @@ describe('When testing performing config management tasks', () => {
                     )
                     .catch((error) => {
                         expect(error).toBeInstanceOf(Error);
-                        expect(error.message).toEqual('Fake get error');
+                        expect(error.message).toEqual('Fake put error');
                     })
             );
         });

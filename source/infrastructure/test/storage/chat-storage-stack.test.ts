@@ -41,19 +41,10 @@ describe('When creating the nested stack for chat storage', () => {
             AllowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
             Description: 'DynamoDB table name for the table which will store the conversation state and history.'
         });
-
-        template.hasParameter('UseCaseUUID', {
-            Type: 'String',
-            AllowedPattern: '^[0-9a-fA-F]{8}$',
-            MaxLength: 8,
-            ConstraintDescription: 'Please provide an 8 character long UUID',
-            Description:
-                'UUID to identify this deployed use case within an application. Please provide an 8 character long UUID. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones'
-        });
     });
 
-    it('should create 1 dynamoDB table', () => {
-        template.resourceCountIs('AWS::DynamoDB::Table', 1);
+    it('should create 2 dynamoDB tables', () => {
+        template.resourceCountIs('AWS::DynamoDB::Table', 2);
 
         template.hasResourceProperties('AWS::DynamoDB::Table', {
             'KeySchema': [

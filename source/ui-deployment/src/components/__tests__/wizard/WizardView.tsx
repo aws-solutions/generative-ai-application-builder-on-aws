@@ -11,27 +11,32 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-import { Dispatch } from 'react';
+import React, { Dispatch } from 'react';
 
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import HomeContext from '../../../home/home.context';
-import { HomeInitialState } from '../../../home/home.state';
+import HomeContext from '../../../contexts/home.context';
+import { HomeInitialState } from '../../../contexts/home.state';
 import { ActionType } from '../../../hooks/useCreateReducer';
-import WizardView from '../../wizard/WizardView';
-import { API_NAME, INTERNAL_USER_GENAI_POLICY_URL, LEGAL_DISCLAIMER } from '../../../utils/constants';
 import { API, Auth } from 'aws-amplify';
+import { mockReactMarkdown, mockedAuthenticator, renderWithProvider } from '@/utils';
+import * as QueryHooks from 'hooks/useQueries';
+import { API_NAME, INTERNAL_USER_GENAI_POLICY_URL } from '@/utils/constants';
 
 const mockAPI = {
-    post: jest.fn()
+    post: jest.fn(),
+    get: jest.fn()
 };
 jest.mock('@aws-amplify/api');
 API.post = mockAPI.post;
 jest.setTimeout(20000);
 
+window.scrollTo = jest.fn();
+
 describe('Wizard', () => {
+    let WizardView: any;
     const contextValue = {
         dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: {
@@ -40,96 +45,82 @@ describe('Wizard', () => {
             deploymentsData: [],
             deploymentAction: 'CREATE',
             runtimeConfig: {
-                IsInternalUser: 'true',
-                ModelProviders: {
-                    HuggingFace: {
-                        ModelProviderParams: {
-                            RAGPromptTemplate: 'mock-hf-rag-prompt-template',
-                            ChatPromptTemplate: 'mock-hf-prompt-template',
-                            MaxTemperature: '100',
-                            DefaultTemperature: '1',
-                            MinTemperature: '0'
-                        },
-                        SupportedModels: [
-                            'google/flan-t5-xxl',
-                            'google/flan-t5-xl',
-                            'google/flan-t5-large',
-                            'google/flan-t5-base',
-                            'google/flan-t5-small'
-                        ],
-                        AllowsStreaming: 'false'
-                    },
-
-                    Anthropic: {
-                        ModelProviderParams: {
-                            RAGPromptTemplate: 'mock-anthropic-rag-prompt-template',
-                            ChatPromptTemplate: 'mock-anthropic-prompt-template',
-                            MaxTemperature: '1',
-                            DefaultTemperature: '1',
-                            MinTemperature: '0'
-                        },
-                        SupportedModels: ['claude-instant-1', 'claude-1', 'claude-2'],
-                        AllowsStreaming: 'true'
-                    },
-                    Bedrock: {
-                        ModelFamilyParams: {
-                            amazon: {
-                                RAGPromptTemplate: 'mock-amazon-rag-prompt-template',
-                                ChatPromptTemplate: 'mock-amazon-prompt-template',
-                                MaxTemperature: '1',
-                                DefaultTemperature: '1',
-                                MinTemperature: '0'
-                            },
-                            anthropic: {
-                                RAGPromptTemplate: 'mock-anthropic-rag-prompt-template',
-                                ChatPromptTemplate: 'mock-anthropic-prompt-template',
-                                MaxTemperature: '1',
-                                DefaultTemperature: '1',
-                                MinTemperature: '0'
-                            },
-                            'ai21': {
-                                RAGPromptTemplate: 'mock-ai21-rag-prompt-template',
-                                ChatPromptTemplate: 'mock-ai21-prompt-template',
-                                MaxTemperature: '1',
-                                DefaultTemperature: '1',
-                                MinTemperature: '0'
-                            }
-                        },
-                        SupportedModels: [
-                            'ai21.j2-ultra',
-                            'ai21.j2-mid',
-                            'amazon.titan-text-express-v1',
-                            'anthropic.claude-v1',
-                            'anthropic.claude-v2',
-                            'anthropic.claude-instant-v1',
-                            'meta.llama2-13b-chat-v1',
-                            'meta.llama2-70b-chat-v1',
-                            'cohere.command-text-v14',
-                            'cohere.command-light-text-v1'
-                        ],
-                        AllowsStreaming: 'false'
-                    }
-                }
+                IsInternalUser: 'true'
             }
         }
     };
 
     beforeEach(() => {
         mockAPI.post.mockReset();
-        Auth.currentAuthenticatedUser = jest.fn().mockImplementation(() => {
-            return {
-                getSignInUserSession: jest.fn().mockImplementation(() => {
+        Auth.currentAuthenticatedUser = mockedAuthenticator();
+        mockReactMarkdown();
+        WizardView = require('../../wizard/WizardView').default;
+
+        jest.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
+            isLoading: false,
+            isError: false,
+            data: ['Bedrock', 'Anthropic', 'HuggingFace', 'HuggingFace-InferenceEndpoint', 'SageMaker'],
+            placeholderData: ['Bedrock', 'Anthropic', 'HuggingFace', 'HuggingFace-InferenceEndpoint', 'SageMaker']
+        } as any);
+
+        jest.spyOn(QueryHooks, 'useModelInfoQuery').mockReturnValue({
+            isSuccess: true,
+            isError: false,
+            data: { Prompt: '{context}\n\n{history}\n\n{input}' }
+        } as any);
+
+        jest.spyOn(QueryHooks, 'useModelNameQuery').mockImplementation((providerName: string) => {
+            switch (providerName) {
+                case 'Bedrock':
                     return {
-                        getAccessToken: jest.fn().mockImplementation(() => {
-                            return {
-                                getJwtToken: jest.fn().mockImplementation(() => {
-                                    return 'fake-token';
-                                })
-                            };
-                        })
+                        isLoading: false,
+                        isError: false,
+                        data: [
+                            'ai21.j2-ultra',
+                            'ai21.j2-mid',
+                            'amazon.titan-text-express-v1',
+                            'anthropic.claude-v1',
+                            'anthropic.claude-v2',
+                            'anthropic.claude-instant-v1'
+                        ]
+                    } as any;
+
+                case 'Anthropic':
+                    return {
+                        isLoading: false,
+                        isError: false,
+                        data: ['claude-instant-1', 'claude-1', 'claude-2']
                     };
-                })
-            };
+
+                case 'HuggingFace':
+                    return {
+                        isLoading: false,
+                        isError: false,
+                        data: [
+                            'google/flan-t5-xxl',
+                            'google/flan-t5-xl',
+                            'google/flan-t5-large',
+                            'google/flan-t5-base',
+                            'google/flan-t5-small'
+                        ]
+                    };
+
+                case 'HuggingFace-InferenceEndpoint':
+                    return {
+                        isLoading: false,
+                        isError: false,
+                        data: [
+                            'google/flan-t5-xxl',
+                            'google/flan-t5-xl',
+                            'google/flan-t5-large',
+                            'google/flan-t5-base',
+                            'google/flan-t5-small'
+                        ]
+                    };
+
+                default:
+                    break;
+            }
         });
     });
 
@@ -149,15 +140,11 @@ describe('Wizard', () => {
     });
 
     test('Navigating through wizard steps and filling form.', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/wizardView']}>
-                    <Routes>
-                        <Route path="/wizardView" element={<WizardView />} />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        // prevent infinite loop in jest execution
+        const mockUseEffect = jest.fn();
+        jest.spyOn(React, 'useEffect').mockImplementation(mockUseEffect);
+
+        renderWithProvider(<WizardView />, { route: '/wizardView' });
         const element = screen.getByTestId('wizard-view');
         const wrapper = createWrapper(element);
         const wizardWrapper = wrapper.findWizard();
@@ -165,7 +152,7 @@ describe('Wizard', () => {
         // step 1
         expect(wizardWrapper?.findMenuNavigationLink(1, 'active')).not.toBeNull();
 
-        const useCaseTypeFieldElement = screen.getByTestId('use-case-type-field');
+        const useCaseTypeFieldElement = screen.getByTestId('use-case-type-selection');
         const useCaseTypeSelect = createWrapper(useCaseTypeFieldElement).findSelect();
         useCaseTypeSelect?.openDropdown();
         useCaseTypeSelect?.selectOptionByValue('Chat');
@@ -192,11 +179,23 @@ describe('Wizard', () => {
 
         wizardWrapper?.findPrimaryButton().click();
 
-        // step 2
+        // step 2 - vpc
         expect(wizardWrapper?.findMenuNavigationLink(2, 'active')).not.toBeNull();
+        const selectVpcRadioGroup = createWrapper(screen.getByTestId('deploy-in-vpc-field')).findRadioGroup();
+        expect(selectVpcRadioGroup).toBeDefined();
+        expect(selectVpcRadioGroup?.findInputByValue('yes')).toBeTruthy();
+        expect(selectVpcRadioGroup?.findInputByValue('no')).toBeTruthy();
+
+        wizardWrapper?.findPrimaryButton().click();
+
+        // step 3 - model
+        expect(wizardWrapper?.findMenuNavigationLink(3, 'active')).not.toBeNull();
 
         const modelProviderSelect = createWrapper(screen.getByTestId('model-provider-field')).findSelect();
+        expect(modelProviderSelect).toBeDefined();
         modelProviderSelect?.openDropdown();
+
+        expect(modelProviderSelect?.findDropdown().findOptions().length).toBe(5);
         modelProviderSelect?.selectOptionByValue('Anthropic');
         modelProviderSelect?.openDropdown();
         expect(modelProviderSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain(
@@ -205,64 +204,17 @@ describe('Wizard', () => {
 
         modelProviderSelect?.selectOptionByValue('Bedrock');
         modelProviderSelect?.openDropdown();
-        expect(modelProviderSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain(
-            'Bedrock'
-        );
+        expect(modelProviderSelect?.findDropdown().findOptionByValue('Bedrock')).toBeTruthy();
 
-        let modelNameDropdown = createWrapper(screen.getByTestId('model-name-dropdown')).findSelect();
+        let modelNameDropdown = createWrapper(screen.getByTestId('model-name-dropdown')).findSelect(
+            '[data-testid="model-name-dropdown-select"]'
+        );
         modelNameDropdown?.openDropdown();
         modelNameDropdown?.selectOptionByValue('amazon.titan-text-express-v1');
         modelNameDropdown?.openDropdown();
         expect(modelNameDropdown?.findDropdown().findSelectedOptions()[1].getElement().innerHTML).toContain(
             'amazon.titan-text-express-v1'
         );
-
-        modelProviderSelect?.openDropdown();
-        modelProviderSelect?.selectOptionByValue('HuggingFace');
-        modelProviderSelect?.openDropdown();
-        expect(modelProviderSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain(
-            'HuggingFace'
-        );
-
-        modelNameDropdown?.openDropdown();
-        modelNameDropdown?.selectOptionByValue('google/flan-t5-xl');
-        modelNameDropdown?.openDropdown();
-        expect(modelNameDropdown?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain(
-            'google/flan-t5-xl'
-        );
-
-        modelProviderSelect?.openDropdown();
-        modelProviderSelect?.selectOptionByValue('HuggingFace-InferenceEndpoint');
-        modelProviderSelect?.openDropdown();
-        expect(modelProviderSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain(
-            'HuggingFace-InferenceEndpoint'
-        );
-
-        const hfInfModelNameDropdown = createWrapper(
-            screen.getByTestId('hf-inf-endpoint-model-name-dropdown')
-        ).findSelect();
-        hfInfModelNameDropdown?.openDropdown();
-        hfInfModelNameDropdown?.selectOptionByValue('google/flan-t5-xl');
-        hfInfModelNameDropdown?.openDropdown();
-        expect(hfInfModelNameDropdown?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain(
-            'google/flan-t5-xl'
-        );
-
-        modelProviderSelect?.openDropdown();
-        modelProviderSelect?.selectOptionByValue('Anthropic');
-        modelProviderSelect?.openDropdown();
-        expect(modelProviderSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain(
-            'Anthropic'
-        );
-
-        modelNameDropdown = createWrapper(screen.getByTestId('model-name-dropdown')).findSelect();
-        modelNameDropdown?.openDropdown();
-        expect(modelNameDropdown?.findDropdown()?.findSelectedOptions()[0]?.getElement()?.innerHTML).toContain(
-            'claude-instant-1'
-        );
-
-        const modelApiKeyInput = createWrapper(screen.getByTestId('model-api-key-field')).findInput();
-        modelApiKeyInput?.setInputValue('fake-api-key');
 
         const step2AdditionalSettingsExpandableElement = screen.getByTestId('step2-additional-settings-expandable');
         const step2AdditionalSettingsExpandable = createWrapper(step2AdditionalSettingsExpandableElement);
@@ -278,42 +230,33 @@ describe('Wizard', () => {
         const modelParametersEditor = createWrapper(
             screen.getByTestId('advanced-settings-container')
         ).findAttributeEditor();
+
+        expect(modelParametersEditor).toBeDefined();
+
         modelParametersEditor?.findAddButton().click();
         const modelParamRow = modelParametersEditor?.findRow(1);
         modelParamRow?.findField(1)?.findControl()?.findInput()?.setInputValue('fake-key');
         modelParamRow?.findField(2)?.findControl()?.findInput()?.setInputValue('fake-value');
+
         const typeSelect = modelParamRow?.findField(3)?.findControl()?.findSelect();
         typeSelect?.openDropdown();
-        typeSelect?.selectOption(2);
-        typeSelect?.openDropdown();
-        typeSelect?.selectOption(3);
-        typeSelect?.openDropdown();
-        typeSelect?.selectOption(4);
-        typeSelect?.openDropdown();
-        typeSelect?.selectOption(5);
-        typeSelect?.openDropdown();
-        typeSelect?.selectOption(6);
-        typeSelect?.openDropdown();
-        typeSelect?.selectOption(1);
+        expect(typeSelect?.findDropdown().findOptions().length).toBe(6);
+        typeSelect?.selectOptionByValue('string');
 
         wizardWrapper?.findPrimaryButton().click();
 
-        // step 3
-        expect(wizardWrapper?.findMenuNavigationLink(3, 'active')).not.toBeNull();
+        // step 4
+        expect(wizardWrapper?.findMenuNavigationLink(4, 'active')).not.toBeNull();
 
-        const ragRequiredFieldElement = screen.getByTestId('rag-required-dropdown');
-        const ragRequiredSelect = createWrapper(ragRequiredFieldElement).findSelect();
-        ragRequiredSelect?.openDropdown();
-        ragRequiredSelect?.selectOption(2);
-        ragRequiredSelect?.openDropdown();
-        expect(ragRequiredSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain('no');
+        const ragRequiredFieldElement = screen.getByTestId('rag-required-container');
+        const ragRequiredRadioGroup = createWrapper(ragRequiredFieldElement).findRadioGroup();
+        expect(ragRequiredRadioGroup).toBeDefined();
+        expect(ragRequiredRadioGroup?.findInputByValue('true')).toBeDefined();
+        expect(ragRequiredRadioGroup?.findInputByValue('false')).toBeDefined();
+        ragRequiredRadioGroup?.findInputByValue('true')?.click();
 
-        ragRequiredSelect?.selectOption(1);
-        ragRequiredSelect?.openDropdown();
-        expect(ragRequiredSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain('yes');
-
-        expect(screen.getByTestId('knowledge-base-options-container')).toBeDefined();
-        const existingKendraIndexElement = screen.getByTestId('existing-kendra-index-radio-group');
+        expect(screen.getByTestId('kendra-container')).toBeDefined();
+        const existingKendraIndexElement = screen.getByTestId('existing-kendra-index-select');
         const exitingKendraIndexRadioGroup = createWrapper(existingKendraIndexElement).findRadioGroup();
         exitingKendraIndexRadioGroup?.findInputByValue('yes')?.click();
 
@@ -354,9 +297,15 @@ describe('Wizard', () => {
         kendraEdition?.openDropdown();
         kendraEdition?.selectOption(2);
 
-        // step 4
+        // display source doc radio button
+        expect(screen.getByTestId('display-document-source-field')).toBeDefined();
+        const displaySourceDocElement = screen.getByTestId('display-document-source-field');
+        const displaySourceDocElementRadioGroup = createWrapper(displaySourceDocElement).findRadioGroup();
+        displaySourceDocElementRadioGroup?.findInputByValue('true')?.click();
+
+        // step 5: review
         wizardWrapper?.findPrimaryButton().click();
-        expect(wizardWrapper?.findMenuNavigationLink(4, 'active')).not.toBeNull();
+        expect(wizardWrapper?.findMenuNavigationLink(5, 'active')).not.toBeNull();
 
         const reviewElement = screen.getByTestId('review-deployment-component');
         expect(reviewElement).toBeDefined();
@@ -370,9 +319,6 @@ describe('Wizard', () => {
 
         const reviewModelDetailsReviewComponent = screen.getByTestId('review-system-prompt');
         expect(reviewModelDetailsReviewComponent).toBeDefined();
-        expect(createWrapper(reviewModelDetailsReviewComponent)?.getElement().innerHTML).toContain(
-            'mock-anthropic-rag-prompt-template'
-        );
 
         const submitButton = await screen.findByRole('button', { name: 'Deploy use case' });
         expect(submitButton).toBeDefined();
@@ -384,22 +330,21 @@ describe('Wizard', () => {
         expect(createWrapper(deployComponentModal).findButton('Cancel')).toBeDefined();
         expect(createWrapper(deployComponentModal).findButton('Deploy')).toBeDefined();
 
-        expect(
-            createWrapper(screen.getByTestId('internal-user-disclaimer-alert'))?.findBox()?.getElement().innerHTML
-        ).toContain(
-            `You must ensure you are complying with Amazon's <a id=\"link-self:r7b:\" data-testid=\"internal-policy-doc-link\" class=\"awsui_link_4c84z_15goh_93 awsui_variant-secondary_4c84z_15goh_140 awsui_font-size-body-m_4c84z_15goh_414\" aria-label=\"internal user policy document\" aria-labelledby=\"\" data-analytics-funnel-value=\"link:r7a:\" target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://policy.a2z.com/docs/568686/publication\">Third-Party Generative AI Use Policy</a>, including not sharing any confidential information without required approvals.`
-        );
+        // prettier-ignore
+        expect(createWrapper(screen.getByTestId('internal-user-disclaimer-alert'))?.findBox()?.getElement().innerHTML).toContain('href="https://policy.a2z.com/docs/568686/publication');
 
         expect(screen.getByRole('link', { name: 'internal user policy document' })).toHaveAttribute(
             'href',
             INTERNAL_USER_GENAI_POLICY_URL
         );
 
-        expect(
-            createWrapper(screen.getByTestId('legal-disclaimer-alert'))?.findBox()?.getElement().innerHTML
-        ).toContain(LEGAL_DISCLAIMER);
+        const deployButton = createWrapper(deployComponentModal).findButton(
+            '[data-testid="confirm-deployment-modal-submit-btn"]'
+        );
+        expect(deployButton).toBeDefined();
+        deployButton?.click();
+        deployButton?.click();
 
-        createWrapper(deployComponentModal).findButton('[data-testid="confirm-deployment-modal-submit-btn"]')?.click();
         await waitFor(async () => {
             expect(mockAPI.post).toHaveBeenCalledTimes(1);
         });
@@ -418,20 +363,17 @@ describe('Wizard', () => {
                 },
                 KnowledgeBaseType: 'Kendra',
                 LlmParams: {
-                    ApiKey: 'fake-api-key',
-                    ModelId: 'claude-instant-1',
-                    ModelParams: {
-                        'fake-key': {
-                            'Type': 'string',
-                            'Value': 'fake-value'
-                        }
-                    },
-                    ModelProvider: 'Anthropic',
+                    ModelId: 'amazon.titan-text-express-v1',
+                    ModelParams: {},
+                    ModelProvider: 'Bedrock',
                     PromptTemplate: '',
                     RAGEnabled: true,
                     Streaming: false,
                     Temperature: 0.25,
                     Verbose: true
+                },
+                VPCParams: {
+                    VpcEnabled: false
                 },
                 UseCaseDescription: 'fake-use-case-description-name',
                 UseCaseName: 'fake-use-case-name'

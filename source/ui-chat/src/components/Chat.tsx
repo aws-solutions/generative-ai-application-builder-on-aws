@@ -13,15 +13,16 @@
 
 import { Alert, Button, Container, StatusIndicatorProps } from '@cloudscape-design/components';
 import { Auth } from 'aws-amplify';
-import { MutableRefObject, memo, useCallback, useContext, useState, useRef, useEffect } from 'react';
+import { MutableRefObject, memo, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import HomeContext from '../home/home.context';
-import { Conversation, Message } from '../types/chat';
+import { Conversation, Message, MessageWithSource, SourceDocument } from '../types/chat';
+import { END_CONVERSATION_TOKEN, SOURCE_DOCS_RESPONSE_PAYLOAD_KEY } from '../utils/constants';
 import { saveConversation } from '../utils/conversation';
 import './Chat.css';
 import { ChatInput } from './ChatInput';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
 import { PromptTemplate } from './PromptTemplate';
-import { END_CONVERSATION_TOKEN } from '../utils/constants';
+
 interface Props {
     stopConversationRef: MutableRefObject<boolean>;
     socketUrl: string;
@@ -39,15 +40,18 @@ export async function generateToken() {
 
 // prettier-ignore
 export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOSONAR - This is a whole React component and should not be treated like other functions
+    
     const {
-        state: { selectedConversation, promptTemplate },
+        state: { selectedConversation, promptTemplate, useCaseConfig },
         dispatch: homeDispatch
     } = useContext(HomeContext);
 
     const [showSettings, setShowSettings] = useState<boolean>(true);
     const [socketState, setSocketState] = useState<number>(WebSocket.CLOSED);
-    const [authorized, setAuthorized] = useState<boolean>(true)
+    const [authorized, setAuthorized] = useState<boolean>(true);
     const updatedConversationRef = useRef(selectedConversation);
+
+    const displaySourceDocuments = useCaseConfig.KnowledgeBaseParams.ReturnSourceDocs;
 
     let socketRef = useRef<WebSocket | null>(null);
 
@@ -57,34 +61,37 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
 
     const scrollToBottom = () => {
         window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-};
+    };
 
-    const connectWebSocket = useCallback(async (firstConnection = false) => {
-        try {
-            const authToken = await generateToken();
-            const newSocket = new WebSocket(socketUrl + '?Authorization=' + authToken);
-            setSocketState(WebSocket.CONNECTING);
-            socketRef.current = newSocket;
-            newSocket.addEventListener('open', () => {
-                setSocketState(WebSocket.OPEN);
-            });
+    const connectWebSocket = useCallback(
+        async (firstConnection = false) => {
+            try {
+                const authToken = await generateToken();
+                const newSocket = new WebSocket(socketUrl + '?Authorization=' + authToken);
+                setSocketState(WebSocket.CONNECTING);
+                socketRef.current = newSocket;
+                newSocket.addEventListener('open', () => {
+                    setSocketState(WebSocket.OPEN);
+                });
 
-            newSocket.addEventListener('close', () => {
-                setSocketState(WebSocket.CLOSED);
-            });
+                newSocket.addEventListener('close', () => {
+                    setSocketState(WebSocket.CLOSED);
+                });
 
-            newSocket.addEventListener('error', (error) => {
-                console.error('Socket error: ', error);
-                setSocketState(4);
-                if (firstConnection) {
-                    setAuthorized(false)
-                }
-            });
-        } catch (error) {
-            console.error('Websocket connection error: ', error);
-            // handle errors and reconnect after short delay
-        }
-    }, [socketUrl]);
+                newSocket.addEventListener('error', (error) => {
+                    console.error('Socket error: ', error);
+                    setSocketState(4);
+                    if (firstConnection) {
+                        setAuthorized(false);
+                    }
+                });
+            } catch (error) {
+                console.error('Websocket connection error: ', error);
+                // handle errors and reconnect after short delay
+            }
+        },
+        [socketUrl]
+    );
 
     const getSocket = useCallback(async () => {
         let socket = socketRef.current;
@@ -169,39 +176,19 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                     }
                     const reader = data.getReader();
                     let done = false;
-                    let text = '';
+
+                    // this creates an empty message box, that gets propagated later
                     while (!done) {
                         const { done: doneReading } = await reader.read();
                         done = doneReading;
                         const chunkValue = '';
-                        text += chunkValue;
+                        const initSourceDocuments: SourceDocument[] = [];
                         if (isFirst) {
                             isFirst = false;
-                            const updatedMessages: Message[] = [
+                            const updatedMessages: MessageWithSource[] = [
                                 ...updatedConversation.messages,
-                                { role: 'assistant', content: chunkValue }
+                                { role: 'assistant', content: chunkValue, sourceDocuments: initSourceDocuments }
                             ];
-                            updatedConversation = {
-                                ...updatedConversation,
-                                messages: updatedMessages
-                            };
-                            homeDispatch({
-                                field: 'selectedConversation',
-                                value: updatedConversation
-                            });
-                            updatedConversationRef.current = updatedConversation;
-                        } else {
-                            const updatedMessages: Message[] = updatedConversation.messages.map(
-                                (message: any, index: any) => {
-                                    if (index === updatedConversation.messages.length - 1) {
-                                        return {
-                                            ...message,
-                                            content: text
-                                        };
-                                    }
-                                    return message;
-                                }
-                            );
                             updatedConversation = {
                                 ...updatedConversation,
                                 messages: updatedMessages
@@ -215,7 +202,7 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                     }
                     saveConversation(updatedConversation);
                     homeDispatch({ field: 'messageIsStreaming', value: false });
-                    scrollToBottom()
+                    scrollToBottom();
                 }
             } catch (error) {
                 console.error('Error while sending message: ', error);
@@ -224,40 +211,68 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
         [selectedConversation, stopConversationRef, getSocket, promptTemplate]
     );
 
+    const isStreamingComplete = (response: any) => {
+        return (
+            !response.data ||
+            response.data === END_CONVERSATION_TOKEN ||
+            response.errorMessage === END_CONVERSATION_TOKEN
+        );
+    };
+
+    const isSendingReferences = (response: any) => {
+        return displaySourceDocuments && response[SOURCE_DOCS_RESPONSE_PAYLOAD_KEY] !== undefined;
+    };
+
+    const parseReferenceOutput = (response: any): SourceDocument | undefined => {
+        const sourceDocsResponse = response[SOURCE_DOCS_RESPONSE_PAYLOAD_KEY];
+        return sourceDocsResponse as SourceDocument;
+    };
+
     const processResponse = (event: any) => {
         let response = JSON.parse(event.data);
+
         if (!event.returnValue) {
             homeDispatch({ field: 'loading', value: false });
             homeDispatch({ field: 'messageIsStreaming', value: false });
             return;
         }
         let text = '';
-        
+        let sourceDocument: SourceDocument | undefined;
+
         if (response.errorMessage) {
             text += response.errorMessage;
             homeDispatch({ field: 'messageIsStreaming', value: false });
             homeDispatch({ field: 'loading', value: false });
-        } else if (!response.data || response.data === END_CONVERSATION_TOKEN || response.errorMessage === END_CONVERSATION_TOKEN) {
+        } else if (isSendingReferences(response)) {
+            sourceDocument = parseReferenceOutput(response);
+        } else if (isStreamingComplete(response)) {
             homeDispatch({ field: 'messageIsStreaming', value: false });
             homeDispatch({ field: 'loading', value: false });
             return;
         } else {
             text += response.data;
-        }  
+        }
 
-        const updatedMessages: Message[] = updatedConversationRef.current!.messages.map((message: any, index: any) => {
-            if (index === updatedConversationRef.current!.messages.length - 1) {
-                return {
-                    ...message,
-                    content: message.content + text
-                };
+        const updatedMessagesWithSource: MessageWithSource[] = updatedConversationRef.current!.messages.map(
+            (message: any, index: any) => {
+                if (index === updatedConversationRef.current!.messages.length - 1) {
+                    let updatedMessage = {
+                        ...message,
+                        content: message.content + text
+                    };
+
+                    if (sourceDocument !== undefined && Object.keys(sourceDocument).length > 0) {
+                        updatedMessage.sourceDocuments = [...message.sourceDocuments, sourceDocument];
+                    }
+                    return updatedMessage;
+                }
+                return message;
             }
-            return message;
-        });
+        );
 
         const newUpdatedConversation = {
             ...updatedConversationRef.current!,
-            messages: updatedMessages,
+            messages: updatedMessagesWithSource,
             id: response.conversationId
         };
 
@@ -267,7 +282,7 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
         });
         updatedConversationRef.current = newUpdatedConversation;
         saveConversation(newUpdatedConversation);
-        scrollToBottom()
+        scrollToBottom();
     };
 
     const handleSettings = (show = false) => {
@@ -308,8 +323,18 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                 {
                     <>
                         <div className="sticky top-0 z-10 flex justify-center bg-neutral-100 py-2">
-                            <Button iconName="settings" variant="icon" onClick={() => handleSettings(!showSettings)} data-testid="settings-button"/>
-                            <Button iconName="refresh" variant="icon" onClick={onClearAll} data-testid="clear-convo-button" />
+                            <Button
+                                iconName="settings"
+                                variant="icon"
+                                onClick={() => handleSettings(!showSettings)}
+                                data-testid="settings-button"
+                            />
+                            <Button
+                                iconName="refresh"
+                                variant="icon"
+                                onClick={onClearAll}
+                                data-testid="clear-convo-button"
+                            />
                         </div>
                         {showSettings && (
                             <>
@@ -332,7 +357,12 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                                 <div className="chatbox">
                                     <Container>
                                         {selectedConversation?.messages.map((message: any, index: any) => (
-                                            <MemoizedChatMessage key={index} message={message} messageIndex={index} /> // NOSONAR - array index is a stable identifier
+                                            <MemoizedChatMessage
+                                                key={index} //NOSONAR - typescript:S6479 - index value required
+                                                message={message}
+                                                messageIndex={index}
+                                                displaySourceConfigFlag={displaySourceDocuments}
+                                            /> // NOSONAR - array index is a stable identifier
                                         ))}
                                     </Container>
                                 </div>
@@ -354,9 +384,14 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
             </div>
         );
     }
-    return (<div><Alert statusIconAriaLabel="Error"
-    type="error"
-    header="Connection failed. Please ensure you have proper access to the deployment and are logged in with the correct credentials."></Alert></div>)
-    
+    return (
+        <div>
+            <Alert
+                statusIconAriaLabel="Error"
+                type="error"
+                header="Connection failed. Please ensure you have proper access to the deployment and are logged in with the correct credentials."
+            ></Alert>
+        </div>
+    );
 });
 Chat.displayName = 'Chat';

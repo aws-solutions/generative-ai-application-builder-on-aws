@@ -47,6 +47,114 @@ export const TOOLS_CONTENT = {
             ]
         }
     },
+    vpc: {
+        default: {
+            title: 'Select VPC Configuration',
+            content: (
+                <Box variant="p">
+                    Use cases can be optionally deployed with a Virtual Private Cloud (VPC) configuration. Customers
+                    have the option of allowing Generative AI Application Builder on AWS to create a VPC for a
+                    deployment, or use an existing VPC from their AWS account. Use this page to configure the optional
+                    VPC configuration to be used by the deployment.
+                </Box>
+            ),
+            links: [
+                {
+                    href: IG_DOCS.VPC,
+                    text: 'VPC'
+                }
+            ]
+        },
+        existingVPC: {
+            title: 'New or Existing VPC',
+            content: (
+                <Box variant="p">
+                    If <b>No</b> is selected, the solution will build the VPC, it will deploy as a 2-AZ architecture by
+                    default with a CIDR range <b>10.10.0.0/20</b>. The NAT Gateways are created in each of the public
+                    subnets and lambda functions are configured to create the Elastic Network Interface (ENIs) in the
+                    private subnets. Additionally, this configuration creates route tables and its entries, security
+                    groups and its rules, network ACLs, VPC endpoints (Gateway and Interface endpoints).
+                </Box>
+            ),
+            links: [
+                {
+                    href: IG_DOCS.VPC,
+                    text: 'VPC'
+                }
+            ]
+        },
+        byoVpc: {
+            title: 'Bring Your Own VPC',
+            content: (
+                <SpaceBetween size="xs">
+                    <Box variant="p">
+                        Use this page to configure the optional VPC to be used by the deployment. When deploying the
+                        solution with a VPC, you have the option to use an existing VPC in your AWS account and region.
+                        To ensure high availability, it is recommended that your VPC be available in at least 2
+                        availability zones. Your VPC should also have the following VPC Endpoints and their associated
+                        IAM policies for your VPC and route table configurations:
+                        <ul>
+                            <li>Gateway endpoint for Amazon DynamoDB</li>
+                            <li>Interface endpoint for Amazon CloudWatch</li>
+                            <li>
+                                Interface endpoint for AWS Systems Manager Parameter Store (Note: the solution only
+                                requires com.amazonaws.region.ssm)
+                            </li>
+                            <li>
+                                <i>Optional:</i> if the deployment will use Amazon Kendra as a knowledge base, then an
+                                interface endpoint for Amazon Kendra is needed
+                            </li>
+                            <li>
+                                <i>Optional:</i> if the deployment will use any LLM under Amazon Bedrock, then an
+                                interface endpoint for Amazon Bedrock is needed (Note: the solution only requires
+                                com.amazonaws.region.bedrock-runtime)
+                            </li>
+                            <li>
+                                <i>Optional:</i> if the deployment will use Amazon SageMaker for the LLM, then an
+                                interface endpoint for Amazon SageMaker is needed
+                            </li>
+                            <li>
+                                <i>Optional:</i> if the deployment uses the Anthropic or HuggingFace connectors, then an
+                                API key is used meaning that an interface endpoint for AWS Secrets Manager is needed
+                            </li>
+                        </ul>
+                    </Box>
+
+                    <Box variant="h4">VPC ID</Box>
+
+                    <Box variant="p">
+                        The VPC ID is assigned when a VPC is created. In the VPC console choose{' '}
+                        <strong>Your VPCs</strong> on the left. Choose the VPC-ID that you want to use. VPC IDs can also
+                        be retrieved using the AWS CLI with the <Box variant="code">aws ec2 describe-vpcs</Box> command.
+                    </Box>
+
+                    <Box variant="h4">Subnets</Box>
+                    <Box variant="p">
+                        To locate the subnet IDs for the subnets used by the VPC, open the VPC console. Locate the VPC
+                        you are using, and at least two subnets in different availibility zones. Choose Subnets on the
+                        left, and find the correct Subnet ID.
+                    </Box>
+
+                    <Box variant="h4">Security Groups</Box>
+                    <Box variant="p">
+                        The security group contains rules that control the inbound and outbound network traffic. In the
+                        VPC console, choose Security groups on the left, and find the correct group ID.
+                    </Box>
+                </SpaceBetween>
+            ),
+
+            links: [
+                {
+                    href: IG_DOCS.VPC,
+                    text: 'VPC'
+                },
+                {
+                    href: IG_DOCS.VPC_CONSOLE,
+                    text: 'VPC Console'
+                }
+            ]
+        }
+    },
     model: {
         default: {
             title: 'Select model',
@@ -162,6 +270,28 @@ export const TOOLS_CONTENT = {
                 }
             ]
         },
+        endpointName: {
+            title: 'SageMaker Inference Endpoint Name',
+            content: (
+                <div>
+                    <Box variant="p">
+                        1. The name of the SageMaker Endpoint you wish to use. DevOps users can obtain this from the AWS
+                        console. Note that the endpoint must be in the same account and region as the solution is
+                        deployed in
+                    </Box>
+                </div>
+            ),
+            links: [
+                {
+                    href: IG_DOCS.SUPPORTED_LLMS,
+                    text: 'Supported Models'
+                },
+                {
+                    href: IG_DOCS.CHOOSING_LLMS,
+                    text: 'Choosing the right LLM'
+                }
+            ]
+        },
         apiKey: {
             title: 'API key',
             content: (
@@ -207,6 +337,71 @@ export const TOOLS_CONTENT = {
                 {
                     href: IG_DOCS.TIPS_PROMPT_LIMITS,
                     text: 'Tips for managing prompt limits'
+                }
+            ]
+        },
+        sagemakerHelpPanel: {
+            title: 'Using SageMaker Endpoint',
+            content: (
+                <SpaceBetween size="xs">
+                    <Box variant="p">
+                        SageMaker is available as a Model Provider for Text use cases. This feature allows you to use a
+                        SageMaker Inference Endpoint already existing within the AWS account in the solution.
+                    </Box>
+                    <Box variant="h4">SageMaker Endpoint Name</Box>
+                    <Box variant="p">
+                        The name of the SageMaker Endpoint you wish to use. DevOps users can obtain this from the AWS
+                        console. Note that the endpoint must be in the same account and region as the solution is
+                        deployed in.
+                    </Box>
+
+                    <Box variant="h4">Input Payload Schema</Box>
+                    <Box variant="p">
+                        The schema of the input payload expected by the endpoint. To support the widest set of
+                        endpoints, Admin users are required to tell the solution how their endpoint expects the input to
+                        be formatted. In the model selection wizard, provide the JSON schema for the solution to send to
+                        the endpoint. Placeholders can be added to inject static and dynamic values into the request
+                        payload. The available options are:
+                        <ul>
+                            <li>
+                                <b>Mandatory placeholders:</b> {'<<prompt>>'} will be dynamically replaced with the full
+                                input (e.g. history, context, and user input as per the prompt template) to be sent to
+                                the SageMaker endpoint at runtime.
+                            </li>
+                            <li>
+                                <b>Optional placeholders:</b> {'<<temperature>>'}, as well as any parameters defined in
+                                advanced model parameters can be provided to the endpoint. Any string containing a
+                                placeholder by enclosed in {'<< and >>'} (e.g. {'<<max_new_tokens>>'}) will be replaced
+                                by the value of the advanced model parameter of the same name.
+                            </li>
+                        </ul>
+                    </Box>
+
+                    <Box variant="h4">Output Path</Box>
+                    <Box variant="p">
+                        The location of the LLMs generated string response within the output payload. This must be
+                        supplied as a JSONPath expression to indicate where the final text response shown to users is
+                        expected to be accessed from within the endpoint's return object/response.
+                    </Box>
+
+                    <Box variant="h4">Note</Box>
+                    <Box variant="p">
+                        SageMaker now supports hosting multiple models behind the same endpoint, and this is the default
+                        configuration when deploying an endpoint in the current version of SageMaker Studio (i.e. not
+                        Studio Classic). If your endpoint is configured in this way, you will be required to add
+                        “InferenceComponentName” to the advanced model parameters section, with a value corresponding to
+                        the name of the model you wish to use.
+                    </Box>
+                </SpaceBetween>
+            ),
+            links: [
+                {
+                    href: IG_DOCS.SAGEMAKER_CREATE_ENDPOINT,
+                    text: 'Creating a SageMaker Endpoint'
+                },
+                {
+                    href: IG_DOCS.SAGEMAKER_USE,
+                    text: 'Using a SageMaker Endpoint'
                 }
             ]
         }

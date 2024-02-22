@@ -25,17 +25,18 @@ import {
     UpdateStackCommandOutput
 } from '@aws-sdk/client-cloudformation';
 import { SSMClient } from '@aws-sdk/client-ssm';
+import { parse, validate } from '@aws-sdk/util-arn-parser';
 import { customAwsConfig } from 'aws-node-user-agent-config';
-import { StackInfo } from '../model/list-use-cases';
+import { StackInfo, UseCaseRecord } from '../model/list-use-cases';
 import { UseCase } from '../model/use-case';
 import { logger, metrics, tracer } from '../power-tools-init';
+import { CloudWatchMetrics } from '../utils/constants';
 import {
     CreateStackCommandInputBuilder,
     DeleteStackCommandInputBuilder,
     UpdateStackCommandInputBuilder
 } from './stack-operation-builder';
 import { DescribeStacksCommandInputBuilder } from './stack-view-builder';
-import { CloudWatchMetrics } from '../utils/constants';
 
 export interface UseCaseStackDetails {
     status: string | undefined;
@@ -48,6 +49,11 @@ export interface UseCaseStackDetails {
     useCaseUUID: string | undefined;
     ragEnabled: string | undefined;
     providerApiKeySecret: string | undefined;
+    vpcEnabled: string | undefined;
+    createNewVpc: string | undefined;
+    vpcId: string | undefined,
+    privateSubnetIds: string[] | undefined,
+    securityGroupIds: string[] | undefined
 }
 
 /**
@@ -142,6 +148,14 @@ export class StackManagement {
      * Method to view the details of a use case stack
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###getStackDetails' })
+    public async getStackDetailsFromUseCaseRecord(useCaseRecord: UseCaseRecord): Promise<UseCaseStackDetails> {
+        return await this.getStackDetails(this.createStackInfoFromDdbRecord(useCaseRecord));
+    }
+
+    /**
+     * Method to view the details of a use case stack
+     */
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###getStackDetails' })
     public async getStackDetails(stackInfo: StackInfo): Promise<UseCaseStackDetails> {
         const input = await new DescribeStacksCommandInputBuilder(stackInfo).build(); //NOSONAR - removing await, input is empty
         const command = new DescribeStacksCommand(input);
@@ -178,6 +192,10 @@ export class StackManagement {
             return stackDetails.Outputs?.find((param) => param.OutputKey === key)?.OutputValue;
         };
 
+        const findListOutputValue = (key: string): string[] | undefined => {
+            return findOutputValue(key)?.split(',');
+        };
+
         return {
             status: stackDetails.StackStatus,
             chatConfigSSMParameterName: findParameterValue('ChatConfigSSMParameterName'),
@@ -188,7 +206,35 @@ export class StackManagement {
             kendraIndexId: findOutputValue('KendraIndexId'),
             cloudFrontWebUrl: findOutputValue('CloudFrontWebUrl'),
             cloudwatchDashboardUrl: findOutputValue('CloudwatchDashboardUrl'),
-            providerApiKeySecret: findParameterValue('ProviderApiKeySecret')
+            providerApiKeySecret: findParameterValue('ProviderApiKeySecret'),
+            vpcEnabled: findParameterValue('VpcEnabled'),
+            createNewVpc: findParameterValue('CreateNewVpc'),
+            vpcId: findOutputValue('VpcId'),
+            privateSubnetIds: findListOutputValue('PrivateSubnetIds'),
+            securityGroupIds: findListOutputValue('SecurityGroupIds')
         };
+    };
+
+    /**
+     *
+     * @param useCaseRecord Use case record object created from DDB record
+     * @returns
+     */
+    private createStackInfoFromDdbRecord = (useCaseRecord: UseCaseRecord): StackInfo => {
+        console.debug(`useCaseRecord: ${JSON.stringify(useCaseRecord)}`);
+        if (!validate(useCaseRecord.StackId)) {
+            throw new Error(`Invalid stackId ARN provided in DDB record: ${useCaseRecord.StackId}`);
+        }
+        const parsedArn = parse(useCaseRecord.StackId);
+
+        // parsedArn.resource has the form `stack/stack-name/unique-id`
+        // `stack/` has to be removed from the resource to get the valid stack name
+
+        return {
+            stackArn: useCaseRecord.StackId,
+            stackId: parsedArn.resource.replace('stack/', ''),
+            stackInstanceAccount: parsedArn.accountId,
+            stackInstanceRegion: parsedArn.region
+        } as StackInfo;
     };
 }

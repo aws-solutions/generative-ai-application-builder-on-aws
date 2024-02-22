@@ -121,8 +121,7 @@ describe('when local bundling is successful lambda assets', () => {
                     `cd ${path.resolve('../infrastructure/test/mock-lambda-func/python-lambda')}`,
                     'rm -fr .venv*',
                     'python3 -m venv .venv',
-                    '. .venv/bin/activate',
-                    'pip3 install -r requirements.txt -t '
+                    '. .venv/bin/activate'
                 ].join(' && ')
             ),
             path.resolve('../infrastructure/test/mock-lambda-func/python-lambda'),
@@ -160,8 +159,7 @@ describe('when local bundling is successful lambda assets', () => {
                     `cd ${path.resolve('../infrastructure/test/mock-lambda-func/python-lambda')}`,
                     'rm -fr .venv*',
                     'python3 -m venv .venv',
-                    '. .venv/bin/activate',
-                    'python -m pip install --python-version 3.11 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -r requirements.txt -t '
+                    '. .venv/bin/activate'
                 ].join(' && ')
             ),
             path.resolve('../infrastructure/test/mock-lambda-func/python-lambda'),
@@ -276,8 +274,9 @@ describe('when local bundling of assets is not successful', () => {
                 'mkdir -p ../infrastructure/test/mock-lambda-func/python-lambda/',
                 'rm -fr .venv*',
                 'cp -au /asset-input/* ../infrastructure/test/mock-lambda-func/python-lambda/',
-                'pip3 install -qr requirements.txt -t ../infrastructure/test/mock-lambda-func/python-lambda/',
-                'rm -fr ../infrastructure/test/mock-lambda-func/python-lambda/.coverage'
+                'python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && poetry run pip install -t ../infrastructure/test/mock-lambda-func/python-lambda dist/*.whl',
+                "find ../infrastructure/test/mock-lambda-func/python-lambda -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete  -o -type d -name dist -delete",
+                'rm -fr dist'
             ].join(' && ')
         ]);
     });
@@ -303,8 +302,9 @@ describe('when local bundling of assets is not successful', () => {
                 'mkdir -p ../infrastructure/test/mock-lambda-func/python-lambda/',
                 'rm -fr .venv*',
                 'cp -au /asset-input/* ../infrastructure/test/mock-lambda-func/python-lambda/',
-                'python -m pip install --python-version 3.11 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -qr requirements.txt -t ../infrastructure/test/mock-lambda-func/python-lambda/',
-                'rm -fr ../infrastructure/test/mock-lambda-func/python-lambda/.coverage'
+                'python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && poetry run pip install --python-version 3.11 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -q -t ../infrastructure/test/mock-lambda-func/python-lambda dist/*.whl',
+                "find ../infrastructure/test/mock-lambda-func/python-lambda -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete",
+                'rm -fr dist'
             ].join(' && ')
         ]);
     });

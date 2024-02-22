@@ -19,7 +19,9 @@ import { AwsNodeSdkLibLayer } from '../../lib/layers/runtime-libs';
 import { PythonLangchainLayer } from '../../lib/layers/shared-lib';
 import {
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
-    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME
 } from '../../lib/utils/constants';
 
 describe('When injecting Nodejs shared library and aws-sdk library layer', () => {
@@ -33,7 +35,7 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['nodejs18.x'],
+            CompatibleRuntimes: [GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME.name, COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name],
             Content: Match.anyValue()
         });
 
@@ -54,7 +56,7 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
 describe('When injecting Nodejs shared library and aws-sdk library layer', () => {
     it('should throw an exception if the runtime is python', () => {
         try {
-            buildStack(lambda.Runtime.PYTHON_3_8);
+            buildStack(COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME);
         } catch (error) {
             expect((error as Error).message).toEqual(
                 `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [nodejs18.x])`
@@ -74,7 +76,10 @@ describe('When injecting Python shared library and boto3 library layer', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['python3.8', 'python3.9', 'python3.10', 'python3.11'],
+            CompatibleRuntimes: [
+                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
+                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
+            ],
             Content: Match.anyValue()
         });
 
@@ -105,7 +110,10 @@ describe('When injecting the LangChain shared layer', () => {
                 new PythonLangchainLayer(stack, 'PythonLangchainLayer', {
                     entry: '../lambda/layers/custom_boto3_init',
                     description: 'A layer for LangChain Python functions',
-                    compatibleRuntimes: [lambda.Runtime.PYTHON_3_11]
+                    compatibleRuntimes: [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
+                    ]
                 })
             ]
         });
@@ -117,7 +125,10 @@ describe('When injecting the LangChain shared layer', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: ['python3.11'],
+            CompatibleRuntimes: [
+                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
+                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
+            ],
             Content: Match.anyValue()
         });
 
@@ -146,7 +157,7 @@ function buildStack(runtime: lambda.Runtime): cdk.Stack {
                 new AwsNodeSdkLibLayer(stack, 'AWSSDK', {
                     entry: '../lambda/layers/aws-sdk-lib',
                     description: 'AWS SDK layer',
-                    compatibleRuntimes: [lambda.Runtime.NODEJS_18_X]
+                    compatibleRuntimes: [GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME, COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME]
                 })
             ]
         });
@@ -160,10 +171,8 @@ function buildStack(runtime: lambda.Runtime): cdk.Stack {
                     entry: '../lambda/layers/custom_boto3_init',
                     description: 'A layer for Python Lambda functions',
                     compatibleRuntimes: [
-                        lambda.Runtime.PYTHON_3_8,
-                        lambda.Runtime.PYTHON_3_9,
-                        lambda.Runtime.PYTHON_3_10,
-                        lambda.Runtime.PYTHON_3_11
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
                     ]
                 })
             ]

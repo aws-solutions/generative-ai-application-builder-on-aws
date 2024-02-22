@@ -37,7 +37,7 @@ export class KendraKnowledgeBaseParameters {
     public readonly useCaseUUID: string;
 
     /**
-     * Name of the new kendra index to be created. Will have useCaseUUID appended.
+     * Name of the new Kendra index to be created. Will have useCaseUUID appended.
      */
     public readonly kendraIndexName: string;
 
@@ -61,6 +61,16 @@ export class KendraKnowledgeBaseParameters {
      */
     public readonly kendraIndexEdition: string;
 
+    /**
+     * The custom resource lambda arn
+     */
+    public customResourceLambdaArn: string;
+
+    /**
+     * The custom resource lambda role arn
+     */
+    public customResourceLambdaRoleArn: string;
+
     constructor(stack: IConstruct) {
         this.useCaseUUID = new cdk.CfnParameter(stack, 'UseCaseUUID', {
             type: 'String',
@@ -76,7 +86,7 @@ export class KendraKnowledgeBaseParameters {
             default: DEFAULT_NEW_KENDRA_INDEX_NAME,
             maxLength: 64,
             allowedPattern: '^[0-9a-zA-Z-]{1,64}$',
-            description: 'Name of the new kendra index to be created. Will have useCaseUUID appended'
+            description: 'Name of the new Kendra index to be created. Will have useCaseUUID appended'
         }).valueAsString;
 
         this.queryCapacityUnits = new cdk.CfnParameter(stack, 'QueryCapacityUnits', {
@@ -105,6 +115,20 @@ export class KendraKnowledgeBaseParameters {
             description: 'Indicates whether the index is a Enterprise Edition index or a Developer Edition index',
             constraintDescription: 'You can only choose between "DEVELOPER_EDITION" OR "ENTERPRISE_EDITION"'
         }).valueAsString;
+
+        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
+            type: 'String',
+            description: 'The custom resource lambda arn',
+            allowedPattern: '^arn:aws[a-zA-Z-]*:lambda:[a-z0-9-]+:\\d{12}:function:[a-zA-Z0-9-_]+$',
+            constraintDescription: 'Please provide a valid lambda arn.'
+        }).valueAsString;
+
+        this.customResourceLambdaRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
+            type: 'String',
+            description: 'The custom resource lambda role arn',
+            allowedPattern: '^arn:aws[a-zA-Z-]*:iam::\\d{12}:role/[a-zA-Z_0-9+=,.@\\-_/]+$',
+            constraintDescription: 'Please provide a valid lambda role arn.'
+        }).valueAsString;
     }
 }
 
@@ -115,17 +139,17 @@ export class KendraKnowledgeBase extends cdk.NestedStack {
     public readonly kendraKMSKey: kms.Key;
 
     /**
-     * The AWS Kendra index for searching.
+     * The Amazon Kendra index for searching.
      */
     public readonly kendraKnowledgeBaseIndex: kendra.CfnIndex;
 
     /**
-     * An IAM role that can be assumed in order to access the kendra service
+     * An IAM role that can be assumed in order to access the Kendra service
      */
     public readonly kendraKnowledgeBaseRole: iam.Role;
 
     /**
-     * AWS Kendra role arn that can be assumed in order to access the kendra service
+     * Amazon Kendra role arn that can be assumed in order to access the Kendra service
      */
     public readonly kendraRoleArn: string;
 
@@ -170,10 +194,10 @@ export class KendraKnowledgeBase extends cdk.NestedStack {
     }
 
     /**
-     * Handles creation of kendra index with given properties
+     * Handles creation of Kendra index with given properties
      *
      * @param props properties as passed from constructor
-     * @returns CfnIndex. the created kendra index ()
+     * @returns CfnIndex. the created Kendra index ()
      */
     private createKendraIndex(props: KendraKnowledgeBaseParameters) {
         const kendraProps = {
@@ -190,14 +214,14 @@ export class KendraKnowledgeBase extends cdk.NestedStack {
             }
         } as kendra.CfnIndexProps;
 
-        // we do not want the kendra index being deleted when a use case is deleted or updated to a new index.
+        // we do not want the Kendra index being deleted when a use case is deleted or updated to a new index.
         let kendraKnowledgeBaseIndex = new kendra.CfnIndex(this, 'KendraKnowledgeBase', kendraProps);
         kendraKnowledgeBaseIndex.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
         return kendraKnowledgeBaseIndex;
     }
 
     /**
-     * Creates an IAM role which will be assigned to the kendra index, allowing it to perform logging functions
+     * Creates an IAM role which will be assigned to the Kendra index, allowing it to perform logging functions
      *
      * @returns the IAM role
      */
@@ -245,7 +269,7 @@ export class KendraKnowledgeBase extends cdk.NestedStack {
 
         const kendraPolicy = kendraRole.node.tryFindChild('DefaultPolicy') as iam.Policy;
 
-        // since the kendra index is retained, the role and policy are as well
+        // since the Kendra index is retained, the role and policy are as well
         kendraRole.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
         kendraPolicy.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 

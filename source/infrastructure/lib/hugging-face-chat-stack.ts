@@ -24,8 +24,8 @@ import { createDefaultLambdaRole } from './utils/common-utils';
 import {
     ADDITIONAL_LLM_LIBRARIES,
     CHAT_PROVIDERS,
-    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
     LAMBDA_TIMEOUT_MINS,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
     LLM_LIBRARY_LAYER_TYPES,
     PYTHON_PIP_BUILD_PLATFORM,
     PYTHON_PIP_WHEEL_IMPLEMENTATION,
@@ -55,8 +55,8 @@ export class HuggingFaceChat extends ExternalUseCaseChat {
                         implementation: PYTHON_PIP_WHEEL_IMPLEMENTATION
                     })
             ),
-            role: createDefaultLambdaRole(this, 'ChatLlmProviderLambdaRole'),
-            runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+            role: createDefaultLambdaRole(this, 'ChatLlmProviderLambdaRole', this.deployVpcCondition),
+            runtime: LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
             handler: 'huggingface_handler.lambda_handler',
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
             environment: {

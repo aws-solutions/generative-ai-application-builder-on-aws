@@ -49,10 +49,23 @@ export class CustomInfraSetup extends Construct {
 
     public readonly scheduledMetricsLambda: lambda.Function;
 
+    public readonly lambdaServiceRole: iam.Role;
+
     constructor(scope: Construct, id: string, props: CustomInfraProps) {
         super(scope, id);
 
-        const lambdaServiceRole = createDefaultLambdaRole(scope, 'CustomResourceLambdaRole');
+        this.lambdaServiceRole = createDefaultLambdaRole(scope, 'CustomResourceLambdaRole');
+        const customResourceDdbPolicy = new iam.Policy(this, 'CustomResourceDynamoDBPolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
+                    resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`]
+                })
+            ]
+        });
+        customResourceDdbPolicy.attachToRole(this.lambdaServiceRole);
+
         const scheduledMetricsRole = createDefaultLambdaRole(scope, 'ScheduledMetricsLambdaRole');
 
         this.customResourceLambda = new lambda.Function(this, 'CustomResource', {
@@ -64,7 +77,7 @@ export class CustomInfraSetup extends Construct {
             ),
             handler: 'lambda_func.handler',
             runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
-            role: lambdaServiceRole,
+            role: this.lambdaServiceRole,
             tracing: lambda.Tracing.ACTIVE,
             description: 'A custom resource lambda function to perform operations based on operation type',
             environment: {
@@ -138,11 +151,25 @@ export class CustomInfraSetup extends Construct {
                 reason: 'Lambda requires this permission to read metrics from CloudWatch logs'
             }
         ]);
-        NagSuppressions.addResourceSuppressions(lambdaServiceRole.node.tryFindChild('DefaultPolicy') as iam.Policy, [
+        NagSuppressions.addResourceSuppressions(
+            this.lambdaServiceRole.node.tryFindChild('DefaultPolicy') as iam.Policy,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'Lambda role policy is configured to read data from S3 bucket',
+                    appliesTo: [
+                        'Action::s3:Abort*',
+                        'Action::s3:DeleteObject*',
+                        'Resource::<SetupAppConfig016B0097.Arn>/*'
+                    ]
+                }
+            ]
+        );
+        NagSuppressions.addResourceSuppressions(customResourceDdbPolicy, [
             {
                 id: 'AwsSolutions-IAM5',
-                reason: 'Lambda role policy is configured to read data from S3 bucket',
-                appliesTo: ['Action::s3:Abort*', 'Action::s3:DeleteObject*', 'Resource::<SetupAppConfig016B0097.Arn>/*']
+                reason: 'Lambda role policy is to read and write dynamodb buckets for model info and configuration',
+                appliesTo: ['Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*']
             }
         ]);
         NagSuppressions.addResourceSuppressions(scheduledMetricsRole, [
@@ -159,12 +186,15 @@ export class CustomInfraSetup extends Construct {
                 appliesTo: ['Resource::*']
             }
         ]);
-        NagSuppressions.addResourceSuppressions(lambdaServiceRole.node.tryFindChild('DefaultPolicy') as iam.Policy, [
-            {
-                id: 'AwsSolutions-IAM5',
-                reason: 'The wildcard permission is required to publish events for x-ray insights',
-                appliesTo: ['Resource::*']
-            }
-        ]);
+        NagSuppressions.addResourceSuppressions(
+            this.lambdaServiceRole.node.tryFindChild('DefaultPolicy') as iam.Policy,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'The wildcard permission is required to publish events for x-ray insights',
+                    appliesTo: ['Resource::*']
+                }
+            ]
+        );
     }
 }

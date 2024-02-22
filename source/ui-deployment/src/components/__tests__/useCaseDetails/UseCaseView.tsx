@@ -1,3 +1,4 @@
+/* eslint-disable import/first */
 /**********************************************************************************************************************
  *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                *
  *                                                                                                                    *
@@ -17,21 +18,27 @@ import createWrapper from '@cloudscape-design/components/test-utils/dom';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import HomeContext from '../../../home/home.context';
-import { HomeInitialState } from '../../../home/home.state';
+import HomeContext from '../../../contexts/home.context';
+import { HomeInitialState } from '../../../contexts/home.state';
 import { ActionType } from '../../../hooks/useCreateReducer';
 import UseCaseView from '../../useCaseDetails/UseCaseView';
 
 // eslint-disable-next-line jest/no-mocks-import
 import mockContext from '../__mocks__/mock-context.json';
 import { createCfnLink } from '../../commons/table-config';
-import WizardView from '../../wizard/WizardView';
+import { mockReactMarkdown } from '@/utils';
 
 describe('UseCaseView', () => {
+    let WizardView: any;
     const contextValue = {
         dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: mockContext
     };
+
+    beforeAll(() => {
+        mockReactMarkdown();
+        WizardView = require('../../wizard/WizardView').default;
+    });
 
     test('The initial state is correct', async () => {
         render(
@@ -105,11 +112,17 @@ describe('UseCaseView', () => {
     });
 });
 
-describe('Navigating to edit from UseCaseView', () => {
+describe('Navigating to edit/clone from UseCaseView', () => {
+    let WizardView: any;
     const contextValue = {
         dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: mockContext
     };
+
+    beforeAll(() => {
+        mockReactMarkdown();
+        WizardView = require('../../wizard/WizardView').default;
+    });
 
     test('The edit wizard is correctly rendered', async () => {
         render(
@@ -132,6 +145,33 @@ describe('Navigating to edit from UseCaseView', () => {
         expect(editWizard).toBeDefined();
 
         const wizardWrapper = createWrapper(editWizard).findWizard();
+
+        // step 1
+        expect(wizardWrapper?.findMenuNavigationLink(1, 'active')).not.toBeNull();
+        wizardWrapper?.findPrimaryButton().click();
+    });
+
+    test('The clone wizard is correctly rendered', async () => {
+        render(
+            <HomeContext.Provider value={{ ...contextValue }}>
+                <MemoryRouter initialEntries={['/deployment-details']}>
+                    <Routes>
+                        <Route path="/deployment-details" element={<UseCaseView />} />
+                        <Route path="/wizardView" element={<WizardView />} />
+                    </Routes>
+                </MemoryRouter>
+            </HomeContext.Provider>
+        );
+
+        const element = screen.getByTestId('use-case-view');
+        expect(element).toBeDefined();
+
+        createWrapper(element).findButton('[data-testid="use-case-view-clone-btn"]')?.click();
+
+        const cloneWizard = screen.getByTestId('wizard-view');
+        expect(cloneWizard).toBeDefined();
+
+        const wizardWrapper = createWrapper(cloneWizard).findWizard();
 
         // step 1
         expect(wizardWrapper?.findMenuNavigationLink(1, 'active')).not.toBeNull();

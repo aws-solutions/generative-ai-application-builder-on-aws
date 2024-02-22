@@ -72,9 +72,7 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
                 )
             except ClientError as err:
                 if err.response["Error"]["Code"] == "ResourceNotFoundException":
-                    logger.warning(
-                        f"No record found with user id {self.user_id} and conversation id {self.conversation_id}"
-                    )
+                    logger.warning(f"No record found with user id {self.user_id} and conversation id {self.conversation_id}")
                 else:
                     logger.error(err, xray_trace_id=os.environ[TRACE_ID_ENV_VAR],)
 

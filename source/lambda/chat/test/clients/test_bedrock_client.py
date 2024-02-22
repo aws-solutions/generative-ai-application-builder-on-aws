@@ -13,17 +13,38 @@
 
 import json
 import os
+from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
 from clients.bedrock_client import BedrockClient
-from utils.constants import LLM_PARAMETERS_SSM_KEY_ENV_VAR, DEFAULT_BEDROCK_PROMPT, DEFAULT_BEDROCK_MODEL_FAMILY
+from llms.bedrock import BedrockLLM
+from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
+from utils.constants import (
+    CHAT_IDENTIFIER,
+    DEFAULT_BEDROCK_MODEL_FAMILY,
+    DEFAULT_BEDROCK_MODELS_MAP,
+    DEFAULT_PLACEHOLDERS,
+    DEFAULT_RAG_PLACEHOLDERS,
+    LLM_PARAMETERS_SSM_KEY_ENV_VAR,
+    RAG_CHAT_IDENTIFIER,
+)
+
+BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+model_id = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
+
+
+@pytest.fixture
+def llm_client(rag_enabled):
+    yield BedrockClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled", [(DEFAULT_BEDROCK_PROMPT[DEFAULT_BEDROCK_MODEL_FAMILY], False, False)]
+    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    [(BEDROCK_PROMPT, False, False, False, model_id)],
 )
-def test_get_model(bedrock_llm_config, chat_event):
+def test_get_model(bedrock_llm_config, model_id, chat_event, return_source_docs):
     os.environ[LLM_PARAMETERS_SSM_KEY_ENV_VAR] = "fake-key"
     client = BedrockClient(connection_id="fake-connection-id", rag_enabled=False)
 
@@ -37,3 +58,90 @@ def test_get_model(bedrock_llm_config, chat_event):
                 assert client.builder.conversation_id == "fake-conversation-id"
             except Exception as exc:
                 assert False, f"'client.get_model' raised an exception {exc}"
+
+
+@pytest.mark.parametrize(
+    "use_case, is_streaming, rag_enabled, return_source_docs, llm_type, prompt, placeholders, model_id",
+    [
+        (
+            CHAT_IDENTIFIER,
+            False,
+            False,
+            False,
+            BedrockLLM,
+            BEDROCK_PROMPT,
+            DEFAULT_PLACEHOLDERS,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            False,
+            True,
+            False,
+            BedrockRetrievalLLM,
+            BEDROCK_RAG_PROMPT,
+            DEFAULT_RAG_PLACEHOLDERS,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            False,
+            True,
+            True,
+            BedrockRetrievalLLM,
+            BEDROCK_RAG_PROMPT,
+            DEFAULT_RAG_PLACEHOLDERS,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            False,
+            True,
+            True,
+            BedrockRetrievalLLM,
+            BEDROCK_RAG_PROMPT,
+            DEFAULT_RAG_PLACEHOLDERS,
+            model_id,
+        ),
+    ],
+)
+def test_construct_chat_model1(
+    use_case,
+    model_id,
+    is_streaming,
+    rag_enabled,
+    return_source_docs,
+    llm_type,
+    prompt,
+    placeholders,
+    chat_event,
+    llm_config,
+    llm_client,
+    ssm_stubber,
+    setup_environment,
+    setup_secret,
+    bedrock_dynamodb_defaults_table,
+):
+    parsed_config = deepcopy(json.loads(llm_config["Parameter"]["Value"]))
+    parsed_config["LlmParams"]["ModelId"] = model_id
+    parsed_config["LlmParams"]["ModelParams"] = {
+        "maxTokenCount": {"Type": "integer", "Value": "100"},
+        "topP": {"Type": "float", "Value": "0.3"},
+    }
+    config = {"Parameter": {"Value": json.dumps(parsed_config)}}
+    chat_event_body = json.loads(chat_event["body"])
+
+    ssm_stubber.add_response("get_parameter", config)
+    ssm_stubber.activate()
+    llm_client.get_model(chat_event_body, "fake-user-id")
+
+    ssm_stubber.deactivate()
+
+    assert type(llm_client.builder.llm_model) == llm_type
+    assert llm_client.builder.llm_model.model == parsed_config["LlmParams"]["ModelId"]
+    assert llm_client.builder.llm_model.api_token is None
+    assert llm_client.builder.llm_model.model_params == {"maxTokenCount": 100, "topP": 0.3, "temperature": 0.2}
+    assert llm_client.builder.llm_model.prompt_template.template == parsed_config["LlmParams"]["PromptTemplate"]
+    assert set(llm_client.builder.llm_model.prompt_template.input_variables) == set(placeholders)
+    assert llm_client.builder.llm_model.streaming == parsed_config["LlmParams"]["Streaming"]
+    assert llm_client.builder.llm_model.verbose == parsed_config["LlmParams"]["Verbose"]

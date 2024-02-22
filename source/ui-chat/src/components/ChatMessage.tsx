@@ -14,16 +14,19 @@
 import { FC, memo, useContext, useState } from 'react';
 import { Button, Icon } from '@cloudscape-design/components';
 import HomeContext from '../home/home.context';
-import { Message } from '../types/chat';
+import { MessageWithSource } from '../types/chat';
 import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { CodeBlock } from './CodeBlock';
 import { Components } from 'react-markdown';
 
+import { SourceDocumentsModal } from './SourceDocumentsModal';
+
 export interface Props {
-    message: Message;
+    message: MessageWithSource;
     messageIndex: number;
+    displaySourceConfigFlag: boolean;
 }
 
 const MARKDOWN_COMPONENTS: Components = {
@@ -49,12 +52,14 @@ const MARKDOWN_COMPONENTS: Components = {
     }
 };
 
-export const ChatMessage: FC<Props> = memo(({ message, messageIndex }) => {
+export const ChatMessage: FC<Props> = memo(({ message, messageIndex, displaySourceConfigFlag }) => {
     const {
         state: { selectedConversation, messageIsStreaming }
     } = useContext(HomeContext);
 
     const [messagedCopied, setMessageCopied] = useState(false);
+    const [docSourceModalVisible, setDocSourceModalVisible] = useState(false);
+    const onModalDismiss = () => setDocSourceModalVisible(false);
 
     const copyOnClick = () => {
         if (!navigator.clipboard) return;
@@ -66,6 +71,10 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex }) => {
             }, 2000);
         });
     };
+
+    const displaySourceInResponse =
+        displaySourceConfigFlag && message.sourceDocuments && message.sourceDocuments.length > 0;
+
 
     return (
         <div className={`${message.role === 'assistant' ? 'bg-gray-100' : ''}`} style={{ overflowWrap: 'anywhere' }}>
@@ -109,6 +118,22 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex }) => {
                                             iconName="copy"
                                             variant="icon"
                                             onClick={copyOnClick}
+                                        />
+                                    </div>
+                                )}
+                                {displaySourceInResponse && (
+                                    <div>
+                                        <Button
+                                            data-testid="source-docs-button"
+                                            iconName="status-info"
+                                            variant="icon"
+                                            onClick={() => setDocSourceModalVisible(true)}
+                                        />
+
+                                        <SourceDocumentsModal
+                                            visible={docSourceModalVisible}
+                                            onDismiss={onModalDismiss}
+                                            sourceDocumentsData={message.sourceDocuments}
                                         />
                                     </div>
                                 )}

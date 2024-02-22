@@ -18,10 +18,19 @@ import pytest
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from utils.constants import KENDRA_INDEX_ID_ENV_VAR
 
-kendra_knowledge_base_params = {"NumberOfDocs": 3, "ReturnSourceDocs": False}
+kendra_knowledge_base_params = {
+    "NumberOfDocs": 3,
+    "ReturnSourceDocs": False,
+    "AttributeFilter": {
+        "AndAllFilters": [
+            {"EqualsTo": {"Key": "user_id", "Value": {"StringValue": "12345"}}},
+        ]
+    },
+    "UserContext": None,
+}
 
 
-def test_knowledge_base_construction_fails():
+def test_knowledge_base_construction_fails(setup_environment):
     os.environ.pop(KENDRA_INDEX_ID_ENV_VAR)
     with pytest.raises(ValueError) as error:
         KendraKnowledgeBase(kendra_knowledge_base_params)
@@ -34,7 +43,11 @@ def test_knowledge_base_construction(setup_environment):
     assert knowledge_base.kendra_index_id == "fake-kendra-index-id"
     assert knowledge_base.number_of_docs == kendra_knowledge_base_params["NumberOfDocs"]
     assert knowledge_base.return_source_documents == kendra_knowledge_base_params["ReturnSourceDocs"]
+    assert knowledge_base.attribute_filter == kendra_knowledge_base_params["AttributeFilter"]
+    assert knowledge_base.user_context == kendra_knowledge_base_params["UserContext"]
 
     assert knowledge_base.retriever.index_id == "fake-kendra-index-id"
     assert knowledge_base.retriever.top_k == kendra_knowledge_base_params["NumberOfDocs"]
     assert knowledge_base.retriever.return_source_documents == kendra_knowledge_base_params["ReturnSourceDocs"]
+    assert knowledge_base.retriever.attribute_filter == kendra_knowledge_base_params["AttributeFilter"]
+    assert knowledge_base.retriever.user_context == kendra_knowledge_base_params["UserContext"]

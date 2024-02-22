@@ -23,7 +23,7 @@ from aws_lambda_powertools import Logger, Tracer
 logger = Logger(utc=True)
 tracer = Tracer()
 
-USER_AGENT = r"^(?P<category>AwsSolution)\/SO(?P<id>\d+)(?P<component>[a-zA-Z]*)\/v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # NOSONAR - python:S4784
+USER_AGENT = r"^(?P<category>AWSSOLUTION)\/SO(?P<id>\d+)(?P<component>[a-zA-Z]*)\/v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # NOSONAR - python:S4784
 user_agent_re = re.compile(USER_AGENT)  # NOSONAR - python:S4784
 
 DEFAULT_APP_NAME = "gen-ai-app-builder"
@@ -52,6 +52,6 @@ def check_env_setup():
     if "user_agent_extra" not in usr_agent_json or (
         "user_agent_extra" in usr_agent_json and user_agent_re.match(usr_agent_json["user_agent_extra"]) is None
     ):
-        err_msg = "User-agent for boto3 did not match the required pattern. Allowed pattern is AwsSolution/SO<id>/v<version>, where id is a numeric value and version is a semver version numbering pattern"
+        err_msg = "User-agent for boto3 did not match the required pattern. Allowed pattern is AWSSOLUTION/SO<id>/v<version>, where id is a numeric value and version is a semver version numbering pattern"
         logger.error(err_msg)
         raise ValueError(err_msg)

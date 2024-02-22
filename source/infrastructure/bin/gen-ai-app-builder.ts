@@ -17,6 +17,7 @@ import { AwsSolutionsChecks } from 'cdk-nag';
 import * as crypto from 'crypto';
 import { AnthropicChat } from '../lib/anthropic-chat-stack';
 import { BedrockChat } from '../lib/bedrock-chat-stack';
+import { SageMakerChat } from '../lib/sagemaker-chat-stack';
 import { DeploymentPlatformStack } from '../lib/deployment-platform-stack';
 import { BaseStack, BaseStackProps } from '../lib/framework/base-stack';
 import { HuggingFaceChat } from '../lib/hugging-face-chat-stack';
@@ -31,7 +32,7 @@ const applicationType = app.node.tryGetContext('application_type');
 const applicationName = app.node.tryGetContext('app_registry_name');
 const applicationTrademarkName = app.node.tryGetContext('application_trademark_name');
 
-const stackList: (typeof BaseStack)[] = [HuggingFaceChat, AnthropicChat, BedrockChat];
+const stackList: (typeof BaseStack)[] = [HuggingFaceChat, AnthropicChat, BedrockChat, SageMakerChat];
 
 for (const stack of stackList) {
     createStack(stack, undefined, true);

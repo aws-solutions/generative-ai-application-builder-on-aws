@@ -33,6 +33,7 @@ import {
     WEB_CONFIG_PREFIX,
     additionalDeploymentPlatformConfigValues
 } from './utils/constants';
+import { VPCSetup } from './vpc/vpc-setup';
 
 /**
  * The main stack creating the infrastructure
@@ -84,9 +85,17 @@ export class DeploymentPlatformStack extends BaseStack {
             constraintDescription: 'Please provide a valid email'
         });
 
-        const applicationSetup = new ApplicationSetup(this, 'DeploymentPlatformSetup', {
-            solutionID: props.solutionID,
-            solutionVersion: props.solutionVersion
+        const stack = cdk.Stack.of(this);
+        let existingParameterGroups =
+            stack.templateOptions.metadata !== undefined &&
+            stack.templateOptions.metadata.hasOwnProperty('AWS::CloudFormation::Interface') &&
+            stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
+                ? stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
+                : [];
+
+        existingParameterGroups.unshift({
+            Label: { default: 'Please provide admin user email' },
+            Parameters: [adminUserEmail.logicalId]
         });
 
         // internal users are identified by being of the form "X@amazon.Y"
@@ -102,14 +111,19 @@ export class DeploymentPlatformStack extends BaseStack {
             defaultUserEmail: adminUserEmail.valueAsString,
             applicationTrademarkName: props.applicationTrademarkName,
             webConfigSSMKey: webConfigSsmKey,
-            customInfra: applicationSetup.customResourceLambda
+            customInfra: this.applicationSetup.customResourceLambda,
+            securityGroupIds: this.transpiredSecurityGroupIds,
+            privateSubnetIds: this.transpiredPrivateSubnetIds
         });
 
         this.deploymentPlatformStorageSetup = new DeploymentPlatformStorageSetup(this, 'DeploymentPlatformStorage', {
-            deploymentApiLambda: this.useCaseManagementSetup.useCaseManagement.apiLambda
+            deploymentApiLambda: this.useCaseManagementSetup.useCaseManagement.useCaseManagementApiLambda,
+            modelInfoApiLambda: this.useCaseManagementSetup.useCaseManagement.modelInfoApiLambda,
+            customResourceLambda: this.applicationSetup.customResourceLambda,
+            customResourceRole: this.applicationSetup.customResourceRole
         });
 
-        applicationSetup.addCustomDashboard(
+        this.applicationSetup.addCustomDashboard(
             {
                 apiName: `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`,
                 userPoolId: this.useCaseManagementSetup.useCaseManagement.userPool.userPoolId,
@@ -118,7 +132,7 @@ export class DeploymentPlatformStack extends BaseStack {
             DashboardType.DeploymentPlatform
         );
 
-        applicationSetup.createWebConfigStorage(
+        this.applicationSetup.createWebConfigStorage(
             {
                 apiEndpoint: this.useCaseManagementSetup.useCaseManagement.restApi.url,
                 userPoolId: this.useCaseManagementSetup.useCaseManagement.userPool.userPoolId,
@@ -129,26 +143,26 @@ export class DeploymentPlatformStack extends BaseStack {
             webConfigSsmKey
         );
 
-        applicationSetup.scheduledMetricsLambda.addEnvironment(
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             REST_API_NAME_ENV_VAR,
             `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`
         );
 
-        const uuid: string = applicationSetup.addUUIDGeneratorCustomResource().getAttString('UUID');
-        applicationSetup.scheduledMetricsLambda.addEnvironment(USE_CASE_UUID_ENV_VAR, uuid);
+        const uuid: string = this.applicationSetup.addUUIDGeneratorCustomResource().getAttString('UUID');
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(USE_CASE_UUID_ENV_VAR, uuid);
 
         this.uiInfrastructure = new UIInfrastructure(this, 'WebApp', {
             webRuntimeConfigKey: webConfigSsmKey,
-            customInfra: applicationSetup.customResourceLambda,
-            accessLoggingBucket: applicationSetup.accessLoggingBucket,
+            customInfra: this.applicationSetup.customResourceLambda,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             uiAssetFolder: 'ui-deployment',
             useCaseUUID: uuid
         });
         this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
-            applicationSetup.webConfigCustomResource
+            this.applicationSetup.webConfigCustomResource
         );
         this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
-            applicationSetup.accessLoggingBucket.node
+            this.applicationSetup.accessLoggingBucket.node
                 .tryFindChild('Policy')
                 ?.node.tryFindChild('Resource') as cdk.CfnResource
         );
@@ -156,6 +170,11 @@ export class DeploymentPlatformStack extends BaseStack {
         if (process.env.DIST_OUTPUT_BUCKET) {
             generateSourceCodeMapping(this, props.solutionName, props.solutionVersion);
             generateSourceCodeMapping(this.uiInfrastructure.nestedUIStack, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(
+                this.deploymentPlatformStorageSetup.deploymentPlatformStorage,
+                props.solutionName,
+                props.solutionVersion
+            );
         }
 
         const cloudfrontUrlOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'CloudFrontWebUrl', {
@@ -163,7 +182,11 @@ export class DeploymentPlatformStack extends BaseStack {
         });
         cloudfrontUrlOutput.condition = this.uiInfrastructure.deployWebApp;
 
-        applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, { UUID: uuid });
+        this.applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
+            UUID: uuid,
+            VPC_ENABLED: this.vpcEnabled.valueAsString,
+            CREATE_VPC: this.createNewVpc.valueAsString
+        });
 
         NagSuppressions.addResourceSuppressions(
             this.useCaseManagementSetup.useCaseManagement.userPool.node
@@ -178,5 +201,22 @@ export class DeploymentPlatformStack extends BaseStack {
             ],
             true
         );
+    }
+
+    protected setupVPC(): VPCSetup {
+        return new VPCSetup(this, 'VPC', {
+            stackType: 'deployment-platform',
+            deployVpcCondition: this.deployVpcCondition,
+            customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+            customResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+            iPamPoolId: this.iPamPoolId.valueAsString
+        });
+    }
+
+    protected createApplicationSetup(props: BaseStackProps): ApplicationSetup {
+        return new ApplicationSetup(this, 'DeploymentPlatformSetup', {
+            solutionID: props.solutionID,
+            solutionVersion: props.solutionVersion
+        });
     }
 }
