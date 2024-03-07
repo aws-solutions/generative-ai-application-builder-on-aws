@@ -311,22 +311,23 @@ def test_construct_chat_model_new_prompt(
     huggingface_dynamodb_defaults_table,
 ):
     with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-        mock_obj = MagicMock()
-        mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-        mocked_hf_call.return_value = mock_obj
-        chat_body = {
-            "action": "sendMessage",
-            "conversationId": "fake-conversation-id",
-            "question": "How are you?",
-            "promptTemplate": PROMPT,
-        }
+        with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+            mock_obj = MagicMock()
+            mock_obj.task = DEFAULT_HUGGINGFACE_TASK
+            mocked_hf_call.return_value = mock_obj
+            chat_body = {
+                "action": "sendMessage",
+                "conversationId": "fake-conversation-id",
+                "question": "How are you?",
+                "promptTemplate": PROMPT,
+            }
 
-        ssm_stubber.add_response("get_parameter", llm_config)
-        ssm_stubber.activate()
+            ssm_stubber.add_response("get_parameter", llm_config)
+            ssm_stubber.activate()
 
-        llm_client.get_model(chat_body, "fake-user-uuid")
+            llm_client.get_model(chat_body, "fake-user-uuid")
 
-        assert llm_client.llm_config["LlmParams"]["PromptTemplate"] == PROMPT
-        assert llm_client.builder.llm_model.prompt_template.template == PROMPT
+            assert llm_client.llm_config["LlmParams"]["PromptTemplate"] == PROMPT
+            assert llm_client.builder.llm_model.prompt_template.template == PROMPT
 
-        ssm_stubber.deactivate()
+            ssm_stubber.deactivate()

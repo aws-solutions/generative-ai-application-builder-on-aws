@@ -60,7 +60,8 @@ export class HuggingFaceChat extends ExternalUseCaseChat {
             handler: 'huggingface_handler.lambda_handler',
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
             environment: {
-                POWERTOOLS_SERVICE_NAME: 'HUGGINGFACE_CHAT'
+                POWERTOOLS_SERVICE_NAME: 'HUGGINGFACE_CHAT',
+                HF_HOME: '/tmp' // huggingface_hub internally caches tokens here, so we need a path accessible in lambda
             },
             memorySize: 256,
             description: 'Lambda serving the websocket based API for HuggingFace chat'

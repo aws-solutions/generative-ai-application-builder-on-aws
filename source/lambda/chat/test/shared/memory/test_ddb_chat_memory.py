@@ -14,7 +14,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from langchain.schema import HumanMessage
+from langchain.schema import HumanMessage, AIMessage
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 
 
@@ -43,5 +43,6 @@ def test_load_memory_variables(input_key, output_key, memory_key):
         prompt_input_key.return_value = memory.input_key
         memory.save_context(test_input, test_output)
 
-    mock_message_history.add_user_message.assert_called_once_with("fake message from a user")
-    mock_message_history.add_ai_message.assert_called_once_with("fake response from the ai")
+    mock_message_history.add_messages.assert_called_once_with(
+        [HumanMessage(content="fake message from a user"), AIMessage(content="fake response from the ai")]
+    )

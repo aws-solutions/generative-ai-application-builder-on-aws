@@ -139,16 +139,17 @@ def test_huggingface_chat_handler(
             apigateway_stubber.activate()
             with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
                 with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
-                    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-                        mock_obj = MagicMock()
-                        mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-                        mocked_hf_call.return_value = mock_obj
-                        mocked_predict.return_value = "I'm doing well, how are you?"
-                        mocked_rag_predict.return_value = mocked_response
-                        mocked_get_llm_config.return_value = json.loads(llm_config["Parameter"]["Value"])
-                        assert lambda_handler(chat_event, context) == format_lambda_response(
-                            {"response": mocked_response}
-                        )
+                    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
+                        with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+                            mock_obj = MagicMock()
+                            mock_obj.task = DEFAULT_HUGGINGFACE_TASK
+                            mocked_hf_call.return_value = mock_obj
+                            mocked_predict.return_value = "I'm doing well, how are you?"
+                            mocked_rag_predict.return_value = mocked_response
+                            mocked_get_llm_config.return_value = json.loads(llm_config["Parameter"]["Value"])
+                            assert lambda_handler(chat_event, context) == format_lambda_response(
+                                {"response": mocked_response}
+                            )
             apigateway_stubber.deactivate()
 
 
@@ -244,16 +245,17 @@ def test_huggingface_chat_handler_empty_conversation(
             with patch("clients.llm_chat_client.uuid4", return_value=fake_uuid):
                 with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
                     with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
-                        with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-                            mock_obj = MagicMock()
-                            mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-                            mocked_hf_call.return_value = mock_obj
-                            mocked_predict.return_value = "I'm doing well, how are you?"
-                            mocked_rag_predict.return_value = mocked_response
-                            mocked_get_llm_config.return_value = json.loads(llm_config["Parameter"]["Value"])
-                            assert lambda_handler(chat_event_conversation_empty, context) == format_lambda_response(
-                                {"response": mocked_response}
-                            )
+                        with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
+                            with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+                                mock_obj = MagicMock()
+                                mock_obj.task = DEFAULT_HUGGINGFACE_TASK
+                                mocked_hf_call.return_value = mock_obj
+                                mocked_predict.return_value = "I'm doing well, how are you?"
+                                mocked_rag_predict.return_value = mocked_response
+                                mocked_get_llm_config.return_value = json.loads(llm_config["Parameter"]["Value"])
+                                assert lambda_handler(chat_event_conversation_empty, context) == format_lambda_response(
+                                    {"response": mocked_response}
+                                )
             apigateway_stubber.deactivate()
 
 

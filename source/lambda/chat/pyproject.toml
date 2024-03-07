@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llm-chat-lambda"
-version = "1.3.0"
+version = "1.3.2"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation for chat feature"
 packages = [
@@ -21,7 +21,7 @@ jsonpath-ng = "^1.6.0"
 [tool.poetry.group.test.dependencies]
 freezegun = "1.2.2"
 mock = "5.1.0"
-moto = "4.2.12"
+moto = "4.2.14"
 pytest = "7.4.4"
 pytest-cov = "4.1.0"
 pytest-env = "1.1.3"

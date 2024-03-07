@@ -111,22 +111,25 @@ def test_construct_chat_model1(
     huggingface_dynamodb_defaults_table,
 ):
     with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-        mock_obj = MagicMock()
-        mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-        mocked_hf_call.return_value = mock_obj
+        with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+            mock_obj = MagicMock()
+            mock_obj.task = DEFAULT_HUGGINGFACE_TASK
+            mocked_hf_call.return_value = mock_obj
 
-        config = json.loads(llm_config["Parameter"]["Value"])
-        chat_event_body = json.loads(chat_event["body"])
-        ssm_stubber.add_response("get_parameter", llm_config)
-        ssm_stubber.activate()
-        llm_client.get_model(chat_event_body, "fake-user-id")
-        ssm_stubber.deactivate()
+            config = json.loads(llm_config["Parameter"]["Value"])
+            chat_event_body = json.loads(chat_event["body"])
+            ssm_stubber.add_response("get_parameter", llm_config)
+            ssm_stubber.activate()
+            llm_client.get_model(chat_event_body, "fake-user-id")
+            ssm_stubber.deactivate()
 
-        assert type(llm_client.builder.llm_model) == llm_type
-        assert llm_client.builder.llm_model.model == config["LlmParams"]["ModelId"]
-        assert llm_client.builder.llm_model.api_token == "fake-secret-value"
-        assert llm_client.builder.llm_model.model_params == {"max_length": 100, "top_p": 0.2, "temperature": 0.2}
-        assert llm_client.builder.llm_model.prompt_template.template == config["LlmParams"]["PromptTemplate"]
-        assert set(llm_client.builder.llm_model.prompt_template.input_variables) == set(placeholders)
-        assert llm_client.builder.llm_model.streaming == config["LlmParams"]["Streaming"]
-        assert llm_client.builder.llm_model.verbose == config["LlmParams"]["Verbose"]
+            assert type(llm_client.builder.llm_model) == llm_type
+            assert llm_client.builder.llm_model.model == config["LlmParams"]["ModelId"]
+            assert llm_client.builder.llm_model.api_token == "fake-secret-value"
+            assert llm_client.builder.llm_model.model_params == {"max_length": 100}
+            assert llm_client.builder.llm_model.temperature == 0.2
+            assert llm_client.builder.llm_model.top_p == 0.2
+            assert llm_client.builder.llm_model.prompt_template.template == config["LlmParams"]["PromptTemplate"]
+            assert set(llm_client.builder.llm_model.prompt_template.input_variables) == set(placeholders)
+            assert llm_client.builder.llm_model.streaming == config["LlmParams"]["Streaming"]
+            assert llm_client.builder.llm_model.verbose == config["LlmParams"]["Verbose"]

@@ -113,13 +113,14 @@ def streamless_huggingface_endpoint(setup_environment, model_id, knowledge_base,
             "llms.huggingface.HuggingFaceLLM.get_conversation_chain",
             return_value=MagicMock(),
         ):
-            inference_chat = HuggingFaceRetrievalLLM(
-                llm_params=llm_params,
-                model_defaults=ModelDefaults(model_endpoint_provider, model_id, RAG_ENABLED),
-                inference_endpoint=inference_endpoint,
-                return_source_docs=return_source_docs,
-            )
-            yield inference_chat
+            with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+                inference_chat = HuggingFaceRetrievalLLM(
+                    llm_params=llm_params,
+                    model_defaults=ModelDefaults(model_endpoint_provider, model_id, RAG_ENABLED),
+                    inference_endpoint=inference_endpoint,
+                    return_source_docs=return_source_docs,
+                )
+                yield inference_chat
 
 
 @pytest.mark.parametrize(
@@ -165,10 +166,10 @@ def test_implement_error_not_raised(
         assert chat_model.prompt_template.template == HUGGINGFACE_RAG_PROMPT
         assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_RAG_PLACEHOLDERS)
         assert chat_model.model_params == {
-            "top_p": 0.2,
-            "temperature": 0.3,
             "max_length": 100,
         }
+        assert chat_model.temperature == 0.3
+        assert chat_model.top_p == 0.2
         assert chat_model.api_token == "fake-token"
         assert chat_model.streaming == is_streaming
         assert chat_model.verbose == False
@@ -230,10 +231,10 @@ def test_implement_error_not_raised(
             assert chat_model.prompt_template.template == HUGGINGFACE_RAG_PROMPT
             assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_RAG_PLACEHOLDERS)
             assert chat_model.model_params == {
-                "top_p": 0.2,
-                "temperature": DEFAULT_TEMPERATURE,
                 "max_length": 100,
             }
+            assert chat_model.top_p == 0.2
+            assert chat_model.temperature == DEFAULT_TEMPERATURE
             assert chat_model.api_token == "fake-token"
             assert chat_model.streaming == is_streaming
             assert chat_model.verbose == False
@@ -356,14 +357,15 @@ def test_generate(
             return chain_output
 
     with mock.patch("langchain.chains.ConversationalRetrievalChain.from_llm") as MockedConversationChain:
-        with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-            mock_obj = MagicMock()
-            mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-            mocked_hf_call.return_value = mock_obj
-            MockedConversationChain.return_value = MockConversationChainClass()
+        with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
+            with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+                mock_obj = MagicMock()
+                mock_obj.task = DEFAULT_HUGGINGFACE_TASK
+                mocked_hf_call.return_value = mock_obj
+                MockedConversationChain.return_value = MockConversationChainClass()
 
-            chat_model = request.getfixturevalue(chat_fixture)
-            assert chat_model.generate("What is lambda?") == expected_output
+                chat_model = request.getfixturevalue(chat_fixture)
+                assert chat_model.generate("What is lambda?") == expected_output
 
 
 @pytest.mark.parametrize(
@@ -383,11 +385,9 @@ def test_exception_for_failed_model_incorrect_api_key(
     setup_environment,
     huggingface_dynamodb_defaults_table,
 ):
-    with pytest.raises(LLMBuildError) as error:
-        with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hub_call:
-            mocked_hub_call.side_effect = ValueError(
-                "Error raised by inference API: Authorization header is correct, but the token seems invalid"
-            )
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
+        mocked_hf_call.side_effect = ValueError("some error")
+        with pytest.raises(LLMBuildError) as error:
             llm_params.model = DEFAULT_MODELS_MAP[LLMProviderTypes.HUGGINGFACE.value]
             HuggingFaceRetrievalLLM(
                 llm_params=llm_params,
@@ -395,11 +395,10 @@ def test_exception_for_failed_model_incorrect_api_key(
                 inference_endpoint=None,
                 return_source_docs=return_source_docs,
             )
-
-            assert (
-                error.value.args[0]
-                == "Error raised by inference API: Authorization header is correct, but the token seems invalid"
-            )
+        assert (
+            error.value.args[0]
+            == "HuggingFace model construction failed due to incorrect model params or endpoint URL (HuggingFaceEndpoint) passed to the model. 1 validation error for HuggingFaceEndpoint\n__root__\n  some error (type=value_error)"
+        )
 
 
 @pytest.mark.parametrize(
@@ -419,8 +418,8 @@ def test_exception_for_failed_endpoint_incorrect_api_key(
     setup_environment,
     huggingface_dynamodb_defaults_table,
 ):
-    with pytest.raises(LLMBuildError) as error:
-        with mock.patch("langchain.llms.huggingface_hub.HuggingFaceHub._call") as mocked_hub_call:
+    with pytest.raises(LLMInvocationError) as error:
+        with mock.patch("langchain.llms.huggingface_endpoint.HuggingFaceEndpoint._call") as mocked_hub_call:
             with mock.patch(
                 "shared.knowledge.kendra_retriever.CustomKendraRetriever.get_relevant_documents"
             ) as mocked_kendra_docs:
