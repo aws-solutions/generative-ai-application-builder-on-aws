@@ -1,9 +1,7 @@
 {
   "app": "../pre-build-lambda-layers.sh && npx ts-node --prefer-ts-exts bin/gen-ai-app-builder.ts",
   "watch": {
-    "include": [
-      "**"
-    ],
+    "include": ["**"],
     "exclude": [
       "README.md",
       "cdk*.json",
@@ -19,10 +17,7 @@
   "context": {
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
-    "@aws-cdk/core:target-partitions": [
-      "aws",
-      "aws-cn"
-    ],
+    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"],
     "@aws-cdk-containers/ecs-service-extensions:enableDefaultLogDriver": true,
     "@aws-cdk/aws-ec2:uniqueImdsv2TemplateName": true,
     "@aws-cdk/aws-ecs:arnFormatIncludesClusterName": true,
@@ -62,7 +57,7 @@
     "@aws-cdk/aws-codepipeline-actions:useNewDefaultBranchForCodeCommitSource": true,
     "solution_id": "SO0276",
     "solution_name": "generative-ai-application-builder-on-aws",
-    "solution_version": "v1.3.0",
+    "solution_version": "v1.3.2",
     "app_registry_name": "GAAB",
     "application_type": "AWS-Solutions",
     "application_trademark_name": "Generative AI Application Builder on AWS"

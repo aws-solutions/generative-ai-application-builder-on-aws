@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from huggingface_hub.utils import RepositoryNotFoundError
-from langchain_community.llms.huggingface_hub import HuggingFaceHub
+from langchain_community.llms.huggingface_endpoint import HuggingFaceEndpoint
 from llms.huggingface import HuggingFaceLLM
 from llms.models.llm import LLM
 from shared.defaults.model_defaults import ModelDefaults
@@ -53,6 +53,7 @@ llm_params = LLM(
         "model": model_id,
         "model_params": {
             "top_p": {"Type": "float", "Value": "0.2"},
+            "top_k": {"Type": "integer", "Value": "1"},
             "max_length": {"Type": "integer", "Value": "100"},
         },
         "prompt_template": HUGGINGFACE_PROMPT,
@@ -67,16 +68,17 @@ llm_params = LLM(
 
 @pytest.fixture
 def chat(setup_environment, model_id):
-    llm_params.model = model_id
-    llm_params.streaming = False
-    inference_endpoint = None
-    chat = HuggingFaceLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(provider_name, model_id, RAG_ENABLED),
-        inference_endpoint=inference_endpoint,
-        rag_enabled=RAG_ENABLED,
-    )
-    yield chat
+    with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+        llm_params.model = model_id
+        llm_params.streaming = False
+        inference_endpoint = None
+        chat = HuggingFaceLLM(
+            llm_params=llm_params,
+            model_defaults=ModelDefaults(provider_name, model_id, RAG_ENABLED),
+            inference_endpoint=inference_endpoint,
+            rag_enabled=RAG_ENABLED,
+        )
+        yield chat
 
 
 @pytest.fixture
@@ -88,19 +90,20 @@ def inference_chat(setup_environment, expected_response, model_id):
         def predict(self, *args: Any, **kwargs: Any) -> Any:
             return expected_response
 
-    with mock.patch(
-        "llms.huggingface.HuggingFaceEndpoint",
-        return_value=MagicMock(),
-    ):
-        with mock.patch("llms.huggingface.HuggingFaceLLM.get_conversation_chain") as mocked_chain:
-            mocked_chain.return_value = MockConversationChainClass()
-            inference_chat = HuggingFaceLLM(
-                llm_params=llm_params,
-                model_defaults=ModelDefaults(provider_name, llm_params.model, RAG_ENABLED),
-                inference_endpoint=inference_endpoint,
-                rag_enabled=RAG_ENABLED,
-            )
-            yield inference_chat
+    with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+        with mock.patch(
+            "llms.huggingface.HuggingFaceEndpoint",
+            return_value=MagicMock(),
+        ):
+            with mock.patch("llms.huggingface.HuggingFaceLLM.get_conversation_chain") as mocked_chain:
+                mocked_chain.return_value = MockConversationChainClass()
+                inference_chat = HuggingFaceLLM(
+                    llm_params=llm_params,
+                    model_defaults=ModelDefaults(provider_name, llm_params.model, RAG_ENABLED),
+                    inference_endpoint=inference_endpoint,
+                    rag_enabled=RAG_ENABLED,
+                )
+                yield inference_chat
 
 
 @pytest.fixture
@@ -162,20 +165,18 @@ def test_implement_error_not_raised(
     chat_fixture,
     huggingface_dynamodb_defaults_table,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
         mock_obj = MagicMock()
         mock_obj.task = DEFAULT_HUGGINGFACE_TASK
         mocked_hf_call.return_value = mock_obj
         chat = request.getfixturevalue(chat_fixture)
         try:
             assert chat.model == model_id
-            assert type(chat.llm) == HuggingFaceHub
+            assert type(chat.llm) == HuggingFaceEndpoint
             assert chat.prompt_template.template == HUGGINGFACE_PROMPT
             assert chat.prompt_template.input_variables == DEFAULT_PLACEHOLDERS
             assert chat.model_params == {
                 "max_length": 100,
-                "temperature": DEFAULT_TEMPERATURE,
-                "top_p": 0.2,
             }
             assert chat.api_token == "fake-token"
             assert chat.streaming == False
@@ -183,9 +184,10 @@ def test_implement_error_not_raised(
             assert chat.knowledge_base == None
             assert chat.conversation_memory.chat_memory.messages == []
             assert chat.stop_sequences == []
-            assert chat.model_params["top_p"] == 0.2
+            assert chat.top_p == 0.2
+            assert chat.top_k == 1
             assert chat.model_params["max_length"] == 100
-            assert chat.model_params["temperature"] == 0.0
+            assert chat.temperature == 0.0
         except NotImplementedError as ex:
             raise Exception(ex)
 
@@ -205,7 +207,7 @@ def test_inference_error_not_raised(
     setup_environment,
     huggingface_dynamodb_defaults_table,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
         mock_obj = MagicMock()
         mock_obj.task = DEFAULT_HUGGINGFACE_TASK
         mocked_hf_call.return_value = mock_obj
@@ -217,9 +219,10 @@ def test_inference_error_not_raised(
             assert inference_chat.prompt_template.input_variables == DEFAULT_PLACEHOLDERS
             assert inference_chat.model_params == {
                 "max_length": 100,
-                "temperature": DEFAULT_TEMPERATURE,
-                "top_p": 0.2,
             }
+            assert inference_chat.temperature == DEFAULT_TEMPERATURE
+            assert inference_chat.top_p == 0.2
+            assert inference_chat.top_k == 1
             assert inference_chat.api_token == "fake-token"
             assert inference_chat.streaming == False
             assert inference_chat.verbose == False
@@ -237,22 +240,25 @@ def test_inference_error_not_raised(
 def test_exception_for_failed_model_incorrect_repo(
     use_case, model_id, prompt, is_streaming, setup_environment, huggingface_dynamodb_defaults_table
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-        mocked_hf_call.side_effect = RepositoryNotFoundError(
-            "Repository Not Found for url: https://huggingface.co/api/models/fake-model.\nPlease make sure you specified the correct `repo_id` and `repo_type`.\nIf you are trying to access a private or gated repo, make sure you are authenticated."
-        )
-        with pytest.raises(LLMBuildError) as error:
-            llm_params.model = model_id
-            inference_endpoint = None
-            HuggingFaceLLM(
-                llm_params=llm_params,
-                model_defaults=ModelDefaults(provider_name, model_id, False),
-                inference_endpoint=inference_endpoint,
-                rag_enabled=False,
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
+        with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+            mocked_hf_call.side_effect = RepositoryNotFoundError(
+                "Repository Not Found for url: https://huggingface.co/api/models/fake-model.\nPlease make sure you specified the correct `repo_id` and `repo_type`.\nIf you are trying to access a private or gated repo, make sure you are authenticated."
             )
+            with pytest.raises(LLMBuildError) as error:
+                llm_params.model = model_id
+                inference_endpoint = None
+                HuggingFaceLLM(
+                    llm_params=llm_params,
+                    model_defaults=ModelDefaults(provider_name, model_id, False),
+                    inference_endpoint=inference_endpoint,
+                    rag_enabled=False,
+                )
 
-        assert f"HuggingFace model construction failed. Ensure {model_id} is correct repo name." in error.value.args[0]
-        assert "Repository Not Found for url: https://huggingface.co/api/models/fake-model.\nPlease make sure you specified the correct `repo_id` and `repo_type`.\nIf you are trying to access a private or gated repo, make sure you are authenticated."
+            assert (
+                f"HuggingFace model construction failed. Ensure {model_id} is correct repo name." in error.value.args[0]
+            )
+            assert "Repository Not Found for url: https://huggingface.co/api/models/fake-model.\nPlease make sure you specified the correct `repo_id` and `repo_type`.\nIf you are trying to access a private or gated repo, make sure you are authenticated."
 
 
 @pytest.mark.parametrize(
@@ -269,22 +275,23 @@ def test_huggingface_model_api_error(
     setup_environment,
     huggingface_dynamodb_defaults_table,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-        mocked_hf_call.side_effect = ValueError(
-            "Error raised by inference API: Authorization header is correct, but the token seems invalid"
-        )
-        with pytest.raises(LLMBuildError) as error:
-            HuggingFaceLLM(
-                llm_params=llm_params,
-                model_defaults=ModelDefaults(provider_name, model_id, RAG_ENABLED),
-                inference_endpoint=None,
-                rag_enabled=False,
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
+        with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+            mocked_hf_call.side_effect = ValueError(
+                "Error raised by inference API: Authorization header is correct, but the token seems invalid"
             )
+            with pytest.raises(LLMBuildError) as error:
+                HuggingFaceLLM(
+                    llm_params=llm_params,
+                    model_defaults=ModelDefaults(provider_name, model_id, RAG_ENABLED),
+                    inference_endpoint=None,
+                    rag_enabled=False,
+                )
 
-        assert (
-            "Error raised by inference API: Authorization header is correct, but the token seems invalid"
-            in error.value.args[0]
-        )
+            assert (
+                "Error raised by inference API: Authorization header is correct, but the token seems invalid"
+                in error.value.args[0]
+            )
 
 
 @pytest.mark.parametrize(
@@ -339,7 +346,7 @@ def test_generate_huggingface(
     expected_response,
     huggingface_dynamodb_defaults_table,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
         with mock.patch("langchain.chains.ConversationChain.predict", return_value=expected_response):
             mock_obj = MagicMock()
             mock_obj.task = DEFAULT_HUGGINGFACE_TASK
@@ -362,7 +369,7 @@ def test_exception_in_generate(
     chat_fixture,
     huggingface_dynamodb_defaults_table,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
         mock_obj = MagicMock()
         mock_obj.task = DEFAULT_HUGGINGFACE_TASK
         mocked_hf_call.return_value = mock_obj
@@ -393,7 +400,7 @@ def test_model_get_clean_model_params(
     request,
     huggingface_dynamodb_defaults_table,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
+    with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
         mock_obj = MagicMock()
         mock_obj.task = DEFAULT_HUGGINGFACE_TASK
         mocked_hf_call.return_value = mock_obj
@@ -403,7 +410,7 @@ def test_model_get_clean_model_params(
             "top_p": {"Type": "float", "Value": "0.2"},
         }
         response = chat.get_clean_model_params(model_params)
-        assert response == {"top_p": 0.2, "temperature": DEFAULT_TEMPERATURE, "max_length": 100}
+        assert response == {"max_length": 100}
 
 
 @pytest.mark.parametrize(
@@ -428,8 +435,6 @@ def test_endpoint_get_clean_model_params(
     }
     response = inference_chat.get_clean_model_params(model_params)
     assert response == {
-        "top_k": 1,
-        "temperature": DEFAULT_TEMPERATURE,
         "max_length": 100,
     }
 
@@ -452,29 +457,32 @@ def test_model_default_stop_sequences(
         "llms.huggingface.HuggingFaceLLM.get_conversation_chain",
         return_value=MagicMock(),
     ):
-        with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-            mock_obj = MagicMock()
-            mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-            mocked_hf_call.return_value = mock_obj
-            llm_params.streaming = False
-            llm_params.model_params = {
-                "top_p": {"Type": "float", "Value": "0.04"},
-                "max_tokens_to_sample": {"Type": "integer", "Value": "512"},
-                "stop": {"Type": "list", "Value": '["\n\nAssistant:", "\n\nHuman:"]'},
-            }
+        with mock.patch("huggingface_hub.InferenceClient") as mocked_hf_call:
+            with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+                mock_obj = MagicMock()
+                mock_obj.task = DEFAULT_HUGGINGFACE_TASK
+                mocked_hf_call.return_value = mock_obj
+                llm_params.streaming = False
+                llm_params.model_params = {
+                    "top_p": {"Type": "float", "Value": "0.04"},
+                    "top_k": {"Type": "integer", "Value": "2"},
+                    "max_tokens_to_sample": {"Type": "integer", "Value": "512"},
+                    "stop": {"Type": "list", "Value": '["\n\nAssistant:", "\n\nHuman:"]'},
+                }
 
-            chat = HuggingFaceLLM(
-                llm_params=llm_params,
-                model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
-                inference_endpoint=None,
-                rag_enabled=False,
-            )
+                chat = HuggingFaceLLM(
+                    llm_params=llm_params,
+                    model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+                    inference_endpoint=None,
+                    rag_enabled=False,
+                )
 
-            assert chat.model_params["top_p"] == 0.04
-            assert chat.model_params["max_tokens_to_sample"] == 512
-            assert chat.model_params["temperature"] == 0.0
-            # default and user provided stop sequences combined
-            assert sorted(chat.model_params["stop"]) == ["\n\n", "\n\nAssistant:", "\n\nHuman:"]
+                assert chat.top_p == 0.04
+                assert chat.top_k == 2
+                assert chat.model_params["max_tokens_to_sample"] == 512
+                assert chat.temperature == 0.0
+                # default and user provided stop sequences combined
+                assert sorted(chat.model_params["stop"]) == ["\n\n", "\n\nAssistant:", "\n\nHuman:"]
 
 
 @pytest.mark.parametrize(
@@ -520,8 +528,8 @@ def test_endpoint_default_stop_sequences(
                 rag_enabled=False,
             )
 
-            assert chat.model_params["top_p"] == 0.04
+            assert chat.top_p == 0.04
             assert chat.model_params["max_tokens_to_sample"] == 512
-            assert chat.model_params["temperature"] == 0.0
+            assert chat.temperature == 0.0
             # default and user provided stop sequences combined
             assert sorted(chat.model_params["stop"]) == ["\n\n", "\n\nAssistant:", "\n\nHuman:"]

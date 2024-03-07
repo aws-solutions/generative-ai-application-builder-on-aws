@@ -66,13 +66,14 @@ llm_params = LLM(
 @pytest.fixture
 def chat(use_case, model_id, prompt, is_streaming, setup_environment, rag_enabled, huggingface_dynamodb_defaults_table):
     llm_params.knowledge_base = None
-    chat = HuggingFaceLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-        inference_endpoint=None,
-        rag_enabled=rag_enabled,
-    )
-    yield chat
+    with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+        chat = HuggingFaceLLM(
+            llm_params=llm_params,
+            model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
+            inference_endpoint=None,
+            rag_enabled=rag_enabled,
+        )
+        yield chat
 
 
 @pytest.fixture
@@ -94,25 +95,26 @@ def rag_chat(
             "llms.huggingface.HuggingFaceEndpoint",
             return_value=MagicMock(),
         ):
-            llm_params.knowledge_base = KendraKnowledgeBase(
-                {
-                    "NumberOfDocs": 2,
-                    "ReturnSourceDocs": return_source_docs,
-                    "AttributeFilter": {
-                        "AndAllFilters": [
-                            {"EqualsTo": {"Key": "user_id", "Value": {"StringValue": "12345"}}},
-                        ]
-                    },
-                    "UserContext": None,
-                }
-            )
-            chat = HuggingFaceRetrievalLLM(
-                llm_params=llm_params,
-                model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-                inference_endpoint="fake-url",
-                return_source_docs=return_source_docs,
-            )
-            yield chat
+            with mock.patch("huggingface_hub.login", return_value=MagicMock()):
+                llm_params.knowledge_base = KendraKnowledgeBase(
+                    {
+                        "NumberOfDocs": 2,
+                        "ReturnSourceDocs": return_source_docs,
+                        "AttributeFilter": {
+                            "AndAllFilters": [
+                                {"EqualsTo": {"Key": "user_id", "Value": {"StringValue": "12345"}}},
+                            ]
+                        },
+                        "UserContext": None,
+                    }
+                )
+                chat = HuggingFaceRetrievalLLM(
+                    llm_params=llm_params,
+                    model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
+                    inference_endpoint="fake-url",
+                    return_source_docs=return_source_docs,
+                )
+                yield chat
 
 
 @pytest.mark.parametrize(
@@ -317,7 +319,7 @@ def test_get_validated_prompt(
             False,
             False,
             None,
-            {"temperature": 0.45},
+            {},
             "chat",
         ),
         (
@@ -331,7 +333,7 @@ def test_get_validated_prompt(
                 "top_p": {"Type": "float", "Value": "0.2"},
                 "max_length": {"Type": "integer", "Value": "100"},
             },
-            {"top_p": 0.2, "max_length": 100, "temperature": 0.45},
+            {"max_length": 100},
             "rag_chat",
         ),
     ],
@@ -350,10 +352,5 @@ def test_get_clean_model_params_success(
     chat_fixture,
     params,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-        mock_obj = MagicMock()
-        mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-        mocked_hf_call.return_value = mock_obj
-
-        chat = request.getfixturevalue(chat_fixture)
-        assert chat.get_clean_model_params(params) == expected_response
+    chat = request.getfixturevalue(chat_fixture)
+    assert chat.get_clean_model_params(params) == expected_response
