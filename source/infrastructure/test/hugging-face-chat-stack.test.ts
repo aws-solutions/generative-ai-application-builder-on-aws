@@ -35,6 +35,8 @@ describe('When Chat use case is created', () => {
             'Timeout': 900,
             'Environment': {
                 'Variables': {
+                    'POWERTOOLS_SERVICE_NAME': 'HUGGINGFACE_CHAT',
+                    'HF_HOME': '/tmp',
                     'CONVERSATION_TABLE_NAME': {
                         'Fn::GetAtt': [
                             Match.stringLikeRegexp(

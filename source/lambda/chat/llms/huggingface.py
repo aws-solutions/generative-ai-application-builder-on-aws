@@ -19,7 +19,6 @@ from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from huggingface_hub.utils import RepositoryNotFoundError
 from langchain_community.llms.huggingface_endpoint import HuggingFaceEndpoint
-from langchain_community.llms.huggingface_hub import HuggingFaceHub
 from llms.base_langchain import BaseLangChainModel
 from llms.models.llm import LLM
 from shared.defaults.model_defaults import ModelDefaults
@@ -143,26 +142,35 @@ class HuggingFaceLLM(BaseLangChainModel):
     def inference_endpoint(self, inference_endpoint) -> None:
         self._inference_endpoint = inference_endpoint
 
-    def get_llm(self) -> Union[HuggingFaceHub, HuggingFaceEndpoint]:
+    def get_llm(self) -> HuggingFaceEndpoint:
         """
         Creates a HuggingFace `LLM` based on supplied params
-        Either creates a HuggingFaceHub or a HuggingFaceEndpoint LLM based on whether a model-id
+        Creates a HuggingFaceEndpoint LLM based on whether a model-id
         or an HuggingFace inference endpoint is provided
         Args: None
 
         Returns:
-            HuggingFaceHub or HuggingFaceEndpoint LangChain LLM object that can be invoked in a conversation chain
+            HuggingFaceEndpoint LangChain LLM object that can be invoked in a conversation chain
         """
+        # HuggingFace hub
         if self.inference_endpoint is None:
-            return HuggingFaceHub(
+            return HuggingFaceEndpoint(
                 repo_id=self.model,
+                temperature=self.temperature,
+                top_k=self.top_k,
+                top_p=self.top_p,
                 model_kwargs=self.model_params,
                 huggingfacehub_api_token=self.api_token,
+                task=DEFAULT_HUGGINGFACE_TASK,
                 verbose=self.verbose,
             )
+        # inference endpoint
         else:
             return HuggingFaceEndpoint(
                 endpoint_url=self.inference_endpoint,
+                temperature=self.temperature,
+                top_k=self.top_k,
+                top_p=self.top_p,
                 model_kwargs=self.model_params,
                 huggingfacehub_api_token=self.api_token,
                 task=DEFAULT_HUGGINGFACE_TASK,
@@ -216,7 +224,9 @@ class HuggingFaceLLM(BaseLangChainModel):
             (Dict): Sanitized model params
         """
         sanitized_model_params = super().get_clean_model_params(model_params)
-        sanitized_model_params["temperature"] = self.temperature
+
+        self.top_k = sanitized_model_params.pop("top_k", None)
+        self.top_p = sanitized_model_params.pop("top_p", None)
 
         if self.model_defaults.stop_sequences:
             if "stop" in sanitized_model_params:
