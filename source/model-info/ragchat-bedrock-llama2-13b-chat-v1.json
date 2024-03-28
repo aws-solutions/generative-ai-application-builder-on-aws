@@ -4,6 +4,7 @@
     "ModelName": "meta.llama2-13b-chat-v1",
     "AllowsStreaming": true,
     "Prompt": "[INST] References:\n{context}\n\nCarefully read the reference passages above and try to truthfully answer the Human's question. If the answer is not explicitly contained within the references, respond with \"Sorry I don't know\". It is very important that you respond \"Sorry I don't know\" if the answer is not found within the references above. Do not make use of any information outside of the references. Try to be brief and write a response in no more than 5 complete sentences.\n\nCurrent conversation:\n{history}\n\nHuman: {input}\nAI: [/INST]",
+    "DisambiguationPrompt": "[INST] Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question: [/INST]",
     "MaxTemperature": "1",
     "DefaultTemperature": "0.5",
     "MinTemperature": "0",
