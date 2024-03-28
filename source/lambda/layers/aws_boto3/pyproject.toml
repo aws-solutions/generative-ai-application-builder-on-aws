@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "boto3-layer"
-version = "1.3.2"
+version = "1.3.3"
 authors = [ "Amazon Web Services" ]
 description = "Layer for AWS Boto3 python SDK"
 packages = [

@@ -120,10 +120,12 @@ isort                                                       MIT
 jest                                                        MIT
 jmespath                                                    MIT
 jsonpatch                                                   BSD License
+jsonpath-ng                                                 Apache2.0
 jsonpointer                                                 BSD License
 langchain                                                   MIT
 langchain-community                                         MIT
 langchain-core                                              MIT
+langchain-text-splitters                                    MIT
 langsmith                                                   MIT
 license-expression                                          Apache-2.0
 lodash                                                      MIT
@@ -137,10 +139,12 @@ npmlog                                                      ISC
 numexpr                                                     MIT
 numpy                                                       BSD-3-Clause
 openapi-schema-pydantic                                     MIT
+orjson                                                      Apache-2.0, MIT
 packaging                                                   Apache 2.0, BSD License
 pathspec                                                    MPL 2.0
 platformdirs                                                MIT
 pluggy                                                      MIT
+ply                                                         BSD
 portfinder                                                  MIT
 prettier                                                    MIT
 pyasn1                                                      BSD License (BSD-2-Clause)
@@ -173,8 +177,7 @@ tailwindcss                                                 MIT
 tenacity                                                    Apache-2.0
 tokenizers                                                  Apache-2.0
 tomli                                                       MIT
-tqdm                                                        MIT
-tqdm                                                        MPL 2.0, MIT
+tqdm                                                        MIT, MPL 2.0
 ts-jest                                                     MIT
 ts-node                                                     MIT
 types-PyYAML                                                Apache-2.0

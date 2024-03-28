@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2024-03-28
+
+### Fixed
+
+-   Bug with Bedrock Meta/Cohere deployments in RAG configurations ([#83](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/83))
+
+### Security
+
+-   Updated Node and Python packages to resolve vulnerabilities
+
 ## [1.3.2] - 2024-03-07
 
 ### Security
