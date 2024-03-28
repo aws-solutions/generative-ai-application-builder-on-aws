@@ -40,7 +40,7 @@ set -e
 # Check to see if input has been provided:
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
     echo "Please provide all required parameters for the build script"
-    echo "For example: ./build-s3-dist.sh solutions trademarked-solution-name v1.3.2 template-bucket-name"
+    echo "For example: ./build-s3-dist.sh solutions trademarked-solution-name v1.3.3 template-bucket-name"
     exit 1
 fi
 
@@ -91,10 +91,10 @@ echo "setting override warning to $overrideWarningsEnabled"
 node_modules/aws-cdk/bin/cdk synth --quiet --asset-metdata false --path-metadata false
 
 if [ $? -ne 0 ]; then
-  echo "******************************************************************************"
-  echo "cdk-nag found errors"
-  echo "******************************************************************************"
-  exit 1
+    echo "******************************************************************************"
+    echo "cdk-nag found errors"
+    echo "******************************************************************************"
+    exit 1
 fi
 
 echo "------------------------------------------------------------------------------"
@@ -114,8 +114,7 @@ node $template_dir/cdk-solution-helper/index
 echo "------------------------------------------------------------------------------"
 echo "Updating placeholders"
 echo "------------------------------------------------------------------------------"
-for file in $template_dist_dir/*.template
-do
+for file in $template_dist_dir/*.template; do
     replace="s/%%BUCKET_NAME%%/$bucket_name/g"
     sed -i -e $replace $file
 
@@ -134,7 +133,7 @@ echo "[Packing] Source code artifacts"
 echo "------------------------------------------------------------------------------"
 # ... For each asset.* source code artifact...
 cd $source_dir/infrastructure/cdk.out
-for d in `find . -mindepth 1 -maxdepth 1 -type d`; do
+for d in $(find . -mindepth 1 -maxdepth 1 -type d); do
     # Rename the artifact, removing the period for handler compatibility
     pfname="$(basename -- $d)"
     fname="$(echo $pfname | sed -e 's/\.//g')"
@@ -161,8 +160,8 @@ echo "---------------------------------------"
 echo "Printing cdk-nag reports"
 echo "---------------------------------------"
 cd $source_dir/infrastructure/cdk.out
-for csv in `find . -name "*.csv"`; do
+for csv in $(find . -name "*.csv"); do
     echo -e "File: $csv"
     echo "---------------------------------------"
-    cat $csv | perl -pe 's/((?<=,)|(?<=^)),/ ,/g;' | column -t -s, | less -S    
+    cat $csv | perl -pe 's/((?<=,)|(?<=^)),/ ,/g;' | column -t -s, | less -S
 done
