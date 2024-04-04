@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from llms.models.bedrock_params.llm import BedrockLLMParams
-from shared.defaults.model_defaults import ModelDefaults
 
 
 @dataclass
@@ -33,7 +32,6 @@ class BedrockAI21LLMParams(BedrockLLMParams):
     frequencyPenalty: Optional[Dict[str, Any]] = None
     stopSequences: Optional[List[str]] = None
     temperature: Optional[float] = None
-    model_defaults: Optional[ModelDefaults] = None
 
     def __post_init__(self):
         """
@@ -55,11 +53,11 @@ class BedrockAI21LLMParams(BedrockLLMParams):
             values are set using it.
 
         """
-        user_stop_sequences = self.stopSequences if self.stopSequences else []
-        self.stopSequences = list(set(self.model_defaults.stop_sequences + user_stop_sequences))
+        self.stopSequences = list(
+            set(self.model_defaults.stop_sequences + self.stopSequences if self.stopSequences else [])
+        )
         self.temperature = self.temperature if self.temperature is not None else self.model_defaults.default_temperature
-        self.topP = float(self.topP) if self.topP is not None else None
-        self.__dataclass_fields__.pop("model_defaults", None)
+        self.cleanup()
 
     def get_params_as_dict(self, stop_sequence_key: str = "stopSequences", pop_null: bool = True) -> Dict[str, Any]:
         """

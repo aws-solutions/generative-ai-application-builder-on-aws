@@ -41,6 +41,9 @@ describe('Model', () => {
                     verbose: false,
                     promptTemplate: 'fake prompt template',
                     modelParameters: []
+                },
+                knowledgeBase: {
+                    modelName: false
                 }
             }
         };

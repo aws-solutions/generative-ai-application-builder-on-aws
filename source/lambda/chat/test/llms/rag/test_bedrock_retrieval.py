@@ -412,3 +412,35 @@ def test_bedrock_model_variation(
 
     assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
     assert type(chat_model.conversation_memory) == DynamoDBChatMemory
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, return_source_docs, model_id",
+    [
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, False, model_id),
+    ],
+)
+def test_guardrails(
+    use_case,
+    prompt,
+    is_streaming,
+    model_id,
+    setup_environment,
+    llm_params,
+    return_source_docs,
+    temp_bedrock_dynamodb_defaults_table,
+):
+    # testing another bedrock model
+    llm_params.model_params = {
+        "top_p": {"Value": "0.9", "Type": "float"},
+        "guardrails": {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+    }
+    chat = BedrockRetrievalLLM(
+        llm_params=llm_params,
+        model_defaults=ModelDefaults(model_provider, "anthropic.claude-x", RAG_ENABLED),
+        model_family=BedrockModelProviders.ANTHROPIC.value,
+        return_source_docs=return_source_docs,
+    )
+    assert chat.model_params["top_p"] == 0.9
+    assert "guardrails" not in chat.model_params
+    assert chat.guardrails == {"id": "fake-id", "version": "DRAFT"}

@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from llms.models.bedrock_params.llm import BedrockLLMParams
-from shared.defaults.model_defaults import ModelDefaults
 
 
 @dataclass
@@ -26,12 +25,10 @@ class BedrockAnthropicLLMParams(BedrockLLMParams):
     The class also provides logic to parse and clean model parameters specifically for the Amazon AI21 Bedrock model.
     """
 
-    max_tokens_to_sample: Optional[int] = None
     top_p: Optional[float] = None
     top_k: Optional[float] = None
     stop_sequences: Optional[List[str]] = None
     temperature: Optional[float] = None
-    model_defaults: Optional[ModelDefaults] = None
 
     def __post_init__(self):
         """
@@ -54,16 +51,11 @@ class BedrockAnthropicLLMParams(BedrockLLMParams):
             values are set using it.
 
         """
-        user_stop_sequences = self.stop_sequences if self.stop_sequences else []
-        self.stop_sequences = list(sorted(set(self.model_defaults.stop_sequences + user_stop_sequences)))
-
-        self.temperature = (
-            float(self.temperature) if self.temperature is not None else self.model_defaults.default_temperature
+        self.stop_sequences = list(
+            sorted(set(self.model_defaults.stop_sequences + self.stop_sequences if self.stop_sequences else []))
         )
-
-        self.top_p = float(self.top_p) if self.top_p is not None else None
-        self.top_k = float(self.top_k) if self.top_k is not None else None
-        self.__dataclass_fields__.pop("model_defaults", None)
+        self.temperature = self.temperature if self.temperature is not None else self.model_defaults.default_temperature
+        self.cleanup()
 
     def get_params_as_dict(self, stop_sequence_key: str = "stop_sequences", pop_null: bool = True) -> Dict[str, Any]:
         """
@@ -77,3 +69,27 @@ class BedrockAnthropicLLMParams(BedrockLLMParams):
             (Dict): Dict of the model parameters.
         """
         return super().get_params_as_dict(stop_sequence_key=stop_sequence_key, pop_null=pop_null)
+
+
+@dataclass
+class BedrockAnthropicV1LLMParams(BedrockAnthropicLLMParams):
+    """
+    Model parameters for the Anthropic V1 and V2 models
+    """
+
+    max_tokens_to_sample: Optional[int] = None
+
+    def __post_init__(self):
+        super().__post_init__()
+
+
+@dataclass
+class BedrockAnthropicV3LLMParams(BedrockAnthropicLLMParams):
+    """
+    Model parameters for the Anthropic V3 models
+    """
+
+    max_tokens: Optional[int] = None
+
+    def __post_init__(self):
+        super().__post_init__()

@@ -17,7 +17,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 export const THIRD_PARTY_LEGAL_DISCLAIMER =
     'Generative AI Application Builder on AWS allows you to build and deploy generative artificial intelligence (GAI) applications on AWS by engaging the GAI model of your choice, including third-party GAI models that you may choose to use that AWS does not own or otherwise have any control over (“Third-Party GAI Models”). Your use of the Third-Party GAI Models is governed by the terms provided to you by the Third-Party GAI Model providers when you acquired your license to use them (for example, their terms of service, license agreement, acceptable use policy, and privacy policy). You are responsible for ensuring that your use of the Third-Party GAI Models comply with the terms governing them, and any laws, rules, regulations, policies, or standards that apply to you. You are also responsible for making your own independent assessment of the Third-Party GAI Models that you use, including their outputs and how Third-Party GAI Model providers use any data that may be transmitted to them based on your deployment configuration. AWS does not make any representations, warranties, or guarantees regarding the Third-Party GAI Models, which are “Third-Party Content” under your agreement with AWS. Generative AI Application Builder on AWS is offered to you as “AWS Content” under your agreement with AWS.';
 
-export const ANONYMOUS_METRICS_SCHEDULE = 'rate(1 hour)'; // runs every 1 hour
+export const ANONYMOUS_METRICS_SCHEDULE = 'rate(1 day)';
 
 export const PLACEHOLDER_EMAIL = 'placeholder@example.com';
 export const INTERNAL_EMAIL_DOMAIN = 'amazon';

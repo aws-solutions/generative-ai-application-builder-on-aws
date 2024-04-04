@@ -22,6 +22,7 @@ export interface ModelAdditionalSettingsProps extends BaseFormComponentProps {
     modelData: any;
     modelName: string;
     modelProvider: ModelProviderOption;
+    isRagEnabled: boolean;
 }
 
 export const ModelAdditionalSettings = (props: ModelAdditionalSettingsProps) => {

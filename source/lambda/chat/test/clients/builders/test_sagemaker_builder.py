@@ -122,7 +122,6 @@ def test_set_llm_model(
     setup_secret,
     sagemaker_dynamodb_defaults_table,
 ):
-    print("prompt=", SAGEMAKER_RAG_PROMPT)
     config = json.loads(sagemaker_llm_config["Parameter"]["Value"])
     chat_event_body = json.loads(chat_event["body"])
     builder = SageMakerBuilder(

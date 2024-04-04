@@ -14,6 +14,7 @@
 import { PromptTemplate } from '../PromptTemplate';
 import { cloudscapeRender, mockFormComponentCallbacks } from '@/utils';
 import { screen } from '@testing-library/react';
+import * as QueryHooks from 'hooks/useQueries';
 
 describe('PromptTemplate', () => {
     afterEach(() => {
@@ -21,12 +22,26 @@ describe('PromptTemplate', () => {
     });
 
     it('renders', () => {
+        const maxPromptTemplateLength = 50;
+        jest.spyOn(QueryHooks, 'useModelInfoQuery').mockReturnValue({
+            isSuccess: true,
+            isError: false,
+            data: { MaxPromptSize: maxPromptTemplateLength }
+        } as any);
+
         const mockModelData = {
-            promptTemplate: 'fake prompt template'
+            promptTemplate: 'fake prompt template',
+            modelProvider: {
+                label: 'Bedrock',
+                value: 'Bedrock'
+            },
+            modelName: 'amazon.titan-text-lite-v1'
         };
         const callbacks = mockFormComponentCallbacks();
 
-        const { cloudscapeWrapper } = cloudscapeRender(<PromptTemplate {...callbacks} modelData={mockModelData} />);
+        const { cloudscapeWrapper } = cloudscapeRender(
+            <PromptTemplate {...callbacks} modelData={mockModelData} isRagEnabled />
+        );
         const textArea = cloudscapeWrapper.findTextarea();
 
         expect(screen.getByTestId('model-system-prompt-field')).toBeTruthy();
@@ -40,5 +55,18 @@ describe('PromptTemplate', () => {
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
             promptTemplate: 'updating the prompt template'
         });
+
+        textArea?.focus();
+        textArea?.setTextareaValue('updating the prompt template beyond max prompt limit');
+        textArea?.blur();
+
+        expect(callbacks.onChangeFn).toHaveBeenCalledTimes(2);
+        expect(callbacks.onChangeFn).toHaveBeenCalledWith({
+            promptTemplate: 'updating the prompt template'
+        });
+        let errorField = cloudscapeWrapper.findFormField('[data-testid="model-system-prompt-field"]')?.findError();
+        expect(errorField?.getElement().innerHTML).toContain(
+            `Prompt template can have a maximum of ${maxPromptTemplateLength} characters`
+        );
     });
 });

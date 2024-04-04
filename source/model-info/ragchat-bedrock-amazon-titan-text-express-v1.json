@@ -17,6 +17,6 @@
         "human_prefix": "User",
         "output": "answer"
     },
-    "MaxPromptSize": 2000,
-    "MaxChatMessageSize": 2500
+    "MaxPromptSize": 15000,
+    "MaxChatMessageSize": 15000
 }

@@ -15,12 +15,14 @@ import { FormField, Textarea, TextareaProps } from '@cloudscape-design/component
 import React from 'react';
 import { InfoLink } from '../../../commons';
 import { TOOLS_CONTENT } from '../../tools-content';
-import { MAX_PROMPT_TEMPLATE_LENGTH } from '../../../../utils/constants';
+import { MAX_PROMPT_TEMPLATE_LENGTH_DEFAULT } from '../../../../utils/constants';
 import { updateNumFieldsInError } from '../../utils';
 import { BaseFormComponentProps } from '../../interfaces/BaseFormComponent';
+import { useModelInfoQuery } from 'hooks/useQueries';
 
 export interface PropTemplateProps extends BaseFormComponentProps {
     modelData: any;
+    isRagEnabled: boolean;
 }
 
 const { model: modelToolsContent } = TOOLS_CONTENT;
@@ -28,12 +30,52 @@ const { model: modelToolsContent } = TOOLS_CONTENT;
 export const PromptTemplate = (props: PropTemplateProps) => {
     const [promptTemplateError, setPromptTemplateError] = React.useState('');
 
+    const modelInfoQueryResponse = useModelInfoQuery(
+        props.modelData.modelProvider.value!,
+        props.modelData.modelName,
+        props.isRagEnabled ? 'RAGChat' : 'Chat'
+    );
+
+    const updateMaxPromptTemplateLength = () => {
+        if (modelInfoQueryResponse.isError) {
+            console.error('Error in fetching model prompt template defaults');
+            return MAX_PROMPT_TEMPLATE_LENGTH_DEFAULT;
+        }
+
+        if (props.modelData.modelProvider && props.modelData.modelName && modelInfoQueryResponse.isSuccess) {
+            return modelInfoQueryResponse.data.MaxPromptSize;
+        }
+        return MAX_PROMPT_TEMPLATE_LENGTH_DEFAULT;
+    };
+
+    const [maxPromptTemplateLength, setMaxPromptTemplateLength] = React.useState(() => {
+        return updateMaxPromptTemplateLength();
+    });
+
+    React.useEffect(() => {
+        const newMaxPromptTemplateLength = updateMaxPromptTemplateLength();
+        setMaxPromptTemplateLength(newMaxPromptTemplateLength);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.modelData.modelProvider, props.modelData.modelName, props.isRagEnabled, modelInfoQueryResponse.data]);
+
+    const updatePromptTemplateErrors = (newPromptTemplate: string) => {
+        let errors = '';
+        if (newPromptTemplate !== '' && newPromptTemplate.length > maxPromptTemplateLength) {
+            errors += `Prompt template can have a maximum of ${maxPromptTemplateLength} characters`;
+        }
+        return errors;
+    };
+
+    React.useEffect(() => {
+        let errors = updatePromptTemplateErrors(props.modelData.promptTemplate);
+        updateNumFieldsInError(errors, promptTemplateError, props.setNumFieldsInError);
+        setPromptTemplateError(errors);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [maxPromptTemplateLength]);
+
     const onPromptTemplateChange = (detail: TextareaProps.ChangeDetail) => {
         props.onChangeFn({ promptTemplate: detail.value });
-        let errors = '';
-        if (detail.value !== '' && detail.value.length > MAX_PROMPT_TEMPLATE_LENGTH) {
-            errors += `Prompt template can have a maximum of ${MAX_PROMPT_TEMPLATE_LENGTH} characters`;
-        }
+        let errors = updatePromptTemplateErrors(detail.value);
         updateNumFieldsInError(errors, promptTemplateError, props.setNumFieldsInError);
         setPromptTemplateError(errors);
     };

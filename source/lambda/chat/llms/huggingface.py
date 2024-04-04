@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit

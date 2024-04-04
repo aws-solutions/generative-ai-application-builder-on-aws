@@ -29,12 +29,22 @@ describe('ModelAdditionalSettings', () => {
         } as any);
 
         const mockAdditionalSettingsProps = {
-            modelData: { temperature: 0.3, verbose: false, promptTemplate: 'fake prompt template' },
+            modelData: {
+                temperature: 0.3,
+                verbose: false,
+                promptTemplate: 'fake prompt template',
+                modelName: 'amazon.titan-text-express-v1',
+                modelProvider: {
+                    label: 'Bedrock',
+                    value: 'Bedrock'
+                }
+            },
             modelName: 'amazon.titan-text-express-v1',
             modelProvider: {
                 label: 'Bedrock',
                 value: 'Bedrock'
-            }
+            },
+            isRagEnabled: false
         };
         renderWithProvider(
             <ModelAdditionalSettings {...mockAdditionalSettingsProps} {...mockFormComponentCallbacks()} />,
