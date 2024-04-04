@@ -88,3 +88,6 @@ SAGEMAKER_ENDPOINT_ARGS = [
     "EnableExplanations",
     "InferenceComponentName",
 ]
+
+BEDROCK_GUARDRAILS_KEY = "guardrails"
+LEGACY_MODELS_ENV_VAR = "LEGACY_MODELS"

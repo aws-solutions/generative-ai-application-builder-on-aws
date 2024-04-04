@@ -25,7 +25,7 @@ from helper import get_service_client
 from utils.constants import (
     CLIENT_ID_ENV_VAR,
     KENDRA_INDEX_ID_ENV_VAR,
-    PUBLISH_METRICS_HOURS,
+    PUBLISH_METRICS_DAYS,
     REST_API_NAME_ENV_VAR,
     USE_CASE_UUID_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
@@ -86,15 +86,16 @@ def setup_metrics_environment():
 
 def get_metric_data_stubbed(cw_stub, metric_responses):
     metric_queries = get_cloudwatch_metrics_queries()
-    mock_end_datetime = datetime.timestamp(datetime.now() - timedelta(1))
-    mock_start_datetime = datetime.timestamp(datetime.now() - timedelta(PUBLISH_METRICS_HOURS + 1))
+    today = datetime.today().replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
+    mock_start_timestamp = datetime.timestamp(today - timedelta(days=PUBLISH_METRICS_DAYS))
+    mock_end_timestamp = datetime.timestamp(today)
     for query in range(len(metric_queries)):
         cw_stub.add_response(
             "get_metric_data",
             expected_params={
                 "MetricDataQueries": metric_queries[query],
-                "StartTime": mock_start_datetime,
-                "EndTime": mock_end_datetime,
+                "StartTime": mock_start_timestamp,
+                "EndTime": mock_end_timestamp,
             },
             service_response={"MetricDataResults": [metric_responses[query]]},
         )
@@ -107,7 +108,7 @@ def test_publish_metrics_success(cw_stub, metric_responses, setup_metrics_enviro
     with does_not_raise():
         get_metric_data_stubbed(cw_stub, metric_responses)
         cw_stub.activate()
-        assert get_metrics_payload(PUBLISH_METRICS_HOURS) == expected_metric_data_output
+        assert get_metrics_payload(PUBLISH_METRICS_DAYS) == expected_metric_data_output
 
 
 @freeze_time("2000-01-01T00:00:00")
@@ -127,6 +128,6 @@ def test_publish_metrics_raises(cw_stub):
     cw_stub.add_client_error("get_metric_data", service_error_code="fake-code", service_message="fake-error")
     cw_stub.activate()
     with pytest.raises(ClientError) as error:
-        get_metrics_payload(PUBLISH_METRICS_HOURS)
+        get_metrics_payload(PUBLISH_METRICS_DAYS)
 
     assert error.value.args[0] == "An error occurred (fake-code) when calling the GetMetricData operation: fake-error"

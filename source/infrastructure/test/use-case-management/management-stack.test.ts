@@ -403,20 +403,21 @@ describe('When creating a use case management Stack', () => {
                             {
                                 Action: [
                                     'iam:AttachRolePolicy',
-                                    'iam:CreateRole',
                                     'iam:DeleteRole',
                                     'iam:DeleteRolePolicy',
                                     'iam:DetachRolePolicy',
                                     'iam:GetRole',
                                     'iam:GetRolePolicy',
                                     'iam:PutRolePolicy',
-                                    'iam:TagRole',
                                     'iam:UpdateAssumeRolePolicy',
-                                    'iam:PassRole'
+                                    'iam:PassRole',
+                                    'iam:CreateRole',
+                                    'iam:TagRole',
+                                    'iam:ListRoleTags'
                                 ],
                                 Condition: {
                                     'ForAllValues:StringEquals': {
-                                        'aws:TagKeys': ['createdVia', 'userId']
+                                        'aws:TagKeys': ['createdVia', 'userId', 'Name']
                                     }
                                 },
                                 Effect: 'Allow',

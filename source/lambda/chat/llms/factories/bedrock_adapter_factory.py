@@ -17,10 +17,11 @@ from typing import Dict
 from aws_lambda_powertools import Logger
 from llms.models.bedrock_params.ai21 import BedrockAI21LLMParams
 from llms.models.bedrock_params.amazon import BedrockAmazonLLMParams
-from llms.models.bedrock_params.anthropic import BedrockAnthropicLLMParams
+from llms.models.bedrock_params.anthropic import BedrockAnthropicV1LLMParams, BedrockAnthropicV3LLMParams
 from llms.models.bedrock_params.cohere import BedrockCohereLLMParams
 from llms.models.bedrock_params.llm import BedrockLLMParams
 from llms.models.bedrock_params.meta import BedrockMetaLLMParams
+from llms.models.bedrock_params.mistral import BedrockMistralLLMParams
 from utils.enum_types import BedrockModelProviders
 
 logger = Logger(utc=True)
@@ -34,18 +35,23 @@ class BedrockAdapterFactory:
 
     def __init__(self):
         self._model_map = {
-            BedrockModelProviders.ANTHROPIC.value: BedrockAnthropicLLMParams,
-            BedrockModelProviders.AI21.value: BedrockAI21LLMParams,
-            BedrockModelProviders.AMAZON.value: BedrockAmazonLLMParams,
-            BedrockModelProviders.META.value: BedrockMetaLLMParams,
-            BedrockModelProviders.COHERE.value: BedrockCohereLLMParams,
+            BedrockModelProviders.ANTHROPIC.value: {
+                "anthropic.claude-3-haiku-20240307-v1:0": BedrockAnthropicV3LLMParams,
+                "anthropic.claude-3-sonnet-20240229-v1:0": BedrockAnthropicV3LLMParams,
+                "default": BedrockAnthropicV1LLMParams,
+            },
+            BedrockModelProviders.AI21.value: {"default": BedrockAI21LLMParams},
+            BedrockModelProviders.AMAZON.value: {"default": BedrockAmazonLLMParams},
+            BedrockModelProviders.META.value: {"default": BedrockMetaLLMParams},
+            BedrockModelProviders.COHERE.value: {"default": BedrockCohereLLMParams},
+            BedrockModelProviders.MISTRAL.value: {"default": BedrockMistralLLMParams},
         }
 
     @property
     def model_map(self) -> Dict[BedrockModelProviders, BedrockLLMParams]:
         return self._model_map
 
-    def get_bedrock_adapter(self, model_family) -> BedrockLLMParams:
+    def get_bedrock_adapter(self, model_family, model_id) -> BedrockLLMParams:
         """
         Returns the appropriate Bedrock Family Adapter for the task of cleaning model params, based on model family
         parameter.
@@ -57,7 +63,10 @@ class BedrockAdapterFactory:
 
         """
         try:
-            return self.model_map[model_family]
+            if model_id in self.model_map[model_family]:
+                return self.model_map[model_family][model_id]
+            else:
+                return self.model_map[model_family]["default"]
         except KeyError as error:
             logger.error(f"BedrockAdapterFactory: Provided model family is not supported. Error: {error}")
             raise ValueError(f"BedrockAdapterFactory: Provided model family is not supported.")

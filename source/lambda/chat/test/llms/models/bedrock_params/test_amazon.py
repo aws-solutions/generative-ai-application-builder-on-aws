@@ -69,7 +69,7 @@ model_id = "amazon.model-x"
         ),
     ],
 )
-def test_ai21_params_dataclass_success(
+def test_amazon_params_dataclass_success(
     use_case,
     prompt,
     is_streaming,
@@ -128,7 +128,7 @@ def test_ai21_params_dataclass_success(
         ),
     ],
 )
-def test_ai21_get_params_as_dict(
+def test_amazon_get_params_as_dict(
     use_case,
     prompt,
     is_streaming,

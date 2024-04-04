@@ -1,6 +1,6 @@
 {
   "name": "aws-sdk-layer",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "description": "AWS Javascript SDK v3 layer",
   "dependencies": {
     "@aws-sdk/client-cloudformation": "^3.484.0",

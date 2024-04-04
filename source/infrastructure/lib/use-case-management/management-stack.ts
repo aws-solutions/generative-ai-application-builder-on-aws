@@ -543,23 +543,26 @@ const buildCfnDeployRole = (scope: Construct): iam.Role => {
                         effect: iam.Effect.ALLOW,
                         actions: [
                             'iam:AttachRolePolicy',
-                            'iam:CreateRole',
                             'iam:DeleteRole',
                             'iam:DeleteRolePolicy',
                             'iam:DetachRolePolicy',
                             'iam:GetRole',
                             'iam:GetRolePolicy',
                             'iam:PutRolePolicy',
-                            'iam:TagRole',
                             'iam:UpdateAssumeRolePolicy',
-                            'iam:PassRole'
+                            'iam:PassRole',
+                            'iam:CreateRole',
+                            'iam:TagRole',
+                            'iam:ListRoleTags'
                         ],
                         resources: [
                             `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/*`,
                             `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:policy/*`
                         ],
                         conditions: {
-                            ...awsTagKeysCondition
+                            'ForAllValues:StringEquals': {
+                                'aws:TagKeys': ['createdVia', 'userId', 'Name']
+                            }
                         }
                     }),
                     new iam.PolicyStatement({

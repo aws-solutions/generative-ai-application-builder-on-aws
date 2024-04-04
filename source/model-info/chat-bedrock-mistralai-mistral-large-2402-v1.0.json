@@ -1,11 +1,11 @@
 {
     "UseCase": "Chat",
     "ModelProviderName": "Bedrock",
-    "ModelName": "ai21.j2-mid",
-    "AllowsStreaming": false,
-    "Prompt": "{history}\n\n{input}",
+    "ModelName": "mistral.mistral-large-2402-v1:0",
+    "AllowsStreaming": true,
+    "Prompt": "[INST] {history}\n\n{input} [/INST]",
     "MaxTemperature": "1",
-    "DefaultTemperature": "1",
+    "DefaultTemperature": "0.5",
     "MinTemperature": "0",
     "DefaultStopSequences": [],
     "MemoryConfig": {
@@ -16,6 +16,6 @@
         "human_prefix": "Human",
         "output": null
     },
-    "MaxPromptSize": 15360,
-    "MaxChatMessageSize": 15360
+    "MaxPromptSize": 60000,
+    "MaxChatMessageSize": 60000
 }

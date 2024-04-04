@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2024-04-04
+
+### Added
+
+-   Support for newest Bedrock models: Anthropic Claude v3 and Mistral family of models ([#79](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/79))
+
+### Changed
+
+-   Significantly increased default prompt and chat input character limits. Should now support ~50% of the model's input prompt limit
+
+### Fixed
+
+-   UI input validation misaligned with backend limits ([#80](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/80))
+-   Missing hyperlink to solution landing page in README ([#65](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/pull/65))
+
+### Security
+
+-   Updated package versions to resolve vulnerabilities
+
+
 ## [1.3.3] - 2024-03-28
 
 ### Fixed

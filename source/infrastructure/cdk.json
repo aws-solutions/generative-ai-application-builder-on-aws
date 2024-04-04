@@ -62,7 +62,7 @@
     "@aws-cdk/aws-codepipeline-actions:useNewDefaultBranchForCodeCommitSource": true,
     "solution_id": "SO0276",
     "solution_name": "generative-ai-application-builder-on-aws",
-    "solution_version": "v1.3.3",
+    "solution_version": "v1.4.0",
     "app_registry_name": "GAAB",
     "application_type": "AWS-Solutions",
     "application_trademark_name": "Generative AI Application Builder on AWS"

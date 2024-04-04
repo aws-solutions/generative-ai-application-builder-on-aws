@@ -15,7 +15,7 @@
 import os
 from typing import Any, Dict
 
-from aws_lambda_powertools import Logger, Metrics, Tracer
+from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from clients.bedrock_client import BedrockClient
 from shared.callbacks.websocket_error_handler import WebsocketErrorHandler

@@ -26,9 +26,16 @@ export interface ModelComponentsProps {
     onChange: (e: any) => void;
     setHelpPanelContent: (e: any) => void;
     setNumFieldsInError: React.Dispatch<any>;
+    knowledgeBase: any;
 }
 
-const ModelComponents = ({ model, onChange, setHelpPanelContent, setNumFieldsInError }: ModelComponentsProps) => {
+const ModelComponents = ({
+    model,
+    onChange,
+    setHelpPanelContent,
+    setNumFieldsInError,
+    knowledgeBase
+}: ModelComponentsProps) => {
     return (
         <form>
             <Form>
@@ -48,6 +55,7 @@ const ModelComponents = ({ model, onChange, setHelpPanelContent, setNumFieldsInE
                                     onChangeFn={onChange}
                                     setNumFieldsInError={setNumFieldsInError}
                                     setHelpPanelContent={setHelpPanelContent}
+                                    isRagEnabled={knowledgeBase.isRagRequired}
                                 />
                             </ExpandableSection>
                         )
@@ -76,7 +84,7 @@ const ModelComponents = ({ model, onChange, setHelpPanelContent, setNumFieldsInE
     );
 };
 
-const Model = ({ info: { model }, setHelpPanelContent, onChange }: StepContentProps) => {
+const Model = ({ info: { model, knowledgeBase }, setHelpPanelContent, onChange }: StepContentProps) => {
     const [numFieldsInError, setNumFieldsInError] = React.useState(0);
 
     const [requiredFields, setRequiredFields] = React.useState(initModelRequiredFields(model.modelProvider.value));
@@ -87,7 +95,8 @@ const Model = ({ info: { model }, setHelpPanelContent, onChange }: StepContentPr
         numFieldsInError,
         setNumFieldsInError,
         requiredFields,
-        setRequiredFields
+        setRequiredFields,
+        knowledgeBase
     };
 
     const isRequiredFieldsFilled = () => {

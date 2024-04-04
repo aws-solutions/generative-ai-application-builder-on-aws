@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from llms.models.bedrock_params.llm import BedrockLLMParams
-from shared.defaults.model_defaults import ModelDefaults
 
 
 @dataclass
@@ -29,7 +28,6 @@ class BedrockMetaLLMParams(BedrockLLMParams):
     max_gen_len: Optional[int] = None
     top_p: Optional[float] = None
     temperature: Optional[float] = None
-    model_defaults: Optional[ModelDefaults] = None
 
     def __post_init__(self):
         """
@@ -37,10 +35,8 @@ class BedrockMetaLLMParams(BedrockLLMParams):
         Empty keys are dropped from the BedrockCohereLLMParams dataclass object. All model parameters are optional.
         Stop sequences are extended to include defaults if a default exists for that model provider.
         """
-        self.temperature = (
-            float(self.temperature) if self.temperature is not None else self.model_defaults.default_temperature
-        )
-        self.__dataclass_fields__.pop("model_defaults", None)
+        self.temperature = self.temperature if self.temperature is not None else self.model_defaults.default_temperature
+        self.cleanup()
 
     def get_params_as_dict(self, stop_sequence_key: str = None, pop_null: bool = True) -> Dict[str, Any]:
         """
