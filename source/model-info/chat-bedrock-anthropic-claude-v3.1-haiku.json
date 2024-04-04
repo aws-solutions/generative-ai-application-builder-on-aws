@@ -1,7 +1,7 @@
 {
     "UseCase": "Chat",
     "ModelProviderName": "Bedrock",
-    "ModelName": "anthropic.claude-v1",
+    "ModelName": "anthropic.claude-3-haiku-20240307-v1:0",
     "AllowsStreaming": true,
     "Prompt": "\n\nHuman: You are a friendly AI assistant that is helpful, honest, and harmless.\n\nHere is the current conversation:\n{history}\n\n{input}\n\nAssistant:",
     "MaxTemperature": "1",
@@ -16,6 +16,6 @@
         "human_prefix": "H",
         "output": null
     },
-    "MaxPromptSize": 2000,
-    "MaxChatMessageSize": 2500
+    "MaxPromptSize": 375000,
+    "MaxChatMessageSize": 375000
 }

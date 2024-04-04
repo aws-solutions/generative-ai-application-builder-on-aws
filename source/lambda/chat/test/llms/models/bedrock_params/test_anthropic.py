@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import pytest
-from llms.models.bedrock_params.anthropic import BedrockAnthropicLLMParams
+from llms.models.bedrock_params.anthropic import BedrockAnthropicV1LLMParams, BedrockAnthropicV3LLMParams
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import CHAT_IDENTIFIER
 
@@ -25,7 +25,7 @@ model_id = "anthropic.model-x"
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, model_id, params, expected_response",
+    "use_case, prompt, is_streaming, model_id, params, expected_response, params_class",
     [
         (
             CHAT_IDENTIFIER,  # required for model_defaults fixture bedrock_dynamodb_defaults_table
@@ -40,6 +40,7 @@ model_id = "anthropic.model-x"
                 "stop_sequences": [],
                 "temperature": 0.2,
             },
+            BedrockAnthropicV1LLMParams,
         ),
         (
             CHAT_IDENTIFIER,
@@ -60,6 +61,7 @@ model_id = "anthropic.model-x"
                 "stop_sequences": ["ai:", "human:"],
                 "temperature": 0.2,
             },
+            BedrockAnthropicV1LLMParams,
         ),
         (
             CHAT_IDENTIFIER,
@@ -78,6 +80,7 @@ model_id = "anthropic.model-x"
                 "stop_sequences": [],
                 "temperature": DEFAULT_TEMPERATURE,
             },
+            BedrockAnthropicV1LLMParams,
         ),
         (
             CHAT_IDENTIFIER,
@@ -88,10 +91,11 @@ model_id = "anthropic.model-x"
             {
                 "temperature": DEFAULT_TEMPERATURE,
             },
+            BedrockAnthropicV1LLMParams,
         ),
     ],
 )
-def test_ai21_params_dataclass_success(
+def test_anthropic_params_dataclass_success(
     use_case,
     prompt,
     is_streaming,
@@ -99,12 +103,53 @@ def test_ai21_params_dataclass_success(
     params,
     expected_response,
     model_id,
+    params_class,
     bedrock_dynamodb_defaults_table,
 ):
     model_defaults = ModelDefaults("Bedrock", model_id, RAG_ENABLED)
-    bedrock_params = BedrockAnthropicLLMParams(**params, model_defaults=model_defaults)
+    bedrock_params = params_class(**params, model_defaults=model_defaults)
     assert bedrock_params.temperature == expected_response["temperature"]
     assert bedrock_params.max_tokens_to_sample is expected_response.get("max_tokens_to_sample")
+    assert bedrock_params.top_p == expected_response.get("top_p")
+    assert bedrock_params.top_k == expected_response.get("top_k")
+    assert bedrock_params.stop_sequences == expected_response.get("stop_sequences", [])
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, model_id, params, expected_response, params_class",
+    [
+        (
+            CHAT_IDENTIFIER,  # required for model_defaults fixture bedrock_dynamodb_defaults_table
+            BEDROCK_PROMPT,
+            False,
+            model_id,
+            {"max_tokens": 512, "top_p": 0.2, "top_k": 0.2, "stop_sequences": "", "temperature": 0.2},
+            {
+                "max_tokens": 512,
+                "top_p": 0.2,
+                "top_k": 0.2,
+                "stop_sequences": [],
+                "temperature": 0.2,
+            },
+            BedrockAnthropicV3LLMParams,
+        )
+    ],
+)
+def test_anthropic_v3_params_dataclass_success(
+    use_case,
+    prompt,
+    is_streaming,
+    setup_environment,
+    params,
+    expected_response,
+    model_id,
+    params_class,
+    bedrock_dynamodb_defaults_table,
+):
+    model_defaults = ModelDefaults("Bedrock", model_id, RAG_ENABLED)
+    bedrock_params = params_class(**params, model_defaults=model_defaults)
+    assert bedrock_params.temperature == expected_response["temperature"]
+    assert bedrock_params.max_tokens is expected_response.get("max_tokens")
     assert bedrock_params.top_p == expected_response.get("top_p")
     assert bedrock_params.top_k == expected_response.get("top_k")
     assert bedrock_params.stop_sequences == expected_response.get("stop_sequences", [])
@@ -168,7 +213,7 @@ def test_ai21_params_dataclass_success(
         ),
     ],
 )
-def test_ai21_get_params_as_dict(
+def test_anthropic_get_params_as_dict(
     use_case,
     prompt,
     is_streaming,
@@ -179,13 +224,13 @@ def test_ai21_get_params_as_dict(
     bedrock_dynamodb_defaults_table,
 ):
     model_defaults = ModelDefaults("Bedrock", model_id, RAG_ENABLED)
-    bedrock_params = BedrockAnthropicLLMParams(**params, model_defaults=model_defaults)
+    bedrock_params = BedrockAnthropicV1LLMParams(**params, model_defaults=model_defaults)
     assert bedrock_params.get_params_as_dict(pop_null=pop_null) == expected_response
 
 
 def test_anthropic_incorrect_params():
     with pytest.raises(TypeError) as error:
-        BedrockAnthropicLLMParams(
+        BedrockAnthropicV1LLMParams(
             **{
                 "max_tokens_to_sample": 512,
                 "top_p": 0.2,
@@ -197,5 +242,5 @@ def test_anthropic_incorrect_params():
 
     assert (
         error.value.args[0]
-        == "BedrockAnthropicLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
+        == "BedrockAnthropicV1LLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
     )

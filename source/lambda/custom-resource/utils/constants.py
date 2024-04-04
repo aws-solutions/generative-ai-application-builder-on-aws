@@ -61,7 +61,7 @@ class CloudWatchMetrics(str, Enum):
 
 METRICS_ENDPOINT = "https://metrics.awssolutionsbuilder.com/generic"
 PUBLISH_METRICS_TIME_PERIOD = 180
-PUBLISH_METRICS_HOURS = 1  # Equivalent to the runtime schedule defined by ANONYMOUS_METRICS_SCHEDULE
+PUBLISH_METRICS_DAYS = 1  # Equivalent (in number of days) to the runtime schedule defined by ANONYMOUS_METRICS_SCHEDULE
 
 SSM_CONFIG_KEY = "SSM_CONFIG_KEY"
 LLM_PARAMS = "LlmParams"

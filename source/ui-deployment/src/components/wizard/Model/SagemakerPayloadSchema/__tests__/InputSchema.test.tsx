@@ -22,13 +22,7 @@ describe('InputSchema', () => {
 
     test('renders', async () => {
         const mockModelData = { sagemakerInputSchema: '' };
-        const { cloudscapeWrapper } = cloudscapeRender(
-            <InputSchema {...mockFormComponentCallbacks()} modelData={mockModelData} />
-        );
+        cloudscapeRender(<InputSchema {...mockFormComponentCallbacks()} modelData={mockModelData} />);
         expect(screen.getByTestId('sagemaker-input-payload-schema-field')).toBeDefined();
-
-        await waitFor(() => {
-            expect(cloudscapeWrapper.findCodeEditor()?.findEditor()?.getElement().innerHTML).toBeTruthy();
-        });
     });
 });

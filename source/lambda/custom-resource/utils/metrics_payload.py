@@ -20,7 +20,7 @@ from helper import get_service_client
 from utils.constants import (
     CLIENT_ID_ENV_VAR,
     KENDRA_INDEX_ID_ENV_VAR,
-    PUBLISH_METRICS_HOURS,
+    PUBLISH_METRICS_DAYS,
     REST_API_NAME_ENV_VAR,
     USE_CASE_UUID_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
@@ -28,6 +28,8 @@ from utils.constants import (
     CloudWatchMetrics,
     CloudWatchNamespaces,
 )
+
+PUBLISH_METRICS_PERIOD = PUBLISH_METRICS_DAYS * 24 * 60 * 60
 
 
 def get_cloudwatch_metrics_queries():
@@ -252,7 +254,7 @@ def get_cloudwatch_metrics_queries():
                 {
                     "Id": query_label_pair[0].replace(")", "").replace("(", "").lower(),
                     "Expression": query_label_pair[1],
-                    "Period": PUBLISH_METRICS_HOURS,
+                    "Period": PUBLISH_METRICS_PERIOD,
                     "Label": query_label_pair[0],
                 }
             ]
@@ -260,12 +262,13 @@ def get_cloudwatch_metrics_queries():
     return formatted_queries
 
 
-def get_metrics_payload(hours):
-    today = datetime.today().replace(minute=0, second=0, microsecond=0)
-    # fetch metrics from (hours-1) to (T-1) hours as CW metrics can be slow to trickle in
-    start_time = datetime.timestamp(today - timedelta(hours + 1))
-    today_timestamp = datetime.timestamp(today - timedelta(1))
+def get_metrics_payload(days):
     metric_data_queries = get_cloudwatch_metrics_queries()
+
+    # fetch for (T-1) hours as CW metrics can be slow to trickle in
+    today = datetime.today().replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
+    start_timestamp = datetime.timestamp(today - timedelta(days=days))
+    end_timestamp = datetime.timestamp(today)
 
     cloudwatch_client = get_service_client("cloudwatch")
     metric_data = {}
@@ -274,8 +277,8 @@ def get_metrics_payload(hours):
     for query in metric_data_queries:
         cloudwatch_response = cloudwatch_client.get_metric_data(
             MetricDataQueries=query,
-            StartTime=start_time,
-            EndTime=today_timestamp,
+            StartTime=start_timestamp,
+            EndTime=end_timestamp,
         )["MetricDataResults"][0]
         metric_data[cloudwatch_response["Id"]] = cloudwatch_response["Values"][0] if cloudwatch_response["Values"] else 0
     # fmt: on

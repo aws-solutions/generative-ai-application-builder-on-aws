@@ -13,25 +13,28 @@
 ######################################################################################################################
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
-from langchain.llms.bedrock import Bedrock
+from langchain_community.chat_models.bedrock import BedrockChat
+from langchain_community.llms.bedrock import Bedrock
 from llms.base_langchain import BaseLangChainModel
 from llms.factories.bedrock_adapter_factory import BedrockAdapterFactory
 from llms.models.llm import LLM
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import (
+    BEDROCK_GUARDRAILS_KEY,
     DEFAULT_BEDROCK_MODEL_FAMILY,
     DEFAULT_BEDROCK_MODELS_MAP,
     DEFAULT_RAG_ENABLED_MODE,
+    LEGACY_MODELS_ENV_VAR,
     TRACE_ID_ENV_VAR,
 )
 from utils.custom_exceptions import LLMBuildError, LLMInvocationError
 from utils.enum_types import BedrockModelProviders, CloudWatchMetrics, CloudWatchNamespaces
-from utils.helpers import get_metrics_client
+from utils.helpers import get_metrics_client, type_cast
 
 tracer = Tracer()
 logger = Logger(utc=True)
@@ -106,7 +109,17 @@ class BedrockLLM(BaseLangChainModel):
             self.model = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
             self.model_family = DEFAULT_BEDROCK_MODEL_FAMILY
 
+        if llm_params.model_params is not None and BEDROCK_GUARDRAILS_KEY in llm_params.model_params:
+            self.guardrails = type_cast(
+                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Value"),
+                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Type"),
+            )
+            llm_params.model_params.pop(BEDROCK_GUARDRAILS_KEY)
+        else:
+            self.guardrails = None
+
         self.model_params = self.get_clean_model_params(llm_params.model_params)
+
         self.llm = self.get_llm()
         self.conversation_chain = self.get_conversation_chain()
 
@@ -118,7 +131,7 @@ class BedrockLLM(BaseLangChainModel):
     def model_family(self, model_family) -> None:
         self._model_family = model_family
 
-    def get_llm(self, condense_prompt_model: bool = False) -> Bedrock:
+    def get_llm(self, condense_prompt_model: bool = False) -> Union[Bedrock, BedrockChat]:
         """
         Creates a LangChain `LLM` object which is used to generate chat responses.
 
@@ -137,13 +150,30 @@ class BedrockLLM(BaseLangChainModel):
         streaming = False if condense_prompt_model else self.streaming
         callbacks = None if condense_prompt_model else self.callbacks
 
-        return Bedrock(
-            client=bedrock_client,
-            model_id=self.model,
-            model_kwargs=self.model_params,
-            streaming=streaming,
-            callbacks=callbacks,
-        )
+        # LEGACY_MODELS_ENV_VAR is set to true for use of guardrails with legacy Bedrock Anthropic models,
+        # for example, Claude-2, Claude 2.1 and Claude Instant models
+        legacy_models_enabled = os.getenv(LEGACY_MODELS_ENV_VAR, "False").lower() == "true"
+
+        if not legacy_models_enabled and self.model_family == BedrockModelProviders.ANTHROPIC:
+            # Allowing Claude-3 models to use BedrockChat
+            return BedrockChat(
+                client=bedrock_client,
+                model_id=self.model,
+                model_kwargs=self.model_params,
+                streaming=streaming,
+                guardrails=self.guardrails,
+                callbacks=callbacks,
+                verbose=self.verbose,
+            )
+        else:
+            return Bedrock(
+                client=bedrock_client,
+                model_id=self.model,
+                model_kwargs=self.model_params,
+                streaming=streaming,
+                guardrails=self.guardrails,
+                callbacks=callbacks,
+            )
 
     @tracer.capture_method(capture_response=True)
     def generate(self, question: str) -> Dict[str, Any]:
@@ -183,7 +213,7 @@ class BedrockLLM(BaseLangChainModel):
         """
         sanitized_model_params = super().get_clean_model_params(model_params)
         sanitized_model_params["temperature"] = self.temperature
-        bedrock_adapter = BedrockAdapterFactory().get_bedrock_adapter(self.model_family)
+        bedrock_adapter = BedrockAdapterFactory().get_bedrock_adapter(self.model_family, self.model)
         sanitized_model_params["temperature"] = float(self.temperature)
 
         try:

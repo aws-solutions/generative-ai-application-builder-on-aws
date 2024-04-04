@@ -18,12 +18,20 @@ from unittest import mock
 
 import pytest
 from langchain.chains import ConversationChain
+from langchain_community.chat_models.bedrock import BedrockChat
+from langchain_community.llms.bedrock import Bedrock
 from llms.bedrock import BedrockLLM
 from llms.models.llm import LLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import CHAT_IDENTIFIER, DEFAULT_PLACEHOLDERS, DEFAULT_TEMPERATURE, MODEL_INFO_TABLE_NAME_ENV_VAR
+from utils.constants import (
+    CHAT_IDENTIFIER,
+    DEFAULT_PLACEHOLDERS,
+    DEFAULT_TEMPERATURE,
+    LEGACY_MODELS_ENV_VAR,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
+)
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
@@ -288,3 +296,254 @@ def test_model_default_stop_sequences(
     assert chat.model_params["temperature"] == 0.0
     # default and user provided stop sequences combined
     assert sorted(chat.model_params["stopSequences"]) == ["\n\nBot:", "\n\nUser:"]
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, model_id",
+    [(CHAT_IDENTIFIER, BEDROCK_PROMPT, False, model_id)],
+)
+def test_guardrails(
+    use_case,
+    prompt,
+    is_streaming,
+    request,
+    setup_environment,
+    model_id,
+    temp_bedrock_dynamodb_defaults_table,
+):
+    model_provider = LLMProviderTypes.BEDROCK.value
+    llm_params.streaming = False
+    llm_params.model_params = {
+        "topP": {"Type": "float", "Value": "0.2"},
+        "guardrails": {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+    }
+
+    llm_params.streaming = is_streaming
+
+    chat = BedrockLLM(
+        llm_params=llm_params,
+        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+        model_family=BedrockModelProviders.AMAZON.value,
+        rag_enabled=False,
+    )
+    assert chat.model_params["topP"] == 0.2
+    assert "guardrails" not in chat.model_params
+    assert chat.guardrails == {"id": "fake-id", "version": "DRAFT"}
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, legacy_models, guardrails, model_id, bedrock_class, model_family",
+    [
+        # When legacy_models is not flag is set
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "",
+            None,
+            "anthropic.fake-claude-2",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "",
+            None,
+            "anthropic.fake-claude-3",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "",
+            None,
+            "cohere.fake-command-text",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+        # When legacy_models flag is set
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "False",
+            None,
+            "cohere.fake-command-text",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "True",
+            None,
+            "anthropic.fake-claude-2",
+            Bedrock,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "False",
+            {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+            "cohere",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "True",
+            {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+            "anthropic.fake-claude-2",
+            Bedrock,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "False",
+            None,
+            "anthropic.fake-claude-3",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "False",
+            {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+            "anthropic.fake-claude-3",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "True",
+            None,
+            "cohere.fake-command-text",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            "True",
+            {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+            "cohere.fake-command-text",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+    ],
+)
+def test_bedrock_get_llm_class(
+    legacy_models, guardrails, model_id, bedrock_class, temp_bedrock_dynamodb_defaults_table, model_family
+):
+    os.environ[LEGACY_MODELS_ENV_VAR] = legacy_models
+    RAG_ENABLED = False
+    llm_params.model = model_id
+    llm_params.model_params = {}
+
+    if guardrails:
+        llm_params.model_params["guardrails"] = guardrails
+
+    chat = BedrockLLM(
+        llm_params=llm_params,
+        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+        model_family=model_family.value,
+        rag_enabled=False,
+    )
+
+    assert type(chat.llm) == bedrock_class
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, guardrails, model_id, bedrock_class, model_family",
+    [
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            None,
+            "anthropic.fake-claude-2",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            None,
+            "anthropic.fake-claude-3",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            None,
+            "cohere.fake-command-text",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+            "anthropic.fake-claude-2",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+            "anthropic.fake-claude-3",
+            BedrockChat,
+            BedrockModelProviders.ANTHROPIC,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
+            {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+            "cohere.fake-command-text",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+    ],
+)
+def test_bedrock_get_llm_class_no_env(
+    guardrails, model_id, bedrock_class, temp_bedrock_dynamodb_defaults_table, model_family
+):
+    os.environ.pop(LEGACY_MODELS_ENV_VAR, None)
+    RAG_ENABLED = False
+    llm_params.model = model_id
+    llm_params.model_params = {}
+
+    if guardrails:
+        llm_params.model_params["guardrails"] = guardrails
+
+    chat = BedrockLLM(
+        llm_params=llm_params,
+        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+        model_family=model_family.value,
+        rag_enabled=False,
+    )
+
+    assert type(chat.llm) == bedrock_class

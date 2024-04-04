@@ -3,7 +3,8 @@
     "ModelProviderName": "HuggingFace",
     "ModelName": "default",
     "AllowsStreaming": false,
-    "Prompt": "{history}\n\nHuman: {input}\nAI:",
+    "Prompt": "References:\n{context}\n\nCurrent conversation:\n{history}\n\nHuman: {input}\nAI:",
+    "DisambiguationPrompt": "Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:",
     "MaxTemperature": "100",
     "DefaultTemperature": "0.1",
     "MinTemperature": "0",
@@ -16,6 +17,6 @@
         "human_prefix": "Human",
         "output": null
     },
-    "MaxPromptSize": 2000,
-    "MaxChatMessageSize": 2500
+    "MaxPromptSize": 375000,
+    "MaxChatMessageSize": 375000
 }

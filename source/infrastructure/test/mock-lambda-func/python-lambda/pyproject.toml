@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mock-lambda-function"
-version = "1.3.3"
+version = "1.4.0"
 authors = [ "Amazon Web Services" ]
 description = "Mock lambda implementation to unit test infrastructure code"
 packages = [

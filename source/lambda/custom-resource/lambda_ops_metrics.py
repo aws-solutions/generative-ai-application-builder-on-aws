@@ -15,7 +15,7 @@ import os
 
 from aws_lambda_powertools import Logger, Metrics, Tracer
 from custom_config import DEFAULT_APP_NAME
-from utils.constants import PUBLISH_METRICS_HOURS, USE_CASE_UUID_ENV_VAR
+from utils.constants import PUBLISH_METRICS_DAYS, USE_CASE_UUID_ENV_VAR
 from utils.data import BuilderMetrics
 from utils.metrics import push_builder_metrics, verify_env_setup
 from utils.metrics_payload import get_metrics_payload
@@ -32,7 +32,7 @@ USE_CASE_UUID = os.getenv(USE_CASE_UUID_ENV_VAR)
 def handler(*_):
     try:
         verify_env_setup()
-        metric_data = get_metrics_payload(PUBLISH_METRICS_HOURS)
+        metric_data = get_metrics_payload(PUBLISH_METRICS_DAYS)
         builder_metrics = BuilderMetrics(
             os.environ["SOLUTION_ID"], os.environ["SOLUTION_VERSION"], metric_data, USE_CASE_UUID
         )
