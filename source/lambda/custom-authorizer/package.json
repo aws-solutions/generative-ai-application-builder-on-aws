@@ -1,6 +1,6 @@
 {
   "name": "custom-authorizer",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "This lambda function is used as a custom REQUEST authorizer for APIs",
   "main": "rest-handler.ts",
   "scripts": {

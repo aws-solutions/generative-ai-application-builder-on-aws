@@ -60,7 +60,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "boto3-layer"
-version = "1.4.0"
+version = "1.4.1"
 description = "Layer for AWS Boto3 python SDK"
 optional = false
 python-versions = "^3.11"
