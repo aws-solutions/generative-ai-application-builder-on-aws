@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional, Tuple
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
-from langchain_community.llms.sagemaker_endpoint import SagemakerEndpoint
+from langchain_aws.llms.sagemaker_endpoint import SagemakerEndpoint
 from llms.base_langchain import BaseLangChainModel
 from llms.models.llm import LLM
 from llms.models.sagemaker.content_handler import SageMakerContentHandler

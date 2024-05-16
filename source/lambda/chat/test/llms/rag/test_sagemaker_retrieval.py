@@ -17,8 +17,8 @@ from unittest import mock
 
 import pytest
 from langchain.chains import ConversationalRetrievalChain
-from langchain.prompts import PromptTemplate
-from langchain.schema.document import Document
+from langchain_core.documents import Document
+from langchain_core.prompts import PromptTemplate
 from llms.models.llm import LLM
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults

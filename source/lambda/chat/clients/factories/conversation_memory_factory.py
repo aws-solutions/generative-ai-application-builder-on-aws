@@ -16,7 +16,7 @@ import os
 from typing import Dict, List, Optional
 
 from aws_lambda_powertools import Logger
-from langchain.schema import BaseMemory
+from langchain_core.memory import BaseMemory
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR, TRACE_ID_ENV_VAR

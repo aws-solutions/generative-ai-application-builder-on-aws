@@ -16,8 +16,8 @@ from abc import ABC
 from dataclasses import dataclass
 from typing import List, Optional
 
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain.schema import BaseMemory
+from langchain_core.callbacks.base import BaseCallbackHandler
+from langchain_core.memory import BaseMemory
 from shared.knowledge.knowledge_base import KnowledgeBase
 from utils.constants import DEFAULT_VERBOSE_MODE
 

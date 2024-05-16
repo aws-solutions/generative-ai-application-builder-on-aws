@@ -16,7 +16,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from llms.huggingface import HuggingFaceLLM
 from llms.models.llm import LLM
 from llms.rag.huggingface_retrieval import HuggingFaceRetrievalLLM

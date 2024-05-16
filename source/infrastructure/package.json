@@ -1,6 +1,6 @@
 {
   "name": "gen-ai-app-builder-on-aws-infrastructure",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "bin": {
     "infrastructure": "bin/gen-ai-app-builder.js"
   },

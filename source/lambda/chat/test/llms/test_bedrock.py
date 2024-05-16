@@ -18,26 +18,21 @@ from unittest import mock
 
 import pytest
 from langchain.chains import ConversationChain
-from langchain_community.chat_models.bedrock import BedrockChat
-from langchain_community.llms.bedrock import Bedrock
+from langchain_aws.chat_models.bedrock import BedrockChat
+from langchain_aws.llms.bedrock import BedrockLLM as Bedrock
 from llms.bedrock import BedrockLLM
 from llms.models.llm import LLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import (
-    CHAT_IDENTIFIER,
-    DEFAULT_PLACEHOLDERS,
-    DEFAULT_TEMPERATURE,
-    LEGACY_MODELS_ENV_VAR,
-    MODEL_INFO_TABLE_NAME_ENV_VAR,
-)
+from utils.constants import CHAT_IDENTIFIER, DEFAULT_PLACEHOLDERS, DEFAULT_TEMPERATURE, MODEL_INFO_TABLE_NAME_ENV_VAR
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 RAG_ENABLED = False
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
 CONDENSE_QUESTION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:"""
+model_family = BedrockModelProviders.AMAZON.value
 
 model_provider = LLMProviderTypes.BEDROCK
 model_id = "amazon.model-xx"
@@ -183,8 +178,7 @@ def test_generate(use_case, prompt, is_streaming, chat_fixture, request, bedrock
             BEDROCK_PROMPT,
             False,
             model_id,
-        ),
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, model_id),
+        )
     ],
 )
 def test_exception_for_failed_model_response(
@@ -214,7 +208,7 @@ def test_exception_for_failed_model_response(
     )
 
     with pytest.raises(LLMInvocationError) as error:
-        llm_params.streaming = False
+        llm_params.streaming = is_streaming
         chat = BedrockLLM(
             llm_params=llm_params,
             model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
@@ -223,8 +217,10 @@ def test_exception_for_failed_model_response(
         )
         chat.generate("What is the weather in Seattle?")
 
+    print("error=", error)
+
     assert error.value.args[0] == (
-        f"Error occurred while invoking AMAZON_TITAN {model_id} model. "
+        f"Error occurred while invoking {model_family} {model_id} model. "
         "Error raised by bedrock service: An error occurred (InternalServerError) when calling the InvokeModel operation: some-error"
     )
 
@@ -332,14 +328,12 @@ def test_guardrails(
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, legacy_models, guardrails, model_id, bedrock_class, model_family",
+    "use_case, prompt, is_streaming, guardrails, model_id, bedrock_class, model_family",
     [
-        # When legacy_models is not flag is set
         (
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "",
             None,
             "anthropic.fake-claude-2",
             BedrockChat,
@@ -349,7 +343,6 @@ def test_guardrails(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "",
             None,
             "anthropic.fake-claude-3",
             BedrockChat,
@@ -359,18 +352,6 @@ def test_guardrails(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "",
-            None,
-            "cohere.fake-command-text",
-            Bedrock,
-            BedrockModelProviders.COHERE,
-        ),
-        # When legacy_models flag is set
-        (
-            CHAT_IDENTIFIER,
-            BEDROCK_PROMPT,
-            False,
-            "False",
             None,
             "cohere.fake-command-text",
             Bedrock,
@@ -380,17 +361,24 @@ def test_guardrails(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "True",
+            None,
+            "cohere.fake-command-text",
+            Bedrock,
+            BedrockModelProviders.COHERE,
+        ),
+        (
+            CHAT_IDENTIFIER,
+            BEDROCK_PROMPT,
+            False,
             None,
             "anthropic.fake-claude-2",
-            Bedrock,
+            BedrockChat,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "False",
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "cohere",
             Bedrock,
@@ -400,17 +388,15 @@ def test_guardrails(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "True",
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "anthropic.fake-claude-2",
-            Bedrock,
+            BedrockChat,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "False",
             None,
             "anthropic.fake-claude-3",
             BedrockChat,
@@ -420,7 +406,6 @@ def test_guardrails(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "False",
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "anthropic.fake-claude-3",
             BedrockChat,
@@ -430,7 +415,6 @@ def test_guardrails(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "True",
             None,
             "cohere.fake-command-text",
             Bedrock,
@@ -440,7 +424,6 @@ def test_guardrails(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "True",
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "cohere.fake-command-text",
             Bedrock,
@@ -448,10 +431,8 @@ def test_guardrails(
         ),
     ],
 )
-def test_bedrock_get_llm_class(
-    legacy_models, guardrails, model_id, bedrock_class, temp_bedrock_dynamodb_defaults_table, model_family
-):
-    os.environ[LEGACY_MODELS_ENV_VAR] = legacy_models
+def test_bedrock_get_llm_class(guardrails, model_id, bedrock_class, temp_bedrock_dynamodb_defaults_table, model_family):
+    # BedrockChat vs Bedrock class as output
     RAG_ENABLED = False
     llm_params.model = model_id
     llm_params.model_params = {}
@@ -531,7 +512,6 @@ def test_bedrock_get_llm_class(
 def test_bedrock_get_llm_class_no_env(
     guardrails, model_id, bedrock_class, temp_bedrock_dynamodb_defaults_table, model_family
 ):
-    os.environ.pop(LEGACY_MODELS_ENV_VAR, None)
     RAG_ENABLED = False
     llm_params.model = model_id
     llm_params.model_params = {}

@@ -18,8 +18,8 @@ from typing import Any, Dict, Optional, Union
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
-from langchain_community.chat_models.bedrock import BedrockChat
-from langchain_community.llms.bedrock import Bedrock
+from langchain_aws.chat_models.bedrock import BedrockChat
+from langchain_aws.llms.bedrock import BedrockLLM as Bedrock
 from llms.base_langchain import BaseLangChainModel
 from llms.factories.bedrock_adapter_factory import BedrockAdapterFactory
 from llms.models.llm import LLM
@@ -29,7 +29,6 @@ from utils.constants import (
     DEFAULT_BEDROCK_MODEL_FAMILY,
     DEFAULT_BEDROCK_MODELS_MAP,
     DEFAULT_RAG_ENABLED_MODE,
-    LEGACY_MODELS_ENV_VAR,
     TRACE_ID_ENV_VAR,
 )
 from utils.custom_exceptions import LLMBuildError, LLMInvocationError
@@ -150,30 +149,22 @@ class BedrockLLM(BaseLangChainModel):
         streaming = False if condense_prompt_model else self.streaming
         callbacks = None if condense_prompt_model else self.callbacks
 
-        # LEGACY_MODELS_ENV_VAR is set to true for use of guardrails with legacy Bedrock Anthropic models,
-        # for example, Claude-2, Claude 2.1 and Claude Instant models
-        legacy_models_enabled = os.getenv(LEGACY_MODELS_ENV_VAR, "False").lower() == "true"
+        request_options = {
+            "client": bedrock_client,
+            "model_id": self.model,
+            "model_kwargs": self.model_params,
+            "streaming": streaming,
+            "callbacks": callbacks,
+        }
 
-        if not legacy_models_enabled and self.model_family == BedrockModelProviders.ANTHROPIC:
-            # Allowing Claude-3 models to use BedrockChat
-            return BedrockChat(
-                client=bedrock_client,
-                model_id=self.model,
-                model_kwargs=self.model_params,
-                streaming=streaming,
-                guardrails=self.guardrails,
-                callbacks=callbacks,
-                verbose=self.verbose,
-            )
+        if self.guardrails is not None:
+            request_options["guardrails"] = self.guardrails
+
+        if self.model_family == BedrockModelProviders.ANTHROPIC:
+            request_options["verbose"] = self.verbose
+            return BedrockChat(**request_options)
         else:
-            return Bedrock(
-                client=bedrock_client,
-                model_id=self.model,
-                model_kwargs=self.model_params,
-                streaming=streaming,
-                guardrails=self.guardrails,
-                callbacks=callbacks,
-            )
+            return Bedrock(**request_options)
 
     @tracer.capture_method(capture_response=True)
     def generate(self, question: str) -> Dict[str, Any]:

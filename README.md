@@ -1,5 +1,8 @@
 ## Generative AI Application Builder on AWS
 
+
+> **_NOTE:_** If you want to use the solution without any custom changes, navigate to [Solution Landing Page](https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/) and click the "Launch in the AWS Console" in the Deployment options for a 1-click deployment into your AWS Console.
+
 The [Generative AI Application Builder on AWS](https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/) solution (GAAB) provides a web-based management dashboard to deploy customizable Generative AI (Gen AI) use cases. This Deployment dashboard allows customers to deploy, experiment with, and compare different combinations of Large Language Model (LLM) use cases. Once customers have successfully configured and optimized their use case, they can take their deployment into production and integrate it within their applications.
 
 The Generative AI Application Builder is published under an Apache 2.0 license and is targeted for novice to experienced users who want to experiment and productionize different Gen AI use cases. The solution uses [LangChain](https://www.langchain.com/) open-source software (OSS) to configure connections to your choice of Large Language Models (LLMs) for different use cases. The first release of GAAB allows users to deploy chat use cases which allow the ability to query over users' enterprise data in a chatbot-style User Interface (UI), along with an API to support custom end-user implementations.

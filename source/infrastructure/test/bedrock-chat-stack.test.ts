@@ -84,7 +84,7 @@ describe('When Chat use case is created', () => {
         });
     });
 
-    it('should create chat provider lambda function with permissions to invoke the bedrock APIs', () => {
+    it('should create chat provider lambda function with permissions to call the Bedrock Invoke APIs', () => {
         template.hasResourceProperties('AWS::IAM::Policy', {
             'PolicyDocument': {
                 'Statement': [
@@ -104,6 +104,46 @@ describe('When Chat use case is created', () => {
                                         'Ref': 'AWS::Region'
                                     },
                                     '::foundation-model/*'
+                                ]
+                            ]
+                        }
+                    },
+                    Match.anyValue(),
+                    Match.anyValue(),
+                    Match.anyValue(),
+                    Match.anyValue(),
+                    Match.anyValue()
+                ],
+                'Version': '2012-10-17'
+            }
+        });
+    });
+
+    it('should create chat provider lambda function with permissions to apply Bedrock Guardrails', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            'PolicyDocument': {
+                'Statement': [
+                    Match.anyValue(),
+                    {
+                        'Action': 'bedrock:ApplyGuardrail',
+                        'Effect': 'Allow',
+                        'Resource': {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        'Ref': 'AWS::Partition'
+                                    },
+                                    ':bedrock:',
+                                    {
+                                        'Ref': 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        'Ref': 'AWS::AccountId'
+                                    },
+                                    ':guardrail/*'
                                 ]
                             ]
                         }

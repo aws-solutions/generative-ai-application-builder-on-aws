@@ -1,6 +1,6 @@
 {
   "name": "aws-node-user-agent-config",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "AWS Nodejs SDK Config intialization layer",
   "main": "index.js",
   "scripts": {

@@ -81,7 +81,7 @@ describe('When creating a VPC for Bedrock stack', () => {
         });
     });
 
-    it('should have a security group for the VPC Endpoing', () => {
+    it('should have a security group for the VPC Endpoint', () => {
         template.hasResourceProperties('AWS::EC2::SecurityGroup', {
             GroupDescription: Match.anyValue(),
             SecurityGroupEgress: [

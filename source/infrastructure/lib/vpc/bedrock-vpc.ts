@@ -40,6 +40,15 @@ export class BedrockUseCaseVPC extends FirstPartyUseCaseVPC {
                 resources: [`arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}::foundation-model/*`]
             })
         );
+
+        bedrockEndpoint.addToPolicy(
+            new iam.PolicyStatement({
+                principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
+                actions: ['bedrock:ApplyGuardrail'],
+                effect: iam.Effect.ALLOW, // NOSONAR - typescript:S6270, creating an allow policy for specific actions
+                resources: [`arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:guardrail/*`]
+            })
+        );
     }
 
     /**

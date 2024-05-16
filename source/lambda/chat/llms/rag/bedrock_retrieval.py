@@ -19,7 +19,7 @@ from typing import Any, Dict
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from langchain.chains import ConversationalRetrievalChain
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 from llms.bedrock import BedrockLLM
 from llms.models.llm import LLM
 from shared.defaults.model_defaults import ModelDefaults

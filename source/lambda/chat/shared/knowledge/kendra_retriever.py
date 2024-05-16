@@ -20,8 +20,8 @@ from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError
 from helper import get_service_client
-from langchain.retrievers.kendra import AmazonKendraRetriever, ResultItem, clean_excerpt
-from langchain.schema import Document
+from langchain_aws.retrievers.kendra import AmazonKendraRetriever, ResultItem, clean_excerpt
+from langchain_core.documents import Document
 from utils.constants import DEFAULT_KENDRA_NUMBER_OF_DOCS, TRACE_ID_ENV_VAR
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client

@@ -123,6 +123,7 @@ jsonpatch                                                   BSD License
 jsonpath-ng                                                 Apache2.0
 jsonpointer                                                 BSD License
 langchain                                                   MIT
+langchain-aws                                               MIT
 langchain-community                                         MIT
 langchain-core                                              MIT
 langchain-text-splitters                                    MIT
