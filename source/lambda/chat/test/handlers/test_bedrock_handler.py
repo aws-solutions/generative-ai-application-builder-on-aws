@@ -20,7 +20,7 @@ from uuid import uuid4
 
 import pytest
 from bedrock_handler import lambda_handler
-from langchain.schema import Document
+from langchain_core.documents import Document
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,

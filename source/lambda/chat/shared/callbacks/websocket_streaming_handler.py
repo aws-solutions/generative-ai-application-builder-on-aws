@@ -20,7 +20,7 @@ import botocore
 from aws_lambda_powertools import Logger
 from helper import get_service_client
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
-from langchain.schema.messages import BaseMessage
+from langchain_core.messages import BaseMessage
 from utils.constants import CONVERSATION_ID_EVENT_KEY, TRACE_ID_ENV_VAR, WEBSOCKET_CALLBACK_URL_ENV_VAR
 
 logger = Logger(utc=True)

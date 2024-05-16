@@ -75,7 +75,6 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, displaySour
     const displaySourceInResponse =
         displaySourceConfigFlag && message.sourceDocuments && message.sourceDocuments.length > 0;
 
-
     return (
         <div className={`${message.role === 'assistant' ? 'bg-gray-100' : ''}`} style={{ overflowWrap: 'anywhere' }}>
             <div className=" m-auto flex md:gap-6 md:py-6 xl:max-w-2xl">

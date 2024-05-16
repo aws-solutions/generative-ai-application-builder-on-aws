@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from aws_lambda_powertools import Logger
 from langchain.memory.chat_memory import BaseChatMemory
 from langchain.memory.utils import get_prompt_input_key
-from langchain.schema import get_buffer_string
+from langchain_core.messages import get_buffer_string
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.enum_types import ConversationMemoryTypes
 

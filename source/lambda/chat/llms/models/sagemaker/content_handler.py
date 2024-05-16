@@ -6,7 +6,7 @@ from typing import Any, Dict
 import jsonpath_ng as jp
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
-from langchain.llms.sagemaker_endpoint import LLMContentHandler
+from langchain_aws.llms.sagemaker_endpoint import LLMContentHandler
 from utils.constants import TRACE_ID_ENV_VAR
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import count_keys, get_metrics_client, pop_null_values

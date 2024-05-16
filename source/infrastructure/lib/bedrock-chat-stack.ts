@@ -94,6 +94,13 @@ export class BedrockChat extends UseCaseChat {
             })
         );
 
+        this.chatLlmProviderLambda.addToRolePolicy(
+            new cdk.aws_iam.PolicyStatement({
+                actions: ['bedrock:ApplyGuardrail'],
+                resources: [`arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:guardrail/*`]
+            })
+        );
+
         NagSuppressions.addResourceSuppressions(
             this.chatLlmProviderLambda.role!.node.tryFindChild('DefaultPolicy') as iam.Policy,
             [
@@ -102,6 +109,7 @@ export class BedrockChat extends UseCaseChat {
                     reason: 'This lambda is granted permissions to invoke any bedrock model, which requires the *.',
                     appliesTo: [
                         'Resource::arn:<AWS::Partition>:bedrock:<AWS::Region>::foundation-model/*',
+                        'Resource::arn:<AWS::Partition>:bedrock:<AWS::Region>:<AWS::AccountId>:guardrail/*',
                         'Resource::*'
                     ]
                 }

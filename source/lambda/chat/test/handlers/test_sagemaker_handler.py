@@ -19,7 +19,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from langchain.schema import Document
+from langchain_core.documents import Document
 from sagemaker_handler import lambda_handler
 from utils.constants import (
     CHAT_IDENTIFIER,

@@ -51,9 +51,9 @@ export interface UseCaseStackDetails {
     providerApiKeySecret: string | undefined;
     vpcEnabled: string | undefined;
     createNewVpc: string | undefined;
-    vpcId: string | undefined,
-    privateSubnetIds: string[] | undefined,
-    securityGroupIds: string[] | undefined
+    vpcId: string | undefined;
+    privateSubnetIds: string[] | undefined;
+    securityGroupIds: string[] | undefined;
 }
 
 /**
