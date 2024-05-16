@@ -13,10 +13,10 @@
 ######################################################################################################################
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Dict
+from typing import Any, Dict, List
 
 from aws_lambda_powertools import Logger
-from langchain.schema import BaseRetriever
+from langchain_core.retrievers import BaseRetriever
 from utils.enum_types import KnowledgeBaseTypes
 
 logger = Logger(utc=True)

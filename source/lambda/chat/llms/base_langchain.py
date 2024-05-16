@@ -20,9 +20,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from langchain.chains import ConversationChain
-from langchain.prompts import PromptTemplate
-from langchain.schema import BaseMemory
 from langchain_core.language_models.llms import LLM
+from langchain_core.memory import BaseMemory
+from langchain_core.prompts import PromptTemplate
 from shared.knowledge.knowledge_base import KnowledgeBase
 from utils.constants import (
     DEFAULT_PLACEHOLDERS,

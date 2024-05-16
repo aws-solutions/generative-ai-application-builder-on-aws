@@ -14,7 +14,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from langchain.schema import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 
 

@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 import pytest
 from botocore.exceptions import ClientError
-from langchain.schema import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import DDB_MESSAGE_TTL_ENV_VAR
 

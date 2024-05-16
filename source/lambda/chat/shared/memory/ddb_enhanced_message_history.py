@@ -19,13 +19,9 @@ from typing import List
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
 from helper import get_service_resource
-from langchain.schema import (
-    BaseChatMessageHistory,
-    BaseMessage,
-    _message_to_dict,
-    messages_from_dict,
-    messages_to_dict,
-)
+from langchain.schema import _message_to_dict
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.messages import BaseMessage, messages_from_dict, messages_to_dict
 from utils.constants import DDB_MESSAGE_TTL_ENV_VAR, DEFAULT_DDB_MESSAGE_TTL, TRACE_ID_ENV_VAR
 from utils.enum_types import ConversationMemoryTypes
 

@@ -44,7 +44,7 @@ describe('StreamingToggle', () => {
                     data: true,
                     isPending: false,
                     isSuccess: true
-                } as UseQueryResult)
+                }) as UseQueryResult
         );
 
         const mockModelData = {

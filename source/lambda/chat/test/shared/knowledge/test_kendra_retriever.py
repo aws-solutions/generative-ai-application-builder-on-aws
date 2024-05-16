@@ -18,8 +18,8 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
-from langchain.docstore.document import Document
-from langchain.retrievers.kendra import DocumentAttribute, DocumentAttributeValue, RetrieveResultItem
+from langchain_aws.retrievers.kendra import DocumentAttribute, DocumentAttributeValue, RetrieveResultItem
+from langchain_core.documents import Document
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
 
 KENDRA_RESPONSE = None
