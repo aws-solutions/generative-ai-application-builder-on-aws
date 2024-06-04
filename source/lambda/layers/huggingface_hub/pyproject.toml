@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "huggingface-layer"
-version = "1.4.2"
+version = "1.4.3"
 authors = [ "Amazon Web Services" ]
 description = "Layer for HuggingFace LLM libraries"
 packages = [
