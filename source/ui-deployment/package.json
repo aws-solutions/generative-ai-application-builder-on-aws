@@ -1,6 +1,6 @@
 {
   "name": "gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
     "@cloudscape-design/components": "^3.0.283",

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "reconcile-data"
-version = "1.4.3"
+version = "1.4.4"
 authors = [ "Amazon Web Services" ]
 description = "Reconciles data between AWS CloudFormation, DynamoDB, and SSM Parameter Store"
 packages = [
