@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom-resource"
-version = "1.4.3"
+version = "1.4.4"
 authors = [ "Amazon Web Services" ]
 description = "Perform specific operations triggered by AWS CloudFormation events"
 packages = [

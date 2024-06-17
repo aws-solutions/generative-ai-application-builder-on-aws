@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "anthropic-layer"
-version = "1.4.3"
+version = "1.4.4"
 authors = [ "Amazon Web Services" ]
 description = "Layer for Anthropic LLM libraries"
 packages = [
