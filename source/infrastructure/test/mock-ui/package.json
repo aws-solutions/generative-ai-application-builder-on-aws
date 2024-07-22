@@ -1,6 +1,6 @@
 {
   "name": "mock-react-app",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Mock Reactjs app used for unit testing constructs",
   "dependencies": {
     "react-scripts": "^5.0.1"
