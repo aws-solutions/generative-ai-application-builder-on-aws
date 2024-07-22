@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "langchain-layer"
-version = "1.4.4"
+version = "1.4.5"
 authors = [ "Amazon Web Services" ]
 description = "Layer for LangChain libraries"
 packages = [
@@ -11,10 +11,10 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.11"
 numpy = "1.26.4"
-langchain = "0.2.5"
-langchain-core = "0.2.7"
-langchain-community = "0.2.5"
-langchain-aws = "0.1.6"
+langchain = "0.2.9"
+langchain-core = "0.2.20"
+langchain-community = "0.2.7"
+langchain-aws = "0.1.11"
 
 
 [build-system]
