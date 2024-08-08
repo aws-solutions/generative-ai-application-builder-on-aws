@@ -16,7 +16,12 @@ import { Auth } from 'aws-amplify';
 import { MutableRefObject, memo, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import HomeContext from '../home/home.context';
 import { Conversation, Message, MessageWithSource, SourceDocument } from '../types/chat';
-import { END_CONVERSATION_TOKEN, SOURCE_DOCS_RESPONSE_PAYLOAD_KEY } from '../utils/constants';
+import {
+    DEFAULT_DELAY_MS,
+    END_CONVERSATION_TOKEN,
+    SOCKET_CONNECTION_RETRIES,
+    SOURCE_DOCS_RESPONSE_PAYLOAD_KEY
+} from '../utils/constants';
 import { saveConversation } from '../utils/conversation';
 import './Chat.css';
 import { ChatInput } from './ChatInput';
@@ -101,8 +106,8 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
             socket = socketRef.current;
             const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
             let counter = 0;
-            while (socket?.readyState === WebSocket.CONNECTING && counter < 15) {
-                await delay(1000);
+            while (socket?.readyState === WebSocket.CONNECTING && counter < SOCKET_CONNECTION_RETRIES) {
+                await delay(DEFAULT_DELAY_MS);
                 counter += 1;
             }
             if (socket && socket?.readyState === WebSocket.OPEN) {
@@ -163,7 +168,8 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                         action: 'sendMessage',
                         question: message.content,
                         conversationId: selectedConversation.id,
-                        promptTemplate: promptTemplate
+                        promptTemplate: useCaseConfig.LlmParams.PromptParams.UserPromptEditingEnabled ? promptTemplate : undefined,
+                        authToken: await generateToken()
                     };
 
                     socket.send(JSON.stringify(payload));

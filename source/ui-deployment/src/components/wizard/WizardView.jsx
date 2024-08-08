@@ -11,11 +11,11 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { useTools } from '../../hooks/useTools';
+import { useTools } from '@/hooks/useTools';
 import { useState, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import HomeContext from '../../contexts/home.context';
+import HomeContext from '@/contexts/home.context';
 import {
     API_NAME,
     BEDROCK_MODEL_PROVIDER_NAME,
@@ -23,22 +23,32 @@ import {
     DEPLOYMENT_PLATFORM_API_ROUTES,
     DEPLOYMENT_STATUS_NOTIFICATION,
     SAGEMAKER_MODEL_PROVIDER_NAME
-} from '../../utils/constants';
-import { createDeployRequestPayload, createUpdateRequestPayload } from './utils';
-import { generateToken } from '../../utils/utils';
+} from '@/utils/constants';
+import {
+    createDeployRequestPayload,
+    createUpdateRequestPayload,
+    generateKnowledgeBaseStepInfoFromDeployment,
+    mapModelStepInfoFromDeployment,
+    mapPromptStepInfoFromDeployment,
+    mapUseCaseStepInfoFromDeployment,
+    parseVpcInfoFromSelectedDeployment
+} from './utils';
+import { generateToken } from '@/utils/utils';
 import { API } from 'aws-amplify';
 import { DEFAULT_STEP_INFO, MODEL_FAMILY_PROVIDER_OPTIONS } from './steps-config';
-import UseCase from './UseCase';
 import { InfoLink, Notifications, Navigation } from '../commons';
 import { AppLayout, Wizard, Box, Alert, SpaceBetween } from '@cloudscape-design/components';
 import { Breadcrumbs } from './wizard-components';
 import { ConfirmDeployModal } from '../commons/deploy-confirmation-modal';
-import { appLayoutAriaLabels } from '../../i18n-strings';
+import { appLayoutAriaLabels } from '@/i18n-strings';
 import { TOOLS_CONTENT } from './tools-content';
+
+import UseCase from './UseCase';
 import Vpc from './VpcConfig';
 import Model from './Model';
+import KnowledgeBase from './KnowledgeBase';
+import Prompt from './Prompt';
 import Review from './Review';
-import { KnowledgeBase } from './KnowledgeBase';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -70,57 +80,18 @@ const steps = [
         isOptional: true
     },
     {
+        title: 'Select prompt',
+        stateKey: 'prompt',
+        StepContent: Prompt,
+        isOptional: false
+    },
+    {
         title: 'Review and create',
         stateKey: 'review',
         StepContent: Review,
         isOptional: false
     }
 ];
-
-const formatModelParamsForAttributeEditor = (modelParams) => {
-    if (Object.keys(modelParams).length === 0) {
-        return [];
-    }
-
-    const formattedItems = [];
-    for (const [paramKey, paramValueWithType] of Object.entries(modelParams)) {
-        formattedItems.push({
-            key: paramKey,
-            value: paramValueWithType.Value,
-            type: {
-                label: paramValueWithType.Type,
-                value: paramValueWithType.Type
-            }
-        });
-    }
-
-    return formattedItems;
-};
-
-const formatStringListToAttrEditorList = (list) => {
-    return list.map((item) => ({
-        key: item
-    }));
-};
-
-const parseVpcInfoFromSelectedDeployment = (selectedDeployment) => {
-    try {
-        return {
-            isVpcRequired:
-                selectedDeployment.vpcEnabled.toLowerCase() === 'yes' ? true : DEFAULT_STEP_INFO.vpc.isVpcRequired,
-            existingVpc: selectedDeployment.createNewVpc.toLowerCase() === 'no' ? true : false,
-            vpcId: selectedDeployment.vpcId ?? DEFAULT_STEP_INFO.vpc.vpcId,
-            subnetIds:
-                formatStringListToAttrEditorList(selectedDeployment.privateSubnetIds) ??
-                DEFAULT_STEP_INFO.vpc.subnetIds,
-            securityGroupIds:
-                formatStringListToAttrEditorList(selectedDeployment.securityGroupIds) ??
-                DEFAULT_STEP_INFO.vpc.securityGroupIds
-        };
-    } catch (error) {
-        return DEFAULT_STEP_INFO.vpc;
-    }
-};
 
 const getWizardStepsInfo = (selectedDeployment, deploymentAction) => {
     let wizardStepsInfo = DEFAULT_STEP_INFO;
@@ -129,52 +100,11 @@ const getWizardStepsInfo = (selectedDeployment, deploymentAction) => {
             (item) => item.value === selectedDeployment.LlmParams.ModelProvider
         );
         wizardStepsInfo = {
-            useCase: {
-                useCase: DEFAULT_STEP_INFO.useCase.useCase,
-                useCaseName: selectedDeployment.Name,
-                defaultUserEmail:
-                    selectedDeployment.defaultUserEmail !== 'placeholder@example.com'
-                        ? selectedDeployment.defaultUserEmail
-                        : '',
-                useCaseDescription: selectedDeployment.Description,
-                inError: false
-            },
+            useCase: mapUseCaseStepInfoFromDeployment(selectedDeployment),
             vpc: parseVpcInfoFromSelectedDeployment(selectedDeployment),
-            knowledgeBase: {
-                isRagRequired: selectedDeployment.LlmParams.RAGEnabled,
-                knowledgeBaseType: DEFAULT_STEP_INFO.knowledgeBase.knowledgeBaseType,
-                existingKendraIndex: 'yes',
-                kendraIndexId: selectedDeployment.kendraIndexId ?? '',
-                kendraAdditionalQueryCapacity: DEFAULT_STEP_INFO.knowledgeBase.kendraAdditionalQueryCapacity,
-                kendraAdditionalStorageCapacity: DEFAULT_STEP_INFO.knowledgeBase.kendraAdditionalStorageCapacity,
-                kendraEdition:
-                    selectedDeployment.newKendraIndexEdition ?? DEFAULT_STEP_INFO.knowledgeBase.kendraEdition,
-                maxNumDocs:
-                    selectedDeployment.KnowledgeBaseParams.NumberOfDocs?.toString() ??
-                    DEFAULT_STEP_INFO.knowledgeBase.maxNumDocs,
-                inError: false,
-                kendraIndexName:
-                    selectedDeployment.newKendraIndexName ?? DEFAULT_STEP_INFO.knowledgeBase.kendraIndexName,
-                returnDocumentSource: selectedDeployment.KnowledgeBaseParams.ReturnSourceDocs ?? false
-            },
-            model: {
-                modelProvider: modelProvider,
-                apiKey: DEFAULT_STEP_INFO.model.apiKey,
-                modelName: selectedDeployment.LlmParams.ModelId,
-                promptTemplate: selectedDeployment.LlmParams.PromptTemplate,
-                modelParameters: formatModelParamsForAttributeEditor(selectedDeployment.LlmParams.ModelParams),
-                inError: false,
-                temperature: parseFloat(selectedDeployment.LlmParams.Temperature),
-                verbose: selectedDeployment.LlmParams.Verbose,
-                streaming: selectedDeployment.LlmParams.Streaming,
-                sagemakerInputSchema: selectedDeployment.LlmParams.ModelInputPayloadSchema
-                    ? JSON.stringify(selectedDeployment.LlmParams.ModelInputPayloadSchema)
-                    : DEFAULT_STEP_INFO.model.sagemakerOutputSchema,
-                sagemakerOutputSchema:
-                    selectedDeployment.LlmParams.ModelOutputJSONPath ?? DEFAULT_STEP_INFO.model.sagemakerOutputSchema,
-                sagemakerEndpointName:
-                    selectedDeployment.LlmParams.InferenceEndpoint ?? DEFAULT_STEP_INFO.model.sagemakerEndpointName
-            }
+            knowledgeBase: generateKnowledgeBaseStepInfoFromDeployment(selectedDeployment),
+            model: mapModelStepInfoFromDeployment(selectedDeployment, modelProvider),
+            prompt: mapPromptStepInfoFromDeployment(selectedDeployment)
         };
     }
 

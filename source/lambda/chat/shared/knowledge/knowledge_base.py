@@ -13,13 +13,25 @@
 ######################################################################################################################
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from aws_lambda_powertools import Logger
+from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from utils.enum_types import KnowledgeBaseTypes
 
 logger = Logger(utc=True)
+
+
+@dataclass
+class SourceDocument:
+    excerpt: str
+    location: str
+    score: float | str  # kendra gives string, e.g. HIGH
+    document_title: Optional[str] = None
+    document_id: Optional[str] = None
+    additional_attributes: Optional[List[Any]] = None
 
 
 class KnowledgeBase(ABC):
@@ -31,6 +43,7 @@ class KnowledgeBase(ABC):
 
     knowledge_base_type: KnowledgeBaseTypes
     retriever: BaseRetriever
+    rag_rbac_enabled: bool = False
 
     @property
     def retriever(self) -> BaseRetriever:
@@ -53,7 +66,7 @@ class KnowledgeBase(ABC):
         self._retriever = retriever
 
     @abstractmethod
-    def source_docs_formatter(self, source_documents: List[Any]) -> List[Dict]:
+    def source_docs_formatter(self, source_documents: List[Document]) -> List[Dict]:
         """
         Formats the source documents in a format to send to the websocket
         Args:

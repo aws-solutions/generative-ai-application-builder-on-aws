@@ -16,8 +16,9 @@ import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { KendraKnowledgeBase } from './kendra-knowledge-base';
+import { BaseStackProps } from '../framework/base-stack';
 
-export interface KnowledgeBaseProps {
+export interface KnowledgeBaseProps extends BaseStackProps {
     /**
      * UUID to identify this deployed use case within an application.
      * Will be added to the Kendra index name if one is deployed.
@@ -87,7 +88,7 @@ export class KnowledgeBaseSetup extends Construct {
                 CustomResourceLambdaArn: props.customInfra.functionArn,
                 CustomResourceRoleArn: props.customInfra.role!.roleArn
             },
-            description: 'Nested Stack that creates the Kendra Index'
+            description: `Nested Stack that creates the Kendra Index - Version ${props.solutionVersion}`
         });
         (this.kendraKnowledgeBase.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
             props.deployKendraIndexCondition;

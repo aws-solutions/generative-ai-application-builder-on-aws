@@ -26,7 +26,7 @@
 <td>
 
 ```json
-$[0].generated_text
+$.generated_text
 ```
 
 </td>

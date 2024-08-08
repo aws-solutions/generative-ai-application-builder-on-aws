@@ -102,9 +102,10 @@ class ModelDefaults:
 
         except ClientError as err:
             if err.response["Error"]["Code"] == "ResourceNotFoundException":
-                logger.error(record_not_found_error)
+                logger.error(f"Model defaults table '{os.environ[MODEL_INFO_TABLE_NAME_ENV_VAR]}' not found.")
+                raise ValueError(f"Model defaults table '{os.environ[MODEL_INFO_TABLE_NAME_ENV_VAR]}' not found.")
             else:
                 logger.error(err, ray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            raise ValueError(
-                f"Default records not found for UseCase: '{self.use_case}' and SortKey: '{self.model_provider}#{self.model_name}'"
-            )
+                raise ValueError(
+                    f"Records not found for UseCase: '{self.use_case}' and SortKey: '{self.model_provider}#{self.model_name}'."
+                )

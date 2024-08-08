@@ -12,10 +12,18 @@
  **********************************************************************************************************************/
 
 import Review from '../Review';
-import { renderWithProvider } from '@/utils';
-import { screen } from '@testing-library/react';
+import { renderWithProvider, mockedModelInfoQuery } from '@/utils';
+import { cleanup, screen } from '@testing-library/react';
 
 describe('Review', () => {
+    beforeEach(async () => {
+        mockedModelInfoQuery();
+    });
+
+    afterEach(() => {
+        cleanup();
+    });
+
     test('renders', () => {
         const mockReviewData = {
             'useCase': {
@@ -26,6 +34,7 @@ describe('Review', () => {
                 'useCaseName': 'asdf',
                 'useCaseDescription': '',
                 'defaultUserEmail': '',
+                'deployUI': true,
                 'inError': false
             },
             'vpc': {
@@ -63,13 +72,24 @@ describe('Review', () => {
                 'apiKey': '',
                 'modelName': 'ai21.j2-ultra',
                 'modelFamily': '',
-                'promptTemplate': '',
                 'inferenceEndpoint': '',
                 'modelParameters': [],
                 'inError': false,
                 'temperature': 0.1,
                 'verbose': false,
                 'streaming': false
+            },
+            'prompt': {
+                'maxPromptTemplateLength': 10000,
+                'maxInputTextLength': 10000,
+                'promptTemplate': 'fake-prompt',
+                'userPromptEditingEnabled': true,
+                'chatHistoryLength': 20,
+                'humanPrefix': 'Human',
+                'aiPrefix': 'AI',
+                'disambiguationEnabled': true,
+                'disambiguationPromptTemplate': 'fake-disambiguation-prompt',
+                inError: false
             }
         };
         renderWithProvider(<Review info={mockReviewData} setActiveStepIndex={jest.fn()} />, { route: '/review' });

@@ -16,7 +16,7 @@ import { Input, InputProps, FormField } from '@cloudscape-design/components';
 
 import { updateNumFieldsInError } from '../utils';
 import { VpcFormFieldProps, isVpcIdValid, vpcToolsContent } from './helpers';
-import { InfoLink } from 'components/commons';
+import { InfoLink } from '@/components/commons';
 
 export const VpcId = (props: VpcFormFieldProps) => {
     const [vpcIdError, setVpcIdError] = React.useState('');

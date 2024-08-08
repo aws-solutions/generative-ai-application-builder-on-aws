@@ -18,8 +18,9 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
-import { AppAssetBundler } from './asset-bundling';
-import { createDefaultLambdaRole } from './common-utils';
+import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
+import * as cfn_guard from '../utils/cfn-guard-suppressions';
+import { createCustomResourceForLambdaLogRetention, createDefaultLambdaRole } from './common-utils';
 import { ANONYMOUS_METRICS_SCHEDULE, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from './constants';
 
 export interface CustomInfraProps {
@@ -61,19 +62,30 @@ export class CustomInfraSetup extends Construct {
                     effect: iam.Effect.ALLOW,
                     actions: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
                     resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`]
+                }),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['lambda:GetFunction'],
+                    resources: [`arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:function:*`]
+                }),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['logs:PutRetentionPolicy', 'logs:DescribeLogGroups', 'logs:CreateLogGroup'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`,
+                        `arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group::log-stream:*`
+                    ]
                 })
             ]
         });
         customResourceDdbPolicy.attachToRole(this.lambdaServiceRole);
 
-        const scheduledMetricsRole = createDefaultLambdaRole(scope, 'ScheduledMetricsLambdaRole');
-
         this.customResourceLambda = new lambda.Function(this, 'CustomResource', {
             code: lambda.Code.fromAsset(
                 '../lambda/custom-resource',
-                AppAssetBundler.assetOptionsFactory
+                ApplicationAssetBundler.assetBundlerFactory()
                     .assetOptions(COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME)
-                    .options('../lambda/custom-resource')
+                    .options(this, '../lambda/custom-resource')
             ),
             handler: 'lambda_func.handler',
             runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
@@ -81,18 +93,26 @@ export class CustomInfraSetup extends Construct {
             tracing: lambda.Tracing.ACTIVE,
             description: 'A custom resource lambda function to perform operations based on operation type',
             environment: {
-                POWERTOOLS_SERVICE_NAME: 'CUSTOM-RESOURCE',
-                LOG_LEVEL: 'DEBUG'
+                POWERTOOLS_SERVICE_NAME: 'CUSTOM-RESOURCE'
             },
             timeout: cdk.Duration.minutes(15)
         });
 
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'CustomResourceLogRetention',
+            this.customResourceLambda.functionName,
+            this.customResourceLambda.functionArn
+        );
+
+        const scheduledMetricsRole = createDefaultLambdaRole(scope, 'ScheduledMetricsLambdaRole');
+
         this.scheduledMetricsLambda = new lambda.Function(this, 'ScheduledAnonymousMetrics', {
             code: lambda.Code.fromAsset(
                 '../lambda/custom-resource',
-                AppAssetBundler.assetOptionsFactory
+                ApplicationAssetBundler.assetBundlerFactory()
                     .assetOptions(COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME)
-                    .options('../lambda/custom-resource/')
+                    .options(this, '../lambda/custom-resource/')
             ),
             handler: 'lambda_ops_metrics.handler',
             runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
@@ -101,13 +121,19 @@ export class CustomInfraSetup extends Construct {
             description: 'A lambda function that runs as per defined schedule to publish metrics',
             environment: {
                 POWERTOOLS_SERVICE_NAME: 'ANONYMOUS-CW-METRICS',
-                LOG_LEVEL: 'DEBUG',
                 SOLUTION_ID: props.solutionID,
                 SOLUTION_VERSION: props.solutionVersion,
                 ...(props.useCaseUUID && { USE_CASE_UUID_ENV_VAR: props.useCaseUUID })
             },
             timeout: cdk.Duration.minutes(15)
         });
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'ScheduleLogRetention',
+            this.scheduledMetricsLambda.functionName,
+            this.customResourceLambda.functionArn
+        );
 
         const getMetricsDataPolicy = new iam.Policy(this, 'GetMetricsDataPolicy', {
             statements: [
@@ -169,7 +195,12 @@ export class CustomInfraSetup extends Construct {
             {
                 id: 'AwsSolutions-IAM5',
                 reason: 'Lambda role policy is to read and write dynamodb buckets for model info and configuration',
-                appliesTo: ['Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*']
+                appliesTo: [
+                    'Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*',
+                    'Resource::arn:<AWS::Partition>:lambda:<AWS::Region>:<AWS::AccountId>:function:*',
+                    'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/*',
+                    'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group::log-stream:*'
+                ]
             }
         ]);
         NagSuppressions.addResourceSuppressions(scheduledMetricsRole, [
@@ -196,5 +227,41 @@ export class CustomInfraSetup extends Construct {
                 }
             ]
         );
+
+        cfn_guard.addCfnSuppressRules(this.customResourceLambda, [
+            {
+                id: 'W89',
+                reason: 'VPC is not mandated in the solution. This lambda has no business logic but only gathers metrics. Hence is not deployed in a VPC'
+            },
+            {
+                id: 'W92',
+                reason: 'The solution does not enforce reserved concurrency'
+            }
+        ]);
+
+        cfn_guard.addCfnSuppressRules(this.scheduledMetricsLambda, [
+            {
+                id: 'W89',
+                reason: 'VPC is not mandated in the solution. This lambda has no business logic but only gathers metrics. Hence is not deployed in a VPC'
+            },
+            {
+                id: 'W92',
+                reason: 'The solution does not enforce reserved concurrency'
+            }
+        ]);
+
+        cfn_guard.addCfnSuppressRules(this.lambdaServiceRole, [
+            {
+                id: 'F10',
+                reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
+            }
+        ]);
+
+        cfn_guard.addCfnSuppressRules(scheduledMetricsRole, [
+            {
+                id: 'F10',
+                reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
+            }
+        ]);
     }
 }

@@ -15,6 +15,11 @@ import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as rawCdkJson from '../../cdk.json';
 import { ApplicationSetup } from '../../lib/framework/application-setup';
+import {
+    DEFAULT_KNOWLEDGE_BASE_TYPE,
+    DEFAULT_RAG_ENABLED_STATUS,
+    SUPPORTED_KNOWLEDGE_BASE_TYPES
+} from '../../lib/utils/constants';
 import { VPCSetup } from '../../lib/vpc/vpc-setup';
 
 describe('When knew VPC is to be created', () => {
@@ -40,6 +45,19 @@ describe('When knew VPC is to be created', () => {
                     ''
                 )
             }),
+            ragEnabled: new cdk.CfnParameter(stack, 'RAGEnabled', {
+                type: 'String',
+                allowedValues: ['true', 'false'],
+                default: DEFAULT_RAG_ENABLED_STATUS,
+                description:
+                    'If set to "true", the deployed use case stack will use the specified knowledge base to provide RAG functionality. If set to false, the user interacts directly with the LLM.'
+            }).valueAsString,
+            knowledgeBaseType: new cdk.CfnParameter(stack, 'KnowledgeBaseType', {
+                type: 'String',
+                allowedValues: SUPPORTED_KNOWLEDGE_BASE_TYPES,
+                default: DEFAULT_KNOWLEDGE_BASE_TYPE,
+                description: 'Knowledge base type to be used for RAG. Should only be set if RAGEnabled is true'
+            }).valueAsString,
             iPamPoolId: new cdk.CfnParameter(stack, 'IPAMPoolId', {
                 type: 'String',
                 description:
@@ -50,7 +68,11 @@ describe('When knew VPC is to be created', () => {
                     'The provided IPAM Pool Id is not a valid format. IPAM Id should be be of the following format "^ipam-[0-9a-zA-Z]+$"'
             }).valueAsString,
             customResourceLambdaArn: applicationSetup.customResourceLambda.functionArn,
-            customResourceRoleArn: applicationSetup.customResourceLambda.role!.roleArn
+            customResourceRoleArn: applicationSetup.customResourceLambda.role!.roleArn,
+            solutionID: rawCdkJson.context.solution_id,
+            solutionVersion: rawCdkJson.context.solution_version,
+            solutionName: rawCdkJson.context.solution_name,
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name
         });
 
         template = Template.fromStack(stack);
@@ -122,7 +144,7 @@ describe('When using an existing VPC', () => {
             solutionVersion: rawCdkJson.context.solution_version
         });
         vpcSetup = new VPCSetup(stack, 'TestVPCSetup', {
-            stackType: 'external-use-case',
+            stackType: 'bedrock-use-case',
             deployVpcCondition: new cdk.CfnCondition(stack, 'DeployVpcCondition', {
                 expression: cdk.Fn.conditionEquals(
                     {
@@ -131,9 +153,26 @@ describe('When using an existing VPC', () => {
                     ''
                 )
             }),
+            ragEnabled: new cdk.CfnParameter(stack, 'RAGEnabled', {
+                type: 'String',
+                allowedValues: ['true', 'false'],
+                default: DEFAULT_RAG_ENABLED_STATUS,
+                description:
+                    'If set to "true", the deployed use case stack will use the specified knowledge base to provide RAG functionality. If set to false, the user interacts directly with the LLM.'
+            }).valueAsString,
+            knowledgeBaseType: new cdk.CfnParameter(stack, 'KnowledgeBaseType', {
+                type: 'String',
+                allowedValues: SUPPORTED_KNOWLEDGE_BASE_TYPES,
+                default: DEFAULT_KNOWLEDGE_BASE_TYPE,
+                description: 'Knowledge base type to be used for RAG. Should only be set if RAGEnabled is true'
+            }).valueAsString,
             iPamPoolId: 'ipam-fakeid',
             customResourceLambdaArn: applicationSetup.customResourceLambda.functionArn,
-            customResourceRoleArn: applicationSetup.customResourceLambda.role!.roleArn
+            customResourceRoleArn: applicationSetup.customResourceLambda.role!.roleArn,
+            solutionID: rawCdkJson.context.solution_id,
+            solutionVersion: rawCdkJson.context.solution_version,
+            solutionName: rawCdkJson.context.solution_name,
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name
         });
 
         template = Template.fromStack(stack);

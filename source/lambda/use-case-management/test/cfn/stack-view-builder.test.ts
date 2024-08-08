@@ -13,14 +13,13 @@
 
 import { DescribeStacksCommandInput } from '@aws-sdk/client-cloudformation';
 import { DescribeStacksCommandInputBuilder } from '../../cfn/stack-view-builder';
-import { ARTIFACT_BUCKET_ENV_VAR, CFN_DEPLOY_ROLE_ARN_ENV_VAR } from '../../utils/constants';
+import { ARTIFACT_BUCKET_ENV_VAR } from '../../utils/constants';
 import { createUseCaseEvent } from '../event-test-data';
 
 describe('When creating StackCommandBuilders', () => {
     let event: any;
     beforeAll(() => {
         process.env[ARTIFACT_BUCKET_ENV_VAR] = 'fake-bucket';
-        process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'arn:aws:iam::fake-account:role/FakeRole';
         event = createUseCaseEvent;
     });
 
@@ -52,6 +51,5 @@ describe('When creating StackCommandBuilders', () => {
 
     afterAll(() => {
         delete process.env[ARTIFACT_BUCKET_ENV_VAR];
-        delete process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR];
     });
 });

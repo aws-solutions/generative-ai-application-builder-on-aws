@@ -11,14 +11,15 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
+
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import urllib3
 from aws_lambda_powertools import Logger, Tracer
 from utils.constants import METRICS_ENDPOINT
-from utils.data import BuilderMetrics
+from utils.data import BuilderMetrics, DecimalEncoder
 
 logger = Logger(utc=True)
 tracer = Tracer()
@@ -48,12 +49,13 @@ def push_builder_metrics(builder_metrics: BuilderMetrics):
             {
                 "Solution": builder_metrics.solution_id,
                 "Version": builder_metrics.version,
-                "TimeStamp": datetime.utcnow().isoformat(),
+                "TimeStamp": datetime.now(UTC).isoformat(),
                 "Data": builder_metrics.data,
                 "UUID": builder_metrics.uuid,
-            }
+            },
+            cls=DecimalEncoder,
         )
-        logger.debug(f"Metrics payload is {payload}")
+        logger.info(f"Metrics payload is {payload}")
         http.request(method="POST", url=METRICS_ENDPOINT, headers=headers, body=payload)
     except Exception as ex:
         logger.error(f"Error occurred when making the http request to the metrics endpoint, Error is {ex}")

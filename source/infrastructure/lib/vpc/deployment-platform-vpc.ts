@@ -26,7 +26,17 @@ import { CustomVPC, CustomVPCProps } from './custom-vpc';
 export class DeploymentPlatformVPC extends CustomVPC {
     constructor(scope: Construct, id: string, props: CustomVPCProps) {
         super(scope, id, props);
+        const stack = cdk.Stack.of(this);
+        const subnetCidrMask = 24;
+        this.createVpc(subnetCidrMask);
+        this.createSecurityGroups();
+        this.createServiceEndpoints();
+        this.configureNacl();
+        this.setOutputs(stack);
+    }
 
+    public createServiceEndpoints() {
+        super.createServiceEndpoints();
         const cloudFormationEndpoint = new ec2.InterfaceVpcEndpoint(this, 'CloudFormationEndpoint', {
             vpc: this.vpc,
             service: ec2.InterfaceVpcEndpointAwsService.CLOUDFORMATION,

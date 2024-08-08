@@ -23,6 +23,7 @@ import UseCaseDescription from './UseCaseDescription';
 import UseCaseName from './UseCaseName';
 import UseCaseTypeSelection from './UseCaseTypeSelection';
 import { StepContentProps } from '../interfaces/Steps';
+import DeployUI from './DeployUI';
 
 const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepContentProps) => {
     const {
@@ -60,14 +61,12 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
                         selectedOption={useCase.useCase}
                         useCaseTypeOptions={USE_CASE_OPTIONS}
                     />
-
                     <UseCaseName
                         name={useCase.useCaseName}
                         disabled={deploymentAction === DEPLOYMENT_ACTIONS.EDIT}
                         onChangeFn={onChange}
                         setNumFieldsInError={setNumFieldsInError}
                     />
-
                     <UserEmail
                         email={useCase.defaultUserEmail}
                         onChangeFn={onChange}
@@ -77,6 +76,11 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
                     <UseCaseDescription
                         descriptionValue={useCase.useCaseDescription}
                         setNumFieldsInError={setNumFieldsInError}
+                        onChangeFn={onChange}
+                    />
+                    <DeployUI
+                        deployUI={useCase.deployUI}
+                        setHelpPanelContent={setHelpPanelContent}
                         onChangeFn={onChange}
                     />
                 </SpaceBetween>

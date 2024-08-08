@@ -16,6 +16,7 @@ import os
 from typing import Dict, List, Optional
 
 from aws_lambda_powertools import Logger
+from shared.knowledge.bedrock_knowledge_base import BedrockKnowledgeBase
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.knowledge.knowledge_base import KnowledgeBase
 from utils.constants import TRACE_ID_ENV_VAR
@@ -23,41 +24,48 @@ from utils.enum_types import KnowledgeBaseTypes
 
 logger = Logger(utc=True)
 
+KNOWLEDGE_BASE_MAP: Dict[str, type[KnowledgeBase]] = {
+    KnowledgeBaseTypes.KENDRA.value: KendraKnowledgeBase,
+    KnowledgeBaseTypes.BEDROCK.value: BedrockKnowledgeBase,
+}
+
 
 class KnowledgeBaseFactory:
     """
     Factory class for creating a knowledge base object based on the KnowledgeBaseType provided, along with its configuration
-    in the llm_config.
+    in the use_case_config.
     """
 
-    def get_knowledge_base(self, llm_config: Dict, errors: List[str]) -> Optional[KnowledgeBase]:
+    def get_knowledge_base(
+        self, use_case_config: Dict, errors: List[str], user_context_token: str
+    ) -> Optional[KnowledgeBase]:
         """
         Returns a KnowledgeBase object based on the knowledge-base object constructed with the provided configuration.
 
         Args:
-            llm_config(Dict): Model configuration set by admin
+            use_case_config(Dict): Model configuration set by admin
             errors(List): List of errors to append to
 
         Returns:
             KnowledgeBase: the knowledge-base constructed with the provided configuration.
         """
-        knowledge_base_type = llm_config.get("KnowledgeBaseType")
-        knowledge_base_params = llm_config.get("KnowledgeBaseParams")
+        knowledge_base_params = use_case_config.get("KnowledgeBaseParams")
+        if not knowledge_base_params:
+            errors.append(
+                f"Missing required field (KnowledgeBaseParams) in the configuration for the specified Knowledge Base"
+            )
+            return
+
+        knowledge_base_type = knowledge_base_params.get("KnowledgeBaseType")
         unsupported_kb_error = f"Unsupported KnowledgeBase type: {knowledge_base_type}."
 
         if not knowledge_base_type:
             errors.append(f"Missing required field (KnowledgeBaseType) in the configuration")
             return
 
-        if not knowledge_base_params:
-            errors.append(
-                f"Missing required field (KnowledgeBaseParams) in the configuration for the specified Knowledge Base {knowledge_base_type}"
-            )
-            return
-
         knowledge_base_str = ""
         try:
-            # Incorrect conversation_memory_type throws ValueError due to enum validation
+            # Incorrect KnowledgeBaseType throws ValueError due to enum validation
             knowledge_base_str = KnowledgeBaseTypes(knowledge_base_type)
         except ValueError as ve:
             logger.error(
@@ -67,11 +75,10 @@ class KnowledgeBaseFactory:
             errors.append(unsupported_kb_error + f" Supported types are: {[kb.value for kb in KnowledgeBaseTypes]}")
             return
 
-        if knowledge_base_str == KnowledgeBaseTypes.Kendra.value:
-            if not llm_config.get("KnowledgeBaseParams"):
-                raise ValueError("Missing required parameter (KnowledgeBaseParams) for Kendra knowledge base.")
-
-            return KendraKnowledgeBase(kendra_knowledge_base_params=llm_config.get("KnowledgeBaseParams"))
-
-        else:
+        knowledge_base_class = KNOWLEDGE_BASE_MAP.get(knowledge_base_str, None)
+        if knowledge_base_class is None:
             errors.append(f"Unsupported KnowledgeBase type: {knowledge_base_type}.")
+        else:
+            if not use_case_config.get("KnowledgeBaseParams"):
+                raise ValueError("Missing required parameter (KnowledgeBaseParams) for knowledge base.")
+            return knowledge_base_class(use_case_config.get("KnowledgeBaseParams"), user_context_token)

@@ -11,15 +11,16 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 import { render } from '@testing-library/react';
-import wrapper from '@cloudscape-design/components/test-utils/dom';
+import wrapper, { TableWrapper } from '@cloudscape-design/components/test-utils/dom';
 import { Dispatch } from 'react';
 import { ActionType } from '@/hooks/useCreateReducer';
 import { HomeContext, HomeInitialState } from '../contexts';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { API } from 'aws-amplify';
 
 // eslint-disable-next-line jest/no-mocks-import
-import MOCK_CONTEXT from './mock-context.json';
+import MOCK_CONTEXT from '../components/__tests__/__mocks__/mock-context.json';
 
 export const cloudscapeRender = (component: any) => {
     const { container, ...rest } = render(component);
@@ -32,8 +33,12 @@ export const cloudscapeRender = (component: any) => {
 };
 
 export const mockReactMarkdown = () => {
-    jest.mock('react-markdown', () => (props: any) => {
-        return <>{props.children}</>;
+    vi.mock('react-markdown', () => {
+        return {
+            default: vi.fn().mockImplementation((props: any) => {
+                return <>{props.children}</>;
+            })
+        };
     });
 };
 
@@ -41,15 +46,15 @@ export const mockReactMarkdown = () => {
  * Mock callback functions that can be used to spyOn invocations.
  * This fixture can be used by individial wizard components as well as the
  * top level wizard step component.
- * @returns mock jest functions
+ * @returns mock vitest functions
  */
 export const mockFormComponentCallbacks = () => {
     return {
-        onChange: jest.fn(),
-        onChangeFn: jest.fn(),
-        setNumFieldsInError: jest.fn(),
-        setHelpPanelContent: jest.fn(),
-        setRequiredFields: jest.fn()
+        onChange: vi.fn(),
+        onChangeFn: vi.fn(),
+        setNumFieldsInError: vi.fn(),
+        setHelpPanelContent: vi.fn(),
+        setRequiredFields: vi.fn()
     };
 };
 
@@ -60,7 +65,7 @@ interface ContextProps {
 
 export const renderWithProvider = (component: any, contextProps: ContextProps) => {
     const contextValue = {
-        dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
+        dispatch: vi.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: contextProps.customState ? contextProps.customState : MOCK_CONTEXT
     };
 
@@ -94,11 +99,11 @@ export const renderWithProvider = (component: any, contextProps: ContextProps) =
 export const mockedAuthenticator = () => {
     const authMockImplementation = () => {
         return {
-            getSignInUserSession: jest.fn().mockImplementation(() => {
+            getSignInUserSession: vi.fn().mockImplementation(() => {
                 return {
-                    getAccessToken: jest.fn().mockImplementation(() => {
+                    getAccessToken: vi.fn().mockImplementation(() => {
                         return {
-                            getJwtToken: jest.fn().mockImplementation(() => {
+                            getJwtToken: vi.fn().mockImplementation(() => {
                                 return 'fake-token';
                             })
                         };
@@ -108,5 +113,47 @@ export const mockedAuthenticator = () => {
         };
     };
 
-    return jest.fn().mockImplementation(authMockImplementation);
+    return vi.fn().mockImplementation(authMockImplementation);
+};
+
+export const getMockApi = () => {
+    return {
+        get: vi.fn()
+    };
+};
+
+export const mockModelNamesQuery = () => {
+    const mockAPI = getMockApi();
+    mockAPI.get.mockResolvedValue(['model-1', 'model-2']);
+    API.get = mockAPI.get;
+};
+
+export const mockedModelInfoQuery = () => {
+    const mockAPI = getMockApi();
+    mockAPI.get.mockResolvedValue({
+        modelId: 'XXXXXXX',
+        providerName: 'provider-1',
+        useCaseType: 'useCase-1'
+    });
+    API.get = mockAPI.get;
+};
+
+/**
+ * Gets the row index of a deployment from a table
+ * This function searches through the rows of a table to find the row
+ * that contains the given deployment. It returns the index of that row.
+ * @param {TableWrapper} table - The table to search through
+ * @param {Object} deployment - The deployment object to find
+ * @returns {Number} The 1-based index of the row containing the deployment
+ */
+export const getTableRowIndexOfDeployment = (table: TableWrapper, deployment: any): number => {
+    let rowIndex = table?.findRows().findIndex((x) => {
+        let row = x.getElement() as HTMLTableRowElement;
+        for (let column of row.cells) {
+            if (column.textContent === deployment.useCaseUUID) return row;
+        }
+    });
+
+    //increment index by 1 as Cloudscape table row functions mostly use a 1-based index
+    return rowIndex + 1;
 };

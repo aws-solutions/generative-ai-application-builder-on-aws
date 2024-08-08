@@ -22,7 +22,8 @@ describe('RetrieveDocumentCount', () => {
 
     test('renders with default value and handles changes', () => {
         const mockKnowledgeBaseData = {
-            maxNumDocs: '2'
+            maxNumDocs: '2',
+            knowledgeBaseType: { value: 'Kendra', label: 'Kendra' }
         };
 
         const callbacks = mockFormComponentCallbacks();
@@ -41,7 +42,8 @@ describe('RetrieveDocumentCount', () => {
 
     test('renders with error', () => {
         const mockKnowledgeBaseData = {
-            maxNumDocs: 2
+            maxNumDocs: 2,
+            knowledgeBaseType: { value: 'Kendra', label: 'Kendra' }
         };
         const callbacks = mockFormComponentCallbacks();
         const { cloudscapeWrapper } = cloudscapeRender(

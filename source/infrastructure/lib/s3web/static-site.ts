@@ -19,6 +19,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
+import * as cfn_nag from '../utils/cfn-guard-suppressions';
 
 /**
  * Interface that defines properties required for the Static Website
@@ -89,18 +90,6 @@ export class StaticWebsite extends Construct {
             iam.Role.fromRoleArn(this, 'BucketPolicyLambdaRole', props.customResourceRoleArn)
         );
 
-        const cspResponseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'CSPResponseHeadersPolicy', {
-            responseHeadersPolicyName: `GAAB-CSPResponseHeadersPolicy-${cdk.Aws.REGION}-${props.cloudFrontUUID}`,
-            comment: 'CSP Response Headers Policy',
-            securityHeadersBehavior: {
-                contentSecurityPolicy: {
-                    contentSecurityPolicy: `default-src 'self' data: wss: *.amazonaws.com; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none'; worker-src blob:`,
-                    override: true
-                },
-                frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true }
-            }
-        });
-
         const cloudfrontToS3 = new CloudFrontToS3(this, 'UI', {
             existingBucketObj: this.webS3Bucket,
             cloudFrontDistributionProps: {
@@ -111,10 +100,7 @@ export class StaticWebsite extends Construct {
                 ],
                 logFilePrefix: 'cloudfront/',
                 minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2019,
-                defaultRootObject: 'login.html',
-                defaultBehavior: {
-                    responseHeadersPolicy: cspResponseHeadersPolicy
-                }
+                defaultRootObject: 'login.html'
             },
             cloudFrontLoggingBucketProps: {
                 encryption: s3.BucketEncryption.S3_MANAGED,
@@ -125,7 +111,33 @@ export class StaticWebsite extends Construct {
                 versioned: false, // NOSONAR - bucket versioning is recommended in the IG, but is not enforced
                 serverAccessLogsBucket: props.accessLoggingBucket,
                 serverAccessLogsPrefix: 'cloudfrontlogs-logging/'
-            }
+            },
+            responseHeadersPolicyProps: {
+                responseHeadersPolicyName: `RespPolicy-${cdk.Aws.REGION}-${cdk.Aws.STACK_NAME}`,
+                securityHeadersBehavior: {
+                    contentSecurityPolicy: {
+                        contentSecurityPolicy: `default-src 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none'; worker-src 'self' blob:; frame-ancestors 'none'; connect-src 'self' wss: https://*.amazonaws.com https://*.amazoncognito.com; font-src data:; upgrade-insecure-requests`,
+                        override: true
+                    },
+                    frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+                    referrerPolicy: {
+                        referrerPolicy: cloudfront.HeadersReferrerPolicy.NO_REFERRER,
+                        override: true
+                    },
+                    xssProtection: {
+                        protection: true,
+                        modeBlock: true,
+                        override: true
+                    },
+                    strictTransportSecurity: {
+                        accessControlMaxAge: cdk.Duration.seconds(47304000),
+                        includeSubdomains: true,
+                        override: true
+                    },
+                    contentTypeOptions: { override: true }
+                }
+            },
+            insertHttpSecurityHeaders: false
         });
 
         this.webS3Bucket.policy?.node.addDependency(cloudfrontToS3.cloudFrontWebDistribution);
@@ -168,13 +180,6 @@ export class StaticWebsite extends Construct {
         );
         cloudFrontLoggingUpdateBucketPolicyCustomResource.node.addDependency(cloudfrontToS3.cloudFrontWebDistribution);
 
-        const cloudfrontFunction = cloudfrontToS3.node
-            .tryFindChild('SetHttpSecurityHeaders')
-            ?.node.tryFindChild('Resource') as cloudfront.CfnFunction;
-
-        cloudfrontFunction.addPropertyOverride('FunctionConfig.Comment', 'Set HTTP security headers');
-        cloudfrontFunction.addPropertyOverride('Name', `HTTPSecurityHeaders-${cdk.Aws.REGION}-${props.cloudFrontUUID}`);
-
         this.cloudfrontDistribution = cloudfrontToS3.cloudFrontWebDistribution;
 
         // prettier-ignore
@@ -207,6 +212,13 @@ export class StaticWebsite extends Construct {
             {
                 id: 'AwsSolutions-CFR4',
                 reason: 'Because the domain name is unknown for this solution, a default CDN distribution is used. Hence TLSv2 cannot be enforced'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(this.webS3Bucket, [
+            {
+                id: 'F14',
+                reason: '"AccessControl" is legacy as per following documentation - https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-s3-bucket.html#cfn-s3-bucket-accesscontrol'
             }
         ]);
     }

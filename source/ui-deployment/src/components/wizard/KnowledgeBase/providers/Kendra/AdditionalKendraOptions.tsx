@@ -22,7 +22,7 @@ type AdditionalKendraOptionsProps = KnowledgeBaseConfigProps;
 export const AdditionalKendraOptions = (props: AdditionalKendraOptionsProps) => {
     return (
         <Box data-testid="additional-kendra-options">
-            <ExpandableSection headerText="Additional kendra options" variant="footer">
+            <ExpandableSection headerText="Additional Kendra options" variant="footer">
                 <SpaceBetween size="l">
                     <KendraEdition {...props} />
                     <KendraQueryCapacity {...props} />

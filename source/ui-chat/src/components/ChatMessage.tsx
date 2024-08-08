@@ -18,6 +18,7 @@ import { MessageWithSource } from '../types/chat';
 import { MemoizedReactMarkdown } from './MemoizedReactMarkdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import rehypeExternalLinks from 'rehype-external-links';
 import { CodeBlock } from './CodeBlock';
 import { Components } from 'react-markdown';
 
@@ -87,7 +88,16 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, displaySour
                 <div className="prose mt-[-2px] w-full">
                     {message.role === 'user' ? (
                         <div className="w-full">
-                            <div>{message.content}</div>
+                            <MemoizedReactMarkdown
+                                remarkPlugins={[remarkGfm, remarkMath]}
+                                rehypePlugins={[
+                                    [rehypeExternalLinks, { target: '_blank', rel: 'noopener noreferrer' }]
+                                ]}
+                                unwrapDisallowed
+                                components={MARKDOWN_COMPONENTS}
+                            >
+                                {message.content}
+                            </MemoizedReactMarkdown>
                         </div>
                     ) : (
                         <div className="flex ">
@@ -95,7 +105,9 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, displaySour
                                 <MemoizedReactMarkdown
                                     className="prose dark:prose-invert flex-1"
                                     remarkPlugins={[remarkGfm, remarkMath]}
-                                    disallowedElements={['a']}
+                                    rehypePlugins={[
+                                        [rehypeExternalLinks, { target: '_blank', rel: 'noopener noreferrer' }]
+                                    ]}
                                     unwrapDisallowed
                                     components={MARKDOWN_COMPONENTS}
                                 >

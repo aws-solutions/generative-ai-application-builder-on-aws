@@ -170,6 +170,18 @@ describe('When createWebConfigStorage is called', () => {
         const userPoolClient = new cognito.CfnUserPoolClient(stack, 'ClientApp', {
             userPoolId: userPool.userPoolId
         });
+        const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
+            type: 'String',
+            description:
+                'Select "No", if you do not want to deploy the UI web application. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
+            allowedValues: ['Yes', 'No'],
+            allowedPattern: '^Yes|No$',
+            default: 'Yes'
+        });
+        const deployWebAppCondition = new cdk.CfnCondition(cdk.Stack.of(stack), 'DeployWebApp', {
+            expression: cdk.Fn.conditionEquals(deployWebApp.valueAsString, 'Yes')
+        });
+
         applicationSetup.createWebConfigStorage(
             {
                 apiEndpoint: new apigateway.LambdaRestApi(stack, 'Api', {
@@ -181,9 +193,12 @@ describe('When createWebConfigStorage is called', () => {
                 }).url,
                 userPoolId: userPool.userPoolId,
                 userPoolClientId: userPoolClient.ref,
+                cognitoDomainPrefix: 'fake-domain-prefix',
+                cognitoRedirectUrl: 'https://fake-redirect-url',
                 isInternalUserCondition: new cdk.CfnCondition(stack, 'TestCondition', {
                     expression: cdk.Fn.conditionEquals('Yes', 'Yes')
-                })
+                }),
+                deployWebAppCondition: deployWebAppCondition
             },
             '/fake/ssm-key'
         );
@@ -304,6 +319,18 @@ describe('When passing additional properties to createWebConfigStorage', () => {
         const userPoolClient = new cognito.CfnUserPoolClient(stack, 'ClientApp', {
             userPoolId: userPool.userPoolId
         });
+        const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
+            type: 'String',
+            description:
+                'Select "No", if you do not want to deploy the UI web application. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
+            allowedValues: ['Yes', 'No'],
+            allowedPattern: '^Yes|No$',
+            default: 'Yes'
+        });
+        const deployWebAppCondition = new cdk.CfnCondition(cdk.Stack.of(stack), 'DeployWebApp', {
+            expression: cdk.Fn.conditionEquals(deployWebApp.valueAsString, 'Yes')
+        });
+
         applicationSetup.createWebConfigStorage(
             {
                 apiEndpoint: new apigateway.LambdaRestApi(stack, 'Api', {
@@ -315,10 +342,13 @@ describe('When passing additional properties to createWebConfigStorage', () => {
                 }).url,
                 userPoolId: userPool.userPoolId,
                 userPoolClientId: userPoolClient.ref,
+                cognitoDomainPrefix: 'fake-domain-prefix',
+                cognitoRedirectUrl: 'https://fake-redirect-url',
                 isInternalUserCondition: new cdk.CfnCondition(stack, 'TestCondition', {
                     expression: cdk.Fn.conditionEquals('Yes', 'Yes')
                 }),
-                additionalProperties: { AdditionalProperty: 'some value' }
+                additionalProperties: { AdditionalProperty: 'some value' },
+                deployWebAppCondition: deployWebAppCondition
             },
             '/fake/ssm-key'
         );

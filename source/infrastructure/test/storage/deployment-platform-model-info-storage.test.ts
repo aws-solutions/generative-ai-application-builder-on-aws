@@ -11,10 +11,10 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 import * as cdk from 'aws-cdk-lib';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, DynamoDBAttributes } from '../../lib/utils/constants';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { DeploymentPlatformModelInfoStorage } from '../../lib/storage/deployment-platform-model-info-storage';
+import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, DynamoDBAttributes } from '../../lib/utils/constants';
 
 describe('Creating a conditional model store', () => {
     let template: Template;
@@ -69,6 +69,42 @@ describe('Creating a conditional model store', () => {
             },
             UpdateReplacePolicy: 'Delete',
             DeletionPolicy: 'Delete'
+        });
+    });
+
+    it('creates a custom resource', () => {
+        template.hasResource('Custom::CopyModelInfo', {
+            Type: 'Custom::CopyModelInfo',
+            Properties: {
+                ServiceToken: {
+                    'Fn::GetAtt': [Match.stringLikeRegexp('customResourceLambda*'), 'Arn']
+                },
+                SOURCE_BUCKET_NAME: Match.anyValue(),
+                SOURCE_PREFIX: Match.anyValue(),
+                Resource: 'COPY_MODEL_INFO',
+                DDB_TABLE_NAME: {
+                    Ref: Match.stringLikeRegexp('TestSetupModelInfoStore*')
+                }
+            },
+            DependsOn: [Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*')],
+            UpdateReplacePolicy: 'Delete',
+            DeletionPolicy: 'Delete'
+        });
+    });
+
+    it('creates a policy for custom resource to perform ddb operations scan, batchwrite, and delete', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: [
+                    {
+                        Action: ['dynamodb:Scan', 'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem'],
+                        Effect: 'Allow',
+                        Resource: {
+                            'Fn::GetAtt': [Match.stringLikeRegexp('TestSetupModelInfoStore*'), 'Arn']
+                        }
+                    }
+                ]
+            }
         });
     });
 });

@@ -20,6 +20,10 @@ export interface HomeInitialState {
     deploymentAction: string;
     runtimeConfig?: any;
     reloadData?: boolean;
+    numUseCases: number;
+    currentPageIndex: number;
+    searchFilter: string;
+    submittedSearchFilter: string;
 }
 
 export const initialState: HomeInitialState = {
@@ -27,7 +31,11 @@ export const initialState: HomeInitialState = {
     selectedDeployment: {},
     deploymentsData: [],
     deploymentAction: DEPLOYMENT_ACTIONS.CREATE,
-    reloadData: false
+    reloadData: false,
+    numUseCases: 0,
+    currentPageIndex: 1,
+    searchFilter: '',
+    submittedSearchFilter: ''
 };
 
 export const insertRuntimeConfig = (state: Partial<HomeInitialState>, runtimeConfig: any) => {

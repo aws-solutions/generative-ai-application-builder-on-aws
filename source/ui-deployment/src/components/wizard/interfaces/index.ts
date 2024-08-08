@@ -11,5 +11,4 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-export * from './RuntimeConfig';
 export * from './BaseFormComponent';

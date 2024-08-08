@@ -32,27 +32,49 @@ describe('When creating a VPC for Bedrock stack', () => {
             PolicyDocument: {
                 Statement: [
                     {
-                        'Action': ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-                        'Effect': 'Allow',
-                        'Principal': {
+                        Action: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
+                        Effect: 'Allow',
+                        Principal: {
                             'AWS': '*'
                         },
-                        'Resource': {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        'Ref': 'AWS::Partition'
-                                    },
-                                    ':bedrock:',
-                                    {
-                                        'Ref': 'AWS::Region'
-                                    },
-                                    '::foundation-model/*'
+                        Resource: [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            'Ref': 'AWS::Partition'
+                                        },
+                                        ':bedrock:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        '::foundation-model/*'
+                                    ]
                                 ]
-                            ]
-                        }
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            'Ref': 'AWS::Partition'
+                                        },
+                                        ':bedrock:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            'Ref': 'AWS::AccountId'
+                                        },
+                                        ':provisioned-model/*'
+                                    ]
+                                ]
+                            }
+                        ]
                     },
                     {
                         'Action': 'bedrock:ApplyGuardrail',
@@ -82,7 +104,7 @@ describe('When creating a VPC for Bedrock stack', () => {
                         }
                     }
                 ],
-                'Version': '2012-10-17'
+                Version: '2012-10-17'
             },
             PrivateDnsEnabled: true,
             SecurityGroupIds: [

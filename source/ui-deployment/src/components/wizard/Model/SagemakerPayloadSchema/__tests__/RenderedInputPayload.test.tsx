@@ -17,9 +17,9 @@ import { screen, waitFor } from '@testing-library/react';
 let RenderedInputPayload: any;
 
 describe('RenderedInputPayload', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         mockReactMarkdown();
-        RenderedInputPayload = require('../RenderedInputPayload').default;
+        RenderedInputPayload = (await import('../RenderedInputPayload')).default;
     });
     afterEach(() => {
         jest.clearAllMocks();

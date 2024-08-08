@@ -16,7 +16,12 @@ import * as cdk from 'aws-cdk-lib';
 import * as rawCdkJson from '../../cdk.json';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
-import { UseCaseCognitoSetup, UseCaseCognitoSetupProps } from '../../lib/auth/use-case-cognito-setup';
+import { UserPoolProps } from '../../lib/auth/cognito-setup';
+import {
+    UseCaseCognitoSetup,
+    UseCaseUserPoolProps,
+    UserCaseUserPoolClientProps
+} from '../../lib/auth/use-case-cognito-setup';
 
 describe('When creating as a standalone stack', () => {
     it('should set the security policies for the user pool and create the policy store table', () => {
@@ -25,7 +30,8 @@ describe('When creating as a standalone stack', () => {
             applicationTrademarkName: rawCdkJson.context.application_trademark_name,
             userGroupName: 'fake-use-case',
             existingCognitoUserPoolId: '',
-            existingCognitoGroupPolicyTableName: ''
+            existingCognitoGroupPolicyTableName: '',
+            customResourceLambdaArn: 'arn:aws:lambda:us-east-1:fake-account-id:function/fake-function'
         });
 
         template.hasCondition('TestCognitoSetupCreateUserPoolCondition319150D4', {
@@ -58,7 +64,7 @@ describe('When creating as a standalone stack', () => {
                 ]
             },
             AdminCreateUserConfig: {
-                AllowAdminCreateUserOnly: false,
+                AllowAdminCreateUserOnly: true,
                 InviteMessageTemplate: {
                     EmailMessage: emailMessageBodyCapture,
                     EmailSubject: `Invitation to join ${rawCdkJson.context.application_trademark_name} app!`
@@ -117,46 +123,110 @@ describe('When creating as a standalone stack', () => {
         const userGroupCapture = new Capture();
 
         template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
-            'UserPoolId': {
+            AccessTokenValidity: 5,
+            AllowedOAuthFlows: {
                 'Fn::If': [
-                    'TestCognitoSetupCreateUserPoolCondition319150D4',
+                    'DeployWebApp',
+                    ['code'],
                     {
-                        'Ref': userPoolCapture
+                        Ref: 'AWS::NoValue'
+                    }
+                ]
+            },
+            AllowedOAuthFlowsUserPoolClient: {
+                'Fn::If': [
+                    'DeployWebApp',
+                    true,
+                    {
+                        Ref: 'AWS::NoValue'
+                    }
+                ]
+            },
+            AllowedOAuthScopes: {
+                'Fn::If': [
+                    'DeployWebApp',
+                    ['email', 'aws.cognito.signin.user.admin', 'openid'],
+                    {
+                        Ref: 'AWS::NoValue'
+                    }
+                ]
+            },
+            CallbackURLs: [
+                {
+                    'Fn::If': [
+                        'DeployWebApp',
+                        'https://fakeurl.com',
+                        {
+                            Ref: 'AWS::NoValue'
+                        }
+                    ]
+                }
+            ],
+            IdTokenValidity: 5,
+            LogoutURLs: [
+                {
+                    'Fn::If': [
+                        'DeployWebApp',
+                        'https://fakeurl.com',
+                        {
+                            Ref: 'AWS::NoValue'
+                        }
+                    ]
+                }
+            ],
+            SupportedIdentityProviders: ['COGNITO'],
+            TokenValidityUnits: {
+                'AccessToken': 'minutes',
+                'IdToken': 'minutes'
+            },
+            UserPoolId: {
+                'Fn::If': [
+                    Match.anyValue(),
+                    {
+                        Ref: userPoolCapture
                     },
                     ''
                 ]
             },
-            'ExplicitAuthFlows': [
-                'ALLOW_ADMIN_USER_PASSWORD_AUTH',
-                'ALLOW_USER_PASSWORD_AUTH',
-                'ALLOW_REFRESH_TOKEN_AUTH',
-                'ALLOW_CUSTOM_AUTH',
-                'ALLOW_USER_SRP_AUTH'
-            ]
+            ExplicitAuthFlows: {
+                'Fn::If': [
+                    'DeployWebApp',
+                    [
+                        'ALLOW_USER_PASSWORD_AUTH',
+                        'ALLOW_ADMIN_USER_PASSWORD_AUTH',
+                        'ALLOW_CUSTOM_AUTH',
+                        'ALLOW_USER_SRP_AUTH',
+                        'ALLOW_REFRESH_TOKEN_AUTH'
+                    ],
+                    {
+                        Ref: 'AWS::NoValue'
+                    }
+                ]
+            }
         });
 
         template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
-            'UserPoolId': {
+            UserPoolId: {
                 'Fn::If': [
                     'TestCognitoSetupCreateUserPoolCondition319150D4',
                     {
-                        'Ref': userPoolCapture.asString()
+                        Ref: userPoolCapture.asString()
                     },
                     ''
                 ]
             },
-            'GroupName': userGroupCapture,
-            'Precedence': 1
+            GroupName: userGroupCapture,
+            Precedence: 1
         });
 
         template.hasResourceProperties('AWS::Cognito::UserPoolUserToGroupAttachment', {
-            'GroupName': userGroupCapture.asString(),
-            'Username': 'fake-user',
-            'UserPoolId': {
+            GroupName: userGroupCapture.asString(),
+            Username: 'fake-user',
+            UserPoolId: {
                 'Fn::If': [
                     'TestCognitoSetupCreateUserPoolCondition319150D4',
                     {
-                        'Ref': userPoolCapture.asString()
+                        Ref: userPoolCapture.asString()
                     },
                     ''
                 ]
@@ -198,7 +268,9 @@ describe('When creating as a standalone stack', () => {
             applicationTrademarkName: rawCdkJson.context.application_trademark_name,
             userGroupName: 'fake-use-case',
             existingCognitoUserPoolId: '',
-            existingCognitoGroupPolicyTableName: ''
+            existingCognitoGroupPolicyTableName: '',
+            customResourceLambdaArn: 'arn:aws:lambda:us-east-1:fake-account-id:function/fake-function',
+            cognitoDomainPrefix: 'fake-prefix'
         });
 
         template.hasResourceProperties('AWS::Cognito::UserPoolUser', {
@@ -239,6 +311,15 @@ describe('When creating as a standalone stack', () => {
             ]
         });
 
+        template.hasCondition('*', {
+            'Fn::Equals': [
+                {
+                    Ref: 'ExistingCognitoUserPoolClient'
+                },
+                ''
+            ]
+        });
+
         expect(jsonTemplate['Resources'][userPoolCapture.asString()]['Type']).toEqual('AWS::Cognito::UserPool');
         template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
             UserPoolId: {
@@ -259,7 +340,9 @@ describe('When creating as a standalone stack', () => {
             applicationTrademarkName: rawCdkJson.context.application_trademark_name,
             userGroupName: 'fake-use-case',
             existingCognitoUserPoolId: '',
-            existingCognitoGroupPolicyTableName: ''
+            existingCognitoGroupPolicyTableName: '',
+            customResourceLambdaArn: 'arn:aws:lambda:us-east-1:fake-account-id:function/fake-function',
+            cognitoDomainPrefix: 'fake-prefix'
         });
 
         template.resourcePropertiesCountIs('AWS::Cognito::UserPoolUser', {}, 1);
@@ -289,7 +372,9 @@ describe('When providing an existing userpool', () => {
             applicationTrademarkName: rawCdkJson.context.application_trademark_name,
             userGroupName: 'fake-use-case',
             existingCognitoUserPoolId: 'fake-user-pool-id',
-            existingCognitoGroupPolicyTableName: 'fake-group-policy-table-name'
+            existingCognitoGroupPolicyTableName: 'fake-group-policy-table-name',
+            customResourceLambdaArn: 'arn:aws:lambda:us-east-1:fake-account-id:function/fake-function',
+            cognitoDomainPrefix: 'fake-prefix'
         });
 
         const snsPublishRoleCapture = new Capture();
@@ -311,7 +396,7 @@ describe('When providing an existing userpool', () => {
                 ]
             },
             AdminCreateUserConfig: {
-                AllowAdminCreateUserOnly: false,
+                AllowAdminCreateUserOnly: true,
                 InviteMessageTemplate: {
                     EmailMessage: emailMessageBodyCapture,
                     EmailSubject: `Invitation to join ${rawCdkJson.context.application_trademark_name} app!`
@@ -379,13 +464,21 @@ describe('When providing an existing userpool', () => {
                     'fake-user-pool-id'
                 ]
             },
-            'ExplicitAuthFlows': [
-                'ALLOW_ADMIN_USER_PASSWORD_AUTH',
-                'ALLOW_USER_PASSWORD_AUTH',
-                'ALLOW_REFRESH_TOKEN_AUTH',
-                'ALLOW_CUSTOM_AUTH',
-                'ALLOW_USER_SRP_AUTH'
-            ]
+            ExplicitAuthFlows: {
+                'Fn::If': [
+                    'DeployWebApp',
+                    [
+                        'ALLOW_USER_PASSWORD_AUTH',
+                        'ALLOW_ADMIN_USER_PASSWORD_AUTH',
+                        'ALLOW_CUSTOM_AUTH',
+                        'ALLOW_USER_SRP_AUTH',
+                        'ALLOW_REFRESH_TOKEN_AUTH'
+                    ],
+                    {
+                        Ref: 'AWS::NoValue'
+                    }
+                ]
+            }
         });
 
         template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
@@ -428,7 +521,9 @@ describe('When providing an existing userpool', () => {
             applicationTrademarkName: rawCdkJson.context.application_trademark_name,
             userGroupName: 'fake-use-case',
             existingCognitoUserPoolId: 'fake-user-pool-id',
-            existingCognitoGroupPolicyTableName: 'fake-group-policy-table-name'
+            existingCognitoGroupPolicyTableName: 'fake-group-policy-table-name',
+            customResourceLambdaArn: 'arn:aws:lambda:us-east-1:fake-account-id:function/fake-function',
+            cognitoDomainPrefix: 'fake-prefix'
         });
 
         template.hasResourceProperties('AWS::Cognito::UserPoolUser', {
@@ -489,7 +584,9 @@ describe('When providing an existing userpool', () => {
             applicationTrademarkName: rawCdkJson.context.application_trademark_name,
             userGroupName: 'fake-use-case',
             existingCognitoUserPoolId: 'fake-user-pool-id',
-            existingCognitoGroupPolicyTableName: 'fake-group-policy-table-name'
+            existingCognitoGroupPolicyTableName: 'fake-group-policy-table-name',
+            customResourceLambdaArn: 'arn:aws:lambda:us-east-1:fake-account-id:function/fake-function',
+            cognitoDomainPrefix: 'fake-prefix'
         });
 
         template.resourcePropertiesCountIs('AWS::Cognito::UserPoolUser', {}, 1);
@@ -512,9 +609,60 @@ describe('When providing an existing userpool', () => {
     });
 });
 
-function createTemplate(props: UseCaseCognitoSetupProps): [cdk.assertions.Template, any] {
+function createTemplate(props: Partial<UseCaseUserPoolProps>): [cdk.assertions.Template, any] {
     let stack = new cdk.Stack();
-    new UseCaseCognitoSetup(stack, 'TestCognitoSetup', props);
+    const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
+        type: 'String',
+        description:
+            'Select "No", if you do not want to deploy the UI web application. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
+        allowedValues: ['Yes', 'No'],
+        default: 'Yes'
+    });
+
+    const cognitoSetup = new UseCaseCognitoSetup(stack, 'TestCognitoSetup', {
+        userPoolProps: {
+            ...props,
+            cognitoDomainPrefix: new cdk.CfnParameter(stack, 'CognitoDomainPrefix', {
+                type: 'String',
+                description:
+                    'If you would like to provide a domain for the Cognito User Pool Client, please enter a value. If a value is not provided, the deployment will generate one',
+                default: '',
+                allowedPattern: '^$|^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$',
+                constraintDescription:
+                    'The provided domain prefix is not a valid format. The domain prefix should be be of the following format "^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$"',
+                maxLength: 63
+            }).valueAsString
+        } as UserPoolProps
+    });
+    cognitoSetup.createUserPoolClient({
+        logoutUrl: {
+            'Fn::If': [
+                'DeployWebApp',
+                'https://fakeurl.com',
+                {
+                    Ref: 'AWS::NoValue'
+                }
+            ]
+        } as unknown as string,
+        callbackUrl: {
+            'Fn::If': [
+                'DeployWebApp',
+                'https://fakeurl.com',
+                {
+                    Ref: 'AWS::NoValue'
+                }
+            ]
+        } as unknown as string,
+        existingCognitoUserPoolClientId: new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClient', {
+            type: 'String',
+            allowedPattern: '^$|^[a-z0-9]{3,128}$',
+            maxLength: 128,
+            description:
+                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
+            default: ''
+        }).valueAsString,
+        deployWebApp: deployWebApp.valueAsString
+    } as UserCaseUserPoolClientProps);
     const template = Template.fromStack(stack);
     return [template, template.toJSON()];
 }

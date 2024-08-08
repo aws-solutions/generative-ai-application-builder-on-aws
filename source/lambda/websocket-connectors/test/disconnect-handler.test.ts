@@ -59,7 +59,7 @@ describe('when calling disconnect-handler', () => {
             },
             resource: 'fakeResource'
         };
-        expect(await disconnect_handler.handler(mockedEvent)).toEqual({
+        expect(await disconnect_handler.lambdaHandler(mockedEvent)).toEqual({
             statusCode: 200,
             body: 'Disconnected'
         });

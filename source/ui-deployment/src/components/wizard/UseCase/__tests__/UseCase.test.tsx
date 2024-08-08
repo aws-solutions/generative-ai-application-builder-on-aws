@@ -13,11 +13,12 @@
 
 import UseCase from '../UseCase';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 
 describe('UseCase', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
+        cleanup();
     });
 
     test('renders use case page components', () => {
@@ -26,9 +27,12 @@ describe('UseCase', () => {
                 useCase: { label: 'Chat', value: 'Chat' },
                 useCaseName: 'fake-use-case',
                 defaultUserEmail: 'fake-user-email@example.com',
-                useCaseDescription: 'fake-use-case-description'
+                useCaseDescription: 'fake-use-case-description',
+                deployUI: true
             }
         };
+
+        const callbacks = mockFormComponentCallbacks();
 
         const { cloudscapeWrapper } = renderWithProvider(
             <UseCase info={mockUseCaseInfo} {...mockFormComponentCallbacks()} />,
@@ -50,5 +54,13 @@ describe('UseCase', () => {
         expect(cloudscapeWrapper.findInput('[data-testid="user-email-field-input"]')?.getInputValue()).toEqual(
             'fake-user-email@example.com'
         );
+
+        expect(screen.getByTestId('deploy-ui-radio-group')).toBeDefined();
+        expect(
+            cloudscapeWrapper
+                .findRadioGroup('[data-testid="deploy-ui-radio-group"]')
+                ?.findInputByValue('yes')
+                ?.getElement().checked
+        ).toBeTruthy();
     });
 });

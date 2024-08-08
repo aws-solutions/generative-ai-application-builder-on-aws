@@ -12,6 +12,7 @@
  **********************************************************************************************************************/
 
 import * as React from 'react';
+import { v4 as uuid } from 'uuid';
 import Modal from '@cloudscape-design/components/modal';
 import Box from '@cloudscape-design/components/box';
 import SpaceBetween from '@cloudscape-design/components/space-between';
@@ -27,9 +28,11 @@ export interface SourceDocumentsModalProps {
 
 export interface SourceDocSectionProps {
     title: string;
-    source: string;
+    location: string;
     excerpt: string;
     documentId: string;
+    score: string | number;
+    index: number;
 }
 
 export const SourceDocumentsModal: React.FC<SourceDocumentsModalProps> = ({
@@ -57,11 +60,13 @@ export const SourceDocumentsModal: React.FC<SourceDocumentsModalProps> = ({
                 {sourceDocumentsData.map((sourceDoc: any, _index: any) => {
                     return (
                         <SourceDocSection
-                            key={sourceDoc['result_id']}
-                            title={sourceDoc.title}
-                            source={sourceDoc.source}
+                            key={`${sourceDoc.location}-${uuid()}`}
+                            title={sourceDoc.document_title}
+                            location={sourceDoc.location}
                             excerpt={sourceDoc.excerpt}
-                            documentId={sourceDoc['document_id']}
+                            documentId={sourceDoc.document_id}
+                            score={sourceDoc.score}
+                            index={_index}
                         />
                     );
                 })}
@@ -70,29 +75,46 @@ export const SourceDocumentsModal: React.FC<SourceDocumentsModalProps> = ({
     );
 };
 
-export const SourceDocSection: React.FC<SourceDocSectionProps> = ({ title, source, excerpt, documentId }) => {
+export const SourceDocSection: React.FC<SourceDocSectionProps> = ({
+    title,
+    location,
+    excerpt,
+    documentId,
+    score,
+    index
+}) => {
     const [externalLinkModalVisible, setExternalLinkModalVisible] = React.useState(false);
     const onModalDismiss = () => setExternalLinkModalVisible(false);
 
+    // converts an s3 location to a URL we can navigate to in the browser
+    let locationUrl = location.startsWith('s3://') ? `https://s3.amazonaws.com/${location.substring(5)}` : location;
+
     return (
         <Box>
-            <ExpandableSection headerText={title} data-testid="expandable-doc-source-section">
+            <ExpandableSection
+                headerText={title ?? `Source Document ${index + 1}`}
+                data-testid={`expandable-doc-source-section-${index}`}
+            >
                 <SpaceBetween size="s">
                     <div>
                         <Box variant="awsui-key-label">Source</Box>
-                        <Link onFollow={() => setExternalLinkModalVisible(true)}>{documentId}</Link>
+                        <Link onFollow={() => setExternalLinkModalVisible(true)}>{documentId ?? location}</Link>
 
                         <ExternalLinkWarningModal
-                            data-testid="external-link-warning-modal"
+                            data-testid={`external-link-warning-modal`}
                             visible={externalLinkModalVisible}
                             onDiscard={onModalDismiss}
-                            externalLink={source}
+                            externalLink={locationUrl}
                         />
                     </div>
 
                     <div>
                         <Box variant="awsui-key-label">Excerpt</Box>
                         <Box variant="p">{excerpt}</Box>
+                    </div>
+                    <div>
+                        <Box variant="awsui-key-label">Score</Box>
+                        <Box variant="p">{score}</Box>
                     </div>
                 </SpaceBetween>
             </ExpandableSection>

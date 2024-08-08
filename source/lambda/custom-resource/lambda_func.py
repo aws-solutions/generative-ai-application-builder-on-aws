@@ -21,15 +21,16 @@ from custom_config import DEFAULT_APP_NAME
 from operations import (
     admin_policy,
     anonymous_metrics,
-    copy_api_key,
     copy_web_ui,
-    cw_loggroup_policy,
     gen_uuid,
     operation_types,
     update_s3_policy,
     use_case_policy,
     webconfig,
     copy_model_info_to_ddb,
+    get_compatible_azs,
+    gen_domain_prefix,
+    cw_log_retention,
 )
 from operations.operation_types import FAILED, RESOURCE, RESOURCE_PROPERTIES
 
@@ -42,14 +43,15 @@ metrics = Metrics(namespace=os.environ.get("STACK_NAME", DEFAULT_APP_NAME))
 operations_dictionary = {
     operation_types.GEN_UUID: gen_uuid.execute,
     operation_types.ANONYMOUS_METRIC: anonymous_metrics.execute,
-    operation_types.CW_LOGGROUP_POLICY: cw_loggroup_policy.execute,
     operation_types.WEBCONFIG: webconfig.execute,
     operation_types.COPY_WEB_UI: copy_web_ui.execute,
     operation_types.UPDATE_BUCKET_POLICY: update_s3_policy.execute,
-    operation_types.COPY_API_KEY: copy_api_key.execute,
     operation_types.USE_CASE_POLICY: use_case_policy.execute,
     operation_types.ADMIN_POLICY: admin_policy.execute,
     operation_types.COPY_MODEL_INFO: copy_model_info_to_ddb.execute,
+    operation_types.GET_COMPATIBLE_AZS: get_compatible_azs.execute,
+    operation_types.GEN_DOMAIN_PREFIX: gen_domain_prefix.execute,
+    operation_types.CW_LOG_RETENTION: cw_log_retention.execute,
 }
 
 
@@ -80,7 +82,7 @@ def get_function_for_resource(resource: str):
 
 @metrics.log_metrics(capture_cold_start_metric=True)  # type: ignore
 @tracer.capture_lambda_handler
-@logger.inject_lambda_context(log_event=True)
+@logger.inject_lambda_context
 def handler(event, context):
     """The main entry point for the custom resource lambda function. It looks for the implementation for the operation type passed in the
     resource properties and invokes that specific operation

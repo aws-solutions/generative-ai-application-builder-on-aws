@@ -11,12 +11,23 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
+import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
+import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
+import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
+import middy from '@middy/core';
 import { APIGatewayProxyEvent } from 'aws-lambda';
+import { logger, metrics, tracer } from './power-tools-init';
 
-export const handler = async (event: APIGatewayProxyEvent) => {
-    console.log('Disconnect event', event);
+// prettier-ignore
+export const lambdaHandler = async (event: APIGatewayProxyEvent) => { //NOSONAR - declaration as per lambda signature
     return {
         statusCode: 200,
         body: 'Disconnected'
     };
 };
+
+export const handler = middy(lambdaHandler).use([
+    captureLambdaHandler(tracer),
+    injectLambdaContext(logger),
+    logMetrics(metrics)
+]);

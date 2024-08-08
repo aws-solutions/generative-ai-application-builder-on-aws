@@ -22,7 +22,7 @@ import {
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { customAwsConfig } from 'aws-node-user-agent-config';
 import { ListUseCasesAdapter, UseCaseRecord } from '../model/list-use-cases';
-import { UseCase, ModelInfoRecord } from '../model/use-case';
+import { UseCase } from '../model/use-case';
 import { logger, tracer } from '../power-tools-init';
 import {
     DeleteItemCommandBuilder,
@@ -33,6 +33,7 @@ import {
     UpdateItemCommandBuilder
 } from './storage-operation-builder';
 import { ScanCaseTableCommandBuilder } from './storage-view-builder';
+import { ModelInfoRecord } from '../model/types';
 
 export type ListUseCasesRecords = {
     useCaseRecords: UseCaseRecord[];
@@ -128,7 +129,6 @@ export class StorageManagement {
         const input = await new GetItemCommandInputBuilder(useCase).build(); //NOSONAR - without await, input is empty
         try {
             const response = await this.client.send(new GetItemCommand(input));
-            logger.debug(`Got DDB response: ${JSON.stringify(response)}`);
             return unmarshall(response.Item!) as UseCaseRecord;
         } catch (error) {
             const errMessage = `Failed to get Use Case Record: ${error}`;

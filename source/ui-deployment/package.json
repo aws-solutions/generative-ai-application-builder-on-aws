@@ -1,72 +1,51 @@
 {
   "name": "gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "1.4.5",
+  "version": "2.0.0",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
-    "@cloudscape-design/components": "^3.0.283",
-    "@cloudscape-design/design-tokens": "^3.0.13",
-    "@cloudscape-design/global-styles": "^1.0.9",
-    "aws-amplify": "^5.3.18",
-    "bootstrap": "^5.2.0",
-    "react-bootstrap": "^2.7.4",
-    "react-router-dom": "^6.11.1",
-    "react-scripts": "^5.0.1",
-    "react-tabs": "^6.0.2",
-    "uuid": "^9.0.1",
-    "@tanstack/react-query": "^5.17.1",
-    "ace-builds": "1.32.2",
+    "@cloudscape-design/code-view": "3.0.16",
+    "@cloudscape-design/components": "^3.0.694",
+    "@cloudscape-design/global-styles": "^1.0.31",
+    "@tanstack/react-query": "^5.51.15",
+    "@types/lodash": "^4.17.7",
+    "ace-builds": "^1.35.4",
+    "bootstrap": "^5.3.3",
+    "jest": "^29.7.0",
     "lodash": "^4.17.21",
-    "@types/lodash": "4.14.202",
-    "react-markdown": "^9.0.1",
-    "react-syntax-highlighter": "^15.5.0",
-    "@types/react-syntax-highlighter": "^15.5.11"
+    "react": "^18.3.1",
+    "react-bootstrap": "^2.10.4",
+    "react-router-dom": "^6.25.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@testing-library/jest-dom": "^6.1.4",
-    "@testing-library/react": "^14.1.2",
-    "@testing-library/user-event": "^14.5.1",
-    "@types/react-test-renderer": "^18.0.7",
-    "@types/uuid": "^9.0.7",
-    "@types/jest": "^29.5.11",
+    "@tanstack/react-query-devtools": "^5.51.15",
+    "@testing-library/jest-dom": "^6.4.8",
+    "@testing-library/react": "^15.0.7",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/jest": "^29.5.12",
+    "@types/react-test-renderer": "^18.3.0",
+    "@types/uuid": "^9.0.8",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^1.6.0",
+    "file-loader": "^6.2.0",
     "identity-obj-proxy": "^3.0.0",
-    "jest": "^29.7.0",
-    "react-test-renderer": "^18.2.0",
-    "@tanstack/react-query-devtools": "^5.13.5"
-  },
-  "overrides": {
-    "nth-check": "^2.0.1",
-    "postcss": "^8.4.31"
-  },
-  "jest": {
-    "transformIgnorePatterns": [
-      "node_modules/(?!@cloudscape-design)/"
-    ],
-    "moduleNameMapper": {
-      "\\.(css|less)$": "identity-obj-proxy",
-      "^@/(.*)$": "<rootDir>/src/$1",
-      "ace-builds": "<rootDir>/node_modules/ace-builds"
-    },
-    "collectCoverageFrom": [
-      "**.js",
-      "**.tsx",
-      "**.ts",
-      "**.jsx",
-      "!src/__test__/**",
-      "!coverage/**",
-      "!test/*.js",
-      "!jest.config.js",
-      "!src/App.js",
-      "!src/index.js"
-    ]
+    "jsdom": "^24.1.1",
+    "react-test-renderer": "^18.3.1",
+    "vite": "^5.3.5",
+    "vite-tsconfig-paths": "^4.3.2",
+    "vitest": "^1.6.0"
   },
   "scripts": {
-    "start": "GENERATE_SOURCEMAP=false react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test --testPathIgnorePatterns=__mocks__ --coverage --watchAll=false --silent",
-    "test-logs": "react-scripts test --testPathIgnorePatterns=__mocks__ --watchAll=false",
-    "test-debug": "react-scripts --inspect-brk test --runInBand --no-cache",
-    "eject": "react-scripts eject",
+    "start": "vite",
+    "build": "vite build",
+    "build:watch": "vite build --watch",
+    "serve": "vite preview",
+    "test": "vitest run --coverage --silent",
+    "test:wizard": "vitest run src/components/wizard",
+    "test:dashboard": "vitest run src/components/__tests__/dashboard src/components/__tests__/snapshot_tests/dashboard",
+    "test:details": "vitest run src/components/__tests__/useCaseDetails",
+    "test:debug": "vitest run",
+    "test:no-cov": "vitest run --silent",
     "clean": "rm -rf node_modules",
     "code-formatter": "./node_modules/prettier/bin-prettier.js --config ../../.prettierrc.yml '**/*.{js,json,css,md}' !package*.json --write",
     "code-linter": "./node_modules/eslint/bin/eslint.js . -c ../.eslintrc.js --ext .js"
@@ -95,7 +74,8 @@
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
   },
-  "resolutions": {
-    "fast-xml-parser": "4.2.4"
-  }
+  "overrides": {
+    "fast-xml-parser": "^4.4.1"
+  },
+  "type": "module"
 }

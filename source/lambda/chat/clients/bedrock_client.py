@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import os
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 from uuid import UUID
 
 from aws_lambda_powertools import Logger, Tracer
@@ -21,7 +21,7 @@ from clients.builders.bedrock_builder import BedrockBuilder
 from clients.llm_chat_client import LLMChatClient
 from llms.bedrock import BedrockLLM
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
-from utils.constants import CONVERSATION_ID_EVENT_KEY, TRACE_ID_ENV_VAR, USER_ID_EVENT_KEY
+from utils.constants import AUTH_TOKEN_EVENT_KEY, CONVERSATION_ID_EVENT_KEY, TRACE_ID_ENV_VAR, USER_ID_EVENT_KEY
 from utils.enum_types import CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client
 
@@ -37,21 +37,26 @@ class BedrockClient(LLMChatClient):
     Attributes:
         llm_model (BaseLangChainModel): The LLM model which is used for generating content. For Bedrock provider, this is BedrockLLM or
             BedrockRetrievalLLM
-        llm_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from SSM Parameter store
+        use_case_config (Dict): Stores the configuration that the admin sets on a use-case fetched from DynamoDB
         rag_enabled (bool): Whether or not RAG is enabled for the use-case
         connection_id (str): The connection ID for the websocket client
 
     Methods:
         check_env(List[str]): Checks if the environment variable list provided, along with other required environment variables, are set.
         check_event(event: Dict): Checks if the event it receives is empty.
-        get_llm_config(): Retrieves the configuration that the admin sets on a use-case from the SSM Parameter store
+        retrieve_use_case_config(): Retrieves the configuration that the admin sets on a use-case fetched from DynamoDB
         construct_chat_model(): Constructs the Chat model based on the event and the LLM configuration as a series of steps on the builder
         get_event_conversation_id(): Returns the conversation_id for the event
         get_model(): Retrieves the LLM model that is used to generate content
     """
 
-    def __init__(self, connection_id: str, rag_enabled: bool) -> None:
-        super().__init__(connection_id=connection_id, rag_enabled=rag_enabled)
+    def __init__(
+        self,
+        connection_id: str,
+        use_case_config: Optional[Dict] = None,
+        rag_enabled: Optional[bool] = None,
+    ) -> None:
+        super().__init__(connection_id=connection_id, rag_enabled=rag_enabled, use_case_config=use_case_config)
 
     def get_model(self, event_body: Dict, user_id: UUID) -> Union[BedrockLLM, BedrockRetrievalLLM]:
         """
@@ -64,12 +69,13 @@ class BedrockClient(LLMChatClient):
         super().get_model(event_body)
 
         self.builder = BedrockBuilder(
-            self.llm_config,
+            self.use_case_config,
             connection_id=self.connection_id,
             conversation_id=event_body[CONVERSATION_ID_EVENT_KEY],
+            user_context_token=event_body.get(AUTH_TOKEN_EVENT_KEY),
             rag_enabled=self.rag_enabled,
         )
-        model_name = self.llm_config.get("LlmParams", {}).get("ModelId", None)
+        model_name = self.use_case_config.get("LlmParams", {}).get("BedrockLlmParams", {}).get("ModelId", None)
         self.construct_chat_model(user_id, event_body, LLMProviderTypes.BEDROCK.value, model_name)
         return self.builder.llm_model
 
@@ -83,8 +89,7 @@ class BedrockClient(LLMChatClient):
             user_id (str): cognito id of the user
             conversation_id (str): unique id of the conversation (used to reference the correct conversation memory)
             llm_provider (LLMProviderTypes): name of the LLM provider
-            model_name (str): name of the model to use for the LLM. It should be a model name supported by the family of
-                models supported by llm_provider
+            model_name (str): name of the model to use for the LLM. It should be a model name supported by the family of models supported by llm_provider
         Raises:
             ValueError: If builder is not set up for the client
             ValueError: If missing required params

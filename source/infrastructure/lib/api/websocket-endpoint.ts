@@ -12,14 +12,18 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
+import { SqsToLambda } from '@aws-solutions-constructs/aws-sqs-lambda';
+import * as cdk from 'aws-cdk-lib';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
+import { WebSocketLambdaAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
+import { WebSocketAwsIntegration, WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-
-import { CfnRoute, CfnStage, WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
-import { WebSocketLambdaAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
-import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
+import { ApiGatewayV2WebSocketToSqs } from '../framework/aws-apigwv2websocket-sqs';
+import { LOG_RETENTION_PERIOD } from '../utils/constants';
 
 export interface WebSocketProps {
     /**
@@ -69,57 +73,71 @@ export class WebSocketEndpoint extends Construct {
             identitySource: ['route.request.querystring.Authorization']
         });
 
-        const webSocketApi = new WebSocketApi(this, `ChatAPI`, {
-            apiName: `ChatAPI-${props.useCaseUUID}`,
-            description: `Websocket API for chat use case ${props.useCaseUUID}`,
-            connectRouteOptions: {
-                authorizer: authorizer,
-                integration: new WebSocketLambdaIntegration('ConnectIntegration', props.onConnectLambda)
+        // prettier-ignore
+        const requestTemplate: string = 'Action=SendMessage'+
+            '&MessageGroupId=$context.connectionId'+
+            '&MessageDeduplicationId=$context.requestId'+
+            '&MessageAttribute.1.Name=connectionId&MessageAttribute.1.Value.StringValue=$context.connectionId&MessageAttribute.1.Value.DataType=String'+
+            '&MessageAttribute.2.Name=requestId&MessageAttribute.2.Value.StringValue=$context.requestId&MessageAttribute.2.Value.DataType=String'+
+            '&MessageBody={"requestContext": {"authorizer": {"UserId": "$context.authorizer.UserId"}, "connectionId": "$context.connectionId"}, "message": $util.urlEncode($input.json($util.escapeJavaScript("$").replaceAll("\\\\\'","\'")))}'
+
+        // use the ApiGatewayV2WebSocketToSqs construct and generate the properties that needs to be passed in the constructor
+        const apiGatewayV2WebSocketToSqs = new ApiGatewayV2WebSocketToSqs(this, 'ApiGatewayV2WebSocketToSqs', {
+            webSocketApiProps: {
+                apiName: `ChatAPI-${props.useCaseUUID}`,
+                description: `Websocket API for chat use case ${props.useCaseUUID}`,
+                connectRouteOptions: {
+                    authorizer: authorizer,
+                    integration: new WebSocketLambdaIntegration('ConnectIntegration', props.onConnectLambda)
+                },
+                disconnectRouteOptions: {
+                    integration: new WebSocketLambdaIntegration('DisconnectIntegration', props.onDisconnectLambda)
+                },
+                routeSelectionExpression: '$request.body.action'
             },
-            disconnectRouteOptions: {
-                integration: new WebSocketLambdaIntegration('DisconnectIntegration', props.onDisconnectLambda)
-            },
-            defaultRouteOptions: {
-                integration: new WebSocketLambdaIntegration('DefaultRouteIntegration', props.onMessageLambda)
+            deployDeadLetterQueue: true,
+            maxReceiveCount: 3,
+            logGroupProps: {
+                retention: LOG_RETENTION_PERIOD
             }
         });
 
-        // set up stages
-        const stage = new WebSocketStage(this, 'ProdStage', {
-            webSocketApi: webSocketApi,
-            stageName: 'prod',
-            autoDeploy: true
-        });
-
-        (stage.node.tryFindChild('Resource') as CfnStage).addPropertyOverride('DefaultRouteSettings', {
-            'DataTraceEnabled': false,
-            'DetailedMetricsEnabled': true,
-            'LoggingLevel': 'ERROR'
-        });
-
-        // add routes
-        webSocketApi.addRoute('sendMessage', {
-            integration: new WebSocketLambdaIntegration('MessageIntegration', props.onMessageLambda)
+        apiGatewayV2WebSocketToSqs.webSocketApi.addRoute('sendMessage', {
+            integration: new WebSocketAwsIntegration('DefaultIntegration', {
+                integrationMethod: apigwv2.HttpMethod.POST,
+                integrationUri: `arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}:sqs:path/${cdk.Aws.ACCOUNT_ID}/${apiGatewayV2WebSocketToSqs.sqsQueue.queueName}`,
+                requestTemplates: { 'sendMessage': requestTemplate },
+                templateSelectionExpression: 'sendMessage',
+                passthroughBehavior: apigwv2.PassthroughBehavior.NEVER,
+                credentialsRole: apiGatewayV2WebSocketToSqs.apiGatewayRole,
+                requestParameters: {
+                    'integration.request.header.Content-Type': "'application/x-www-form-urlencoded'"
+                }
+            })
         });
 
         // the socket URL to post responses
-        props.onMessageLambda.addEnvironment('WEBSOCKET_CALLBACK_URL', stage.callbackUrl);
+        props.onMessageLambda.addEnvironment(
+            'WEBSOCKET_CALLBACK_URL',
+            apiGatewayV2WebSocketToSqs.webSocketStage.callbackUrl
+        );
 
-        webSocketApi.grantManageConnections(props.onMessageLambda);
-        this.webSocketApi = webSocketApi;
-        this.websocketApiStage = stage;
+        apiGatewayV2WebSocketToSqs.webSocketApi.grantManageConnections(props.onMessageLambda);
+        this.webSocketApi = apiGatewayV2WebSocketToSqs.webSocketApi;
+        this.websocketApiStage = apiGatewayV2WebSocketToSqs.webSocketStage;
 
-        NagSuppressions.addResourceSuppressions(stage, [
-            {
-                id: 'AwsSolutions-APIG1',
-                reason: 'Access logging is disabled for websocket endpoints but will be logged with authorizer'
-            }
-        ]);
+        new SqsToLambda(this, 'SqsToLambda', {
+            existingQueueObj: apiGatewayV2WebSocketToSqs.sqsQueue,
+            deployDeadLetterQueue: false,
+            existingLambdaObj: props.onMessageLambda
+        });
 
-        const routesList = ['$default-Route', '$disconnect-Route', 'sendMessage-Route'];
+        // add routes
+        const routesList = ['$disconnect-Route', 'sendMessage-Route'];
         for (const route in routesList) {
             NagSuppressions.addResourceSuppressions(
-                webSocketApi.node.tryFindChild(routesList[route])?.node.defaultChild as CfnRoute,
+                apiGatewayV2WebSocketToSqs.webSocketApi.node.tryFindChild(routesList[route])?.node
+                    .defaultChild as apigwv2.CfnRoute,
                 [
                     {
                         id: 'AwsSolutions-APIG4',
@@ -136,7 +154,7 @@ export class WebSocketEndpoint extends Construct {
                     id: 'AwsSolutions-IAM5',
                     reason: 'This lambda requires permissions to send messages to the client connected to the websocket',
                     appliesTo: [
-                        'Resource::arn:<AWS::Partition>:execute-api:<AWS::Region>:<AWS::AccountId>:<WebsocketRequestProcessorWebSocketEndpointChatAPIAEE80909>/*/*/@connections/*'
+                        'Resource::arn:<AWS::Partition>:execute-api:<AWS::Region>:<AWS::AccountId>:<WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApi7E5024D8>/*/*/@connections/*'
                     ]
                 }
             ]

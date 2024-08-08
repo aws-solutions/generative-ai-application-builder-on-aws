@@ -45,6 +45,30 @@ export const TOOLS_CONTENT = {
                     text: 'Managing user access'
                 }
             ]
+        },
+        deployUI: {
+            title: 'Deploy UI',
+            content: (
+                <Box variant="p">
+                    If enabled, a UI served by CloudFront will be deployed to interact with the use case. If you wish to
+                    create your own UI to integrate directly with the use cases API, you can choose to not deploy the
+                    included UI.
+                </Box>
+            ),
+            links: [
+                {
+                    href: IG_DOCS.CLOUDFRONT,
+                    text: 'CloudFront UI'
+                },
+                {
+                    href: IG_DOCS.USING_UI,
+                    text: 'Using the UI'
+                },
+                {
+                    href: IG_DOCS.TEXT_USE_CASE_API_SPEC,
+                    text: 'Using the API'
+                }
+            ]
         }
     },
     vpc: {
@@ -62,6 +86,10 @@ export const TOOLS_CONTENT = {
                 {
                     href: IG_DOCS.VPC,
                     text: 'VPC'
+                },
+                {
+                    href: IG_DOCS.VPC_TROUBLESHOOTING,
+                    text: 'Troubleshooting VPC Errors'
                 }
             ]
         },
@@ -80,6 +108,10 @@ export const TOOLS_CONTENT = {
                 {
                     href: IG_DOCS.VPC,
                     text: 'VPC'
+                },
+                {
+                    href: IG_DOCS.VPC_TROUBLESHOOTING,
+                    text: 'Troubleshooting VPC Errors'
                 }
             ]
         },
@@ -113,10 +145,6 @@ export const TOOLS_CONTENT = {
                                 <i>Optional:</i> if the deployment will use Amazon SageMaker for the LLM, then an
                                 interface endpoint for Amazon SageMaker is needed
                             </li>
-                            <li>
-                                <i>Optional:</i> if the deployment uses the Anthropic or HuggingFace connectors, then an
-                                API key is used meaning that an interface endpoint for AWS Secrets Manager is needed
-                            </li>
                         </ul>
                     </Box>
 
@@ -149,8 +177,8 @@ export const TOOLS_CONTENT = {
                     text: 'VPC'
                 },
                 {
-                    href: IG_DOCS.VPC_CONSOLE,
-                    text: 'VPC Console'
+                    href: IG_DOCS.VPC_TROUBLESHOOTING,
+                    text: 'Troubleshooting VPC Errors'
                 }
             ]
         }
@@ -194,8 +222,12 @@ export const TOOLS_CONTENT = {
                     text: 'Choosing the right LLM'
                 },
                 {
+                    href: IG_DOCS.FOUNDATION_MODELS,
+                    text: 'Security - Using foundation models on Amazon Bedrock'
+                },
+                {
                     href: IG_DOCS.BEDROCK_SECURITY,
-                    text: 'Security - Amazon Bedrock'
+                    text: 'Amazon Bedrock - Security'
                 },
                 {
                     href: 'https://docs.aws.amazon.com/bedrock/latest/userguide/data-protection.html',
@@ -233,40 +265,6 @@ export const TOOLS_CONTENT = {
                 {
                     href: IG_DOCS.CONCEPTS,
                     text: 'Concepts and Definitions - DevOps user'
-                }
-            ]
-        },
-        inferenceEndpoint: {
-            title: 'Hugging Face Inference Endpoints',
-            content: (
-                <div>
-                    <Box variant="p">
-                        Hugging Face recommends the use of Inference Endpoints for production deployments and are
-                        required when using some of the larger models.
-                    </Box>
-
-                    <Box variant="p">
-                        This solution supports the use of the Falcon and Flan-T5 family of models found in the drop down
-                        list.
-                    </Box>
-                </div>
-            ),
-            links: [
-                {
-                    href: IG_DOCS.SUPPORTED_LLMS,
-                    text: 'Supported Models'
-                },
-                {
-                    href: IG_DOCS.CHOOSING_LLMS,
-                    text: 'Choosing the right LLM'
-                },
-                {
-                    href: IG_DOCS.THIRD_PARTY_SECURITY,
-                    text: 'Security - third party LLMs'
-                },
-                {
-                    href: 'https://huggingface.co/docs/inference-endpoints/index',
-                    text: 'Hugging Face - Inference Endpoints'
                 }
             ]
         },
@@ -520,6 +518,22 @@ export const TOOLS_CONTENT = {
                 </SpaceBetween>
             ),
             links: [
+                {
+                    href: IG_DOCS.TIPS_PROMPT_LIMITS,
+                    text: 'Tips for managing prompt limits'
+                }
+            ]
+        }
+    },
+    prompt: {
+        default: {
+            title: 'Prompt selection',
+            content: <Box variant="p">Use this page to configure the prompt used by the deployment.</Box>,
+            links: [
+                {
+                    href: IG_DOCS.CONFIGURE_PROMPTS,
+                    text: 'Configuring your prompts'
+                },
                 {
                     href: IG_DOCS.TIPS_PROMPT_LIMITS,
                     text: 'Tips for managing prompt limits'

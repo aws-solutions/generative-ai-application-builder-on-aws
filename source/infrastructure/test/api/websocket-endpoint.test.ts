@@ -60,7 +60,7 @@ describe('When creating a WebSocketEndpoint', () => {
             AutoDeploy: true
         });
 
-        template.resourceCountIs('AWS::ApiGatewayV2::Route', 4);
+        template.resourceCountIs('AWS::ApiGatewayV2::Route', 3);
         template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
             ApiId: { Ref: apiIdCapture.asString() },
             RouteKey: '$connect',
@@ -77,13 +77,6 @@ describe('When creating a WebSocketEndpoint', () => {
 
         template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
             ApiId: { Ref: apiIdCapture.asString() },
-            RouteKey: '$default',
-            AuthorizationType: 'NONE',
-            Target: Match.anyValue()
-        });
-
-        template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
-            ApiId: { Ref: apiIdCapture.asString() },
             RouteKey: 'sendMessage',
             AuthorizationType: 'NONE',
             Target: Match.anyValue()
@@ -92,7 +85,7 @@ describe('When creating a WebSocketEndpoint', () => {
 
     it('Should have the correct lambda function integrations', () => {
         const apiIdCapture = new Capture();
-        template.resourceCountIs('AWS::ApiGatewayV2::Integration', 4);
+        template.resourceCountIs('AWS::ApiGatewayV2::Integration', 3);
 
         template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
             ApiId: { Ref: apiIdCapture },
@@ -135,6 +128,42 @@ describe('When creating a WebSocketEndpoint', () => {
                         ]
                     }
                 }
+            }
+        });
+    });
+
+    it('should have an SQS queue and a DLQ', () => {
+        template.resourceCountIs('AWS::SQS::Queue', 2);
+        template.hasResourceProperties('AWS::SQS::Queue', {
+            DeduplicationScope: 'messageGroup',
+            FifoQueue: true,
+            FifoThroughputLimit: 'perMessageGroupId',
+            RedriveAllowPolicy: {
+                redrivePermission: 'denyAll'
+            },
+            RedrivePolicy: {
+                deadLetterTargetArn: {
+                    'Fn::GetAtt': [Match.anyValue(), 'Arn']
+                },
+                maxReceiveCount: 3
+            },
+            VisibilityTimeout: 900
+        });
+
+        template.hasResourceProperties('AWS::SQS::Queue', {
+            FifoQueue: true,
+            RedrivePolicy: Match.absent(),
+            RedriveAllowPolicy: Match.absent()
+        });
+    });
+
+    it('should have an event source mapping', () => {
+        template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+            EventSourceArn: {
+                'Fn::GetAtt': [Match.anyValue(), 'Arn']
+            },
+            FunctionName: {
+                Ref: Match.anyValue()
             }
         });
     });

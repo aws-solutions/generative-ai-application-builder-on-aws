@@ -1,0 +1,119 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Chat > Snapshot test for Chat 1`] = `
+<div
+  className="awsui_root_14iqq_1vekq_101 awsui_variant-default_14iqq_1vekq_145 awsui_refresh_14iqq_1vekq_153"
+>
+  <div
+    className="awsui_content-wrapper_14iqq_1vekq_220"
+    id=":r1:"
+  >
+    <div
+      className="awsui_content_14iqq_1vekq_220 awsui_with-paddings_14iqq_1vekq_304"
+    >
+      <span
+        className="awsui_root_1cbgc_pjowk_151 awsui_status-success_1cbgc_pjowk_166"
+      >
+        <span
+          className="awsui_container_1cbgc_pjowk_129 awsui_display-inline-block_1cbgc_pjowk_208"
+        >
+          <span
+            className="awsui_icon_1cbgc_pjowk_101"
+          >
+            <span
+              className="awsui_icon_h11ix_ayzd6_101 awsui_size-normal-mapped-height_h11ix_ayzd6_157 awsui_size-normal_h11ix_ayzd6_153 awsui_variant-normal_h11ix_ayzd6_229"
+              style={{}}
+            >
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                viewBox="0 0 16 16"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  className="stroke-linejoin-round"
+                  cx="8"
+                  cy="8"
+                  r="7"
+                />
+                <path
+                  className="stroke-linecap-square"
+                  d="m5 8 2 2 3.521-3.521"
+                />
+              </svg>
+            </span>
+          </span>
+           
+          Connected
+           
+        </span>
+      </span>
+       
+      <div
+        className="chatinput-textarea"
+      >
+        <div
+          data-testid="chat-input-textarea-div"
+          style={
+            {
+              "display": "inline-block",
+              "width": "92%",
+            }
+          }
+        >
+          <span
+            className="awsui_root_qk1j1_1x14a_97"
+            data-class-name="chat-input-textarea"
+            data-columns="3"
+            data-testid="chat-input-textarea"
+          >
+            <textarea
+              autoComplete="on"
+              autoFocus={true}
+              className="awsui_textarea_qk1j1_1x14a_101"
+              onChange={[Function]}
+              onKeyDown={[Function]}
+              placeholder="Type a message..."
+              rows={1}
+              value=""
+            />
+          </span>
+        </div>
+        <div
+          style={
+            {
+              "display": "inline-block",
+              "float": "right",
+            }
+          }
+        >
+          <button
+            className="awsui_button_vjswe_15u39_105 awsui_variant-icon_vjswe_15u39_199 awsui_button-no-text_vjswe_15u39_1085"
+            data-analytics-funnel-value="button:r2:"
+            data-testid="send-button"
+            disabled={false}
+            onClick={[Function]}
+            type="submit"
+          >
+            <span
+              className="awsui_icon_vjswe_15u39_1111 awsui_icon-left_vjswe_15u39_1111 awsui_icon_h11ix_ayzd6_101 awsui_size-normal-mapped-height_h11ix_ayzd6_157 awsui_size-normal_h11ix_ayzd6_153 awsui_variant-normal_h11ix_ayzd6_229"
+              style={{}}
+            >
+              <svg
+                aria-hidden="true"
+                focusable="false"
+                viewBox="0 0 16 16"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="m14.254 4.254-8.25 8.25L6 12.5l-.004.004-4.25-4.25.008-.008L6 12.493l8.246-8.247.008.008Z"
+                />
+              </svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

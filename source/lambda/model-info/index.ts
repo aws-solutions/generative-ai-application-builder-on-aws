@@ -11,16 +11,16 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
+import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
+import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { customAwsConfig } from 'aws-node-user-agent-config';
-import { injectLambdaContext } from '@aws-lambda-powertools/logger';
-import { captureLambdaHandler } from '@aws-lambda-powertools/tracer';
 import middy from '@middy/core';
 import { APIGatewayEvent } from 'aws-lambda';
+import { customAwsConfig } from 'aws-node-user-agent-config';
 import { logger, tracer } from './power-tools-init';
 import { checkEnv } from './utils/check-env';
-import { ModelInfoRetriever } from './utils/model-info-retriever';
 import { formatError, formatResponse } from './utils/http-response-formatters';
+import { ModelInfoRetriever } from './utils/model-info-retriever';
 
 const ddbClient = new DynamoDBClient(customAwsConfig());
 

@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
-import { InfoLink } from 'components/commons';
+import { InfoLink } from '@/components/commons';
 import { VpcFormFieldProps, vpcToolsContent } from './helpers';
 
 export const DeployVpc = (props: VpcFormFieldProps) => {

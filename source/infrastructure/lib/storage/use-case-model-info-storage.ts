@@ -15,6 +15,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as cfn_guard from '../utils/cfn-guard-suppressions';
 
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
@@ -26,29 +27,21 @@ export interface UseCaseModelInfoStorageProps extends ModelInfoStorageProps {
      * Name of the table which stores info/defaults for models. If not provided (passed an empty string), the table will be created.
      */
     existingModelInfoTableName: string;
-
-    /**
-     * Name of the newly created table which stores info/defaults for models. Only used if existingModelInfoTableName is not provided
-     */
-    newModelInfoTableName: string;
 }
 
 /**
  * This Construct creates and populates the DynamoDB table with model info/defaults if needed
  */
 export class UseCaseModelInfoStorage extends ModelInfoStorage {
-    public readonly newModelInfoTableName: string;
-
     constructor(scope: Construct, id: string, props: UseCaseModelInfoStorageProps) {
         super(scope, id, props);
-        this.newModelInfoTableName = props.newModelInfoTableName;
 
         const createModelInfoTableCondition = new cdk.CfnCondition(this, 'CreateModelInfoTableCondition', {
             expression: cdk.Fn.conditionEquals(props.existingModelInfoTableName, '')
         });
 
         // conditionally deploy a new table
-        const newModelInfoTable = this.createModelInfoTable(props);
+        const newModelInfoTable = this.createModelInfoTable();
         (newModelInfoTable.node.defaultChild as cdk.CfnResource).cfnOptions.condition = createModelInfoTableCondition;
 
         const crLambdaRole = iam.Role.fromRoleArn(this, 'CopyModelInfoCustomResourceRole', props.customResourceRoleArn);
@@ -60,11 +53,20 @@ export class UseCaseModelInfoStorage extends ModelInfoStorage {
         );
         (copyModelInfoCustomResource.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
             createModelInfoTableCondition;
+
+        (
+            this.node.tryFindChild('ModelInfoDDBScanDelete')?.node.tryFindChild('Resource') as iam.CfnPolicy
+        ).cfnOptions.condition = createModelInfoTableCondition;
+
+        const modelIntoTableNameOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'ModelInfoTableName', {
+            value: newModelInfoTable.tableName,
+            description: 'Name of the model info table'
+        });
+        modelIntoTableNameOutput.condition = createModelInfoTableCondition; // only output to cfn if model table is created
     }
 
-    protected createModelInfoTable(props: UseCaseModelInfoStorageProps) {
+    protected createModelInfoTable() {
         const modelInfoTable = new dynamodb.Table(this, 'ModelInfoStore', {
-            tableName: props.newModelInfoTableName,
             encryption: dynamodb.TableEncryption.AWS_MANAGED,
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             partitionKey: {
@@ -83,6 +85,17 @@ export class UseCaseModelInfoStorage extends ModelInfoStorage {
             {
                 id: 'AwsSolutions-DDB3',
                 reason: 'Point-in-time recovery is not enabled by default. For production usage it is recommended to enable this feature'
+            }
+        ]);
+
+        cfn_guard.addCfnSuppressRules(modelInfoTable, [
+            {
+                id: 'W74',
+                reason: 'The table is encrypted using AWS manged keys'
+            },
+            {
+                id: 'W78',
+                reason: 'Enabling point-in-time recovery is recommended in the implementation guide, but is not enforced'
             }
         ]);
 

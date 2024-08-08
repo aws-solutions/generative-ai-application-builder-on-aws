@@ -12,23 +12,45 @@
  *********************************************************************************************************************/
 
 import { Conversation } from '../types/chat';
+import { MAX_PROMPT_TEMPLATE_LENGTH, MODEL_MAX_INPUT_LENGTH } from '../utils/constants';
 
 export interface UseCaseConfigType {
-    UseCaseName: string;
-    ConversationMemoryType: string;
-    KnowledgeBaseType: string;
     KnowledgeBaseParams: {
-        NumberOfDocs: number;
         ReturnSourceDocs: boolean;
+        KnowledgeBaseType: string;
+        KendraKnowledgeBaseParams: {
+            ExistingKendraIndexId: string;
+            RoleBasedAccessControlEnabled: boolean;
+        };
+        NumberOfDocs: number;
+        ScoreThreshold: number;
+        NoDocsFoundResponse: string;
     };
+    ConversationMemoryParams: {
+        HumanPrefix: string;
+        ConversationMemoryType: string;
+        ChatHistoryLength: number;
+        AiPrefix: string;
+    };
+    UseCaseName: string;
     LlmParams: {
-        ModelProvider: string;
-        ModelId: string;
-        ModelParams: any;
-        PromptTemplate: string;
         Streaming: boolean;
-        Verbose: boolean;
         Temperature: number;
+        Verbose: boolean;
+        BedrockLlmParams: {
+            ModelId: string;
+        };
+        ModelProvider: string;
+        PromptParams: {
+            UserPromptEditingEnabled: boolean;
+            DisambiguationEnabled: boolean;
+            MaxInputTextLength: number;
+            RephraseQuestion: boolean;
+            PromptTemplate: string;
+            MaxPromptTemplateLength: number;
+            DisambiguationPromptTemplate: string;
+        };
+        ModelParams: object;
         RAGEnabled: boolean;
     };
 }
@@ -41,6 +63,9 @@ export interface HomeInitialState {
     defaultPromptTemplate: string;
     RAGEnabled: boolean;
     useCaseConfig: UseCaseConfigType;
+    userPromptEditingEnabled: boolean;
+    maxPromptTemplateLength: number;
+    maxInputTextLength: number;
 }
 
 export const initialState: HomeInitialState = {
@@ -54,5 +79,8 @@ export const initialState: HomeInitialState = {
     promptTemplate: '',
     defaultPromptTemplate: '',
     RAGEnabled: false,
-    useCaseConfig: {} as UseCaseConfigType
+    useCaseConfig: {} as UseCaseConfigType,
+    userPromptEditingEnabled: true,
+    maxPromptTemplateLength: MAX_PROMPT_TEMPLATE_LENGTH,
+    maxInputTextLength: MODEL_MAX_INPUT_LENGTH
 };

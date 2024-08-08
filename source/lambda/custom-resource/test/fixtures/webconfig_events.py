@@ -26,7 +26,6 @@ from operations.webconfig import (
     USER_POOL_ID,
     PHYSICAL_RESOURCE_ID,
     SERVICE_TOKEN,
-    EXISTING_CONFIG_SSM_PARAMETER,
     IS_INTERNAL_USER,
 )
 
@@ -44,24 +43,6 @@ def lambda_event(aws_credentials, custom_resource_event):
     custom_resource_event[PHYSICAL_RESOURCE_ID] = "/gaab/old/keypath"
 
     yield custom_resource_event
-
-
-@pytest.fixture
-def lambda_event_with_additional_config(lambda_event):
-    lambda_event[RESOURCE_PROPERTIES][EXISTING_CONFIG_SSM_PARAMETER] = "additional-ssm-param-name"
-    yield lambda_event
-
-
-@pytest.fixture
-def lambda_event_with_additional_config_internal_user(lambda_event_with_additional_config):
-    lambda_event_with_additional_config[RESOURCE_PROPERTIES][IS_INTERNAL_USER] = "true"
-    yield lambda_event_with_additional_config
-
-
-@pytest.fixture
-def lambda_event_with_additional_config_external_user(lambda_event_with_additional_config):
-    lambda_event_with_additional_config[RESOURCE_PROPERTIES][IS_INTERNAL_USER] = "false"
-    yield lambda_event_with_additional_config
 
 
 @pytest.fixture

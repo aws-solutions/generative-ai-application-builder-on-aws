@@ -20,7 +20,10 @@ import {
     ExpandableSection
 } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
-import { WIZARD_PAGE_INDEX } from '../steps-config';
+import { DEFAULT_STEP_INFO, KNOWLEDGE_BASE_PROVIDERS, WIZARD_PAGE_INDEX } from '../steps-config';
+import JsonCodeView from '@/components/commons/json-code-view';
+import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
+import { scoreToKendraMapping } from '../KnowledgeBase/helpers';
 
 interface KnowledgeBaseReviewProps extends ReviewSectionProps {
     knowledgeBaseData: any;
@@ -69,54 +72,61 @@ export const KnowledgeBaseReview = (props: KnowledgeBaseReviewProps) => {
                             </Header>
                         }
                         footer={
-                            <Box>
-                                {props.knowledgeBaseData.existingKendraIndex === 'no' && (
-                                    <ExpandableSection headerText="Additional options" variant="footer">
-                                        <ColumnLayout columns={2} variant="text-grid">
-                                            <div>
-                                                <Box variant="awsui-key-label">Kendra additional query capacity</Box>
-                                                <div>{props.knowledgeBaseData.kendraAdditionalQueryCapacity}</div>
-                                            </div>
+                            props.knowledgeBaseData.existingKendraIndex === 'no' && (
+                                <Box>
+                                    {
+                                        <ExpandableSection headerText="Additional options" variant="footer">
+                                            <ColumnLayout columns={2} variant="text-grid">
+                                                <ValueWithLabel label="Kendra edition">
+                                                    {props.knowledgeBaseData.kendraEdition.label}
+                                                </ValueWithLabel>
 
-                                            <div>
-                                                <Box variant="awsui-key-label">Kendra additional storage capacity</Box>
-                                                <div>{props.knowledgeBaseData.kendraAdditionalStorageCapacity}</div>
-                                            </div>
+                                                <ValueWithLabel label="Kendra additional query capacity">
+                                                    {props.knowledgeBaseData.kendraAdditionalQueryCapacity}
+                                                </ValueWithLabel>
 
-                                            <div>
-                                                <Box variant="awsui-key-label">Kendra edition</Box>
-                                                <div>{props.knowledgeBaseData.kendraEdition.label}</div>
-                                            </div>
-                                        </ColumnLayout>
-                                    </ExpandableSection>
-                                )}
-                            </Box>
+                                                <ValueWithLabel label="Kendra additional storage capacity">
+                                                    {props.knowledgeBaseData.kendraAdditionalStorageCapacity}
+                                                </ValueWithLabel>
+                                            </ColumnLayout>
+                                        </ExpandableSection>
+                                    }
+                                </Box>
+                            )
                         }
                         data-testid="knowledge-base-options-container"
                     >
                         <ColumnLayout columns={2} variant="text-grid">
-                            <div>
-                                <Box variant="awsui-key-label">Knowledge base type</Box>
-                                <div>{props.knowledgeBaseData.knowledgeBaseType.label}</div>
-                            </div>
+                            <ValueWithLabel label="Knowledge base type">
+                                {props.knowledgeBaseData.knowledgeBaseType.label}
+                            </ValueWithLabel>
 
-                            <div>
-                                <Box variant="awsui-key-label">Do you have an existing Kendra index?</Box>
-                                <div>{props.knowledgeBaseData.existingKendraIndex}</div>
-                            </div>
+                            {props.knowledgeBaseData.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.kendra && (
+                                <>
+                                    <ValueWithLabel label="Do you have an existing Kendra index?">
+                                        {props.knowledgeBaseData.existingKendraIndex}
+                                    </ValueWithLabel>
 
-                            {props.knowledgeBaseData.existingKendraIndex === 'yes' && (
-                                <div>
-                                    <Box variant="awsui-key-label">Kendra index ID</Box>
-                                    <div>{props.knowledgeBaseData.kendraIndexId}</div>
-                                </div>
+                                    {props.knowledgeBaseData.existingKendraIndex === 'yes' && (
+                                        <ValueWithLabel label="Kendra index ID">
+                                            {props.knowledgeBaseData.kendraIndexId}
+                                        </ValueWithLabel>
+                                    )}
+
+                                    {props.knowledgeBaseData.existingKendraIndex === 'no' && (
+                                        <ValueWithLabel label="New Kendra index name">
+                                            {props.knowledgeBaseData.kendraIndexName}
+                                        </ValueWithLabel>
+                                    )}
+                                </>
                             )}
 
-                            {props.knowledgeBaseData.existingKendraIndex === 'no' && (
-                                <div>
-                                    <Box variant="awsui-key-label">New Kendra index name</Box>
-                                    <div>{props.knowledgeBaseData.kendraIndexName}</div>
-                                </div>
+                            {props.knowledgeBaseData.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.bedrock && (
+                                <>
+                                    <ValueWithLabel label="Bedrock Knowledge Base ID">
+                                        {props.knowledgeBaseData.bedrockKnowledgeBaseId}
+                                    </ValueWithLabel>
+                                </>
                             )}
                         </ColumnLayout>
                     </Container>
@@ -132,15 +142,51 @@ export const KnowledgeBaseReview = (props: KnowledgeBaseReviewProps) => {
                         data-testid="advanced-rag-configs-container"
                     >
                         <ColumnLayout columns={2} variant="text-grid">
-                            <div>
-                                <Box variant="awsui-key-label">Maximum number of documents</Box>
-                                <div>{props.knowledgeBaseData.maxNumDocs}</div>
-                            </div>
+                            <ValueWithLabel label="Maximum number of documents">
+                                {props.knowledgeBaseData.maxNumDocs}
+                            </ValueWithLabel>
 
-                            <div>
-                                <Box variant="awsui-key-label">Display document source</Box>
-                                <div>{props.knowledgeBaseData.returnDocumentSource ? 'Yes' : 'No'}</div>
-                            </div>
+                            <ValueWithLabel label="Score Threshold">
+                                {props.knowledgeBaseData.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.kendra
+                                    ? scoreToKendraMapping(props.knowledgeBaseData.scoreThreshold)
+                                    : props.knowledgeBaseData.scoreThreshold}
+                            </ValueWithLabel>
+
+                            <ValueWithLabel label="Static response when no documents found">
+                                {props.knowledgeBaseData.noDocsFoundResponse
+                                    ? props.knowledgeBaseData.noDocsFoundResponse
+                                    : '-'}
+                            </ValueWithLabel>
+
+                            <ValueWithLabel label="Display document source">
+                                {props.knowledgeBaseData.returnDocumentSource ? 'Yes' : 'No'}
+                            </ValueWithLabel>
+
+                            <ValueWithLabel label="Role based access control enabled?">
+                                {props.knowledgeBaseData.enableRoleBasedAccessControl ? 'Yes' : 'No'}
+                            </ValueWithLabel>
+
+                            {props.knowledgeBaseData.bedrockOverrideSearchType && (
+                                <ValueWithLabel label="Override Search Type">
+                                    {props.knowledgeBaseData.bedrockOverrideSearchType.label}
+                                </ValueWithLabel>
+                            )}
+
+                            {props.knowledgeBaseData.queryFilter !== DEFAULT_STEP_INFO.knowledgeBase.queryFilter && (
+                                <div data-testid="query-filter-review">
+                                    {props.knowledgeBaseData.knowledgeBaseType.value ===
+                                        KNOWLEDGE_BASE_PROVIDERS.bedrock && (
+                                        <Box variant="awsui-key-label">Retrieval filter</Box>
+                                    )}
+
+                                    {props.knowledgeBaseData.knowledgeBaseType.value ===
+                                        KNOWLEDGE_BASE_PROVIDERS.kendra && (
+                                        <Box variant="awsui-key-label">Attribute filter</Box>
+                                    )}
+
+                                    <JsonCodeView content={props.knowledgeBaseData.queryFilter} />
+                                </div>
+                            )}
                         </ColumnLayout>
                     </Container>
                 )}

@@ -28,13 +28,14 @@ from utils.constants import (
     CONVERSATION_ID_EVENT_KEY,
     DEFAULT_BEDROCK_MODEL_FAMILY,
     DEFAULT_BEDROCK_MODELS_MAP,
-    DEFAULT_PLACEHOLDERS,
-    DEFAULT_RAG_PLACEHOLDERS,
+    DEFAULT_PROMPT_PLACEHOLDERS,
+    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     KENDRA_INDEX_ID_ENV_VAR,
+    MESSAGE_KEY,
     RAG_CHAT_IDENTIFIER,
     USER_ID_EVENT_KEY,
 )
-from utils.enum_types import ConversationMemoryTypes, LLMProviderTypes
+from utils.enum_types import ConversationMemoryTypes, KnowledgeBaseTypes, LLMProviderTypes
 
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
 BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
@@ -43,84 +44,87 @@ MEMORY_CONFIG = {
         "history": "history",
         "input": "input",
         "context": None,
-        "ai_prefix": "Bot",
-        "human_prefix": "User",
         "output": None,
     },
     RAG_CHAT_IDENTIFIER: {
         "history": "chat_history",
         "input": "question",
         "context": "context",
-        "ai_prefix": "Bot",
-        "human_prefix": "User",
         "output": "answer",
     },
 }
+
 
 model_id = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
 
 
 @pytest.mark.parametrize(
-    "use_case, is_streaming, rag_enabled, return_source_docs, llm_type, prompt, placeholders, model_id",
+    "use_case, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, llm_type, prompt, placeholders, model_id",
     [
         (
             CHAT_IDENTIFIER,
             False,
             False,
+            None,
             False,
             BedrockLLM,
             BEDROCK_PROMPT,
-            DEFAULT_PLACEHOLDERS,
+            DEFAULT_PROMPT_PLACEHOLDERS,
             "amazon.model-xx",
         ),
         (
             CHAT_IDENTIFIER,
             True,
             False,
+            None,
             False,
             BedrockLLM,
             BEDROCK_PROMPT,
-            DEFAULT_PLACEHOLDERS,
+            DEFAULT_PROMPT_PLACEHOLDERS,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             False,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             False,
             BedrockRetrievalLLM,
             BEDROCK_RAG_PROMPT,
-            DEFAULT_RAG_PLACEHOLDERS,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             model_id,
         ),
         (
             RAG_CHAT_IDENTIFIER,
             True,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             False,
             BedrockRetrievalLLM,
             BEDROCK_RAG_PROMPT,
-            DEFAULT_RAG_PLACEHOLDERS,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             model_id,
         ),
         (
             RAG_CHAT_IDENTIFIER,
             False,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             True,
             BedrockRetrievalLLM,
             BEDROCK_RAG_PROMPT,
-            DEFAULT_RAG_PLACEHOLDERS,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             model_id,
         ),
         (
             RAG_CHAT_IDENTIFIER,
             True,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             True,
             BedrockRetrievalLLM,
             BEDROCK_RAG_PROMPT,
-            DEFAULT_RAG_PLACEHOLDERS,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             model_id,
         ),
     ],
@@ -135,27 +139,28 @@ def test_set_llm_model(
     placeholders,
     chat_event,
     bedrock_llm_config,
+    test_ai,
+    test_human,
     return_source_docs,
     setup_environment,
-    setup_secret,
     bedrock_stubber,
     bedrock_dynamodb_defaults_table,
 ):
-    config = json.loads(bedrock_llm_config["Parameter"]["Value"])
-    chat_event_body = json.loads(chat_event["body"])
+    config = bedrock_llm_config
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])
     builder = BedrockBuilder(
-        llm_config=config,
+        use_case_config=config,
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
-    user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
+    user_id = chat_event_body.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
     # Assign all the values to the builder attributes required to construct the LLMChat object
     builder.set_model_defaults(LLMProviderTypes.BEDROCK, model_id)
-    builder.validate_event_input_sizes(chat_event_body)
+    builder.validate_event_input_sizes(chat_event_body[MESSAGE_KEY])
     builder.set_knowledge_base()
-    builder.set_conversation_memory(user_id, chat_event_body[CONVERSATION_ID_EVENT_KEY])
+    builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
 
     if is_streaming:
         with patch(
@@ -186,8 +191,8 @@ def test_set_llm_model(
     assert builder.llm_model.conversation_memory.memory_key == MEMORY_CONFIG[use_case]["history"]
     assert builder.llm_model.conversation_memory.input_key == MEMORY_CONFIG[use_case]["input"]
     assert builder.llm_model.conversation_memory.output_key == MEMORY_CONFIG[use_case]["output"]
-    assert builder.llm_model.conversation_memory.human_prefix == MEMORY_CONFIG[use_case]["human_prefix"]
-    assert builder.llm_model.conversation_memory.ai_prefix == MEMORY_CONFIG[use_case]["ai_prefix"]
+    assert builder.llm_model.conversation_memory.human_prefix == test_human
+    assert builder.llm_model.conversation_memory.ai_prefix == test_ai
 
     if is_streaming:
         assert builder.callbacks
@@ -196,14 +201,14 @@ def test_set_llm_model(
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, False, False, model_id),
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, False, False, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, False, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, False, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, True, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, True, model_id),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, False, None, False, model_id),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, False, None, False, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, False, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, False, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
 def test_set_llm_model_throws_error_missing_memory(
@@ -215,20 +220,19 @@ def test_set_llm_model_throws_error_missing_memory(
     return_source_docs,
     chat_event,
     setup_environment,
-    setup_secret,
     bedrock_dynamodb_defaults_table,
 ):
-    config = json.loads(bedrock_llm_config["Parameter"]["Value"])
+    config = bedrock_llm_config
     builder = BedrockBuilder(
-        llm_config=config,
+        use_case_config=config,
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
 
-    chat_event_body = json.loads(chat_event["body"])
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])
     builder.set_model_defaults(LLMProviderTypes.BEDROCK, model_id)
-    builder.validate_event_input_sizes(chat_event_body)
+    builder.validate_event_input_sizes(chat_event_body[MESSAGE_KEY])
     builder.set_knowledge_base()
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
@@ -241,14 +245,14 @@ def test_set_llm_model_throws_error_missing_memory(
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, False, False, model_id),
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, False, False, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, False, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, False, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, True, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, True, model_id),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, False, None, False, model_id),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, False, None, False, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, False, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, False, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
+        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
 def test_set_llm_model_with_errors(
@@ -261,9 +265,9 @@ def test_set_llm_model_with_errors(
     setup_environment,
     bedrock_dynamodb_defaults_table,
 ):
-    parsed_config = json.loads(bedrock_llm_config["Parameter"]["Value"])
+    parsed_config = bedrock_llm_config
     builder = BedrockBuilder(
-        llm_config=parsed_config,
+        use_case_config=parsed_config,
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
@@ -285,21 +289,21 @@ def test_set_llm_model_with_errors(
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
-        (BEDROCK_PROMPT, False, False, False, model_id),
-        (BEDROCK_PROMPT, True, False, False, model_id),
-        (BEDROCK_RAG_PROMPT, False, True, False, model_id),
-        (BEDROCK_RAG_PROMPT, True, True, False, model_id),
-        (BEDROCK_RAG_PROMPT, False, True, True, model_id),
-        (BEDROCK_RAG_PROMPT, True, True, True, model_id),
+        (BEDROCK_PROMPT, False, False, None, False, model_id),
+        (BEDROCK_PROMPT, True, False, None, False, model_id),
+        (BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, False, model_id),
+        (BEDROCK_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, False, model_id),
+        (BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
+        (BEDROCK_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
 def test_set_llm_model_with_missing_config_fields(bedrock_llm_config, model_id, return_source_docs, setup_environment):
-    parsed_config = deepcopy(json.loads(bedrock_llm_config["Parameter"]["Value"]))
+    parsed_config = deepcopy(bedrock_llm_config)
     del parsed_config["LlmParams"]
     builder = BedrockBuilder(
-        llm_config=parsed_config,
+        use_case_config=parsed_config,
         rag_enabled=False,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
@@ -315,14 +319,50 @@ def test_set_llm_model_with_missing_config_fields(bedrock_llm_config, model_id, 
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model, model_id",
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model, model_id",
     [
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, False, False, BedrockLLM, model_id),
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, False, False, BedrockLLM, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, False, BedrockRetrievalLLM, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, False, BedrockRetrievalLLM, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, True, BedrockRetrievalLLM, model_id),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, True, True, True, BedrockRetrievalLLM, model_id),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, False, None, False, BedrockLLM, model_id),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, False, None, False, BedrockLLM, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            True,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            True,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            True,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            True,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
     ],
 )
 def test_returned_bedrock_model(
@@ -335,25 +375,107 @@ def test_returned_bedrock_model(
     return_source_docs,
     model,
     setup_environment,
-    setup_secret,
     bedrock_dynamodb_defaults_table,
 ):
-    config = json.loads(bedrock_llm_config["Parameter"]["Value"])
-    chat_event_body = json.loads(chat_event["body"])
+    config = bedrock_llm_config
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])
     builder = BedrockBuilder(
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
-        llm_config=config,
+        use_case_config=config,
         rag_enabled=rag_enabled,
     )
     user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
     builder.set_model_defaults(LLMProviderTypes.BEDROCK, model_id)
     builder.set_knowledge_base()
-    builder.set_conversation_memory(user_id, chat_event_body[CONVERSATION_ID_EVENT_KEY])
+    builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
     ):
         builder.set_llm_model()
         assert type(builder.llm_model) == model
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model, model_id",
+    [
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, False, None, False, BedrockLLM, model_id),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, False, None, False, BedrockLLM, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            True,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            True,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            True,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            True,
+            BedrockRetrievalLLM,
+            model_id,
+        ),
+    ],
+)
+def test_returned_bedrock_provisioned_model(
+    use_case,
+    model_id,
+    prompt,
+    bedrock_provisioned_llm_config,
+    chat_event,
+    rag_enabled,
+    return_source_docs,
+    model,
+    test_provisioned_arn,
+    setup_environment,
+    bedrock_dynamodb_defaults_table,
+):
+    config = bedrock_provisioned_llm_config
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])
+    builder = BedrockBuilder(
+        connection_id="fake-connection-id",
+        conversation_id="fake-conversation-id",
+        use_case_config=config,
+        rag_enabled=rag_enabled,
+    )
+    user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
+
+    builder.set_model_defaults(LLMProviderTypes.BEDROCK, model_id)
+    builder.set_knowledge_base()
+    builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
+    with patch(
+        "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
+        return_value=AsyncIteratorCallbackHandler(),
+    ):
+        builder.set_llm_model()
+        assert type(builder.llm_model) == model
+        assert builder.llm_model.model == model_id
+        assert builder.llm_model.model_arn == test_provisioned_arn

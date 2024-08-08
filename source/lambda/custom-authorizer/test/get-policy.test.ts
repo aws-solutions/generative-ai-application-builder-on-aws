@@ -17,6 +17,7 @@ import { mockClient } from 'aws-sdk-client-mock';
 import {
     batchGetItemResponse,
     fakeIdToken,
+    fakeIdTokenNoGroups,
     fakeMultiGroupIdToken,
     multiGroupBatchGetItemResponse
 } from './event-test-data';
@@ -65,7 +66,7 @@ describe('Policy Generator test', () => {
                         'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id2/*/*'],
                         'Effect': 'Allow',
                         'Action': 'execute-api:Invoke',
-                        'Sid': 'HuggingFaceChatStack-Users-policy-statement'
+                        'Sid': 'BedrockChatStack-Users-policy-statement'
                     }
                 ]
             },
@@ -95,7 +96,7 @@ describe('Policy Generator test', () => {
                         'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id2/*/*'],
                         'Effect': 'Allow',
                         'Action': 'execute-api:Invoke',
-                        'Sid': 'HuggingFaceChatStack-Users-policy-statement'
+                        'Sid': 'BedrockChatStack-Users-policy-statement'
                     },
                     {
                         'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id3/*/*'],
@@ -118,6 +119,12 @@ describe('Policy Generator test', () => {
     it('should return a deny policy if we receive no policies for the gorup', async () => {
         ddbMockedClient.on(BatchGetCommand).resolves({});
         await expect(getPolicyDocument(<CognitoAccessTokenPayload>fakeMultiGroupIdToken)).resolves.toEqual(
+            denyAllPolicy()
+        );
+    });
+
+    it('should return a deny policy if we have no groups in the token', async () => {
+        await expect(getPolicyDocument(<CognitoAccessTokenPayload>fakeIdTokenNoGroups)).resolves.toEqual(
             denyAllPolicy()
         );
     });

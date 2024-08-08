@@ -15,14 +15,13 @@
 import * as cdk from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import * as crypto from 'crypto';
-import { AnthropicChat } from '../lib/anthropic-chat-stack';
 import { BedrockChat } from '../lib/bedrock-chat-stack';
-import { SageMakerChat } from '../lib/sagemaker-chat-stack';
 import { DeploymentPlatformStack } from '../lib/deployment-platform-stack';
 import { BaseStack, BaseStackProps } from '../lib/framework/base-stack';
-import { HuggingFaceChat } from '../lib/hugging-face-chat-stack';
+import { SageMakerChat } from '../lib/sagemaker-chat-stack';
 import { AppRegistry } from '../lib/utils/app-registry-aspects';
 import { LambdaAspects } from '../lib/utils/lambda-aspect';
+import { LogGroupRetentionCheckAspect } from '../lib/utils/log-group-retention-check-aspect';
 
 const app = new cdk.App();
 const solutionID = process.env.SOLUTION_ID ?? app.node.tryGetContext('solution_id');
@@ -32,7 +31,7 @@ const applicationType = app.node.tryGetContext('application_type');
 const applicationName = app.node.tryGetContext('app_registry_name');
 const applicationTrademarkName = app.node.tryGetContext('application_trademark_name');
 
-const stackList: (typeof BaseStack)[] = [HuggingFaceChat, AnthropicChat, BedrockChat, SageMakerChat];
+const stackList: (typeof BaseStack)[] = [BedrockChat, SageMakerChat];
 
 for (const stack of stackList) {
     createStack(stack, undefined, true);
@@ -42,6 +41,7 @@ createStack(DeploymentPlatformStack, getDefaultBaseStackProps(DeploymentPlatform
 
 // adding cdk-nag checks
 cdk.Aspects.of(app).add(new AwsSolutionsChecks());
+cdk.Aspects.of(app).add(new LogGroupRetentionCheckAspect());
 
 app.synth();
 
@@ -84,7 +84,7 @@ function createStack(stack: typeof BaseStack, props?: BaseStackProps, isUseCase?
 function getDefaultBaseStackProps(stack: typeof BaseStack, isUseCase?: boolean): BaseStackProps {
     return {
         description: isUseCase
-            ? `(${solutionID}-${stack.name}) - ${solutionName} - ${stack.name} - Version ${version}`
+            ? `(${solutionID})-${stack.name} - ${solutionName} - ${stack.name} - Version ${version}`
             : `(${solutionID}) - ${solutionName} - ${stack.name} - Version ${version}`,
         synthesizer: new cdk.DefaultStackSynthesizer({
             generateBootstrapVersionRule: false

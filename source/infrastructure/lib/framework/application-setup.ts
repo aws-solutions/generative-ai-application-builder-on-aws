@@ -24,9 +24,10 @@ import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 import { DeploymentPlatformDashboard } from '../metrics/deployment-platform-dashboard';
 import { UseCaseDashboard } from '../metrics/use-case-dashboard';
+import * as cfn_guard from '../utils/cfn-guard-suppressions';
+import { WEB_CONFIG_PREFIX } from '../utils/constants';
 import { CustomInfraSetup } from '../utils/custom-infra-setup';
 import { SolutionHelper } from '../utils/solution-helper';
-import { WEB_CONFIG_PREFIX } from '../utils/constants';
 
 /**
  * The interface which defines the configuration that should be stored in SSM parameter store
@@ -48,6 +49,16 @@ export interface WebConfigProps {
     userPoolClientId: string;
 
     /**
+     * The CognitoDomainPrefix of the Cognito user pool created or provided during deployment
+     */
+    cognitoDomainPrefix: string;
+
+    /**
+     * The CognitoRedirectUrl of the Cognito user pool created or provided during deployment
+     */
+    cognitoRedirectUrl: string;
+
+    /**
      * Condition based on inputted user email which determines whether this is an internal deployment.
      * If it is, internal GenAI usage disclaimers will be displayed in the app
      */
@@ -56,12 +67,22 @@ export interface WebConfigProps {
     /**
      * If provided, the value of this SSM parameter will be read and inputted into the webconfig
      */
-    additionalConfigurationSSMParameterName?: string;
+    additionalConfigurationParameterKey?: string;
+
+    /**
+     * Table from where to fetch the configuration
+     */
+    additionalConfigurationTable?: string;
 
     /**
      * Additional properties to be passed to the web config custom resource and stored as key:value pairs in the UI runtime config file
      */
     additionalProperties?: { [key: string]: any };
+
+    /**
+     * Condition to determine if webapp should be deployed
+     */
+    deployWebAppCondition: cdk.CfnCondition;
 }
 
 export interface ApplicationProps {
@@ -167,6 +188,17 @@ export class ApplicationSetup extends Construct {
                 reason: 'This S3 bucket is used as the access logging bucket for another bucket'
             }
         ]);
+
+        cfn_guard.addCfnSuppressRules(this.accessLoggingBucket, [
+            {
+                id: 'F14',
+                reason: 'This bucket is used as an access logging bucket and hence requires PublicReadWrite ACL configuration'
+            },
+            {
+                id: 'W35',
+                reason: 'The bucket is an access logging and hence it does not have an access log configured for itself'
+            }
+        ]);
     }
 
     public addCustomDashboard(props: CustomDashboardProps, dashboardType: DashboardType): cloudwatch.Dashboard {
@@ -232,13 +264,13 @@ export class ApplicationSetup extends Construct {
                 ApiEndpoint: props.apiEndpoint,
                 UserPoolId: props.userPoolId,
                 UserPoolClientId: props.userPoolClientId,
+                CognitoDomain: this.createCognitoDomain(props.cognitoDomainPrefix),
+                CognitoRedirectUrl: props.cognitoRedirectUrl,
                 IsInternalUser: cdk.Fn.conditionIf(props.isInternalUserCondition.logicalId, true, false),
-                ...(props.additionalConfigurationSSMParameterName != undefined && {
-                    AdditionalConfigurationSSMParameterName: props.additionalConfigurationSSMParameterName
-                }),
                 ...props.additionalProperties
             }
         });
+
         const lambdaSSMPolicy = new iam.Policy(this, 'WriteToSSM', {
             statements: [
                 new iam.PolicyStatement({
@@ -250,17 +282,6 @@ export class ApplicationSetup extends Construct {
                 })
             ]
         });
-        if (props.additionalConfigurationSSMParameterName) {
-            lambdaSSMPolicy.addStatements(
-                new iam.PolicyStatement({
-                    effect: iam.Effect.ALLOW,
-                    actions: ['ssm:GetParameter'],
-                    resources: [
-                        `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter${props.additionalConfigurationSSMParameterName}`
-                    ]
-                })
-            );
-        }
 
         lambdaSSMPolicy.attachToRole(this.customResourceLambda.role!);
         this.webConfigResource.node.tryFindChild('Default')!.node.addDependency(lambdaSSMPolicy);
@@ -279,6 +300,13 @@ export class ApplicationSetup extends Construct {
                 ]
             }
         ]);
+    }
+
+    private createCognitoDomain(domainPrefix: string | undefined): string {
+        if (!domainPrefix) {
+            throw new Error('CognitoDomainPrefix is required');
+        }
+        return `${domainPrefix}.auth.${cdk.Aws.REGION}.amazoncognito.com`;
     }
 
     /**

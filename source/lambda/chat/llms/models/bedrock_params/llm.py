@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional
 
 from llms.models.llm_params import LLMParams
 from shared.defaults.model_defaults import ModelDefaults

@@ -15,7 +15,7 @@ import React from 'react';
 import { FormField, Input, InputProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 import { updateNumFieldsInError } from '../../utils';
-import { InfoLink } from 'components/commons';
+import { InfoLink } from '@/components/commons';
 import { modelToolsContent } from '../helpers';
 
 export interface OutputSchemaProps extends BaseFormComponentProps {

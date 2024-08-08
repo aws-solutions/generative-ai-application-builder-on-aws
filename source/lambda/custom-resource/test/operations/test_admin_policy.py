@@ -19,7 +19,7 @@ import botocore
 import mock
 import pytest
 from lambda_func import handler
-from moto import mock_dynamodb
+from moto import mock_aws
 from operations.admin_policy import (
     RESOURCE,
     RESOURCE_PROPERTIES,
@@ -183,7 +183,7 @@ def test_delete_fails(lambda_event, mock_lambda_context):
         delete(lambda_event, mock_lambda_context)
 
 
-@mock_dynamodb
+@mock_aws
 @pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
 def test_execute_method(ddb, lambda_event, mock_lambda_context, requestType):
     ddb.create_table(
@@ -242,7 +242,7 @@ def test_execute_method(ddb, lambda_event, mock_lambda_context, requestType):
             )
 
 
-@mock_dynamodb
+@mock_aws
 @pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
 def test_lambda_handler(ddb, lambda_event, mock_lambda_context, requestType):
     ddb.create_table(

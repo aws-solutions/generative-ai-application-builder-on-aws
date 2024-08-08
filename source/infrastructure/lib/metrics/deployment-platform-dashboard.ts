@@ -108,7 +108,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                 title: 'Cognito Sign-ins & Sign-ups',
                 left: [
                     new cloudwatch.Metric({
-                        namespace: CloudWatchNamespace.COGNITO,
+                        namespace: CloudWatchNamespace.AWS_COGNITO,
                         metricName: CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES,
                         label: CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
@@ -120,7 +120,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         color: cloudwatch.Color.BLUE
                     }),
                     new cloudwatch.Metric({
-                        namespace: CloudWatchNamespace.COGNITO,
+                        namespace: CloudWatchNamespace.AWS_COGNITO,
                         metricName: CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES,
                         label: 'Average' + CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES,
                         statistic: cloudwatch.Stats.AVERAGE,
@@ -133,7 +133,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                     }),
                     // note signups belong to the predefined 'Admin' client, not one we create
                     new cloudwatch.Metric({
-                        namespace: CloudWatchNamespace.COGNITO,
+                        namespace: CloudWatchNamespace.AWS_COGNITO,
                         metricName: CloudWatchMetrics.COGNITO_SIGN_UP_SUCCESSES,
                         label: CloudWatchMetrics.COGNITO_SIGN_UP_SUCCESSES + 'Count',
                         statistic: cloudwatch.Stats.SAMPLE_COUNT,
@@ -145,7 +145,7 @@ export class DeploymentPlatformDashboard extends CustomDashboard {
                         color: cloudwatch.Color.GREY
                     }),
                     new cloudwatch.Metric({
-                        namespace: CloudWatchNamespace.COGNITO,
+                        namespace: CloudWatchNamespace.AWS_COGNITO,
                         metricName: CloudWatchMetrics.COGNITO_SIGN_UP_SUCCESSES,
                         label: 'Average' + CloudWatchMetrics.COGNITO_SIGN_UP_SUCCESSES,
                         statistic: cloudwatch.Stats.AVERAGE,

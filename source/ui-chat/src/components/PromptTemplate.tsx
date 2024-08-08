@@ -14,7 +14,7 @@
 import { Alert, Button, SpaceBetween, Textarea } from '@cloudscape-design/components';
 import { FC, useState, useContext } from 'react';
 import HomeContext from '../home/home.context';
-import { MIN_PROMPT_TEMPLATE_LENGTH, MAX_PROMPT_TEMPLATE_LENGTH } from '../utils/constants';
+import { MIN_PROMPT_TEMPLATE_LENGTH } from '../utils/constants';
 
 interface Props {
     onChangePrompt: (prompt: string) => void;
@@ -24,7 +24,14 @@ interface Props {
 
 export const PromptTemplate: FC<Props> = ({ onChangePrompt, showPromptWindow, handleShowPromptWindow }) => {
     const {
-        state: { defaultPromptTemplate, promptTemplate, selectedConversation, RAGEnabled }
+        state: {
+            defaultPromptTemplate,
+            promptTemplate,
+            selectedConversation,
+            RAGEnabled,
+            userPromptEditingEnabled,
+            maxPromptTemplateLength
+        }
     } = useContext(HomeContext);
     const [value, setValue] = useState<string>(promptTemplate ? promptTemplate : defaultPromptTemplate);
     const [errorMessage, setErrorMessage] = useState('');
@@ -33,12 +40,12 @@ export const PromptTemplate: FC<Props> = ({ onChangePrompt, showPromptWindow, ha
     const isPromptTemplateValid = () => {
         let errors = '';
         const requiredPlaceholders = RAGEnabled ? ['history', 'input', 'context'] : ['history', 'input'];
-        if (value.length < MIN_PROMPT_TEMPLATE_LENGTH || value.length > MAX_PROMPT_TEMPLATE_LENGTH) {
+        if (value.length < MIN_PROMPT_TEMPLATE_LENGTH || value.length > maxPromptTemplateLength) {
             errors +=
                 `Total prompt length must be between ` +
                 MIN_PROMPT_TEMPLATE_LENGTH +
                 ' and ' +
-                MAX_PROMPT_TEMPLATE_LENGTH +
+                maxPromptTemplateLength +
                 ' characters.\n';
         }
 
@@ -81,7 +88,7 @@ export const PromptTemplate: FC<Props> = ({ onChangePrompt, showPromptWindow, ha
         }
     };
 
-    if (showPromptWindow) {
+    if (showPromptWindow && userPromptEditingEnabled) {
         return (
             <div data-testid="prompt-template">
                 <label>{'Prompt template (optional)'}</label>

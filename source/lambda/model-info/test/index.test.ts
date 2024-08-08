@@ -72,7 +72,7 @@ describe('When invoking the lambda function', () => {
             } as Partial<APIGatewayEvent>;
 
             expect(await (await lambda).lambdaHandler(mockedEvent as APIGatewayEvent)).toEqual({
-                'body': '["Anthropic","Bedrock","HuggingFace"]',
+                'body': '["Bedrock","SageMaker"]',
                 'headers': {
                     'Access-Control-Allow-Credentials': true,
                     'Access-Control-Allow-Headers': 'Origin,X-Requested-With,Content-Type,Accept',

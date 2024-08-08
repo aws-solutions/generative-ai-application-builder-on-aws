@@ -12,14 +12,14 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
-import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Template } from 'aws-cdk-lib/assertions';
-import { addCfnSuppressRules, CfnNagSuppressRule } from '../../lib/utils/cfn-nag-suppressions';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { addCfnSuppressRules, CfnGuardSuppressRule } from '../../lib/utils/cfn-guard-suppressions';
 
 describe('When adding suppressions', () => {
     let s3Bucket: s3.Bucket;
     let stack: cdk.Stack;
-    let suppressionRule1: CfnNagSuppressRule, suppressionRule2: CfnNagSuppressRule;
+    let suppressionRule1: CfnGuardSuppressRule, suppressionRule2: CfnGuardSuppressRule;
 
     beforeEach(() => {
         stack = new cdk.Stack();
@@ -54,7 +54,7 @@ describe('When adding suppressions', () => {
     });
 });
 
-function validate(stack: cdk.Stack, suppressionRules: CfnNagSuppressRule[]) {
+function validate(stack: cdk.Stack, suppressionRules: CfnGuardSuppressRule[]) {
     const template = Template.fromStack(stack);
     template.hasResource('AWS::S3::Bucket', {
         Type: 'AWS::S3::Bucket',

@@ -28,14 +28,17 @@ import {
     ARTIFACT_BUCKET_ENV_VAR,
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     CHAT_PROVIDERS,
+    CLIENT_ID_ENV_VAR,
+    COGNITO_DOMAIN_PREFIX_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     CfnParameterKeys,
     IS_INTERNAL_USER_ENV_VAR,
+    KnowledgeBaseTypes,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
-    USE_CASE_API_KEY_SUFFIX_ENV_VAR,
-    USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+    USE_EXISTING_USER_POOL_CLIENT_ENV_VAR
 } from '../../utils/constants';
 
 import {
@@ -45,6 +48,7 @@ import {
     updateUseCaseEvent,
     updateUseCaseVPCEvent
 } from '../event-test-data';
+
 jest.mock('crypto', () => {
     return {
         ...jest.requireActual('crypto'),
@@ -59,14 +63,13 @@ describe('When creating StackCommandBuilders', () => {
 
     beforeAll(() => {
         process.env[ARTIFACT_BUCKET_ENV_VAR] = 'fake-bucket';
-        process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'arn:aws:iam::fake-account:role/FakeRole';
         process.env[USER_POOL_ID_ENV_VAR] = 'fake-user-pool';
+        process.env[COGNITO_DOMAIN_PREFIX_VAR] = 'fake-domain-prefix';
         process.env[COGNITO_POLICY_TABLE_ENV_VAR] = 'fake-table-name';
-        process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR] = 'fake-config-name';
         process.env[TEMPLATE_FILE_EXTN_ENV_VAR] = '.template.json';
-        process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR] = 'api-key';
         process.env[IS_INTERNAL_USER_ENV_VAR] = 'true';
         process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = 'model-info-table-name';
+        process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = 'use-case-config-table-name';
 
         createEvent = { ...createUseCaseEvent };
         createEvent.body = JSON.stringify(createUseCaseEvent.body);
@@ -82,10 +85,9 @@ describe('When creating StackCommandBuilders', () => {
 
         beforeAll(async () => {
             const cfnParameters = new Map<string, string>();
-            cfnParameters.set('LLMProviderName', 'HuggingFace');
-            cfnParameters.set('LLMProviderModelId', 'google/flan-t5-xxl');
+            cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
             const useCase = new UseCase(
-                '11111111-222222222-33333333-44444444-55555555',
+                '11111111',
                 'fake-test',
                 'Create a stack for test',
                 cfnParameters,
@@ -110,15 +112,10 @@ describe('When creating StackCommandBuilders', () => {
             );
             expect(createStackCommandInput.Parameters).toEqual([
                 {
-                    ParameterKey: 'LLMProviderName',
-                    ParameterValue: 'HuggingFace'
-                },
-                {
-                    ParameterKey: 'LLMProviderModelId',
-                    ParameterValue: 'google/flan-t5-xxl'
+                    ParameterKey: CfnParameterKeys.DefaultUserEmail,
+                    ParameterValue: 'fake-email'
                 }
             ]);
-            expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
                 'CAPABILITY_AUTO_EXPAND',
@@ -153,18 +150,28 @@ describe('When creating StackCommandBuilders', () => {
 
         it('should create a CreateStackCommandInputBuilder with the correct properties', () => {
             expect(createStackCommandInput.Parameters).toEqual([
-                { ParameterKey: 'NewKendraIndexName', ParameterValue: 'fake-index-name' },
-                { ParameterKey: 'RAGEnabled', ParameterValue: 'true' },
-                { ParameterKey: 'DefaultUserEmail', ParameterValue: 'fake-email@example.com' },
-                { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
-                { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
-                { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
-                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
-                { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
-                { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' },
-                { ParameterKey: 'ConsentToDataLeavingAWS', ParameterValue: 'Yes' }
+                { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
+                { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                    ParameterValue: '11111111-11111111'
+                },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                    ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
+                },
+                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
+                {
+                    ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                    ParameterValue: 'fake-table-name'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
             ]);
-            expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
                 'CAPABILITY_AUTO_EXPAND',
@@ -204,17 +211,28 @@ describe('When creating StackCommandBuilders', () => {
 
         it('should create a CreateStackCommandInputBuilder with the correct properties for bedrock', () => {
             expect(createStackCommandInput.Parameters).toEqual([
-                { ParameterKey: 'NewKendraIndexName', ParameterValue: 'fake-index-name' },
-                { ParameterKey: 'RAGEnabled', ParameterValue: 'true' },
-                { ParameterKey: 'DefaultUserEmail', ParameterValue: 'fake-email@example.com' },
-                { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
-                { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
-                { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
-                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
-                { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
-                { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' }
+                { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
+                { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                    ParameterValue: '11111111-11111111'
+                },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                    ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
+                },
+                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
+                {
+                    ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                    ParameterValue: 'fake-table-name'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
             ]);
-            expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
                 'CAPABILITY_AUTO_EXPAND',
@@ -254,22 +272,32 @@ describe('When creating StackCommandBuilders', () => {
 
         it('should create a CreateStackCommandInputBuilder with the correct properties for bedrock', () => {
             expect(createStackCommandInput.Parameters).toEqual([
-                { ParameterKey: 'NewKendraIndexName', ParameterValue: 'fake-index-name' },
-                { ParameterKey: 'RAGEnabled', ParameterValue: 'true' },
-                { ParameterKey: 'DefaultUserEmail', ParameterValue: 'fake-email@example.com' },
-                { ParameterKey: 'VpcEnabled', ParameterValue: 'Yes' },
-                { ParameterKey: 'CreateNewVpc', ParameterValue: 'No' },
-                { ParameterKey: 'ExistingVpcId', ParameterValue: 'vpc-id' },
-                { ParameterKey: 'ExistingPrivateSubnetIds', ParameterValue: 'subnet-id-1,subnet-id-2' },
-                { ParameterKey: 'ExistingSecurityGroupIds', ParameterValue: 'sg-id-1' },
-                { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
-                { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
-                { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
-                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
-                { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
-                { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' }
+                { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
+                { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                { ParameterKey: CfnParameterKeys.VpcEnabled, ParameterValue: 'Yes' },
+                { ParameterKey: CfnParameterKeys.CreateNewVpc, ParameterValue: 'No' },
+                { ParameterKey: CfnParameterKeys.ExistingVpcId, ParameterValue: 'vpc-id' },
+                { ParameterKey: CfnParameterKeys.ExistingPrivateSubnetIds, ParameterValue: 'subnet-id-1,subnet-id-2' },
+                { ParameterKey: CfnParameterKeys.ExistingSecurityGroupIds, ParameterValue: 'sg-id-1' },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                    ParameterValue: '11111111-11111111'
+                },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                    ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
+                },
+                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
+                {
+                    ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                    ParameterValue: 'fake-table-name'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
             ]);
-            expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
                 'CAPABILITY_AUTO_EXPAND',
@@ -299,18 +327,28 @@ describe('When creating StackCommandBuilders', () => {
             const createStackCommandInput = await createStackInputBuilder.build();
 
             expect(createStackCommandInput.Parameters).toEqual([
-                { ParameterKey: 'NewKendraIndexName', ParameterValue: 'fake-index-name' },
-                { ParameterKey: 'RAGEnabled', ParameterValue: 'true' },
-                { ParameterKey: 'DefaultUserEmail', ParameterValue: 'fake-email@example.com' },
-                { ParameterKey: 'ChatConfigSSMParameterName', ParameterValue: 'fake-config-name/11111111/11111111' },
-                { ParameterKey: 'ExistingCognitoUserPoolId', ParameterValue: 'fake-user-pool' },
-                { ParameterKey: 'ExistingCognitoGroupPolicyTableName', ParameterValue: 'fake-table-name' },
-                { ParameterKey: 'ExistingModelInfoTableName', ParameterValue: 'model-info-table-name' },
-                { ParameterKey: 'UseCaseUUID', ParameterValue: '11111111' },
-                { ParameterKey: 'ProviderApiKeySecret', ParameterValue: '11111111/api-key' }
+                { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
+                { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                    ParameterValue: '11111111-11111111'
+                },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                    ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
+                },
+                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
+                {
+                    ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                    ParameterValue: 'fake-table-name'
+                },
+                { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
             ]);
-            expect(useCaseSagemaker.configuration.LlmParams?.ModelId).toEqual('default');
-            expect(createStackCommandInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
                 'CAPABILITY_AUTO_EXPAND',
@@ -329,14 +367,145 @@ describe('When creating StackCommandBuilders', () => {
         });
     });
 
+    describe('When creating CreateStackCommandInputBuilder', () => {
+        describe('when POOL_ID env variable is not set', () => {
+            it('should not set POOL_ID when env variable is not set', async () => {
+                let event = { ...createUseCaseEvent } as any;
+                event.body.LlmParams.ModelProvider = CHAT_PROVIDERS.BEDROCK;
+                event.body.LlmParams.BedrockLlmParams = { ModelId: 'fake-model' };
+                event.body = JSON.stringify(event.body);
+                const useCaseWithoutPoolID = new ChatUseCaseDeploymentAdapter(event);
+                const createStackInputBuilder = new CreateStackCommandInputBuilder(useCaseWithoutPoolID);
+                const createStackCommandInput = await createStackInputBuilder.build();
+
+                expect(createStackCommandInput.Parameters).not.toContainEqual({
+                    ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolClient,
+                    ParameterValue: expect.any(String)
+                });
+                expect(createStackCommandInput.Parameters).toEqual([
+                    { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
+                    { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                    { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                    { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                    { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                    {
+                        ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                        ParameterValue: '11111111-11111111'
+                    },
+                    {
+                        ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                        ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
+                    },
+                    { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                    { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
+                    {
+                        ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                        ParameterValue: 'fake-table-name'
+                    },
+                    {
+                        ParameterKey: CfnParameterKeys.ExistingModelInfoTableName,
+                        ParameterValue: 'model-info-table-name'
+                    },
+                    { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                ]);
+                expect(useCaseWithoutPoolID.configuration.LlmParams?.BedrockLlmParams?.ModelId).toEqual('fake-model');
+                expect(createStackCommandInput.Capabilities).toEqual([
+                    'CAPABILITY_IAM',
+                    'CAPABILITY_AUTO_EXPAND',
+                    'CAPABILITY_NAMED_IAM'
+                ]);
+                expect(createStackCommandInput.Tags).toEqual([
+                    {
+                        Key: 'createdVia',
+                        Value: 'deploymentPlatform'
+                    },
+                    {
+                        Key: 'userId',
+                        Value: 'fake-user-id'
+                    }
+                ]);
+            });
+        });
+
+        describe('when POOL_ID env variable is set', () => {
+            beforeAll(() => {
+                process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR] = 'true';
+                process.env[CLIENT_ID_ENV_VAR] = 'fake-pool-id';
+            });
+
+            afterAll(() => {
+                delete process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR];
+                delete process.env[CLIENT_ID_ENV_VAR];
+            });
+
+            it('should set POOL_ID when env variable is set', async () => {
+                let event = { ...createUseCaseEvent } as any;
+                event.body.LlmParams.ModelProvider = CHAT_PROVIDERS.BEDROCK;
+                event.body.LlmParams.BedrockLlmParams = { ModelId: 'fake-model' };
+                event.body = JSON.stringify(event.body);
+
+                const useCaseWithoutPoolID = new ChatUseCaseDeploymentAdapter(event);
+                const createStackInputBuilder = new CreateStackCommandInputBuilder(useCaseWithoutPoolID);
+                const createStackCommandInput = await createStackInputBuilder.build();
+
+                expect(createStackCommandInput.Parameters).toEqual([
+                    { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
+                    { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
+                    { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
+                    { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
+                    { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                    {
+                        ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                        ParameterValue: '11111111-11111111'
+                    },
+                    {
+                        ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                        ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
+                    },
+                    { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                    {
+                        ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolClient,
+                        ParameterValue: 'fake-pool-id'
+                    },
+                    { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
+                    {
+                        ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
+                        ParameterValue: 'fake-table-name'
+                    },
+                    {
+                        ParameterKey: CfnParameterKeys.ExistingModelInfoTableName,
+                        ParameterValue: 'model-info-table-name'
+                    },
+                    { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                ]);
+                expect(useCaseWithoutPoolID.configuration.LlmParams?.BedrockLlmParams?.ModelId).toEqual('fake-model');
+                expect(createStackCommandInput.Capabilities).toEqual([
+                    'CAPABILITY_IAM',
+                    'CAPABILITY_AUTO_EXPAND',
+                    'CAPABILITY_NAMED_IAM'
+                ]);
+                expect(createStackCommandInput.Tags).toEqual([
+                    {
+                        Key: 'createdVia',
+                        Value: 'deploymentPlatform'
+                    },
+                    {
+                        Key: 'userId',
+                        Value: 'fake-user-id'
+                    }
+                ]);
+            });
+        });
+    });
+
     describe('When creating UpdateStackCommandInputBuilder with a UseCase', () => {
         let updateStackInput: UpdateStackCommandInput;
+        let useCase: UseCase;
         beforeAll(async () => {
             const cfnParameters = new Map<string, string>();
-            cfnParameters.set('LLMProviderName', 'HuggingFace');
-            cfnParameters.set('LLMProviderModelId', 'google/flan-t5-xxl');
-            const useCase = new UseCase(
-                '11111111-222222222-33333333-44444444-55555555',
+            cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
+            useCase = new UseCase(
+                '11111111',
                 'fake-test',
                 'Create a stack for test',
                 cfnParameters,
@@ -346,15 +515,50 @@ describe('When creating StackCommandBuilders', () => {
                 'Chat'
             );
             useCase.stackId = 'fake-stack-id';
+        });
+
+        it('should have the following properties', async () => {
             try {
                 updateStackInput = await new UpdateStackCommandInputBuilder(useCase).build();
             } catch (error) {
                 console.error(`Error occurred, error is ${error}`);
             }
+            expect(updateStackInput.StackName).toEqual('fake-stack-id');
         });
 
-        it('should have the following properties', () => {
-            expect(updateStackInput.StackName).toEqual('fake-stack-id');
+        it('should add the role arn if present in builder', async () => {
+            process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'fake-role-arn';
+            const updateStackInputBuilder = new UpdateStackCommandInputBuilder(useCase);
+            updateStackInputBuilder.setRoleArn('fake-role-arn');
+
+            const updateStackInput = await updateStackInputBuilder.build();
+
+            expect(updateStackInput.RoleARN).toEqual('fake-role-arn');
+        });
+
+        it('should throw error if role arn in builder does not match env variable role arn', () => {
+            process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'fake-role-arn';
+
+            expect(() => {
+                const updateStackInputBuilder = new UpdateStackCommandInputBuilder(useCase);
+                updateStackInputBuilder.setRoleArn('different-role-arn');
+            }).toThrow(Error);
+        });
+
+        it('should not throw error if roleArn is undefined and different from env variable role arn', async () => {
+            process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'fake-role-arn';
+
+            const updateStackInputBuilder = new UpdateStackCommandInputBuilder(useCase);
+            expect(() => {
+                updateStackInputBuilder.setRoleArn(undefined);
+            }).not.toThrow(Error);
+
+            const updateStackInput = await updateStackInputBuilder.build();
+            expect(updateStackInput.RoleARN).toBeUndefined();
+        });
+
+        afterEach(() => {
+            delete process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR];
         });
     });
 
@@ -373,29 +577,32 @@ describe('When creating StackCommandBuilders', () => {
 
         it('should create a CreateStackCommandInputBuilder with the correct properties', () => {
             expect(updateStackInput.Parameters).toEqual([
+                { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
                 { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
                 { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
                 {
-                    ParameterKey: CfnParameterKeys.ChatConfigSSMParameterName,
-                    ParameterValue: 'fake-config-name/11111111/11111111'
+                    ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                    ParameterValue: '11111111-11111111'
+                },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                    ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
                 },
                 { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
                 {
                     ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
                 { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' },
-                { ParameterKey: CfnParameterKeys.ProviderApiKeySecret, ParameterValue: '11111111/api-key' },
-                { ParameterKey: CfnParameterKeys.ConsentToDataLeavingAWS, ParameterValue: 'No' },
                 { ParameterKey: CfnParameterKeys.VpcEnabled, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.CreateNewVpc, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingVpcId, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingPrivateSubnetIds, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingSecurityGroupIds, UsePreviousValue: true }
             ]);
-            expect(updateStackInput.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(updateStackInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
                 'CAPABILITY_AUTO_EXPAND',
@@ -420,6 +627,7 @@ describe('When creating StackCommandBuilders', () => {
             const updateStackInput2 = await new UpdateStackCommandInputBuilder(useCase2).build();
 
             expect(updateStackInput2.Parameters).toEqual([
+                { ParameterKey: CfnParameterKeys.KnowledgeBaseType, ParameterValue: KnowledgeBaseTypes.KENDRA },
                 { ParameterKey: CfnParameterKeys.NewKendraIndexName, ParameterValue: 'fake-index-name' },
                 { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
@@ -429,23 +637,25 @@ describe('When creating StackCommandBuilders', () => {
                 },
                 { ParameterKey: CfnParameterKeys.ExistingSecurityGroupIds, ParameterValue: 'sg-id-1,sg-id-2' },
                 {
-                    ParameterKey: CfnParameterKeys.ChatConfigSSMParameterName,
-                    ParameterValue: 'fake-config-name/11111111/11111111'
+                    ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                    ParameterValue: '11111111-11111111'
+                },
+                {
+                    ParameterKey: CfnParameterKeys.UseCaseConfigTableName,
+                    ParameterValue: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
                 },
                 { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolId, ParameterValue: 'fake-user-pool' },
+                { ParameterKey: CfnParameterKeys.CognitoDomainPrefix, ParameterValue: 'fake-domain-prefix' },
                 {
                     ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
                 { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' },
-                { ParameterKey: CfnParameterKeys.ProviderApiKeySecret, ParameterValue: '11111111/api-key' },
-                { ParameterKey: CfnParameterKeys.ConsentToDataLeavingAWS, ParameterValue: 'No' },
                 { ParameterKey: CfnParameterKeys.VpcEnabled, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.CreateNewVpc, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingVpcId, UsePreviousValue: true }
             ]);
-            expect(updateStackInput2.RoleARN).toEqual('arn:aws:iam::fake-account:role/FakeRole');
             expect(updateStackInput2.Capabilities).toEqual([
                 'CAPABILITY_IAM',
                 'CAPABILITY_AUTO_EXPAND',
@@ -466,10 +676,10 @@ describe('When creating StackCommandBuilders', () => {
 
     describe('When creating DeleteStackCommandInputBuilder with a UseCase', () => {
         let deleteStackInput: DeleteStackCommandInput;
-
+        let useCase: UseCase;
         beforeAll(async () => {
-            const useCase = new UseCase(
-                '11111111-222222222-33333333-44444444-55555555',
+            useCase = new UseCase(
+                '11111111',
                 'fake-test',
                 'Create a stack for test',
                 new Map<string, string>(),
@@ -488,6 +698,22 @@ describe('When creating StackCommandBuilders', () => {
 
         it('should have the following properties', () => {
             expect(deleteStackInput.StackName).toEqual('fake-stack-id');
+            expect(deleteStackInput.RoleARN).toBeUndefined();
+        });
+
+        it('should add the role arn if present in builder', async () => {
+            process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'fake-role-arn';
+            const updateStackInputBuilder = new DeleteStackCommandInputBuilder(useCase);
+            updateStackInputBuilder.setRoleArn('fake-role-arn');
+
+            const updateStackInput = await updateStackInputBuilder.build();
+
+            expect(updateStackInput.RoleARN).toEqual('fake-role-arn');
+            expect(deleteStackInput.StackName).toEqual('fake-stack-id');
+        });
+
+        afterEach(() => {
+            delete process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR];
         });
     });
 
@@ -539,12 +765,11 @@ describe('When creating StackCommandBuilders', () => {
 
     afterAll(() => {
         delete process.env[ARTIFACT_BUCKET_ENV_VAR];
-        delete process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR];
         delete process.env[USER_POOL_ID_ENV_VAR];
         delete process.env[COGNITO_POLICY_TABLE_ENV_VAR];
-        delete process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR];
         delete process.env[TEMPLATE_FILE_EXTN_ENV_VAR];
-        delete process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR];
         delete process.env[IS_INTERNAL_USER_ENV_VAR];
+        delete process.env[MODEL_INFO_TABLE_NAME_ENV_VAR];
+        delete process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR];
     });
 });

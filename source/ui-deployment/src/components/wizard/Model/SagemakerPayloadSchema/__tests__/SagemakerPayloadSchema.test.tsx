@@ -17,9 +17,10 @@ import { screen } from '@testing-library/react';
 let SagemakerPayloadSchema: any;
 
 describe('SagemakerPayloadSchema', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         mockReactMarkdown();
-        SagemakerPayloadSchema = require('../SagemakerPayloadSchema').default;
+
+        SagemakerPayloadSchema = (await import('../SagemakerPayloadSchema')).default;
     });
     afterEach(() => {
         jest.clearAllMocks();
