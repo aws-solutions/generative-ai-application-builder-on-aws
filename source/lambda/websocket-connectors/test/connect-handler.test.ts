@@ -59,7 +59,7 @@ describe('when calling connect-handler', () => {
             },
             resource: 'fakeResource'
         };
-        expect(await connect_handler.handler(mockedEvent)).toEqual({
+        expect(await connect_handler.lambdaHandler(mockedEvent)).toEqual({
             statusCode: 200,
             body: 'Connected'
         });

@@ -15,26 +15,24 @@
 import json
 import os
 from contextlib import nullcontext as does_not_raise
-from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from botocore.exceptions import ClientError
-from clients.huggingface_client import HuggingFaceClient
+from clients.bedrock_client import BedrockClient
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
-    DEFAULT_HUGGINGFACE_TASK,
-    LLM_PARAMETERS_SSM_KEY_ENV_VAR,
+    MESSAGE_KEY,
     QUESTION_EVENT_KEY,
-    RAG_ENABLED_ENV_VAR,
+    USE_CASE_CONFIG_RECORD_KEY_ENV_VAR,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     USER_ID_EVENT_KEY,
 )
-from utils.enum_types import LLMProviderTypes
+from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 # Testing LLMChatClient using subclass
-HUGGINGFACE_PROMPT = """\n\n{history}\n\n{input}"""
-HUGGINGFACE_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BASIC_PROMPT = """\n\n{history}\n\n{input}"""
+BASIC_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
 
 PROMPT = """The following is a conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it says "Sorry I dont know".
 Current conversation:
@@ -46,13 +44,27 @@ AI:"""
 
 
 @pytest.fixture
-def simple_llm_client():
-    yield HuggingFaceClient(rag_enabled=False, connection_id="fake-connection_id")
+def setup_test_table(dynamodb_resource, table_name):
+    # Create the DynamoDB table.
+    dynamodb_resource.create_table(
+        TableName=table_name,
+        KeySchema=[{"AttributeName": "key", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "key", "AttributeType": "S"}],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    yield dynamodb_resource
 
 
 @pytest.fixture
-def llm_client(rag_enabled):
-    yield HuggingFaceClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
+def simple_llm_client(basic_llm_config_parsed):
+    yield BedrockClient(rag_enabled=False, connection_id="fake-connection_id", use_case_config=basic_llm_config_parsed)
+
+
+@pytest.fixture
+def llm_client(rag_enabled, basic_llm_config_parsed):
+    yield BedrockClient(
+        rag_enabled=rag_enabled, connection_id="fake-connection_id", use_case_config=basic_llm_config_parsed
+    )
 
 
 def test_no_body(setup_environment, simple_llm_client):
@@ -80,9 +92,15 @@ def test_body_missing_required_fields(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "requestContext": {"authorizer": {USER_ID_EVENT_KEY: "fake-user-id"}},
-                "connectionId": "fake-id",
-                "body": '{"some-key": "some-value"}',
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-connection-id",
+                        },
+                        "message": {"some-key": "some-value"},
+                    }
+                )
             }
         )
 
@@ -94,9 +112,15 @@ def test_prompt_valid_length(simple_llm_client):
     with does_not_raise():
         simple_llm_client.check_event(
             {
-                "requestContext": {"authorizer": {USER_ID_EVENT_KEY: "fake-user-id"}},
-                "connectionId": "fake-id",
-                "body": json.dumps({"question": "Hi", "promptTemplate": valid_prompt}),
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-id",
+                        },
+                        "message": {"question": "Hi", "promptTemplate": valid_prompt},
+                    }
+                )
             }
         )
 
@@ -106,26 +130,79 @@ def test_empty_prompt(simple_llm_client, setup_environment):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "requestContext": {"authorizer": {USER_ID_EVENT_KEY: "fake-user-id"}},
-                "connectionId": "fake-id",
-                "body": json.dumps({"question": "Hi", "promptTemplate": empty_prompt}),
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-id",
+                        },
+                        "message": {"question": "Hi", "promptTemplate": empty_prompt},
+                    }
+                )
             }
         )
 
         assert error.value.args[0] == "Event prompt shouldn't be empty."
 
 
-def test_empty_question(setup_environment, simple_llm_client):
+def test_prompt_too_long(setup_environment, simple_llm_client):
+    invalid_prompt = "p" * 1001
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "requestContext": {"authorizer": {USER_ID_EVENT_KEY: "fake-user-id"}},
-                "connectionId": "fake-id",
-                "body": json.dumps({"question": ""}),
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-id",
+                        },
+                        "message": {"question": "Hi", "promptTemplate": invalid_prompt},
+                    }
+                )
             }
         )
 
-    assert error.value.args[0] == "User query in event shouldn't be empty."
+    assert error.value.args[0] == "Prompt provided in the event shouldn't be greater than 1000 characters long."
+
+
+def test_prompt_editing_not_allowed(setup_environment, simple_llm_client):
+    simple_llm_client.use_case_config["LlmParams"]["PromptParams"]["UserPromptEditingEnabled"] = False
+    with pytest.raises(ValueError) as error:
+        simple_llm_client.check_event(
+            {
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-id",
+                        },
+                        "message": {"question": ""},
+                    }
+                )
+            }
+        )
+
+    assert error.value.args[0] == "User query provided in the event shouldn't be empty."
+
+
+def test_question_too_long(setup_environment, simple_llm_client):
+    invalid_question = "p" * 1001
+    with pytest.raises(ValueError) as error:
+        simple_llm_client.check_event(
+            {
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-id",
+                        },
+                        "message": {"question": invalid_question},
+                    }
+                )
+            }
+        )
+
+    assert error.value.args[0] == "User query provided in the event shouldn't be greater than 1000 characters long."
 
 
 def test_multiple_length_issues(setup_environment, simple_llm_client):
@@ -135,13 +212,22 @@ def test_multiple_length_issues(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "requestContext": {"authorizer": {USER_ID_EVENT_KEY: "fake-user-id"}},
-                "connectionId": "fake-id",
-                "body": json.dumps({"question": invalid_question, "promptTemplate": invalid_prompt}),
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-id",
+                        },
+                        "message": {"question": invalid_question, "promptTemplate": invalid_prompt},
+                    }
+                )
             }
         )
 
-    assert error.value.args[0] == "User query in event shouldn't be empty.\nPrompt in event shouldn't be empty."
+    assert (
+        error.value.args[0]
+        == "User query provided in the event shouldn't be empty.\nPrompt provided in the event shouldn't be empty."
+    )
 
 
 def test_get_event_conversation_id(simple_llm_client):
@@ -154,15 +240,16 @@ def test_get_event_conversation_id(simple_llm_client):
 
 
 def test_env_not_set(setup_environment, simple_llm_client):
-    os.environ.pop(LLM_PARAMETERS_SSM_KEY_ENV_VAR, None)
-    os.environ.pop(RAG_ENABLED_ENV_VAR, None)
+    os.environ.pop(USE_CASE_CONFIG_TABLE_NAME_ENV_VAR, None)
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_env()
+    assert error.value.args[0] == f"Missing required environment variable {USE_CASE_CONFIG_TABLE_NAME_ENV_VAR}."
 
-    assert (
-        error.value.args[0]
-        == f"Missing required environment variable {LLM_PARAMETERS_SSM_KEY_ENV_VAR}.\nMissing required environment variable {RAG_ENABLED_ENV_VAR}."
-    )
+    os.environ[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = "fake-table"
+    os.environ.pop(USE_CASE_CONFIG_RECORD_KEY_ENV_VAR, None)
+    with pytest.raises(ValueError) as error:
+        simple_llm_client.check_env()
+    assert error.value.args[0] == f"Missing required environment variable {USE_CASE_CONFIG_RECORD_KEY_ENV_VAR}."
 
 
 def test_env_set(setup_environment, simple_llm_client):
@@ -171,95 +258,155 @@ def test_env_set(setup_environment, simple_llm_client):
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
-    [
-        (
-            HUGGINGFACE_PROMPT,
-            False,
-            False,
-            False,
-            "google/flan-t5-xxl",
-        )
-    ],
+    "prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id, table_name",
+    [(BASIC_PROMPT, False, False, "Kendra", False, "google/flan-t5-xxl", "fake-table")],
 )
-def test_parent_get_llm_config(ssm_stubber, rag_enabled, model_id, llm_config, setup_environment, llm_client):
-    ssm_stubber.add_response("get_parameter", llm_config)
-    ssm_stubber.activate()
-    assert llm_client.get_llm_config() == json.loads(llm_config["Parameter"]["Value"])
-    ssm_stubber.deactivate()
-
-
-def test_parent_get_llm_config_missing_env(setup_environment, simple_llm_client):
-    os.environ.pop(LLM_PARAMETERS_SSM_KEY_ENV_VAR, None)
+def test_retrieve_usecase_key_not_found(
+    table_name,
+    setup_test_table,
+    dynamodb_resource,
+    rag_enabled,
+    model_id,
+    bedrock_llm_config,
+    setup_environment,
+    llm_client,
+):
     with pytest.raises(ValueError) as error:
-        simple_llm_client.get_llm_config()
-    assert error.value.args[0] == f"Missing required environment variable {LLM_PARAMETERS_SSM_KEY_ENV_VAR}."
+        llm_client.retrieve_use_case_config()
+    assert error.value.args[0] == "No usecase config found with key fake-key."
 
 
-def test_parent_get_llm_config_parameter_not_found(ssm_stubber, setup_environment, simple_llm_client):
-    os.environ[LLM_PARAMETERS_SSM_KEY_ENV_VAR] = "/chat/admin-uuid/HuggingFace"
-    error_msg = f"SSM Parameter {os.environ[LLM_PARAMETERS_SSM_KEY_ENV_VAR]} not found."
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id, table_name",
+    [(BASIC_PROMPT, False, False, "Kendra", False, "google/flan-t5-xxl", "fake-table")],
+)
+def test_user_editing_not_allowed(
+    table_name,
+    setup_test_table,
+    dynamodb_resource,
+    rag_enabled,
+    model_id,
+    bedrock_llm_config,
+    setup_environment,
+    llm_client,
+):
+    prompt = "fake prompt"
+    question = "fake question"
+    llm_client.use_case_config["LlmParams"]["PromptParams"]["UserPromptEditingEnabled"] = False
 
     with pytest.raises(ValueError) as error:
-        ssm_stubber.add_client_error(
-            "get_parameter",
-            service_error_code="ParameterNotFound",
-            service_message=error_msg,
-            expected_params={"Name": "/chat/admin-uuid/HuggingFace", "WithDecryption": True},
+        llm_client.check_event(
+            {
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                            "connectionId": "fake-id",
+                        },
+                        "message": {"question": question, "promptTemplate": prompt, "conversationId": "fake-id"},
+                    }
+                )
+            }
         )
-        ssm_stubber.activate()
-        simple_llm_client.get_llm_config()
-        ssm_stubber.deactivate()
 
-    assert error.value.args[0] == error_msg
+    assert error.value.args[0] == "Prompt provided in the event when this use case has been configured to forbid this."
+    llm_client.use_case_config["LlmParams"]["PromptParams"]["UserPromptEditingEnabled"] = True
 
 
-def test_parent_get_llm_config_client_exceptions(ssm_stubber, setup_environment, simple_llm_client):
-    with pytest.raises(ClientError) as error:
-        ssm_stubber.add_client_error(
-            "get_parameter",
-            service_error_code="InternalServerError",
-            service_message="some-error",
-            expected_params={"Name": "fake-ssm-param", "WithDecryption": True},
-        )
-        ssm_stubber.activate()
-        simple_llm_client.get_llm_config()
-        ssm_stubber.deactivate()
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id, table_name",
+    [(BASIC_PROMPT, False, False, "Kendra", False, "google/flan-t5-xxl", "fake-table")],
+)
+def test_retrieve_llm_config_success(
+    table_name,
+    setup_test_table,
+    dynamodb_resource,
+    rag_enabled,
+    model_id,
+    bedrock_llm_config,
+    setup_environment,
+    llm_client,
+):
 
+    mock_table = dynamodb_resource.Table(table_name)
+    mock_table.put_item(
+        Item={
+            "key": "fake-key",
+            "config": {"key": "value"},
+        }
+    )
+
+    response = llm_client.retrieve_use_case_config()
+    assert response == {"key": "value"}
+
+
+@pytest.mark.parametrize(
+    "prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id, table_name",
+    [(BASIC_PROMPT, False, False, "Kendra", False, "google/flan-t5-xxl", "fake-table")],
+)
+def test_retrieve_usecase_empty_config(
+    table_name,
+    setup_test_table,
+    dynamodb_resource,
+    rag_enabled,
+    model_id,
+    bedrock_llm_config,
+    setup_environment,
+    llm_client,
+):
+
+    mock_table = dynamodb_resource.Table(table_name)
+    mock_table.put_item(
+        Item={
+            "key": "fake-key",
+            "config": {},
+        }
+    )
+
+    with pytest.raises(ValueError) as error:
+        llm_client.retrieve_use_case_config()
+    assert error.value.args[0] == "No usecase config found with key fake-key."
+
+
+def test_parent_retrieve_llm_config_missing_env(setup_environment, simple_llm_client):
+    os.environ.pop(USE_CASE_CONFIG_RECORD_KEY_ENV_VAR, None)
+    with pytest.raises(ValueError) as error:
+        simple_llm_client.retrieve_use_case_config()
     assert (
         error.value.args[0]
-        == "An error occurred (InternalServerError) when calling the GetParameter operation: some-error"
+        == f"Missing required environment variable {USE_CASE_CONFIG_TABLE_NAME_ENV_VAR} or {USE_CASE_CONFIG_RECORD_KEY_ENV_VAR}."
     )
 
 
 def test_construct_chat_model_failure(simple_llm_client, chat_event):
-    chat_event_body = json.loads(chat_event["body"])
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])[MESSAGE_KEY]
     with pytest.raises(ValueError) as error:
         simple_llm_client.construct_chat_model(
-            "fake-user-id", chat_event_body, LLMProviderTypes.HUGGINGFACE.value, "google/flan-t5-xxl"
+            "fake-user-id", chat_event_body, LLMProviderTypes.BEDROCK.value, "google/flan-t5-xxl"
         )
 
     assert error.value.args[0] == "Builder is not set for this LLMChatClient."
 
 
 @pytest.mark.parametrize(
-    "prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
         (
-            HUGGINGFACE_PROMPT,
+            BASIC_PROMPT,
             False,
             False,
+            None,
             False,
             "google/flan-t5-xxl",
         )
     ],
 )
-def test_construct_chat_model_missing_params(rag_enabled, model_id, llm_config, llm_client, setup_environment):
+def test_construct_chat_model_missing_params(rag_enabled, model_id, bedrock_llm_config, llm_client, setup_environment):
     with pytest.raises(ValueError) as user_error:
         llm_client.construct_chat_model(
             None,
             {CONVERSATION_ID_EVENT_KEY: "fake-conversation-id"},
-            LLMProviderTypes.HUGGINGFACE.value,
+            LLMProviderTypes.BEDROCK.value,
             "google/flan-t5-xxl",
         )
     assert (
@@ -268,7 +415,7 @@ def test_construct_chat_model_missing_params(rag_enabled, model_id, llm_config, 
     )
 
     with pytest.raises(ValueError) as conversation_error:
-        llm_client.construct_chat_model("user-id", {}, LLMProviderTypes.HUGGINGFACE.value, "google/flan-t5-xxl")
+        llm_client.construct_chat_model("user-id", {}, LLMProviderTypes.BEDROCK.value, "google/flan-t5-xxl")
 
     assert (
         conversation_error.value.args[0]
@@ -277,7 +424,7 @@ def test_construct_chat_model_missing_params(rag_enabled, model_id, llm_config, 
 
     with pytest.raises(ValueError) as conversation_error:
         llm_client.construct_chat_model(
-            "user-id", {CONVERSATION_ID_EVENT_KEY: None}, LLMProviderTypes.HUGGINGFACE.value, "google/flan-t5-xxl"
+            "user-id", {CONVERSATION_ID_EVENT_KEY: None}, LLMProviderTypes.BEDROCK.value, "google/flan-t5-xxl"
         )
 
     assert (
@@ -287,15 +434,16 @@ def test_construct_chat_model_missing_params(rag_enabled, model_id, llm_config, 
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
         (
             CHAT_IDENTIFIER,
-            HUGGINGFACE_PROMPT,
+            BASIC_PROMPT,
             False,
             False,
+            None,
             False,
-            "google/flan-t5-xxl",
+            f"{BedrockModelProviders.ANTHROPIC.value}.fake-model",
         )
     ],
 )
@@ -303,31 +451,20 @@ def test_construct_chat_model_new_prompt(
     use_case,
     rag_enabled,
     model_id,
-    llm_config,
-    ssm_stubber,
+    bedrock_llm_config,
     setup_environment,
-    setup_secret,
     llm_client,
-    huggingface_dynamodb_defaults_table,
+    bedrock_dynamodb_defaults_table,
+    apigateway_stubber,
 ):
-    with mock.patch("huggingface_hub.inference_api.InferenceApi") as mocked_hf_call:
-        with mock.patch("huggingface_hub.login", return_value=MagicMock()):
-            mock_obj = MagicMock()
-            mock_obj.task = DEFAULT_HUGGINGFACE_TASK
-            mocked_hf_call.return_value = mock_obj
-            chat_body = {
-                "action": "sendMessage",
-                "conversationId": "fake-conversation-id",
-                "question": "How are you?",
-                "promptTemplate": PROMPT,
-            }
+    chat_body = {
+        "action": "sendMessage",
+        "conversationId": "fake-conversation-id",
+        "question": "How are you?",
+        "promptTemplate": PROMPT,
+    }
 
-            ssm_stubber.add_response("get_parameter", llm_config)
-            ssm_stubber.activate()
+    llm_client.get_model(chat_body, "fake-user-uuid")
 
-            llm_client.get_model(chat_body, "fake-user-uuid")
-
-            assert llm_client.llm_config["LlmParams"]["PromptTemplate"] == PROMPT
-            assert llm_client.builder.llm_model.prompt_template.template == PROMPT
-
-            ssm_stubber.deactivate()
+    assert llm_client.use_case_config["LlmParams"]["PromptParams"]["PromptTemplate"] == PROMPT
+    assert llm_client.builder.llm_model.prompt_template.template == PROMPT

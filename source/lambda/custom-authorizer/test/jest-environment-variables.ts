@@ -12,7 +12,6 @@
  **********************************************************************************************************************/
 
 process.env = {
-    REQUIRED_AUTH_HEADER_VALUE: 'very-secret-auth-token',
     USER_POOL_ID: 'fake-user-pool-id',
     CLIENT_ID: 'fake-clients-id'
 };

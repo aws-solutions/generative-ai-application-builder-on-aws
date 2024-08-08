@@ -202,27 +202,46 @@ describe('When static website is created', () => {
         template.resourceCountIs('AWS::CloudFront::ResponseHeadersPolicy', 1);
         template.hasResourceProperties('AWS::CloudFront::ResponseHeadersPolicy', {
             ResponseHeadersPolicyConfig: {
-                Comment: 'CSP Response Headers Policy',
                 Name: {
                     'Fn::Join': [
                         '',
                         [
-                            'GAAB-CSPResponseHeadersPolicy-',
+                            'RespPolicy-',
                             {
                                 'Ref': 'AWS::Region'
                             },
-                            '-fake-uuid'
+                            '-',
+                            {
+                                'Ref': 'AWS::StackName'
+                            }
                         ]
                     ]
                 },
                 SecurityHeadersConfig: {
                     ContentSecurityPolicy: {
                         ContentSecurityPolicy:
-                            "default-src 'self' data: wss: *.amazonaws.com; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none'; worker-src blob:",
+                            "default-src 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'; object-src 'none'; worker-src 'self' blob:; frame-ancestors 'none'; connect-src 'self' wss: https://*.amazonaws.com https://*.amazoncognito.com; font-src data:; upgrade-insecure-requests",
                         Override: true
                     },
                     FrameOptions: {
                         FrameOption: 'DENY',
+                        Override: true
+                    },
+                    ReferrerPolicy: {
+                        Override: true,
+                        ReferrerPolicy: 'no-referrer'
+                    },
+                    ContentTypeOptions: {
+                        Override: true
+                    },
+                    XSSProtection: {
+                        ModeBlock: true,
+                        Override: true,
+                        Protection: true
+                    },
+                    StrictTransportSecurity: {
+                        AccessControlMaxAgeSec: 47304000,
+                        IncludeSubdomains: true,
                         Override: true
                     }
                 }
@@ -252,17 +271,6 @@ describe('When static website is created', () => {
                 DefaultCacheBehavior: {
                     CachePolicyId: Match.anyValue(),
                     Compress: true,
-                    FunctionAssociations: [
-                        {
-                            EventType: 'viewer-response',
-                            FunctionARN: {
-                                'Fn::GetAtt': [
-                                    Match.stringLikeRegexp('^SiteUISetHttpSecurityHeaders[\\S+]*$'),
-                                    'FunctionARN'
-                                ]
-                            }
-                        }
-                    ],
                     TargetOriginId: Match.stringLikeRegexp('^TestStackSiteUICloudFrontDistributionOrigin[\\S+]*$'),
                     ViewerProtocolPolicy: 'redirect-to-https',
                     ResponseHeadersPolicyId: {
@@ -295,10 +303,6 @@ describe('When static website is created', () => {
         expect(template.toJSON()['Resources'][cspResponsePolicyCapture.asString()]['Type']).toEqual(
             'AWS::CloudFront::ResponseHeadersPolicy'
         );
-    });
-
-    it('should have a cloudfront function for security headers', () => {
-        template.resourceCountIs('AWS::CloudFront::Function', 1);
     });
 
     it('should have produce the cloudfront url in the output', () => {

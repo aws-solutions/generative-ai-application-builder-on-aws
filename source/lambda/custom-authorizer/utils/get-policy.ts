@@ -22,7 +22,7 @@ import { customAwsConfig } from 'aws-node-user-agent-config';
  *
  * @returns Deny policy JSON
  */
-export const denyAllPolicy = () => {
+export const denyAllPolicy = (): AuthResponse => {
     return {
         principalId: '*',
         policyDocument: {
@@ -46,30 +46,37 @@ export const denyAllPolicy = () => {
  * @returns
  */
 export const getPolicyDocument = async (idToken: CognitoAccessTokenPayload): Promise<AuthResponse> => {
-    const groups = idToken['cognito:groups'];
-    const tableName = process.env.COGNITO_POLICY_TABLE_NAME!;
-    const results = await batchQueryDynamoDB(tableName, groups!); // NOSONAR typescript:S4325 - removing the assertion causes compilation failure
-    console.debug(`Received results from DynamoDB: ${JSON.stringify(results)}`);
+    try {
+        const groups = idToken['cognito:groups'];
+        if (groups) {
+            const tableName = process.env.COGNITO_POLICY_TABLE_NAME!;
+            const results = await batchQueryDynamoDB(tableName, groups);
 
-    if (results.Responses && results.Responses[tableName] && results.Responses[tableName].length > 0) {
-        let statements = [];
-        for (const resultPolicy of results.Responses[tableName]) {
-            try {
-                statements.push(...resultPolicy.policy.Statement);
-            } catch (error) {
-                console.warn(`Error parsing policy ${resultPolicy}. Got error: ${error}. Skipping.`);
+            if (results.Responses && results.Responses[tableName] && results.Responses[tableName].length > 0) {
+                let statements = [];
+                for (const resultPolicy of results.Responses[tableName]) {
+                    try {
+                        statements.push(...resultPolicy.policy.Statement);
+                    } catch (error) {
+                        console.warn(`Error parsing policy ${resultPolicy}. Got error: ${error}. Skipping.`);
+                    }
+                }
+                return {
+                    principalId: '*',
+                    policyDocument: {
+                        'Version': results.Responses[tableName][0].policy.Version,
+                        'Statement': statements
+                    },
+                    context: {
+                        UserId: idToken.sub
+                    }
+                };
             }
+        } else {
+            console.error('No cognito groups found in provided token');
         }
-        return {
-            principalId: '*',
-            policyDocument: {
-                'Version': results.Responses[tableName][0].policy.Version,
-                'Statement': statements
-            },
-            context: {
-                UserId: idToken.sub
-            }
-        };
+    } catch (error) {
+        console.error(`Error while retrieving policies: ${error}`);
     }
     return denyAllPolicy();
 };

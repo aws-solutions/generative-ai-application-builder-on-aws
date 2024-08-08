@@ -14,7 +14,7 @@
 
 import os
 import time
-from typing import List
+from typing import List, Optional
 
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
@@ -42,11 +42,14 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
 
     memory_type: ConversationMemoryTypes = ConversationMemoryTypes.DynamoDB.value
 
-    def __init__(self, table_name: str, user_id: str, conversation_id: str) -> None:
+    def __init__(
+        self, table_name: str, user_id: str, conversation_id: str, max_history_length: Optional[int] = None
+    ) -> None:
         ddb_resource = get_service_resource("dynamodb")
         self.table = ddb_resource.Table(table_name)
         self.conversation_id = conversation_id
         self.user_id = user_id
+        self.max_history_length = int(max_history_length) if max_history_length else None
 
     @property
     @tracer.capture_method(capture_response=True)
@@ -88,6 +91,9 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
         messages = messages_to_dict(self.messages)
         _message = _message_to_dict(message)
         messages.append(_message)
+
+        if self.max_history_length is not None:
+            messages = messages[-self.max_history_length :]
 
         # fmt: off
         with tracer.provider.in_subsegment("## chat_history") as subsegment: # NOSONAR python:S1192 - subsegment name for x-ray tracing

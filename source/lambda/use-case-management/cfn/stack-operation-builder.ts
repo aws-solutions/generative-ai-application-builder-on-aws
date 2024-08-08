@@ -33,6 +33,7 @@ import {
  */
 export abstract class CommandInputBuilder {
     useCase: UseCase;
+    roleArn: string | undefined;
 
     constructor(useCase: UseCase) {
         this.useCase = useCase;
@@ -47,6 +48,24 @@ export abstract class CommandInputBuilder {
         | UpdateStackCommandInput
         | DeleteStackCommandInput
         | DescribeStacksCommandInput;
+
+    setRoleArn(roleArn: string | undefined): void {
+        this.validateRoleArn(roleArn);
+        this.roleArn = roleArn;
+    }
+
+    isRoleArnRequiredForOperation(): boolean {
+        if (!this.roleArn) {
+            return false;
+        }
+        return true;
+    }
+
+    private validateRoleArn(roleArn: string | undefined): void {
+        if (roleArn !== undefined && roleArn !== process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR]) {
+            throw new Error('CfnDeploy role arn does not match the role arn environment variable');
+        }
+    }
 }
 
 /**
@@ -61,7 +80,6 @@ export class CreateStackCommandInputBuilder extends CommandInputBuilder {
             StackName: `${this.useCase.name}-${this.useCase.shortUUID}`,
             TemplateURL: getTemplateUrl(this.useCase),
             Parameters: parameters(this.useCase.cfnParameters!),
-            RoleARN: process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR],
             Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_AUTO_EXPAND', 'CAPABILITY_NAMED_IAM'],
             OnFailure: 'DELETE',
             Tags: [
@@ -84,11 +102,10 @@ export class CreateStackCommandInputBuilder extends CommandInputBuilder {
 export class UpdateStackCommandInputBuilder extends CommandInputBuilder {
     @tracer.captureMethod({ captureResponse: false, subSegmentName: '###buildUpdateStackCommand' })
     public build(): UpdateStackCommandInput {
-        return {
+        const updateCommandInput = {
             StackName: this.useCase.stackId,
             TemplateURL: getTemplateUrl(this.useCase),
             Parameters: updateParameters(this.useCase.cfnParameters!),
-            RoleARN: process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR],
             Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_AUTO_EXPAND', 'CAPABILITY_NAMED_IAM'],
             Tags: [
                 {
@@ -101,6 +118,8 @@ export class UpdateStackCommandInputBuilder extends CommandInputBuilder {
                 }
             ]
         } as UpdateStackCommandInput;
+
+        return this.isRoleArnRequiredForOperation() ? addRoleArnToCommandInput(updateCommandInput) : updateCommandInput;
     }
 }
 
@@ -110,10 +129,13 @@ export class UpdateStackCommandInputBuilder extends CommandInputBuilder {
 export class DeleteStackCommandInputBuilder extends CommandInputBuilder {
     @tracer.captureMethod({ captureResponse: false, subSegmentName: '###buildDeleteStackCommand' })
     public build(): DeleteStackCommandInput {
-        return {
-            StackName: this.useCase.stackId,
-            RoleARN: process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR]
+        const deleteStackCommandInput = {
+            StackName: this.useCase.stackId
         } as DeleteStackCommandInput;
+
+        return this.isRoleArnRequiredForOperation()
+            ? addRoleArnToCommandInput(deleteStackCommandInput)
+            : deleteStackCommandInput;
     }
 }
 
@@ -133,7 +155,7 @@ const parameters = (cfnParameters: Map<string, string>): Parameter[] => {
 };
 
 /**
- * utility method to build the Parameter array from the Map on updates, marking parameters to be retained
+ * Utility method to build the Parameter array from the Map on updates, marking parameters to be retained
  */
 const updateParameters = (cfnParameters: Map<string, string>): Parameter[] => {
     let parameterArray: Parameter[] = parameters(cfnParameters);
@@ -148,10 +170,22 @@ const updateParameters = (cfnParameters: Map<string, string>): Parameter[] => {
     return parameterArray;
 };
 
+/**
+ * Utility method to get template URL using the useCase object that is passed to it
+ */
 const getTemplateUrl = (useCase: UseCase): string => {
     if (process.env[ARTIFACT_KEY_PREFIX_ENV_VAR]) {
         return `https://${process.env[ARTIFACT_BUCKET_ENV_VAR]}.s3.amazonaws.com/${process.env[ARTIFACT_KEY_PREFIX_ENV_VAR]}/${useCase.templateName}${process.env[TEMPLATE_FILE_EXTN_ENV_VAR]}`;
     } else {
         return `https://${process.env[ARTIFACT_BUCKET_ENV_VAR]}.s3.amazonaws.com/${useCase.templateName}${process.env[TEMPLATE_FILE_EXTN_ENV_VAR]}`;
     }
+};
+
+type CommandInputsWithOptionalRoleArn = UpdateStackCommandInput | DeleteStackCommandInput;
+
+const addRoleArnToCommandInput = (commandInput: CommandInputsWithOptionalRoleArn): CommandInputsWithOptionalRoleArn => {
+    return {
+        ...commandInput,
+        RoleARN: process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR]
+    };
 };

@@ -20,14 +20,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from langchain.chains import ConversationChain
-from langchain_core.language_models.llms import LLM
-from langchain_core.memory import BaseMemory
 from langchain_core.prompts import PromptTemplate
+from langchain_core.memory import BaseMemory
+from langchain_core.language_models.llms import LLM
 from shared.knowledge.knowledge_base import KnowledgeBase
 from utils.constants import (
-    DEFAULT_PLACEHOLDERS,
+    DEFAULT_PROMPT_PLACEHOLDERS,
+    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     DEFAULT_RAG_ENABLED_MODE,
-    DEFAULT_RAG_PLACEHOLDERS,
     DEFAULT_STREAMING_MODE,
     DEFAULT_TEMPERATURE,
     DEFAULT_VERBOSE_MODE,
@@ -46,43 +46,41 @@ class BaseLangChainModel(ABC):
     Represents the interface that the implementing models should follow for consistent behavior
 
     Attributes:
-        api_token (str): Underlying API token, which can be obtained from the HuggingFace Hub
-        streaming (bool): A boolean which represents whether the chat is streaming or not [optional, default value is DEFAULT_STREAMING_MODE]
-        verbose (bool): A boolean which represents whether the chat is verbose or not [optional, default value is DEFAULT_VERBOSE_MODE]
-        temperature (float): A non-negative float that tunes the degree of randomness in model response generation [optional, defaults to DEFAULT_TEMPERATURE]
-        rag_enabled (bool): A boolean which represents whether the RAG is enabled or not [optional, defaults to DEFAULT_RAG_ENABLED_MODE]
+        streaming (bool): A boolean which represents whether the chat is streaming or not [optional, default value is
+        DEFAULT_STREAMING_MODE]
+        verbose (bool): A boolean which represents whether the chat is verbose or not [optional, default value is
+        DEFAULT_VERBOSE_MODE]
+        temperature (float): A non-negative float that tunes the degree of randomness in model response generation
+        [optional, defaults to DEFAULT_TEMPERATURE]
+        rag_enabled (bool): A boolean which represents whether the RAG is enabled or not [optional, defaults to
+        DEFAULT_RAG_ENABLED_MODE]
+        prompt (str): Returns the string prompt template set on the underlying LLM
+        memory_buffer (str): Returns the conversation memory buffer for the underlying LLM
 
     Methods:
         Specific implementation must be provided by the implementing class for the following abstract methods:
-        get_conversation_chain(): Creates a `ConversationChain` chain that is connected to a conversation memory and the specified prompt
-        get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template, default_prompt_template_placeholders): Generates the PromptTemplate using
-            the provided prompt template and placeholders. In case of errors, falls back on default values.
-        prompt(): Returns the prompt set on the underlying LLM
-        memory_buffer(): Returns the conversation memory buffer for the underlying LLM
+        - get_conversation_chain(): Creates a `ConversationChain` chain that is connected to a conversation memory and
+        the specified prompt
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
+        default_prompt_template_placeholders): Generates the PromptTemplate using the provided prompt template and
+        placeholders. In case of errors, falls back on default values.
+        - get_validated_disambiguation_prompt(disambiguation_prompt_template, default_disambiguation_prompt_template,
+        disambiguation_prompt_template_placeholders): Generates the PromptTemplate using the provided disambiguation
+        prompt template. In case of errors, falls back on default values.
 
     """
 
     def __init__(
         self,
-        api_token: Optional[str] = None,
         rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
         streaming: Optional[bool] = DEFAULT_STREAMING_MODE,
         verbose: Optional[bool] = DEFAULT_VERBOSE_MODE,
         temperature: Optional[float] = None,
     ) -> None:
-        self.api_token = api_token
         self.rag_enabled = rag_enabled
         self.streaming = streaming
         self.verbose = verbose
         self.temperature = float(temperature) if temperature is not None else DEFAULT_TEMPERATURE
-
-    @property
-    def api_token(self) -> str:
-        return self._api_token
-
-    @api_token.setter
-    def api_token(self, api_token) -> None:
-        self._api_token = api_token
 
     @property
     def streaming(self) -> bool:
@@ -178,15 +176,11 @@ class BaseLangChainModel(ABC):
 
     @prompt_template.setter
     def prompt_template(self, prompt_template) -> None:
-        default_prompt_placeholders = DEFAULT_RAG_PLACEHOLDERS if self.rag_enabled else DEFAULT_PLACEHOLDERS
+        default_prompt_placeholders = (
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS if self.rag_enabled else DEFAULT_PROMPT_PLACEHOLDERS
+        )
         default_prompt_template = self.model_defaults.prompt
         prompt_placeholders = self._prompt_template_placeholders
-
-        if prompt_template is None:
-            message = f"Prompt template not provided. Falling back to default prompt template"
-            logger.info(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            prompt_template = self.model_defaults.prompt
-            prompt_placeholders = default_prompt_placeholders
 
         self._prompt_template, self._prompt_template_placeholders = self.get_validated_prompt(
             prompt_template, prompt_placeholders, default_prompt_template, default_prompt_placeholders
@@ -258,7 +252,6 @@ class BaseLangChainModel(ABC):
              "source_documents": List[Dict] # Optional key applicable for RAG child classes.
             }
         """
-        logger.debug(f"Prompt for LLM: {self.prompt_template.template}")
         with tracer.provider.in_subsegment("## llm_chain") as subsegment:
             subsegment.put_annotation("library", "langchain")
             subsegment.put_annotation("operation", "ConversationChain")
@@ -312,7 +305,7 @@ class BaseLangChainModel(ABC):
                 placeholders = prompt_template_placeholders
 
             else:
-                message = f"Prompt template not provided. Falling back to default prompt template"
+                message = f"Prompt template not provided. Falling back to default prompt template."
                 logger.info(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
                 prompt_template_text = default_prompt_template
                 placeholders = default_prompt_template_placeholders
@@ -322,6 +315,7 @@ class BaseLangChainModel(ABC):
                 f"Prompt validation failed: {ex}. Falling back to default prompt template.",
                 xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
             )
+            metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
             prompt_template_text = default_prompt_template
             placeholders = default_prompt_template_placeholders
 
@@ -339,11 +333,10 @@ class BaseLangChainModel(ABC):
         Args: None
         Returns: None
         """
+        sanitized_model_params = {}
         try:
             if not model_params:
                 return {}
-
-            sanitized_model_params = {}
 
             for param_name, param_value in model_params.items():
                 if param_name is not None and param_value is not None:
@@ -360,6 +353,7 @@ class BaseLangChainModel(ABC):
                     metrics.add_metric(
                         name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
                     )
+
         finally:
             metrics.flush_metrics()
 
@@ -371,7 +365,7 @@ class BaseLangChainModel(ABC):
         Creates an LangChain LLM based on supplied params. Child classes must provide an implementation of this method.
         Args:
              condense_prompt_model (bool): Flag that indicates whether to create a model for regular chat or
-                for condensing the prompt for RAG use-cases.
+                for disambiguating/condensing of the prompt for RAG use-cases.
                 callbacks and streaming are disabled when this flag is set to True
 
         Returns:

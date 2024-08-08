@@ -11,12 +11,10 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
+import { Box, FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 import { InfoLink } from '../../../commons';
 import { TOOLS_CONTENT } from '../../tools-content';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
 
 interface ReturnSourceDocumentsProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -33,13 +31,13 @@ export const ReturnSourceDocuments = (props: ReturnSourceDocumentsProps) => {
             label="Display document source?"
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.kendraIndex)}
+                    onFollow={() => props.setHelpPanelContent!(returnSourceDocumentsInfoPanel)}
                     ariaLabel={'Information about displaying the source of documents used for RAG '}
                 />
             }
             stretch={true}
             data-testid="display-document-source-field"
-            description="Optional: Display the source of the indexed documents used for RAG by the model"
+            description="Display the source of the indexed documents used for RAG by the model"
         >
             <RadioGroup
                 onChange={({ detail }) => onReturnDocumentSource(detail)}
@@ -58,6 +56,47 @@ export const ReturnSourceDocuments = (props: ReturnSourceDocumentsProps) => {
             />
         </FormField>
     );
+};
+
+const returnSourceDocumentsInfoPanel = {
+    title: 'Return source documents',
+    content: (
+        <div>
+            <Box variant="p">
+                If enabled, outputs will include the source documents from RAG and their details including title, id,
+                the specific excerpt, location, and score.
+            </Box>
+
+            <Box variant="p">
+                For more details on Kendra, see the{' '}
+                <a href="https://docs.aws.amazon.com/kendra/latest/APIReference/API_Retrieve.html">
+                    Kendra Retrieve API
+                </a>
+                .
+            </Box>
+            <Box variant="p">
+                For Bedrock, see{' '}
+                <a href="https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html">
+                    Bedrock knowledge base query configurations
+                </a>
+                .
+            </Box>
+        </div>
+    ),
+    links: [
+        {
+            href: 'https://docs.aws.amazon.com/kendra/latest/APIReference/API_Retrieve.html',
+            text: 'Kendra Retrieve API'
+        },
+        {
+            href: 'https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-config.html',
+            text: 'Bedrock Knowledge Base Query Configurations'
+        },
+        {
+            href: 'https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_Retrieve.html',
+            text: 'Bedrock Agent Runtime Retrieve API'
+        }
+    ]
 };
 
 export default ReturnSourceDocuments;

@@ -13,7 +13,7 @@
 
 import { FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 import { VpcFormFieldProps, vpcToolsContent } from './helpers';
-import { InfoLink } from 'components/commons';
+import { InfoLink } from '@/components/commons';
 
 export const UseExistingVpc = (props: VpcFormFieldProps) => {
     const onUseExistingVpcChange = (detail: RadioGroupProps.ChangeDetail) => {

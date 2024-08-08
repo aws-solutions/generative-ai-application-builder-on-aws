@@ -21,6 +21,7 @@ from test.fixtures.copy_web_ui_events import (
     SAMPLE_JSON_VALUE,
     lambda_event,
     web_ui_copy_setup,
+    web_ui_copy_setup_with_config,
 )
 
 import botocore
@@ -28,6 +29,7 @@ import mock
 import pytest
 from lambda_func import handler
 from operations.copy_web_ui import (
+    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     DESTINATION_BUCKET_NAME,
     WEBSITE_CONFIG_FILE_NAME,
     WEBSITE_CONFIG_PARAM_KEY,
@@ -99,15 +101,171 @@ def test_env_with_non_existing_ssm_param_key(monkeypatch, lambda_event):
 
 
 def test_get_params_succes(web_ui_copy_setup):
-    lambda_event, _, ssm = web_ui_copy_setup
+    lambda_event, _, _ = web_ui_copy_setup
     assert get_params(lambda_event[RESOURCE_PROPERTIES][WEBSITE_CONFIG_PARAM_KEY]) == json.dumps(SAMPLE_JSON_VALUE)
 
 
 def test_get_params_failure(monkeypatch, web_ui_copy_setup):
-    lambda_event, _, ssm = web_ui_copy_setup
+    lambda_event, _, _ = web_ui_copy_setup
 
     with pytest.raises(botocore.exceptions.ClientError):
         get_params("NON_EXISTING_KEY")
+
+
+@pytest.mark.parametrize(
+    "requestType,is_internal_user_ssm,is_internal_user_ddb,expected_runtime_config",
+    [
+        (
+            "Create",
+            None,
+            None,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "false",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Create",
+            False,
+            False,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "false",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Create",
+            False,
+            True,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "true",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Create",
+            True,
+            False,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "true",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Create",
+            True,
+            None,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "true",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Update",
+            None,
+            None,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "false",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Update",
+            False,
+            False,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "false",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Update",
+            False,
+            True,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "true",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        (
+            "Update",
+            True,
+            False,
+            {
+                "Key1": "FakeValue1",
+                "Key2": {"Key3": "FakeValue3"},
+                "IsInternalUser": "true",
+                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+            },
+        ),
+        ("Delete", None, None, None),
+    ],
+    # indirect=["is_internal_user_ssm", "is_internal_user_ddb"],
+)
+def test_execute_call_success_use_case(
+    is_internal_user_ssm,
+    is_internal_user_ddb,
+    web_ui_copy_setup_with_config,
+    mock_lambda_context,
+    requestType,
+    expected_runtime_config,
+):
+    lambda_event, s3_resource, _, _ = web_ui_copy_setup_with_config
+    lambda_event["RequestType"] = requestType
+
+    with mock.patch("cfn_response.http") as mocked_PoolManager:
+        mocked_PoolManager.return_value = {"status": 200}
+        assert None == execute(lambda_event, mock_lambda_context)
+        mocked_PoolManager.request.assert_called_once_with(
+            method="PUT",
+            url="https://fakeurl/doesnotexist",
+            headers={"content-type": "", "content-length": "278"},
+            body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
+        )
+
+    destination_bucket = s3_resource.Bucket(lambda_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME])
+    file_list = destination_bucket.objects.all()
+
+    if requestType == "Create" or requestType == "Update":
+        assetZipObject = s3_resource.Object(
+            bucket_name=lambda_event[RESOURCE_PROPERTIES][SOURCE_BUCKET_NAME],
+            key=f"{lambda_event[RESOURCE_PROPERTIES][SOURCE_PREFIX]}",
+        )
+        buffer = io.BytesIO(assetZipObject.get()["Body"].read())
+        zip_archive = zipfile.ZipFile(buffer)
+        for filename in zip_archive.namelist():
+            assert s3_resource.meta.client.head_object(
+                Bucket=lambda_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME], Key=filename
+            )
+        assert s3_resource.meta.client.head_object(
+            Bucket=lambda_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME], Key=WEBSITE_CONFIG_FILE_NAME
+        )
+        # checking runtime config
+        config = json.load(
+            s3_resource.Object(
+                lambda_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME], WEBSITE_CONFIG_FILE_NAME
+            ).get()["Body"]
+        )
+        assert config == expected_runtime_config
+
+    if requestType == "Delete":
+        assert len(list(file_list)) == 0
 
 
 @pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
@@ -172,6 +330,8 @@ def test_execute_call_with_bad_archive(tmp_path, web_ui_copy_setup, mock_lambda_
             source_prefix,
             destination_bucket_name,
             ssm_param_key,
+            "fake_ddb_table",
+            USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
             mock_account_id,
         )
 

@@ -66,6 +66,17 @@ def test_adding_multiple_messages(setup_test_table):
     assert memory.messages == [message1, message2]
 
 
+def test_adding_multiple_messages_with_limit(setup_test_table):
+    memory = DynamoDBChatMessageHistory(table_name, "fake-user-id", "fake-conversation-id", max_history_length=2)
+    message1 = HumanMessage(content="Hello AI!")
+    message2 = AIMessage(content="Hello from AI!")
+    message3 = HumanMessage(content="Hello from human!")
+    memory.add_message(message1)
+    memory.add_message(message2)
+    memory.add_message(message3)
+    assert memory.messages == [message2, message3]
+
+
 def test_getting_different_messages_for_different_conversations(setup_test_table):
     memory1 = DynamoDBChatMessageHistory(table_name, "fake-user-id", "fake-conversation-id")
     message1 = HumanMessage(content="Hello AI!")

@@ -12,13 +12,15 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
+import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 import { Construct } from 'constructs';
 import { DynamoDBChatStorage } from './chat-storage-stack';
+import { BaseStackProps } from '../framework/base-stack';
 
-export interface ChatStorageProps {
+export interface ChatStorageProps extends BaseStackProps {
     /**
      * The 8-character UUID to add to resource names to ensure they are unique across deployments
      */
@@ -28,6 +30,11 @@ export interface ChatStorageProps {
      * Name of the table which stores info/defaults for models. If not provided (passed an empty string), the table will be created.
      */
     existingModelInfoTableName: string;
+
+    /**
+     * Condition to determine if a new table should be created.
+     */
+    newModelInfoTableCondition: cdk.CfnCondition;
 
     /**
      * Lambda function to use for custom resource implementation.
@@ -62,12 +69,15 @@ export class ChatStorageSetup extends Construct {
         this.chatStorage = new DynamoDBChatStorage(this, 'ChatStorage', {
             parameters: {
                 ConversationTableName: `ConversationTable-${props.useCaseUUID}`,
-                ExistingModelInfoTableName: props.existingModelInfoTableName,
-                NewModelInfoTableName: `ModelInfoTable-${props.useCaseUUID}`,
+                ExistingModelInfoTableName: cdk.Fn.conditionIf(
+                    props.newModelInfoTableCondition.logicalId,
+                    cdk.Aws.NO_VALUE,
+                    props.existingModelInfoTableName
+                ).toString(),
                 CustomResourceLambdaArn: props.customResourceLambda.functionArn,
                 CustomResourceRoleArn: props.customResourceRole.roleArn
             },
-            description: 'Nested Stack that creates the DynamoDB tables for the chat use case'
+            description: `Nested Stack that creates the DynamoDB tables for the chat use case - Version ${props.solutionVersion}`
         });
     }
 }

@@ -43,7 +43,11 @@ export const KendraIndexId = (props: KendraIndexIdProps) => {
 
     return (
         <FormField
-            label="Kendra index ID*"
+            label={
+                <span>
+                    Kendra Index ID - <i>required</i>
+                </span>
+            }
             info={
                 <InfoLink
                     onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.kendraIndex)}

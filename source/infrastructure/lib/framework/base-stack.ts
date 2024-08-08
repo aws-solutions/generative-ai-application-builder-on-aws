@@ -66,6 +66,12 @@ export class BaseStack extends cdk.Stack {
     public readonly iPamPoolId: cdk.CfnParameter;
 
     /**
+     * Optional parameter to specify domain when deploying the template. If not provided the template will generate
+     * a random domain prefix using a hashing strategy using AWS account number, region, and stack name.
+     */
+    protected cognitoUserPoolClientDomain: cdk.CfnParameter;
+
+    /**
      * ID of an existing VPC to be used for the use case. If none is provided, a new VPC will be created.
      */
     public readonly existingVpcId: cdk.CfnParameter;
@@ -101,6 +107,11 @@ export class BaseStack extends cdk.Stack {
     protected iPamPoolIdProvidedCondition: cdk.CfnCondition;
 
     /**
+     * condition to deploy WebApp
+     */
+    public readonly deployWebApp: cdk.CfnParameter;
+
+    /**
      * Rule to check for existing VPC if required parameters have been provided as CloudFormation input parameters
      */
     public readonly checkIfExistingVPCParamsAreProvided: cdk.CfnRule;
@@ -126,12 +137,24 @@ export class BaseStack extends cdk.Stack {
     public readonly transpiredPrivateSubnetIds: string;
 
     /**
+     * core properties associated with stack
+     */
+    protected readonly baseStackProps: BaseStackProps;
+
+    /**
      * Base application resource creation through this construct
      */
     public applicationSetup: ApplicationSetup;
 
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
+
+        this.baseStackProps = {
+            applicationTrademarkName: props.applicationTrademarkName,
+            solutionID: props.solutionID,
+            solutionName: props.solutionName,
+            solutionVersion: props.solutionVersion
+        };
 
         const stack = cdk.Stack.of(this);
 
@@ -162,9 +185,9 @@ export class BaseStack extends cdk.Stack {
             maxLength: 50
         });
 
-        let existingParameterGroups =
+        const existingParameterGroups =
             stack.templateOptions.metadata !== undefined &&
-            stack.templateOptions.metadata.hasOwnProperty('AWS::CloudFormation::Interface') &&
+            Object.hasOwn(stack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
             stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
                 ? stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
                 : [];
@@ -172,6 +195,19 @@ export class BaseStack extends cdk.Stack {
         existingParameterGroups.push({
             Label: { default: 'Optional: If you would like to deploy the solution with a VPC Configuration' },
             Parameters: [this.vpcEnabled.logicalId, this.createNewVpc.logicalId, this.iPamPoolId.logicalId]
+        });
+
+        this.deployWebApp = new cdk.CfnParameter(this, 'DeployUI', {
+            type: 'String',
+            description:
+                'Please select the option to deploy the front end UI for this deployment. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
+            allowedValues: ['Yes', 'No'],
+            default: 'Yes'
+        });
+
+        existingParameterGroups.push({
+            Label: { default: 'Optional: If you would like to deploy the solution with a Web Application' },
+            Parameters: [this.deployWebApp.logicalId]
         });
 
         stack.templateOptions.metadata = {
@@ -366,6 +402,19 @@ export class BaseStack extends cdk.Stack {
     }
 
     protected initializeCfnParameters(): void {
-        // empty method for any child classes to pre-initialize as part of the super call to construct
+        this.cognitoUserPoolClientDomain = new cdk.CfnParameter(this, 'CognitoDomainPrefix', {
+            type: 'String',
+            description:
+                'If you would like to provide a domain for the Cognito User Pool Client, please enter a value. If a value is not provided, the deployment will generate one',
+            default: '',
+            allowedPattern: '^$|^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$',
+            constraintDescription:
+                'The provided domain prefix is not a valid format. The domain prefix should be be of the following format "^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$"',
+            maxLength: 63
+        });
+    }
+
+    public get cognitoDomainPrefixParam(): cdk.CfnParameter {
+        return this.cognitoUserPoolClientDomain;
     }
 }

@@ -21,15 +21,21 @@ from uuid import uuid4
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
 from clients.builders.llm_builder import LLMBuilder
-from helper import get_service_client
+from helper import get_service_resource
 from llms.base_langchain import BaseLangChainModel
 from utils.constants import (
+    AUTH_TOKEN_EVENT_KEY,
     CHAT_REQUIRED_ENV_VARS,
     CONVERSATION_ID_EVENT_KEY,
-    LLM_PARAMETERS_SSM_KEY_ENV_VAR,
+    DEFAULT_RAG_ENABLED_MODE,
+    LLM_CONFIG_RECORD_FIELD_NAME,
+    MESSAGE_KEY,
     PROMPT_EVENT_KEY,
     QUESTION_EVENT_KEY,
+    REQUEST_CONTEXT_KEY,
     TRACE_ID_ENV_VAR,
+    USE_CASE_CONFIG_RECORD_KEY_ENV_VAR,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     USER_ID_EVENT_KEY,
 )
 from utils.enum_types import LLMProviderTypes
@@ -41,20 +47,20 @@ tracer = Tracer()
 class LLMChatClient(ABC):
     """
     LLMChatClient is a class that allows building a LangChain LLM client that is used to interface with different LLM provider APIs.
-    Based on the llm_config that is fetched from the SSM Parameter store, a BaseLangChainModel model is built by calling the get_model
+    Based on the use_case_config that is fetched from DynamoDB, a BaseLangChainModel model is built by calling the get_model
     method an the LLMChatClient.
     LLMChatClient also allows methods for validating the event and the environment.
 
     Attributes:
         builder (LLMBuilder): Builder object that helps create the LLM object
-        llm_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from SSM Parameter store
+        use_case_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from DynamoDB
         rag_enabled (bool): Stores the value of the RAG feature flag that is set on the use-case
         connection_id (str): The connection ID for the websocket client
 
     Methods:
         check_env(List[str]): Checks if the environment variable list provided, along with other required environment variables, are set.
         check_event(event: Dict): Checks if the event it receives is empty.
-        get_llm_config(): Retrieves the configuration that the admin sets on a use-case from the SSM Parameter store
+        retrieve_use_case_config(): Retrieves the configuration that the admin sets on a use-case fetched from DynamoDB
         construct_chat_model(): Constructs the Chat model based on the event and the LLM configuration as a series of steps on the builder
         get_event_conversation_id(): Sets the conversation_id for the event
         get_model(): Retrieves the LLM model that is used to generate content
@@ -63,15 +69,14 @@ class LLMChatClient(ABC):
 
     def __init__(
         self,
+        connection_id: str,
         builder: Optional[LLMBuilder] = None,
-        llm_config: Optional[Dict] = None,
-        rag_enabled: Optional[Union[str, bool]] = None,
-        connection_id: Optional[str] = None,
+        use_case_config: Optional[Dict] = None,
+        rag_enabled: Optional[bool] = None,
     ) -> None:
         self._builder = builder
-        self._llm_config = llm_config
-        # convert string env to bool
-        self._rag_enabled = rag_enabled if type(rag_enabled) == bool else rag_enabled.lower() == "true"
+        self._llm_config = use_case_config
+        self._rag_enabled = rag_enabled if (rag_enabled is not None) else DEFAULT_RAG_ENABLED_MODE
         self._connection_id = connection_id
 
     @property
@@ -83,12 +88,14 @@ class LLMChatClient(ABC):
         self._builder = builder
 
     @property
-    def llm_config(self) -> Optional[Dict]:
+    def use_case_config(self) -> Optional[Dict]:
+        if self._llm_config is None:
+            self._llm_config = self.retrieve_use_case_config()
         return self._llm_config
 
-    @llm_config.setter
-    def llm_config(self, llm_config) -> None:
-        self._llm_config = llm_config
+    @use_case_config.setter
+    def use_case_config(self, use_case_config) -> None:
+        self._llm_config = use_case_config
 
     @property
     def rag_enabled(self) -> bool:
@@ -137,7 +144,7 @@ class LLMChatClient(ABC):
         Raises:
             ValueError: If the user id is not provided.
         """
-        user_id = event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
+        user_id = event.get(REQUEST_CONTEXT_KEY, {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
         if not user_id:
             error_message = f"{USER_ID_EVENT_KEY} is missing from the requestContext"
             logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
@@ -173,7 +180,7 @@ class LLMChatClient(ABC):
         Args:
             event (str): the event body
         Returns:
-            List of error messages if the user query is empty or not provided
+            List of error messages if the user query is empty, not provided, or too long
         """
         user_query = event_body.get(QUESTION_EVENT_KEY)
 
@@ -186,7 +193,15 @@ class LLMChatClient(ABC):
             return [error_message]
 
         if not len(user_query):
-            error_message = f"User query in event shouldn't be empty."
+            error_message = "User query provided in the event shouldn't be empty."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            return [error_message]
+
+        max_input_length = self.use_case_config.get("LlmParams", {}).get("PromptParams", {}).get("MaxInputTextLength")
+        if max_input_length is not None and len(user_query) > max_input_length:
+            error_message = (
+                f"User query provided in the event shouldn't be greater than {max_input_length} characters long."
+            )
             logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
             return [error_message]
 
@@ -198,16 +213,57 @@ class LLMChatClient(ABC):
          Args:
              event (str): the event body
         Returns:
-             List of error messages if prompt is provided but empty.
+             List of error messages if prompt is provided but empty, too long, or provided when not allowed.
         """
         prompt = event_body.get(PROMPT_EVENT_KEY)
 
+        is_user_prompt_allowed = (
+            self.use_case_config.get("LlmParams", {}).get("PromptParams", {}).get("UserPromptEditingEnabled", True)
+        )
+        if not is_user_prompt_allowed and prompt is not None:
+            error_message = "Prompt provided in the event when this use case has been configured to forbid this."
+            logger.error(
+                error_message,
+                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
+            )
+            return [error_message]
+
         if prompt is not None and not len(prompt):
-            error_message = f"Prompt in event shouldn't be empty."
+            error_message = f"Prompt provided in the event shouldn't be empty."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            return [error_message]
+
+        max_prompt_length = (
+            self.use_case_config.get("LlmParams", {}).get("PromptParams", {}).get("MaxPromptTemplateLength")
+        )
+        if prompt is not None and max_prompt_length is not None and len(prompt) > max_prompt_length:
+            error_message = (
+                f"Prompt provided in the event shouldn't be greater than {max_prompt_length} characters long."
+            )
             logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
             return [error_message]
 
         return []
+
+    def __validate_auth_token(self, event: Dict[str, Any]) -> Union[str, None]:
+        """
+        Validates the auth token.
+        Args:
+            event (str): the lambda event
+        Returns:
+            (Dict) parsed event body
+        Raises:
+            ValueError: If the auth token is empty or not provided.
+        """
+        auth_token = event.get("message", {}).get(AUTH_TOKEN_EVENT_KEY, None)
+        if not auth_token:
+            error_message = f"{AUTH_TOKEN_EVENT_KEY} is missing from the event."
+            logger.warning(
+                error_message,
+                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
+            )
+
+        return auth_token
 
     def check_event(self, event: Dict[str, Any]) -> Dict:
         """
@@ -224,59 +280,72 @@ class LLMChatClient(ABC):
         """
         errors_list = []
         parsed_event_body = self.__validate_event_body(event)
-        user_id = self.__validate_user_id(event)
-        errors_list.extend(self.__validate_user_query(parsed_event_body))
-        errors_list.extend(self.__validate_event_prompt(parsed_event_body))
+        user_id = self.__validate_user_id(parsed_event_body)
+        auth_token = self.__validate_auth_token(parsed_event_body)
+        errors_list.extend(self.__validate_user_query(parsed_event_body[MESSAGE_KEY]))
+        errors_list.extend(self.__validate_event_prompt(parsed_event_body[MESSAGE_KEY]))
 
         if errors_list:
             errors = "\n".join(errors_list)
             raise ValueError(errors)
 
-        parsed_event_body[CONVERSATION_ID_EVENT_KEY] = self.get_event_conversation_id(parsed_event_body)
-        parsed_event_body[USER_ID_EVENT_KEY] = user_id
+        parsed_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY] = self.get_event_conversation_id(
+            parsed_event_body[MESSAGE_KEY]
+        )
+        parsed_event_body[MESSAGE_KEY][USER_ID_EVENT_KEY] = user_id
+        parsed_event_body[AUTH_TOKEN_EVENT_KEY] = auth_token
         return parsed_event_body
 
     @tracer.capture_method(capture_response=True)
-    def get_llm_config(self) -> Dict:
+    def retrieve_use_case_config(self) -> Dict:
         """
-        Retrieves the configuration that the admin sets on a use-case from the SSM Parameter store
+        Retrieves the configuration that the admin sets on a use-case fetched from DynamoDB
         Returns:
-            Dict: Stores the configuration that the admin sets on a use-case, fetched from SSM Parameter store
+            Dict: Stores the configuration that the admin sets on a use-case fetched from DynamoDB
         Raises:
             ValueError: If the environment variables it requires are not set.
         """
-        with tracer.provider.in_subsegment("## llm_config") as subsegment:
-            subsegment.put_annotation("service", "ssm")
-            subsegment.put_annotation("operation", "get_parameter")
-            ssm_param_key = os.getenv(LLM_PARAMETERS_SSM_KEY_ENV_VAR)
-            try:
-                if ssm_param_key:
-                    ssm_client = get_service_client(service_name="ssm")
-                    llm_config = ssm_client.get_parameter(Name=ssm_param_key, WithDecryption=True)
-                    self.llm_config = json.loads(llm_config["Parameter"]["Value"])
-                    return self.llm_config
-                else:
-                    error_message = f"Missing required environment variable {LLM_PARAMETERS_SSM_KEY_ENV_VAR}."
-                    logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-                    raise ValueError(error_message)
 
+        with tracer.provider.in_subsegment("## use_case_config") as subsegment:
+            subsegment.put_annotation("service", "dynamodb")
+            subsegment.put_annotation("operation", "get_item")
+
+            # The LLM config table from which the config must be fetched
+            use_case_config_table = os.getenv(USE_CASE_CONFIG_TABLE_NAME_ENV_VAR)
+
+            # USE_CASE_CONFIG_RECORD_KEY_ENV_VAR is the key of the row in the DynamoDB table where the config is
+            # LLM_CONFIG_RECORD_FIELD_NAME is the name of DynamoDB field
+            record_key = os.getenv(USE_CASE_CONFIG_RECORD_KEY_ENV_VAR)
+
+            if not use_case_config_table or not record_key:
+                error_message = f"Missing required environment variable {USE_CASE_CONFIG_TABLE_NAME_ENV_VAR} or {USE_CASE_CONFIG_RECORD_KEY_ENV_VAR}."
+                logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+                raise ValueError(error_message)
+
+            try:
+                ddb_resource = get_service_resource("dynamodb")
+                use_case_config_table = ddb_resource.Table(use_case_config_table)
+                response = use_case_config_table.get_item(
+                    Key={LLM_CONFIG_RECORD_FIELD_NAME: record_key},
+                    ProjectionExpression="config",
+                    ConsistentRead=True,
+                )
             except ClientError as ce:
-                if ce.response["Error"]["Code"] == "ParameterNotFound":
-                    error_message = f"SSM Parameter {ssm_param_key} not found."
+                error_message = f"Error retrieving usecase config with key {record_key}."
+                if ce.response["Error"]["Code"] == "ResourceNotFoundException":
                     logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
                     raise ValueError(error_message)
                 else:
-                    logger.error(
-                        ce,
-                        xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-                    )
+                    logger.error(ce, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
                     raise ce
-            except json.JSONDecodeError as jde:
-                logger.error(
-                    f"Error decoding the SSM Parameter {ssm_param_key}. Error: {jde}",
-                    xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-                )
-                raise jde
+
+            config = response.get("Item", {}).get("config", {})
+            if config:
+                return config
+            else:
+                error_message = f"No usecase config found with key {record_key}."
+                logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+                raise ValueError(error_message)
 
     @tracer.capture_method
     def construct_chat_model(
@@ -307,7 +376,6 @@ class LLMChatClient(ABC):
             self.builder.validate_event_input_sizes(event_body)
             self.builder.set_knowledge_base()
             self.builder.set_conversation_memory(user_id, conversation_id)
-            self.builder.set_api_key()
             self.builder.set_llm_model()
 
         else:
@@ -339,11 +407,6 @@ class LLMChatClient(ABC):
         Returns:
             BaseLangChainModel: The LLM model that is used to generate content.
         """
-        self.llm_config = self.get_llm_config()
-        llm_params = self.llm_config.get("LlmParams")
-        if not llm_params:
-            self.llm_config["LlmParams"] = {}
-
-        # If event provides a prompt, llm_config uses that instead.
+        # If event provides a prompt, use_case_config uses that instead.
         event_prompt = event_body.get("promptTemplate")
-        self.llm_config["LlmParams"]["PromptTemplate"] = event_prompt if event_prompt else self.llm_config["LlmParams"].get("PromptTemplate")
+        self.use_case_config["LlmParams"]["PromptParams"]["PromptTemplate"] = event_prompt if event_prompt else self.use_case_config["LlmParams"]["PromptParams"].get("PromptTemplate")

@@ -27,5 +27,6 @@
     "resolveJsonModule": true,
     "outDir": "./dist",
     "moduleResolution": "Node",
+    "rootDir": ".",
   }
 }

@@ -23,12 +23,11 @@ import {
 } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { MODEL_PROVIDER_NAME_MAP, WIZARD_PAGE_INDEX } from '../steps-config';
-import { createBox, escapedNewLineToLineBreakTag } from '../../useCaseDetails/common-components';
+import { createBox, escapedNewLineToLineBreakTag, ValueWithLabel } from '../../useCaseDetails/common-components';
 import { useComponentId } from '../../commons/use-component-id';
 
 import { ModelParams } from '../Model/AdvancedModelSettings';
 import { useQueryClient } from '@tanstack/react-query';
-import ReviewPrompt from './ReviewPrompt';
 
 interface ModelReviewProps extends ReviewSectionProps {
     knowledgeBaseData: any;
@@ -54,7 +53,7 @@ const CreateAttributeEditor = ({
     modelParameters: ModelParams[];
     setActiveStepIndex: (index: number) => void;
 }) => {
-    const WIZARD_MODEL_STEP_INDEX = 1;
+    const WIZARD_MODEL_STEP_INDEX = 2;
 
     return (
         <AttributeEditor
@@ -92,7 +91,6 @@ export const ModelReview = (props: ModelReviewProps) => {
         });
     };
 
-    const providersWithoutApiKeyRequirement = [MODEL_PROVIDER_NAME_MAP.Bedrock, MODEL_PROVIDER_NAME_MAP.SageMaker];
     const componentId = useComponentId();
 
     return (
@@ -119,79 +117,58 @@ export const ModelReview = (props: ModelReviewProps) => {
                             data-testid="model-review-additional-settings-expandable-section"
                         >
                             <ColumnLayout columns={2} variant="text-grid">
-                                <div>
-                                    <Box variant="awsui-key-label">Model temperature</Box>
-                                    <div>{props.modelData.temperature}</div>
-                                </div>
-                                <div>
-                                    <Box variant="awsui-key-label">Verbose</Box>
-                                    <div>{props.modelData.verbose ? 'on' : 'off'}</div>
-                                </div>
-                                <div>
-                                    <Box variant="awsui-key-label">Streaming</Box>
-                                    <div>{props.modelData.streaming ? 'on' : 'off'}</div>
-                                </div>
-                                <div>
-                                    <SpaceBetween size="xs">
-                                        <Box variant="awsui-key-label">System prompt</Box>
-                                        <ReviewPrompt
-                                            promptTemplate={props.modelData.promptTemplate}
-                                            modelProvider={props.modelData.modelProvider.value}
-                                            modelName={props.modelData.modelName}
-                                            isRagEnabled={props.knowledgeBaseData.isRagRequired}
-                                        />
-                                    </SpaceBetween>
-                                </div>
+                                <ValueWithLabel label="Model temperature">{props.modelData.temperature}</ValueWithLabel>
+                                <ValueWithLabel label="Enable guardrails">
+                                    {props.modelData.enableGuardrails ? 'yes' : 'no'}
+                                </ValueWithLabel>
+                                {props.modelData.enableGuardrails && (
+                                    <>
+                                        <ValueWithLabel label="Guardrail Identifier">
+                                            {props.modelData.guardrailIdentifier}
+                                        </ValueWithLabel>
+                                        <ValueWithLabel label="Guardrail Version">
+                                            {props.modelData.guardrailVersion}
+                                        </ValueWithLabel>
+                                    </>
+                                )}
+                                <ValueWithLabel label="Verbose">
+                                    {props.modelData.verbose ? 'on' : 'off'}
+                                </ValueWithLabel>
+                                <ValueWithLabel label="Streaming">
+                                    {props.modelData.streaming ? 'on' : 'off'}
+                                </ValueWithLabel>
                             </ColumnLayout>
                         </ExpandableSection>
                     }
                     data-testid="review-model-details-container"
                 >
                     <ColumnLayout columns={2} variant="text-grid">
-                        <div>
-                            <Box variant="awsui-key-label">Model provider</Box>
-                            <div>{props.modelData.modelProvider.label}</div>
-                        </div>
+                        <ValueWithLabel label="Model provider">{props.modelData.modelProvider.label}</ValueWithLabel>
 
-                        {!providersWithoutApiKeyRequirement.includes(props.modelData.modelProvider.value) && (
-                            <div>
-                                <Box variant="awsui-key-label">API key</Box>
-                                <div>{'*'.repeat(props.modelData.apiKey.length)}</div>
-                            </div>
-                        )}
-
-                        {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.HFInfEndpoint && (
-                            <div>
-                                <Box variant="awsui-key-label">Inference Endpoint</Box>
-                                <div>{props.modelData.inferenceEndpoint}</div>
-                            </div>
-                        )}
                         {props.modelData.modelProvider.value !== MODEL_PROVIDER_NAME_MAP.SageMaker && (
-                            <div>
-                                <Box variant="awsui-key-label">Model name</Box>
-                                <div>{props.modelData.modelName}</div>
-                            </div>
+                            <ValueWithLabel label="Model name">{props.modelData.modelName}</ValueWithLabel>
+                        )}
+
+                        {props.modelData.provisionedModel && (
+                            <ValueWithLabel label="Model ARN">{props.modelData.modelArn}</ValueWithLabel>
                         )}
 
                         {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.SageMaker && (
-                            <div>
-                                <Box variant="awsui-key-label">SageMaker endpoint name</Box>
-                                <div>{props.modelData.sagemakerEndpointName}</div>
-                            </div>
+                            <ValueWithLabel label="SageMaker endpoint name">
+                                {props.modelData.sagemakerEndpointName}
+                            </ValueWithLabel>
                         )}
                         {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.SageMaker && (
-                            <div>
-                                <Box variant="awsui-key-label">SageMaker output path schema</Box>
-                                <div>{props.modelData.sagemakerOutputSchema}</div>
-                            </div>
+                            <ValueWithLabel label="SageMaker output path schema">
+                                {props.modelData.sagemakerOutputSchema}
+                            </ValueWithLabel>
                         )}
                         {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.SageMaker && (
-                            <div>
-                                <Box variant="awsui-key-label">SageMaker input schema</Box>
-                                <Box variant="code" data-testid="review-system-prompt">
+                            <ValueWithLabel label="SageMaker input schema">
+                                <Box variant="code">
                                     {escapedNewLineToLineBreakTag(props.modelData.sagemakerInputSchema, componentId)}
                                 </Box>
-                            </div>
+                            </ValueWithLabel>
                         )}
                     </ColumnLayout>
                 </Container>

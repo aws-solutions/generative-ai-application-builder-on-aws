@@ -15,9 +15,13 @@
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import { getCommandsForNodejsDockerBuild } from '../utils/asset-bundling';
-import { getNodejsLayerLocalBundling, LayerProps } from '../utils/common-utils';
-import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME } from '../utils/constants';
+import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
+import { LayerProps } from '../utils/common-utils';
+import {
+    COMMERCIAL_REGION_LAMBDA_JS_LAYER_RUNTIME,
+    COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+    GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME
+} from '../utils/constants';
 
 /**
  * A class the defines the user-agent layer Construct for Node runtimes
@@ -38,17 +42,12 @@ export class NodeUserAgentLayer extends lambda.LayerVersion {
         const entry = path.resolve(props.entry);
 
         super(scope, id, {
-            code: lambda.Code.fromAsset(entry, {
-                bundling: {
-                    image: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.bundlingImage,
-                    user: 'root',
-                    local: getNodejsLayerLocalBundling(entry),
-                    command: getCommandsForNodejsDockerBuild(
-                        `/asset-output/nodejs/node_modules/${path.basename(entry)}`,
-                        'node user-agent lambda layer'
-                    )
-                }
-            }),
+            code: lambda.Code.fromAsset(
+                entry,
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_JS_LAYER_RUNTIME)
+                    .options(scope, entry)
+            ),
             compatibleRuntimes,
             description: props.description
         } as lambda.LayerVersionProps);

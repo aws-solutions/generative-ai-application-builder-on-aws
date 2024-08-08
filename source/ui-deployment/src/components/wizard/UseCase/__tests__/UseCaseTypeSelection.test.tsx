@@ -13,11 +13,11 @@
 
 import UseCaseTypeSelection from '../UseCaseTypeSelection';
 import { cloudscapeRender } from '@/utils';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 
 describe('UseCaseTypeSelection', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('should render', () => {
@@ -26,7 +26,7 @@ describe('UseCaseTypeSelection', () => {
             <UseCaseTypeSelection
                 useCaseTypeOptions={mockSelectionOptions}
                 selectedOption={mockSelectionOptions[0]}
-                onChangeFn={jest.fn()}
+                onChangeFn={vi.fn()}
             />
         );
         const element = screen.getByTestId('use-case-type-selection');
@@ -35,5 +35,7 @@ describe('UseCaseTypeSelection', () => {
         expect(
             cloudscapeWrapper.findSelect()?.findDropdown().findSelectedOptions()[0].getElement().innerHTML
         ).toContain('Chat');
+
+        cleanup();
     });
 });

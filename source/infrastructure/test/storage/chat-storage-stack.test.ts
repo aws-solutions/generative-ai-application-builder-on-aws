@@ -15,7 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as rawCdkJson from '../../cdk.json';
 
 import { Template } from 'aws-cdk-lib/assertions';
-import { HuggingFaceChat } from '../../lib/hugging-face-chat-stack';
+import { BedrockChat } from '../../lib/bedrock-chat-stack';
 import { DynamoDBChatStorage } from '../../lib/storage/chat-storage-stack';
 
 describe('When creating the nested stack for chat storage', () => {
@@ -24,7 +24,7 @@ describe('When creating the nested stack for chat storage', () => {
 
     beforeAll(() => {
         const app = new cdk.App();
-        const stack = new HuggingFaceChat(app, 'ChatStack', {
+        const stack = new BedrockChat(app, 'ChatStack', {
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
@@ -70,9 +70,6 @@ describe('When creating the nested stack for chat storage', () => {
             'BillingMode': 'PAY_PER_REQUEST',
             'SSESpecification': {
                 'SSEEnabled': true
-            },
-            'TableName': {
-                'Ref': 'ConversationTableName'
             },
             'TimeToLiveSpecification': {
                 'AttributeName': 'TTL',

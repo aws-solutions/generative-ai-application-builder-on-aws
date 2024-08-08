@@ -39,7 +39,6 @@ const CONTENT_DISPLAY_OPTIONS = [
 ];
 
 export const DEFAULT_PREFERENCES = {
-    pageSize: 30,
     contentDisplay: [
         { id: 'stackId', visible: true },
         { id: 'name', visible: true },
@@ -51,20 +50,14 @@ export const DEFAULT_PREFERENCES = {
     wrapLines: false,
     stripedRows: false,
     contentDensity: 'comfortable',
-    stickyColumns: { first: 0, last: 0 }
+    stickyColumns: { first: 0, last: 0 },
+    pageSize: 10
 };
-
-export const PAGE_SIZE_OPTIONS = [
-    { value: 10, label: '10 Deployments' },
-    { value: 30, label: '30 Deployments' },
-    { value: 50, label: '50 Deployments' }
-];
 
 export const Preferences = ({
     preferences,
     setPreferences,
     disabled,
-    pageSizeOptions = PAGE_SIZE_OPTIONS,
     contentDisplayOptions = CONTENT_DISPLAY_OPTIONS
 }) => (
     <CollectionPreferences
@@ -74,10 +67,6 @@ export const Preferences = ({
         disabled={disabled}
         preferences={preferences}
         onConfirm={({ detail }) => setPreferences(detail)}
-        pageSizePreference={{
-            title: 'Page size',
-            options: pageSizeOptions
-        }}
         wrapLinesPreference={{
             label: 'Wrap lines',
             description: 'Select to see all the text and wrap the lines'

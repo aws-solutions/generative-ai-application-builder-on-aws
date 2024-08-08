@@ -14,20 +14,32 @@
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { screen } from '@testing-library/react';
 import KnowledgeBaseSelection from '../KnowledgeBaseSelection';
+import { KNOWLEDGE_BASE_TYPES } from '../../steps-config';
 
 describe('KnowledgeBaseSelection', () => {
     afterEach(() => {
         jest.clearAllMocks();
     });
 
-    test('should render', () => {
+    test('should render kendra knowledge base components', () => {
         const mockKnowledgeBaseData = {
-            knowledgeBaseType: { value: 'Kendra', label: 'Kendra' }
+            knowledgeBaseType: KNOWLEDGE_BASE_TYPES.find((kb) => kb.value === 'Kendra')
         };
         renderWithProvider(
             <KnowledgeBaseSelection {...mockFormComponentCallbacks()} knowledgeBaseData={mockKnowledgeBaseData} />,
             { route: '/wizardView' }
         );
         expect(screen.getByTestId('kendra-container')).toBeDefined();
+    });
+
+    test('should render bedrock knowledge base components', () => {
+        const mockKnowledgeBaseData = {
+            knowledgeBaseType: KNOWLEDGE_BASE_TYPES.find((kb) => kb.value === 'Bedrock')
+        };
+        renderWithProvider(
+            <KnowledgeBaseSelection {...mockFormComponentCallbacks()} knowledgeBaseData={mockKnowledgeBaseData} />,
+            { route: '/wizardView' }
+        );
+        expect(screen.getByTestId('bedrock-knowledgebase-container')).toBeDefined();
     });
 });

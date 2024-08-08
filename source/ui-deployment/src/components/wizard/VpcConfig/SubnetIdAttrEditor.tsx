@@ -22,7 +22,7 @@ import {
 } from './helpers';
 import InputControl from '../Model/AdvancedModelSettings/InputControl';
 import { MAX_NUM_SUBNETS } from '../steps-config';
-import { InfoLink } from 'components/commons';
+import { InfoLink } from '@/components/commons';
 
 type SubnetIdItem = AttributeEditorItem;
 type SubnetIdItemsArray = SubnetIdItem[] | {}[];

@@ -12,20 +12,17 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
+import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import { UseCaseManagement } from './management-stack';
+import { BaseStackProps } from '../framework/base-stack';
 
-export interface UseCaseManagementProps {
+export interface UseCaseManagementProps extends BaseStackProps {
     /**
      * Default user email address used to create a cognito user in the user pool.
      */
     defaultUserEmail: string;
-
-    /**
-     * The trademark name of the solution
-     */
-    applicationTrademarkName: string;
 
     /**
      * Key for SSM parameter store containing list of use stack template file names
@@ -46,6 +43,26 @@ export interface UseCaseManagementProps {
      * subnet ids in which lambda functions are to be deployed as comma separated string
      */
     privateSubnetIds?: string;
+
+    /**
+     * Domain for the Cognito User Pool Client
+     */
+    cognitoDomainPrefix: cdk.CfnParameter;
+
+    /**
+     * CloudFront url of the UI application
+     */
+    cloudFrontUrl: string;
+
+    /**
+     * Whether to deploy the web app or not
+     */
+    deployWebApp: string;
+
+    /**
+     * condition to decide if web application will be deployed
+     */
+    deployWebAppCondition: cdk.CfnCondition;
 }
 
 /**
@@ -76,10 +93,12 @@ export class UseCaseManagementSetup extends Construct {
                 CustomResourceLambdaArn: props.customInfra.functionArn,
                 CustomResourceRoleArn: props.customInfra.role!.roleArn,
                 ExistingSecurityGroupIds: props.securityGroupIds!,
-                ExistingPrivateSubnetIds: props.privateSubnetIds!
+                ExistingPrivateSubnetIds: props.privateSubnetIds!,
+                CognitoDomainPrefix: props.cognitoDomainPrefix.valueAsString,
+                CloudFrontUrl: props.cloudFrontUrl,
+                DeployUI: props.deployWebApp
             },
-            description:
-                'Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.)'
+            description: `Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${props.solutionVersion}`
         });
     }
 }

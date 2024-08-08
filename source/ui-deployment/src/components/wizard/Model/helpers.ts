@@ -158,7 +158,7 @@ export const formatModelNamesList = (modelNames: string[], modelProvider: string
 };
 
 /**
- * Sets initial state of the requried fields for a selected model provider.
+ * Sets initial state of the required fields for a selected model provider.
  * @param modelProvider Value of model provider selected in the dropdown
  * @returns
  */
@@ -166,9 +166,6 @@ export const initModelRequiredFields = (modelProvider: string) => {
     switch (modelProvider) {
         case MODEL_PROVIDER_NAME_MAP.Bedrock:
             return ['modelName'];
-
-        case MODEL_PROVIDER_NAME_MAP.HFInfEndpoint:
-            return ['apiKey', 'inferenceEndpoint', 'modelName'];
 
         case MODEL_PROVIDER_NAME_MAP.SageMaker:
             return ['sagemakerEndpointName', 'sagemakerInputSchema', 'sagemakerOutputSchema'];
@@ -181,19 +178,23 @@ export const initModelRequiredFields = (modelProvider: string) => {
 /**
  *
  * @param modelProvider Value of model provider selected in the dropdown
+ * @param provisionedModel Whether the model is provisioned or not
  * @param setRequiredFieldsFn Function to update react state
  */
 export const updateRequiredFields = (
     modelProvider: string,
+    provisionedModel: boolean,
+    enableGuardrails: boolean,
     setRequiredFieldsFn: React.Dispatch<React.SetStateAction<string[]>>
 ) => {
     switch (modelProvider) {
         case MODEL_PROVIDER_NAME_MAP.Bedrock:
-            setRequiredFieldsFn(['modelName']);
-            break;
-
-        case MODEL_PROVIDER_NAME_MAP.HFInfEndpoint:
-            setRequiredFieldsFn(['apiKey', 'inferenceEndpoint', 'modelName']);
+            const baseRequiredFields = provisionedModel ? ['modelName', 'modelArn'] : ['modelName'];
+            if (enableGuardrails) {
+                setRequiredFieldsFn([...baseRequiredFields, 'guardrailIdentifier', 'guardrailVersion']);
+            } else {
+                setRequiredFieldsFn(baseRequiredFields);
+            }
             break;
 
         case MODEL_PROVIDER_NAME_MAP.SageMaker:

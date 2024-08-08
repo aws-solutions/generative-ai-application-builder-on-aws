@@ -17,6 +17,8 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
+import { PYTHON_PIP_BUILD_PLATFORM } from '../framework/bundler/constants';
+import { PipInstallArguments } from '../framework/bundler/runtime/python';
 import { PythonUserAgentLayer } from '../layers/python-user-agent';
 import { AwsNodeSdkLibLayer, Boto3SdkLibLayer } from '../layers/runtime-libs';
 import { PythonLangchainLayer } from '../layers/shared-lib';
@@ -31,7 +33,6 @@ import {
     LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
     LLM_LIBRARY_LAYER_TYPES
 } from '../utils/constants';
-import { PipInstallArguments } from './asset-bundling';
 
 export interface LambdaAspectProps {
     /**
@@ -52,8 +53,6 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
     private awsNodeSdkLibLayer: Map<string, lambda.LayerVersion>;
     private pythonUserAgentLayer: Map<string, lambda.LayerVersion>;
     private pythonLangchainLayer: Map<string, lambda.LayerVersion>;
-    private pythonHuggingFaceLayer: Map<string, lambda.LayerVersion>;
-    private pythonAnthropicLayer: Map<string, lambda.LayerVersion>;
     private boto3SdkLibLayer: Map<string, lambda.LayerVersion>;
     private customMetricsPolicy: Map<string, iam.Policy>;
     private solutionID: string;
@@ -68,8 +67,6 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
         this.pythonUserAgentLayer = new Map();
         this.boto3SdkLibLayer = new Map();
         this.pythonLangchainLayer = new Map();
-        this.pythonHuggingFaceLayer = new Map();
-        this.pythonAnthropicLayer = new Map();
     }
 
     public visit(node: IConstruct): void {
@@ -113,7 +110,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
                                 'cloudwatch:namespace': [
                                     CloudWatchNamespace.API_GATEWAY,
                                     CloudWatchNamespace.AWS_KENDRA,
-                                    CloudWatchNamespace.COGNITO,
+                                    CloudWatchNamespace.AWS_COGNITO,
                                     CloudWatchNamespace.LANGCHAIN_LLM
                                 ]
                             }
@@ -164,14 +161,6 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
             const additionalLLMLayersList = lambdaMetadata[ADDITIONAL_LLM_LIBRARIES].split(',');
             for (const layer of additionalLLMLayersList) {
                 switch (layer) {
-                    case LLM_LIBRARY_LAYER_TYPES.ANTHROPIC_LIB_LAYER: {
-                        node.addLayers(this.getOrCreateAnthropicLayer(node));
-                        break;
-                    }
-                    case LLM_LIBRARY_LAYER_TYPES.HUGGING_FACE_LIB_LAYER: {
-                        node.addLayers(this.getOrCreateHuggingFaceLayer(node));
-                        break;
-                    }
                     case LLM_LIBRARY_LAYER_TYPES.LANGCHAIN_LIB_LAYER: {
                         node.addLayers(this.getOrCreateLangchainLayer(node));
                         break;
@@ -297,7 +286,8 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
         const stackId = this.getStackIdFromNode(node);
         if (this.pythonLangchainLayer.get(stackId) === undefined) {
             const pipInstallArgs = new PipInstallArguments();
-            pipInstallArgs.pythonVersion = lambda.Runtime.PYTHON_3_11.name.replace('python', '');
+            pipInstallArgs.pythonVersion = LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name.replace('python', '');
+            pipInstallArgs.platform = PYTHON_PIP_BUILD_PLATFORM;
             this.pythonLangchainLayer.set(
                 stackId,
                 new PythonLangchainLayer(this.getConstructToCreateLayer(node), 'LangchainLayer', {
@@ -311,49 +301,6 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
         }
 
         return this.pythonLangchainLayer.get(stackId)!;
-    }
-
-    /**
-     * This method checks if the layer defition exists. If not then creates a new one.
-     *
-     * @returns Python runtime compatible LayerVersion for huggingface_hub with all its required packages
-     */
-    private getOrCreateHuggingFaceLayer(node: Construct): lambda.LayerVersion {
-        const stackId = this.getStackIdFromNode(node);
-        if (this.pythonHuggingFaceLayer.get(stackId) === undefined) {
-            this.pythonHuggingFaceLayer.set(
-                stackId,
-                new PythonLangchainLayer(this.getConstructToCreateLayer(node), 'HuggingFaceLayer', {
-                    entry: '../lambda/layers/huggingface_hub',
-                    description:
-                        'This layer configures the huggingface_hub python package to be bundled with python lambda functions',
-                    compatibleRuntimes: pythonCompatibleRuntimes
-                })
-            );
-        }
-
-        return this.pythonHuggingFaceLayer.get(stackId)!;
-    }
-
-    /* This method checks if the layer defition exists. If not then creates a new one.
-     *
-     * @returns Python runtime compatible LayerVersion for Open AI library with all its required packages
-     */
-    private getOrCreateAnthropicLayer(node: Construct): lambda.LayerVersion {
-        const stackId = this.getStackIdFromNode(node);
-        if (this.pythonAnthropicLayer.get(stackId) === undefined) {
-            this.pythonAnthropicLayer.set(
-                stackId,
-                new PythonLangchainLayer(this.getConstructToCreateLayer(node), 'AnthropicLayer', {
-                    entry: '../lambda/layers/anthropic',
-                    description:
-                        'This layer configures the anthropic python package to be bundled with python lambda functions',
-                    compatibleRuntimes: pythonCompatibleRuntimes
-                })
-            );
-        }
-
-        return this.pythonAnthropicLayer.get(stackId)!;
     }
 
     /**

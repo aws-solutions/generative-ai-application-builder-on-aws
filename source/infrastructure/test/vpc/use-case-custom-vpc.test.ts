@@ -27,7 +27,7 @@ describe('When creating a VPC for Bedrock stack', () => {
         template = Template.fromStack(vpcStack);
     });
 
-    it('should have a VPC Endpoint for Bedrock', () => {
+    it('should have a VPC Endpoint for Kendra', () => {
         template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
             PolicyDocument: {
                 Statement: [
@@ -71,7 +71,6 @@ describe('When creating a VPC for Bedrock stack', () => {
                 ],
                 Version: '2012-10-17'
             },
-            PrivateDnsEnabled: true,
             SecurityGroupIds: [
                 {
                     'Fn::GetAtt': [Match.anyValue(), 'GroupId']
@@ -104,6 +103,72 @@ describe('When creating a VPC for Bedrock stack', () => {
         });
     });
 
+    it('should have a VPC Endpoint for Bedrock knowledge base', () => {
+        template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+            PolicyDocument: {
+                Statement: [
+                    {
+                        Action: 'bedrock:Retrieve',
+                        Effect: 'Allow',
+                        Principal: {
+                            AWS: '*'
+                        },
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        Ref: 'AWS::Partition'
+                                    },
+                                    ':bedrock:',
+                                    {
+                                        Ref: 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        Ref: 'AWS::AccountId'
+                                    },
+                                    ':knowledge-base/*'
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                Version: '2012-10-17'
+            },
+            SecurityGroupIds: [
+                {
+                    'Fn::GetAtt': [Match.anyValue(), 'GroupId']
+                }
+            ],
+            ServiceName: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'com.amazonaws.',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        '.bedrock-agent-runtime'
+                    ]
+                ]
+            },
+            SubnetIds: [
+                {
+                    Ref: Match.anyValue()
+                },
+                {
+                    Ref: Match.anyValue()
+                }
+            ],
+            VpcEndpointType: 'Interface',
+            VpcId: {
+                Ref: vpcCapture
+            }
+        });
+    });
+
     it('should have a security group for the VPC Endpoint', () => {
         template.hasResourceProperties('AWS::EC2::SecurityGroup', {
             GroupDescription: Match.anyValue(),
@@ -115,9 +180,60 @@ describe('When creating a VPC for Bedrock stack', () => {
                     ToPort: 443
                 }
             ],
-            'VpcId': {
-                'Ref': vpcCapture.asString()
+            VpcId: {
+                Ref: vpcCapture.asString()
             }
+        });
+    });
+
+    it('should have an SQS interface endpoint', () => {
+        template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+            PolicyDocument: {
+                Statement: [
+                    {
+                        Action: [
+                            'sqs:sendMessage',
+                            'sqs:ChangeMessageVisibility',
+                            'sqs:DeleteMessage',
+                            'sqs:GetQueueUrl',
+                            'sqs:GetQueueAttributes',
+                            'sqs:ReceiveMessage'
+                        ],
+                        Effect: 'Allow',
+                        Principal: {
+                            AWS: '*'
+                        },
+                        Resource: '*'
+                    }
+                ],
+                Version: '2012-10-17'
+            },
+            ServiceName: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'com.amazonaws.',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        '.sqs'
+                    ]
+                ]
+            },
+            VpcEndpointType: 'Interface',
+            SubnetIds: [
+                {
+                    Ref: Match.anyValue()
+                },
+                {
+                    Ref: Match.anyValue()
+                }
+            ],
+            SecurityGroupIds: [
+                {
+                    'Fn::GetAtt': [Match.anyValue(), 'GroupId']
+                }
+            ]
         });
     });
 });

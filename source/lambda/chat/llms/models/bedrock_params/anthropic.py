@@ -90,6 +90,7 @@ class BedrockAnthropicV3LLMParams(BedrockAnthropicLLMParams):
     """
 
     max_tokens: Optional[int] = None
+    system: Optional[str] = None
 
     def __post_init__(self):
         super().__post_init__()

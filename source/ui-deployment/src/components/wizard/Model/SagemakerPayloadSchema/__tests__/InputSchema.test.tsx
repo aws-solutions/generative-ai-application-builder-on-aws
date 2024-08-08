@@ -13,11 +13,17 @@
 
 import InputSchema from '../InputSchema';
 import { cloudscapeRender, mockFormComponentCallbacks } from '@/utils';
-import { screen, waitFor } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
+
+// Mock the loadAce function
+vi.mock('../../utils', () => ({
+    loadAce: vi.fn().mockResolvedValue({})
+}));
 
 describe('InputSchema', () => {
     afterEach(() => {
         jest.clearAllMocks();
+        cleanup();
     });
 
     test('renders', async () => {

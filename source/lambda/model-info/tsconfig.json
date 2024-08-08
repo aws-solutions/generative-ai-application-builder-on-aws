@@ -41,8 +41,14 @@
       "@aws-lambda-powertools/logger": [
         "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/logger"
       ],
+      "@aws-lambda-powertools/logger/middleware": [
+        "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/logger/lib/cjs/middleware/middy.d.ts"
+      ],
       "@aws-lambda-powertools/tracer": [
         "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/tracer"
+      ],
+      "@aws-lambda-powertools/tracer/middleware": [
+        "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/tracer/lib/cjs/middleware/middy.d.ts"
       ],
       "@aws-lambda-powertools/metrics": [
         "../layers/aws-node-user-agent-config/node_modules/@aws-lambda-powertools/metrics"

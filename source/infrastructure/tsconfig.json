@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
+    "target": "ES2022",
     "module": "commonjs",
     "lib": [
-      "es2018",
+      "es2022",
       "dom"
     ],
     "declaration": true,
@@ -29,6 +29,7 @@
   "exclude": [
     "node_modules",
     "cdk.out",
-    "test/mock-lambda-func/typescript-lambda"
+    "test/mock-lambda-func/typescript-lambda",
+    "test/mock-ui"
   ]
 }

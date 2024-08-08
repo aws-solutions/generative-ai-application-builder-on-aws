@@ -16,7 +16,10 @@ import { ModelTemperature } from './common/ModelTemperature';
 import { BaseFormComponentProps, ModelProviderOption } from '../interfaces';
 import VerboseToggle from './common/VerboseToggle';
 import { StreamingToggle } from './common/StreamingToggle';
-import PromptTemplate from './common/PromptTemplate';
+import EnableGuardrailsRadio from './common/EnableGuardrailsRadio';
+import GuardrailIdentifierInput from './common/GuardrailIdentifierInput';
+import GuardrailVersionInput from './common/GuardrailVersionInput';
+import { MODEL_PROVIDER_NAME_MAP } from '../steps-config';
 
 export interface ModelAdditionalSettingsProps extends BaseFormComponentProps {
     modelData: any;
@@ -29,12 +32,22 @@ export const ModelAdditionalSettings = (props: ModelAdditionalSettingsProps) => 
     return (
         <SpaceBetween size="l" data-testid="model-additional-settings">
             <ModelTemperature {...props} />
+            {props.modelData.modelProvider.value.toLowerCase() === MODEL_PROVIDER_NAME_MAP.Bedrock.toLowerCase() && (
+                <>
+                    <EnableGuardrailsRadio {...props} />
+                    {props.modelData.enableGuardrails && (
+                        <>
+                            <GuardrailIdentifierInput {...props} />
+                            <GuardrailVersionInput {...props} />
+                        </>
+                    )}
+                </>
+            )}
+
             <ColumnLayout columns={2} variant="text-grid">
                 <VerboseToggle {...props} />
                 <StreamingToggle {...props} />
             </ColumnLayout>
-
-            <PromptTemplate {...props} />
         </SpaceBetween>
     );
 };

@@ -13,93 +13,95 @@
 ######################################################################################################################
 
 import json
-import os
 from copy import copy
 from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from bedrock_handler import lambda_handler
-from langchain_core.documents import Document
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
     END_CONVERSATION_TOKEN,
-    LLM_PARAMETERS_SSM_KEY_ENV_VAR,
+    MESSAGE_KEY,
     RAG_CHAT_IDENTIFIER,
-    RAG_ENABLED_ENV_VAR,
+    REQUEST_CONTEXT_KEY,
 )
-from utils.helpers import format_lambda_response
+from utils.enum_types import KnowledgeBaseTypes
+
+from . import bedrock_source_doc_responses, kendra_source_doc_responses, mocked_bedrock_docs, mocked_kendra_docs
 
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
 BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
-mocked_docs = [
-    Document(**{"page_content": "some-page-content-1", "metadata": {"source": "fake-url-1"}}),
-    Document(**{"page_content": "some-page-content-2", "metadata": {"source": "fake-url-2"}}),
-]
 
 
 @pytest.mark.parametrize(
-    "use_case, mocked_response, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, mocked_response, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
         (
             CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_PROMPT,
-            False,  # is_streaming
-            "False",  # rag_enabled
-            False,  # return_source_docs
+            False,
+            False,
+            None,
+            False,
             "amazon.model-xx",
         ),
         (
             CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_PROMPT,
-            True,  # is_streaming
-            "False",  # rag_enabled
-            False,  # return_source_docs
+            True,
+            False,
+            None,
+            False,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_RAG_PROMPT,
-            False,  # is_streaming
-            "True",  # rag_enabled
-            False,  # return_source_docs
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_RAG_PROMPT,
-            True,  # is_streaming
-            "True",  # rag_enabled
-            False,  # return_source_docs
+            True,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {
                 "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_docs,
+                "source_documents": mocked_kendra_docs,
             },
             BEDROCK_RAG_PROMPT,
-            False,  # is_streaming
-            "True",  # rag_enabled
-            True,  # return_source_docs
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            True,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {
                 "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_docs,
+                "source_documents": mocked_bedrock_docs,
             },
             BEDROCK_RAG_PROMPT,
-            True,  # is_streaming
-            "True",  # rag_enabled
-            True,  # return_source_docs
+            True,
+            True,
+            KnowledgeBaseTypes.BEDROCK.value,
+            True,
             "amazon.model-xx",
         ),
     ],
@@ -116,34 +118,38 @@ def test_bedrock_chat_handler(
     apigateway_stubber,
     context,
     setup_environment,
-    setup_secret,
     model_id,
     bedrock_dynamodb_defaults_table,
+    knowledge_base_type,
 ):
-    os.environ[RAG_ENABLED_ENV_VAR] = rag_enabled
-
-    with patch("clients.bedrock_client.BedrockClient.get_llm_config") as mocked_get_llm_config:
+    with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
         with patch(
             "shared.knowledge.kendra_knowledge_base.CustomKendraRetriever.get_relevant_documents"
         ) as mocked_kendra_docs:
-            mocked_kendra_docs.return_value = mocked_docs
+            mocked_kendra_docs.return_value = mocked_kendra_docs
 
             if not is_streaming:
                 post_to_gateway = [
                     {"data": "I'm doing well, how are you?", CONVERSATION_ID_EVENT_KEY: "fake-conversation-id"},
                 ]
                 if return_source_docs:
-                    post_to_gateway += [
-                        {"sourceDocument": {"source": "fake-url-1"}, "conversationId": "fake-conversation-id"},
-                        {"sourceDocument": {"source": "fake-url-2"}, "conversationId": "fake-conversation-id"},
-                    ]
+                    post_to_gateway += (
+                        kendra_source_doc_responses("fake-conversation-id")
+                        if knowledge_base_type == KnowledgeBaseTypes.KENDRA.value
+                        else []
+                    )
+                    post_to_gateway += (
+                        bedrock_source_doc_responses("fake-conversation-id")
+                        if knowledge_base_type == KnowledgeBaseTypes.BEDROCK.value
+                        else []
+                    )
 
                 for payload in post_to_gateway:
                     apigateway_stubber.add_response(
                         "post_to_connection",
                         {},
                         expected_params={
-                            "ConnectionId": "fake-id",
+                            "ConnectionId": "fake-connection-id",
                             "Data": json.dumps(payload),
                         },
                     )
@@ -152,7 +158,7 @@ def test_bedrock_chat_handler(
                 "post_to_connection",
                 {},
                 expected_params={
-                    "ConnectionId": "fake-id",
+                    "ConnectionId": "fake-connection-id",
                     "Data": json.dumps(
                         {
                             "data": END_CONVERSATION_TOKEN,
@@ -163,80 +169,85 @@ def test_bedrock_chat_handler(
             )
             apigateway_stubber.activate()
 
-            with patch("clients.bedrock_client.BedrockClient.get_llm_config") as mocked_get_llm_config:
+            with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
                 with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
                     with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
                         mocked_predict.return_value = "I'm doing well, how are you?"
                         mocked_rag_predict.return_value = mocked_response
-                        mocked_get_llm_config.return_value = json.loads(bedrock_llm_config["Parameter"]["Value"])
-                        assert lambda_handler(chat_event, context) == format_lambda_response(
-                            {"response": mocked_response}
-                        )
+                        mocked_retrieve_llm_config.return_value = bedrock_llm_config
+                        response = lambda_handler(chat_event, context)
+                        assert response == {"batchItemFailures": []}
 
             apigateway_stubber.deactivate()
 
 
 @pytest.mark.parametrize(
-    "use_case, mocked_response, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, mocked_response, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
         (
             CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_PROMPT,
-            False,  # is_streaming
-            "False",  # rag_enabled
-            False,  # return_source_docs
+            False,
+            False,
+            None,
+            False,
             "amazon.model-xx",
         ),
         (
             CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_PROMPT,
-            True,  # is_streaming
-            "False",  # rag_enabled
-            False,  # return_source_docs
+            True,
+            False,
+            None,
+            False,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_RAG_PROMPT,
-            False,  # is_streaming
-            "True",  # rag_enabled
-            False,  # return_source_docs
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {"answer": "I'm doing well, how are you?"},
             BEDROCK_RAG_PROMPT,
-            True,  # is_streaming
-            "True",  # rag_enabled
-            False,  # return_source_docs
+            True,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            False,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {
                 "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_docs,
+                "source_documents": mocked_kendra_docs,
             },
             BEDROCK_RAG_PROMPT,
-            False,  # is_streaming
-            "True",  # rag_enabled
-            True,  # return_source_docs
+            False,
+            True,
+            KnowledgeBaseTypes.KENDRA.value,
+            True,
             "amazon.model-xx",
         ),
         (
             RAG_CHAT_IDENTIFIER,
             {
                 "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_docs,
+                "source_documents": mocked_bedrock_docs,
             },
             BEDROCK_RAG_PROMPT,
-            True,  # is_streaming
-            "True",  # rag_enabled
-            True,  # return_source_docs
+            True,
+            True,
+            KnowledgeBaseTypes.BEDROCK.value,
+            True,
             "amazon.model-xx",
         ),
     ],
@@ -252,17 +263,20 @@ def test_bedrock_chat_handler_empty_conversation(
     apigateway_stubber,
     context,
     setup_environment,
-    setup_secret,
     bedrock_dynamodb_defaults_table,
+    knowledge_base_type,
 ):
-    os.environ[RAG_ENABLED_ENV_VAR] = rag_enabled
-
     # chat event with empty/no conversationId
     chat_event_conversation_empty = copy(chat_event)
-    chat_event_conversation_empty["body"] = '{"action":"sendMessage","userId":"fake-user-id","question":"How are you?"}'
+    chat_event_conversation_empty["Records"][0]["body"] = json.dumps(
+        {
+            REQUEST_CONTEXT_KEY: {"authorizer": {"UserId": "fake-user-id"}, "connectionId": "fake-id"},
+            MESSAGE_KEY: {"action": "sendMessage", "userId": "fake-user-id", "question": "How are you?"},
+        }
+    )
     fake_uuid = str(uuid4())
 
-    with patch("clients.bedrock_client.BedrockClient.get_llm_config") as mocked_get_llm_config:
+    with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
         with patch("clients.llm_chat_client.uuid4") as mocked_uuid:
             mocked_uuid.return_value = fake_uuid
             if not is_streaming:
@@ -270,10 +284,16 @@ def test_bedrock_chat_handler_empty_conversation(
                     {"data": "I'm doing well, how are you?", CONVERSATION_ID_EVENT_KEY: fake_uuid},
                 ]
                 if return_source_docs:
-                    post_to_gateway += [
-                        {"sourceDocument": {"source": "fake-url-1"}, "conversationId": fake_uuid},
-                        {"sourceDocument": {"source": "fake-url-2"}, "conversationId": fake_uuid},
-                    ]
+                    post_to_gateway += (
+                        kendra_source_doc_responses(fake_uuid)
+                        if knowledge_base_type == KnowledgeBaseTypes.KENDRA.value
+                        else []
+                    )
+                    post_to_gateway += (
+                        bedrock_source_doc_responses(fake_uuid)
+                        if knowledge_base_type == KnowledgeBaseTypes.BEDROCK.value
+                        else []
+                    )
 
                 for payload in post_to_gateway:
                     apigateway_stubber.add_response(
@@ -305,21 +325,21 @@ def test_bedrock_chat_handler_empty_conversation(
                     with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
                         mocked_predict.return_value = "I'm doing well, how are you?"
                         mocked_rag_predict.return_value = mocked_response
-                        mocked_get_llm_config.return_value = json.loads(bedrock_llm_config["Parameter"]["Value"])
-                        assert lambda_handler(chat_event_conversation_empty, context) == format_lambda_response(
-                            {"response": mocked_response}
-                        )
+                        mocked_retrieve_llm_config.return_value = bedrock_llm_config
+                        response = lambda_handler(chat_event_conversation_empty, context)
+                        assert response == {"batchItemFailures": []}
             apigateway_stubber.deactivate()
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
         (
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             True,
-            "False",
+            False,
+            None,
             False,
             "amazon.model-xx",
         ),
@@ -327,7 +347,8 @@ def test_bedrock_chat_handler_empty_conversation(
             CHAT_IDENTIFIER,
             BEDROCK_PROMPT,
             False,
-            "False",
+            False,
+            None,
             False,
             "amazon.model-xx",
         ),
@@ -335,7 +356,8 @@ def test_bedrock_chat_handler_empty_conversation(
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             True,
-            "True",
+            True,
+            KnowledgeBaseTypes.BEDROCK.value,
             False,
             "amazon.model-xx",
         ),
@@ -343,7 +365,8 @@ def test_bedrock_chat_handler_empty_conversation(
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             False,
-            "True",
+            True,
+            KnowledgeBaseTypes.BEDROCK.value,
             False,
             "amazon.model-xx",
         ),
@@ -351,7 +374,8 @@ def test_bedrock_chat_handler_empty_conversation(
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             True,
-            "True",
+            True,
+            KnowledgeBaseTypes.BEDROCK.value,
             True,
             "amazon.model-xx",
         ),
@@ -359,7 +383,8 @@ def test_bedrock_chat_handler_empty_conversation(
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             False,
-            "True",
+            True,
+            KnowledgeBaseTypes.BEDROCK.value,
             True,
             "amazon.model-xx",
         ),
@@ -376,16 +401,14 @@ def test_missing_llm_config_key(
     setup_environment,
     bedrock_dynamodb_defaults_table,
 ):
-    os.environ.pop(LLM_PARAMETERS_SSM_KEY_ENV_VAR)  # Removed env variable to trigger error
-    os.environ[RAG_ENABLED_ENV_VAR] = rag_enabled  # Set rag_enabled without all required keys
-    with patch("clients.bedrock_client.BedrockClient.get_llm_config") as mocked_get_llm_config:
-        mocked_get_llm_config.return_value = json.loads(bedrock_llm_config["Parameter"]["Value"])
+    with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
+        mocked_retrieve_llm_config.return_value = bedrock_llm_config
 
         apigateway_stubber.add_response(
             "post_to_connection",
             {},
             expected_params={
-                "ConnectionId": "fake-id",
+                "ConnectionId": "fake-connection-id",
                 "Data": json.dumps(
                     {
                         "errorMessage": "Chat service failed to respond. Please contact your administrator for support and quote the following trace id: fake-trace-id",
@@ -399,17 +422,12 @@ def test_missing_llm_config_key(
             "post_to_connection",
             {},
             expected_params={
-                "ConnectionId": "fake-id",
+                "ConnectionId": "fake-connection-id",
                 "Data": json.dumps({"data": END_CONVERSATION_TOKEN}),
             },
         )
 
         apigateway_stubber.activate()
         response = lambda_handler(chat_event, context)
-        assert response == {
-            "statusCode": 400,
-            "headers": {"Content-Type": "application/json"},
-            "isBase64Encoded": False,
-            "body": '{"errorMessage": "Chat service failed to respond. Please contact your administrator for support and quote the following trace id: fake-trace-id"}',
-        }
+        assert response == {"batchItemFailures": [{"itemIdentifier": "fake-message-id"}]}
         apigateway_stubber.deactivate()

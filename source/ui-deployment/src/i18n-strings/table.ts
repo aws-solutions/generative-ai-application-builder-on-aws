@@ -35,19 +35,3 @@ export const deploymentEditableTableAriaLabels: TableProps.AriaLabels<{ id: stri
     ...deploymentTableAriaLabels,
     ...baseEditableLabels
 };
-
-export function createTableSortLabelFn(
-    column: TableProps.ColumnDefinition<unknown>
-): TableProps.ColumnDefinition<unknown>['ariaLabel'] {
-    if (!column.sortingField && !column.sortingComparator && !column.ariaLabel) {
-        return;
-    }
-    return ({ sorted, descending }) => {
-        if (!sorted) {
-            return `${column.header}, 'not sorted'`;
-        }
-
-        const sortingOrder = descending ? 'descending' : 'ascending';
-        return `${column.header}, sorted ${sortingOrder}`;
-    };
-}

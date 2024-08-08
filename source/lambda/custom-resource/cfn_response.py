@@ -43,8 +43,6 @@ def send_response(
     """
     response_url = event["ResponseURL"]
 
-    logger.debug(f"ResponseUrl: {response_url}exit")
-
     response_body = {
         "Status": response_status,
         "Reason": reason or "See the details in CloudWatch Log Stream: {}".format(context.log_stream_name),
@@ -58,12 +56,12 @@ def send_response(
 
     json_response_body = json.dumps(response_body)
 
-    logger.debug(f"Response body: {json_response_body}")
+    logger.info(f"Response body: {json_response_body}")
     headers = {"content-type": "", "content-length": str(len(json_response_body))}
 
     try:
         response = http.request(method="PUT", url=response_url, headers=headers, body=json_response_body)
-        logger.debug("Status code: %s" % (response.status))
+        logger.info("Status code: %s" % (response.status))
     except Exception as ex:
         logger.error(f"send(..) failed executing http.request(..): {ex}")
         raise ex

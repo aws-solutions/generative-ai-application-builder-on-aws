@@ -12,7 +12,12 @@
  *********************************************************************************************************************/
 
 module.exports = {
-    modulePaths: ['<rootDir>/../layers/', '<rootDir>/../layers/aws-sdk-lib/node_modules/'],
+    modulePaths: [
+        '<rootDir>/../layers/',
+        '<rootDir>/../layers/aws-sdk-lib/node_modules/',
+        '<rootDir>/../layers/aws-node-user-agent-config/',
+        '<rootDir>/../layers/aws-node-user-agent-config/node_modules/'
+    ],
     modulePathIgnorePatterns: ['<rootDir>/dist/'],
     testMatch: ['**/*.test.ts'],
     collectCoverage: true,

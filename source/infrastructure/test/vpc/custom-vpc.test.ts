@@ -13,7 +13,8 @@
 
 import * as cdk from 'aws-cdk-lib';
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
-import { CustomVPC } from '../../lib/vpc/custom-vpc';
+import { Construct } from 'constructs';
+import { CustomVPC, CustomVPCProps } from '../../lib/vpc/custom-vpc';
 
 describe('When creating a custom VPC', () => {
     let template: Template;
@@ -21,18 +22,30 @@ describe('When creating a custom VPC', () => {
     const cidrBlock = '10.0.0.0/20';
     const vpcCapture = new Capture();
 
+    // a basic implementation of the abstract class to make it testable
+    class DummyVPC extends CustomVPC {
+        constructor(scope: Construct, id: string, props: CustomVPCProps) {
+            super(scope, id, props);
+            this.createVpc(24);
+            this.createSecurityGroups();
+            this.createServiceEndpoints();
+            this.configureNacl();
+            this.setOutputs(cdk.Stack.of(this));
+        }
+    }
+
     beforeAll(() => {
         const app = new cdk.App();
         const stack = new cdk.Stack(app, 'TestStack');
-        const vpcStack = new CustomVPC(stack, 'CustomVPC', {});
+        const vpcStack = new DummyVPC(stack, 'CustomVPC', {});
 
         template = Template.fromStack(vpcStack);
         jsonTemplate = template.toJSON();
     });
 
-    it('should have flow logs configured with retention of 2 years', () => {
+    it('should have flow logs configured with retention of 10 years', () => {
         template.hasResourceProperties('AWS::Logs::LogGroup', {
-            RetentionInDays: 731
+            RetentionInDays: 3653
         });
 
         template.hasResourceProperties('AWS::IAM::Role', {
@@ -370,7 +383,9 @@ describe('When creating a custom VPC', () => {
                             'dynamodb:PutItem',
                             'dynamodb:Query',
                             'dynamodb:Scan',
-                            'dynamodb:UpdateItem'
+                            'dynamodb:UpdateItem',
+                            'dynamodb:CreateTable',
+                            'dynamodb:DeleteTable'
                         ],
                         Effect: 'Allow',
                         Principal: {
@@ -452,7 +467,7 @@ describe('When creating a custom VPC', () => {
         });
 
         template.hasResourceProperties('AWS::EC2::SecurityGroupEgress', {
-            Description: 'Allow connections to VPC Endpoint security group',
+            Description: 'Allow inbound HTTPs connection',
             DestinationSecurityGroupId: {
                 'Fn::GetAtt': [Match.stringLikeRegexp('VPCEndpointSecurityGroup*'), 'GroupId']
             },
@@ -465,7 +480,7 @@ describe('When creating a custom VPC', () => {
         });
 
         template.hasResourceProperties('AWS::EC2::SecurityGroupIngress', {
-            Description: 'Allow connections to VPC Endpoint security group',
+            Description: 'Allow inbound HTTPs connection',
             FromPort: 443,
             GroupId: {
                 'Fn::GetAtt': [Match.stringLikeRegexp('VPCEndpointSecurityGroup*'), 'GroupId']
@@ -515,79 +530,7 @@ describe('When creating a custom VPC', () => {
         expect(jsonTemplate['Resources'][natGatewayIdCapture.asString()]['Type']).toBe('AWS::EC2::NatGateway');
     });
 
-    it('should have additional interface endpoints for SSM, CloudFormation and CloudWatch', () => {
-        template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
-            PolicyDocument: {
-                Statement: [
-                    {
-                        Action: [
-                            'ssm:DescribeParameters',
-                            'ssm:GetParameter',
-                            'ssm:GetParameterHistory',
-                            'ssm:GetParameters',
-                            'ssm:DeleteParameter',
-                            'ssm:PutParameter'
-                        ],
-                        Effect: 'Allow',
-                        Principal: {
-                            AWS: '*'
-                        },
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':ssm:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':parameter/*'
-                                ]
-                            ]
-                        }
-                    }
-                ],
-                Version: '2012-10-17'
-            },
-            PrivateDnsEnabled: true,
-            SecurityGroupIds: [
-                {
-                    'Fn::GetAtt': [Match.anyValue(), 'GroupId']
-                }
-            ],
-            ServiceName: {
-                'Fn::Join': [
-                    '',
-                    [
-                        'com.amazonaws.',
-                        {
-                            'Ref': 'AWS::Region'
-                        },
-                        '.ssm'
-                    ]
-                ]
-            },
-            SubnetIds: [
-                {
-                    Ref: Match.anyValue()
-                },
-                {
-                    Ref: Match.anyValue()
-                }
-            ],
-            VpcEndpointType: 'Interface',
-            VpcId: {
-                Ref: vpcCapture.asString()
-            }
-        });
-
+    it('should have additional interface endpoints for CloudFormation and CloudWatch', () => {
         template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
             PolicyDocument: {
                 Statement: [
@@ -650,7 +593,8 @@ describe('When creating a custom VPC', () => {
                             'logs:DescribeLogGroups',
                             'logs:DescribeLogStreams',
                             'logs:FilterLogEvents',
-                            'logs:GetLogEvents'
+                            'logs:GetLogEvents',
+                            'logs:ListTagsForResource'
                         ],
                         Effect: 'Allow',
                         Principal: {
@@ -762,7 +706,14 @@ describe('When creating a custom VPC', () => {
             PolicyDocument: {
                 Statement: [
                     {
-                        Action: 'sqs:sendMessage',
+                        Action: [
+                            'sqs:sendMessage',
+                            'sqs:ChangeMessageVisibility',
+                            'sqs:DeleteMessage',
+                            'sqs:GetQueueUrl',
+                            'sqs:GetQueueAttributes',
+                            'sqs:ReceiveMessage'
+                        ],
                         Effect: 'Allow',
                         Principal: {
                             AWS: '*'

@@ -16,68 +16,53 @@ import json
 import os
 
 import pytest
-from clients.builders.huggingface_builder import HuggingFaceBuilder
+from clients.builders.bedrock_builder import BedrockBuilder
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
     CONVERSATION_TABLE_NAME_ENV_VAR,
-    LLM_PROVIDER_API_KEY_ENV_VAR,
+    MESSAGE_KEY,
     RAG_CHAT_IDENTIFIER,
     USER_ID_EVENT_KEY,
 )
-from utils.enum_types import LLMProviderTypes
+from utils.enum_types import KnowledgeBaseTypes, LLMProviderTypes
 
 # Testing LLMBuilder using subclass
-HUGGINGFACE_PROMPT = """\n\n{history}\n\n{input}"""
-HUGGINGFACE_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
-MEMORY_CONFIG = {
-    CHAT_IDENTIFIER: {
-        "history": "history",
-        "input": "input",
-        "context": None,
-        "ai_prefix": "AI",
-        "human_prefix": "Human",
-        "output": None,
-    },
-    RAG_CHAT_IDENTIFIER: {
-        "history": "chat_history",
-        "input": "question",
-        "context": "context",
-        "ai_prefix": "AI",
-        "human_prefix": "Human",
-        "output": "answer",
-    },
-}
+BASIC_PROMPT = """\n\n{history}\n\n{input}"""
+BASIC_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
         (
             CHAT_IDENTIFIER,
-            HUGGINGFACE_PROMPT,
+            BASIC_PROMPT,
             False,
             False,
+            None,
             False,
-            "google/flan-t5-xxl",
+            "amazon.titan-text-express-v1",
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            HUGGINGFACE_RAG_PROMPT,
+            BASIC_RAG_PROMPT,
             False,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             False,
-            "google/flan-t5-xxl",
+            "amazon.titan-text-express-v1",
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            HUGGINGFACE_RAG_PROMPT,
+            BASIC_RAG_PROMPT,
             False,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             True,
-            "google/flan-t5-xxl",
+            "amazon.titan-text-express-v1",
         ),
     ],
 )
@@ -87,27 +72,27 @@ def test_knowledge_base_builder(
     prompt,
     rag_enabled,
     return_source_docs,
-    llm_config,
+    bedrock_llm_config,
     chat_event,
     setup_environment,
-    huggingface_dynamodb_defaults_table,
+    bedrock_dynamodb_defaults_table,
 ):
-    config = json.loads(llm_config["Parameter"]["Value"])
-    builder = HuggingFaceBuilder(
-        llm_config=config,
+    config = bedrock_llm_config
+    builder = BedrockBuilder(
+        use_case_config=config,
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
 
-    config = json.loads(llm_config["Parameter"]["Value"])
-    chat_event_body = json.loads(chat_event["body"])
+    config = bedrock_llm_config
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])
 
-    builder.set_model_defaults(LLMProviderTypes.HUGGINGFACE, "google/flan-t5-xxl")
-    builder.validate_event_input_sizes(chat_event_body)
+    builder.set_model_defaults(LLMProviderTypes.BEDROCK, "amazon.titan-text-express-v1")
+    builder.validate_event_input_sizes(chat_event_body[MESSAGE_KEY])
     builder.set_knowledge_base()
 
-    assert builder.llm_config == config
+    assert builder.use_case_config == config
 
     if rag_enabled:
         assert type(builder.knowledge_base) == KendraKnowledgeBase
@@ -119,31 +104,34 @@ def test_knowledge_base_builder(
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
     [
         (
             CHAT_IDENTIFIER,
-            HUGGINGFACE_PROMPT,
+            BASIC_PROMPT,
             False,
             False,
+            None,
             False,
-            "google/flan-t5-xxl",
+            "amazon.titan-text-express-v1",
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            HUGGINGFACE_RAG_PROMPT,
+            BASIC_RAG_PROMPT,
             False,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             False,
-            "google/flan-t5-xxl",
+            "amazon.titan-text-express-v1",
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            HUGGINGFACE_RAG_PROMPT,
+            BASIC_RAG_PROMPT,
             False,
             True,
+            KnowledgeBaseTypes.KENDRA.value,
             True,
-            "google/flan-t5-xxl",
+            "amazon.titan-text-express-v1",
         ),
     ],
 )
@@ -153,78 +141,29 @@ def test_conversation_memory_builder(
     prompt,
     chat_event,
     rag_enabled,
-    llm_config,
+    bedrock_llm_config,
     dynamodb_resource,
-    huggingface_dynamodb_defaults_table,
+    bedrock_dynamodb_defaults_table,
 ):
     os.environ[CONVERSATION_TABLE_NAME_ENV_VAR] = "fake-table"
-    config = json.loads(llm_config["Parameter"]["Value"])
-    chat_event_body = json.loads(chat_event["body"])
-    builder = HuggingFaceBuilder(
-        llm_config=config,
+    config = bedrock_llm_config
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])
+    builder = BedrockBuilder(
+        use_case_config=config,
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
-    user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
+    user_id = chat_event_body.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
-    builder.set_model_defaults(LLMProviderTypes.HUGGINGFACE, "google/flan-t5-xxl")
-    builder.validate_event_input_sizes(chat_event_body)
-    builder.set_conversation_memory(user_id, chat_event_body[CONVERSATION_ID_EVENT_KEY])
+    builder.set_model_defaults(LLMProviderTypes.BEDROCK, "amazon.titan-text-express-v1")
+    builder.validate_event_input_sizes(chat_event_body[MESSAGE_KEY])
+    builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
 
-    assert builder.llm_config == config
+    assert builder.use_case_config == config
     assert type(builder.conversation_memory) == DynamoDBChatMemory
     assert builder.conversation_memory.chat_memory.user_id == "fake-user-id"
     assert builder.conversation_memory.chat_memory.conversation_id == "fake-conversation-id"
     assert builder.conversation_memory.chat_memory.table == dynamodb_resource.Table(
         os.environ[CONVERSATION_TABLE_NAME_ENV_VAR]
     )
-
-
-@pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, return_source_docs, model_id",
-    [
-        (
-            CHAT_IDENTIFIER,
-            HUGGINGFACE_PROMPT,
-            False,
-            False,
-            False,
-            "google/flan-t5-xxl",
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            HUGGINGFACE_RAG_PROMPT,
-            False,
-            True,
-            False,
-            "google/flan-t5-xxl",
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            HUGGINGFACE_RAG_PROMPT,
-            False,
-            True,
-            True,
-            "google/flan-t5-xxl",
-        ),
-    ],
-)
-def test_api_key_builder(
-    use_case, model_id, prompt, rag_enabled, llm_config, chat_event, setup_secret, huggingface_dynamodb_defaults_table
-):
-    os.environ[LLM_PROVIDER_API_KEY_ENV_VAR] = "fake-secret-name"
-    config = json.loads(llm_config["Parameter"]["Value"])
-    chat_event_body = json.loads(chat_event["body"])
-    builder = HuggingFaceBuilder(
-        llm_config=config,
-        rag_enabled=rag_enabled,
-        connection_id="fake-connection-id",
-        conversation_id="fake-conversation-id",
-    )
-    builder.set_model_defaults(LLMProviderTypes.HUGGINGFACE, "google/flan-t5-xxl")
-    builder.validate_event_input_sizes(chat_event_body)
-    builder.set_api_key()
-
-    assert builder.llm_config == config
-    assert builder.api_key == "fake-secret-value"

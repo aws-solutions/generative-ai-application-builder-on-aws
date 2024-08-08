@@ -11,9 +11,9 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { injectLambdaContext } from '@aws-lambda-powertools/logger';
-import { logMetrics } from '@aws-lambda-powertools/metrics';
-import { captureLambdaHandler } from '@aws-lambda-powertools/tracer';
+import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
+import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
+import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import middy from '@middy/core';
 import { APIGatewayEvent } from 'aws-lambda';
 import {
@@ -21,8 +21,8 @@ import {
     CreateUseCaseCommand,
     DeleteUseCaseCommand,
     ListUseCasesCommand,
-    Status,
     PermanentlyDeleteUseCaseCommand,
+    Status,
     UpdateUseCaseCommand
 } from './command';
 import { ListUseCasesAdapter } from './model/list-use-cases';
@@ -30,6 +30,7 @@ import { ChatUseCaseDeploymentAdapter, ChatUseCaseInfoAdapter, UseCase } from '.
 import { logger, metrics, tracer } from './power-tools-init';
 import { checkEnv } from './utils/check-env';
 import { formatError, formatResponse } from './utils/http-response-formatters';
+import RequestValidationError from './utils/error';
 
 const commands: Map<string, CaseCommand> = new Map<string, CaseCommand>();
 commands.set('create', new CreateUseCaseCommand());
@@ -75,15 +76,28 @@ export const lambdaHandler = async (event: APIGatewayEvent) => {
             throw new Error('Command execution failed');
         }
         return formatResponse(response);
-    } catch (error) {
-        const rootTraceId = tracer.getRootXrayTraceId();
+    } catch (error: unknown) {
+        return handleError(error, stackAction);
+    }
+};
+
+export const handleError = (error: unknown, stackAction: string) => {
+    const rootTraceId = tracer.getRootXrayTraceId();
+    let errorMessage;
+
+    if (error instanceof RequestValidationError) {
+        logger.error(`Validation of request failed with error: ${error}`);
+        logger.error(`Error while validating request for action: ${stackAction}, root trace id: ${rootTraceId}`);
+        errorMessage = `Request Validation Error - Please contact support and quote the following trace id: ${rootTraceId}`;
+    } else {
         logger.error(`${error}`);
         logger.error(`Error while executing action: ${stackAction}, root trace id: ${rootTraceId}`);
-        return formatError({
-            message: `Internal Error - Please contact support and quote the following trace id: ${rootTraceId}`,
-            extraHeaders: { '_X_AMZN_TRACE_ID': rootTraceId as string }
-        });
+        errorMessage = `Internal Error - Please contact support and quote the following trace id: ${rootTraceId}`;
     }
+    return formatError({
+        message: errorMessage,
+        extraHeaders: { '_X_AMZN_TRACE_ID': rootTraceId as string }
+    });
 };
 
 export const adaptEvent = (event: APIGatewayEvent, stackAction: string): UseCase | ListUseCasesAdapter => {

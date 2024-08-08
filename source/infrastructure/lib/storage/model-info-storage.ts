@@ -20,6 +20,7 @@ import * as path from 'path';
 
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
+import * as cfn_nag from '../utils/cfn-guard-suppressions';
 import { getResourceProperties } from '../utils/common-utils';
 import { DynamoDBAttributes } from '../utils/constants';
 
@@ -65,6 +66,17 @@ export abstract class ModelInfoStorage extends Construct {
             }
         ]);
 
+        cfn_nag.addCfnSuppressRules(modelInfoTable, [
+            {
+                id: 'W74',
+                reason: 'The table is configured with AWS Managed key'
+            },
+            {
+                id: 'W78',
+                reason: 'Point-in-time recovery is recommended in the implementation guide but is not enforced'
+            }
+        ]);
+
         return modelInfoTable;
     }
 
@@ -86,6 +98,18 @@ export abstract class ModelInfoStorage extends Construct {
                 DDB_TABLE_NAME: modelInfoTable.tableName
             }
         });
+
+        const modelInfoDDBPolicy = new iam.Policy(this, 'ModelInfoDDBScanDelete', {
+            roles: [crLambdaRole],
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['dynamodb:Scan', 'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem'],
+                    resources: [modelInfoTable.tableArn]
+                })
+            ]
+        });
+        copyModelInfoCustomResource.node.addDependency(modelInfoDDBPolicy);
 
         return copyModelInfoCustomResource;
     }

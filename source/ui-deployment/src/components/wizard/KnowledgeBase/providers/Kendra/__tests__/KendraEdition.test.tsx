@@ -13,11 +13,11 @@
 
 import KendraEdition from '../KendraEdition';
 import { mockFormComponentCallbacks, cloudscapeRender } from '@/utils';
-import { screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 
 describe('KendraEdition', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('renders', () => {
@@ -37,5 +37,7 @@ describe('KendraEdition', () => {
         expect(select?.findDropdown().findOptions().length).toBe(2);
         expect(select?.findDropdown().findOptionByValue('enterprise')).toBeTruthy();
         expect(select?.findDropdown().findOptionByValue('developer')).toBeTruthy();
+
+        cleanup();
     });
 });

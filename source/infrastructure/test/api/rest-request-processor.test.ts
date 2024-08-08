@@ -38,13 +38,27 @@ describe('When deploying', () => {
 
         const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
 
+        const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
+            type: 'String',
+            description:
+                'Select "No", if you do not want to deploy the UI web application. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
+            allowedValues: ['Yes', 'No'],
+            allowedPattern: '^Yes|No$',
+            default: 'Yes'
+        });
+
         new RestRequestProcessor(stack, 'WebSocketEndpoint', {
             useCaseManagementAPILambda: new lambda.Function(stack, 'chatLambda', mockLambdaFuncProps),
             modelInfoAPILambda: new lambda.Function(stack, 'modelInfoLambda', mockLambdaFuncProps),
             applicationTrademarkName: 'fake-name',
             defaultUserEmail: 'testuser@example.com',
             customResourceLambdaArn: crLambda.functionArn,
-            customResourceRoleArn: crLambda.role!.roleArn
+            customResourceRoleArn: crLambda.role!.roleArn,
+            cognitoDomainPrefix: 'fake-prefix',
+            cloudFrontUrl: new cdk.CfnParameter(stack, 'CloudFrontUrl', {
+                type: 'String'
+            }).valueAsString,
+            deployWebApp: deployWebApp.valueAsString
         });
 
         template = Template.fromStack(stack);
@@ -61,13 +75,16 @@ describe('When deploying', () => {
             'Environment': {
                 'Variables': {
                     [USER_POOL_ID_ENV_VAR]: {
-                        'Ref': Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupNewUserPool*')
+                        Ref: Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupNewUserPool*')
                     },
                     [CLIENT_ID_ENV_VAR]: {
-                        'Ref': Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupAppClient*')
+                        'Fn::GetAtt': [
+                            Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCfnAppClient*'),
+                            'ClientId'
+                        ]
                     },
                     [COGNITO_POLICY_TABLE_ENV_VAR]: {
-                        'Ref': Match.stringLikeRegexp(
+                        Ref: Match.stringLikeRegexp(
                             'WebSocketEndpointDeploymentPlatformCognitoSetupCognitoGroupPolicyStore*'
                         )
                     }

@@ -12,12 +12,17 @@
  **********************************************************************************************************************/
 
 import ModelReview from '../ModelReview';
-import { renderWithProvider } from '@/utils';
-import { screen } from '@testing-library/react';
+import { mockedModelInfoQuery, renderWithProvider } from '@/utils';
+import { cleanup, screen } from '@testing-library/react';
 
 describe('UseCaseReview', () => {
+    beforeEach(async () => {
+        mockedModelInfoQuery();
+    });
+
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
+        cleanup();
     });
 
     test('renders', () => {
@@ -35,7 +40,7 @@ describe('UseCaseReview', () => {
         const { cloudscapeWrapper } = renderWithProvider(
             <ModelReview
                 header="Test Model Review Section"
-                setActiveStepIndex={jest.fn()}
+                setActiveStepIndex={vi.fn()}
                 modelData={modelData}
                 knowledgeBaseData={{
                     isRagRequired: false

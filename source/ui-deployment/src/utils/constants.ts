@@ -36,13 +36,19 @@ export const MIN_ADDITIONAL_KENDRA_QUERY_CAPACITY = 0;
 export const MAX_ADDITIONAL_KENDRA_QUERY_CAPACITY = 5;
 export const MIN_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 0;
 export const MAX_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 5;
-export const MIN_KNOWLEDGE_BASE_NUM_DOCS = 1;
-export const MAX_KNOWLEDGE_BASE_NUM_DOCS = 100;
+
 export const DELAY_AFTER_DELETE_MS = 2000; // 2 seconds
 
 export const DEFAULT_KENDRA_NUMBER_OF_DOCS = 2;
 export const DEFAULT_ADDITIONAL_KENDRA_QUERY_CAPACITY = 0;
 export const DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 0;
+
+export const DEFAULT_SCORE_THRESHOLD = 0.0;
+
+//prompt wizard step default values
+export const DEFAULT_REPHRASE_QUESTION_STATE = true;
+export const DEFAULT_CHAT_HISTORY_LENGTH = 20;
+export const DEFAULT_DISAMBIGUATION_PROMPT_ENABLED = true;
 
 export const DEPLOYMENT_PLATFORM_API_ROUTES = {
     LIST_USE_CASES: { route: '/deployments', method: 'GET' },
@@ -123,24 +129,31 @@ export const ERROR_MESSAGES = {
 
 const IG_ROOT = 'https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws';
 export const IG_DOCS = {
-    BEDROCK_SECURITY: `${IG_ROOT}/security-1.html#using-third-party-models-on-amazon-bedrock`,
+    BEDROCK_SECURITY: `https://docs.aws.amazon.com/bedrock/latest/userguide/security.html`,
+    FOUNDATION_MODELS: `${IG_ROOT}/security-1.html#using-third-party-models-on-amazon-bedrock`,
     CHOOSING_LLMS: `${IG_ROOT}/use-the-solution.html#choosing-the-right-llm-for-your-use-case`,
     CLEANUP_KENDRA: `${IG_ROOT}/uninstall-the-solution.html#deleting-the-amazon-kendra-indexes`,
     CLEANUP: `${IG_ROOT}/uninstall-the-solution.html#manual-uninstall-sub-topics`,
+    CLOUDFRONT: `${IG_ROOT}/amazon-cloudfront.html`,
     CONCEPTS: `${IG_ROOT}/concepts-and-definitions.html`,
+    CONFIGURE_PROMPTS: `${IG_ROOT}/configuring-your-prompts.html`,
     COST: `${IG_ROOT}/cost.html`,
-    INGESTING_DATA: `${IG_ROOT}/step-3-ingest-data-into-knowledge-base.html`,
+    INGESTING_DATA: `${IG_ROOT}/configuring-a-knowledge-base.html`,
     MANAGE_USERS: `${IG_ROOT}/customization-guide.html#managing-cognito-user-pool`,
-    SUPPORTED_LLMS: `${IG_ROOT}/supplemental-topics.html#supported-llm-providers`,
+    SUPPORTED_LLMS: `${IG_ROOT}/supported-llm-providers.html`,
     THIRD_PARTY_SECURITY: `${IG_ROOT}/security-1.html#third-party-llm-integrations-outside-of-amazon-bedrock`,
-    TIPS_PROMPT_LIMITS: `${IG_ROOT}/use-the-solution.html#tips-for-managing-model-token-limits`,
+    TIPS_PROMPT_LIMITS: `${IG_ROOT}/tips-for-managing-model-token-limits`,
     USE_CASES: `${IG_ROOT}/use-cases.html`,
     USING_THE_SOLUTION: `${IG_ROOT}/use-the-solution.html`,
-    VPC: `${IG_ROOT}`,
-    VPC_TROUBLESHOOTING: `${IG_ROOT}`,
-    VPC_CONSOLE: `https://console.aws.amazon.com/vpc/`,
-    SAGEMAKER_CREATE_ENDPOINT: `${IG_ROOT}`,
-    SAGEMAKER_USE: `${IG_ROOT}`
+    VPC: `${IG_ROOT}/vpc.html`,
+    VPC_TROUBLESHOOTING: `${IG_ROOT}/troubleshooting.html#problem-deploying-a-vpc-enabled-configuration-with-create-a-vpc-for-me-fails`,
+    SAGEMAKER_CREATE_ENDPOINT: `https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html`,
+    SAGEMAKER_USE: `${IG_ROOT}/configuring-an-llm#using-amazon-sagemaker-as-an-llm-provider`,
+    TEXT_USE_CASE_API_SPEC: `${IG_ROOT}/api-reference.html#chat-use-case-2`,
+    USING_UI: `${IG_ROOT}/use-the-solution.html#accessing-the-ui`,
+    KENDRA_ATTRIBUTE_FILTER: `${IG_ROOT}/advanced-knowledge-base-settings.html`,
+    BEDROCK_RETRIEVAL_FILTER: `${IG_ROOT}/advanced-knowledge-base-settings.html`,
+    RBAC_RAG_KENDRA: `${IG_ROOT}/advanced-knowledge-base-settings.html`
 };
 
 export const LANDING_PAGE_URL =

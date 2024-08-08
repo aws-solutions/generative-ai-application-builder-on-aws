@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2024-08-08
+
+### Added
+
+-   Support for Knowledge Bases for Amazon Bedrock as an option for Retrieval Augmented Generation (RAG) based workflows.
+-   Support for Identity Federation (OpenID Connect or SAML 2.0) through Amazon Cognito.
+-   Ability to add role-based access control for Amazon Kendra for controlling access over documents that can be retrieved while using RAG based workflows.
+-   Provisioned Throughput support for Amazon Bedrock models, allowing custom and provisioned base models to be added as the backing LLMs for the text use case.
+-   Enhanced prompt interface, allowing fine-grained control over prompts (including disambiguation prompts for RAG), message history and input lengths.
+-   Streamlined upgrade scripts for upgrading from v1.4.x to v2.0.0. For detailed steps, refer to the following [section](https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/update-the-solution.html)
+-   Model support for Amazon Titan Text G1 - Premier
+
+### Changed
+
+-   Deprecated direct Anthropic and Hugging Face LLMs in favour of integrating them through Amazon Bedrock and Amazon SageMaker.
+-   Switch login screens from amplify-ui to Cognito Hosted UI to support Identity Federation.
+-   Switch from `webpack` to `vite` for building and packaging UI projects.
+-   Updates to Node and Python package versions.
+
 ## [1.4.5] - 2024-07-22
 
 ### Security

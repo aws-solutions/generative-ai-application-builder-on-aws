@@ -158,39 +158,109 @@ describe('When creating the custom resource infrastructure construct', () => {
 
     it('should have a dynamodb policy for the custom resource lambda function', () => {
         template.hasResourceProperties('AWS::IAM::Policy', {
-            'PolicyDocument': {
-                'Statement': [
+            PolicyDocument: {
+                Statement: [
                     {
-                        'Action': ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
-                        'Effect': 'Allow',
-                        'Resource': {
+                        Action: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
+                        Effect: 'Allow',
+                        Resource: {
                             'Fn::Join': [
                                 '',
                                 [
                                     'arn:',
                                     {
-                                        'Ref': 'AWS::Partition'
+                                        Ref: 'AWS::Partition'
                                     },
                                     ':dynamodb:',
                                     {
-                                        'Ref': 'AWS::Region'
+                                        Ref: 'AWS::Region'
                                     },
                                     ':',
                                     {
-                                        'Ref': 'AWS::AccountId'
+                                        Ref: 'AWS::AccountId'
                                     },
                                     ':table/*'
                                 ]
                             ]
                         }
+                    },
+                    {
+                        Action: 'lambda:GetFunction',
+                        Effect: 'Allow',
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        Ref: 'AWS::Partition'
+                                    },
+                                    ':lambda:',
+                                    {
+                                        Ref: 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        Ref: 'AWS::AccountId'
+                                    },
+                                    ':function:*'
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        Action: ['logs:PutRetentionPolicy', 'logs:DescribeLogGroups', 'logs:CreateLogGroup'],
+                        Effect: 'Allow',
+                        Resource: [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':logs:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':log-group:/aws/lambda/*'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':logs:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            Ref: 'AWS::AccountId'
+                                        },
+                                        ':log-group::log-stream:*'
+                                    ]
+                                ]
+                            }
+                        ]
                     }
                 ],
-                'Version': '2012-10-17'
+                Version: '2012-10-17'
             },
-            'PolicyName': Match.anyValue(),
-            'Roles': [
+            PolicyName: Match.anyValue(),
+            Roles: [
                 {
-                    'Ref': customResourceLambdaRole.asString()
+                    Ref: customResourceLambdaRole.asString()
                 }
             ]
         });
@@ -211,9 +281,9 @@ describe('When creating the custom resource infrastructure construct', () => {
             Environment: {
                 Variables: {
                     POWERTOOLS_SERVICE_NAME: 'ANONYMOUS-CW-METRICS',
-                    LOG_LEVEL: 'DEBUG',
                     SOLUTION_ID: rawCdkJson.context.solution_id,
-                    SOLUTION_VERSION: rawCdkJson.context.solution_version
+                    SOLUTION_VERSION: rawCdkJson.context.solution_version,
+                    LOG_LEVEL: Match.absent()
                 }
             }
         });

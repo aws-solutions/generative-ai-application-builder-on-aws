@@ -119,11 +119,11 @@ const Model = ({ info: { model, knowledgeBase }, setHelpPanelContent, onChange }
     React.useEffect(() => {
         updateError();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [requiredFields]);
+    }, [requiredFields, model.modelArn, model.guardrailIdentifier, model.guardrailVersion]);
 
     // prettier-ignore
     React.useEffect(() => { //NOSONAR - no need to refactor, it is already broken down into separate functions
-        updateRequiredFields(model.modelProvider.value, setRequiredFields);
+        updateRequiredFields(model.modelProvider.value, model.provisionedModel, model.enableGuardrails, setRequiredFields);
         updateError();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
@@ -136,7 +136,9 @@ const Model = ({ info: { model, knowledgeBase }, setHelpPanelContent, onChange }
         model.inferenceEndpoint,
         model.modelParameters,
         model.sagemakerEndpointName,
-        model.sagemakerOutputSchema
+        model.sagemakerOutputSchema,
+        model.provisionedModel,
+        model.enableGuardrails
     ]);
 
     return (

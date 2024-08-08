@@ -197,7 +197,7 @@ export class KendraKnowledgeBase extends cdk.NestedStack {
      * Handles creation of Kendra index with given properties
      *
      * @param props properties as passed from constructor
-     * @returns CfnIndex. the created Kendra index ()
+     * @returns CfnIndex, the created Kendra index
      */
     private createKendraIndex(props: KendraKnowledgeBaseParameters) {
         const kendraProps = {

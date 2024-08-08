@@ -12,35 +12,34 @@
 #  and limitations under the License.                                                                                #
 # ********************************************************************************************************************#
 
-import os
-import time
 from typing import Any, Dict
 
 from aws_lambda_powertools import Logger, Tracer
-from aws_lambda_powertools.metrics import MetricUnit
-from langchain.chains import ConversationalRetrievalChain
-from langchain_core.prompts import PromptTemplate
 from llms.bedrock import BedrockLLM
-from llms.models.llm import LLM
+from llms.models.model_provider_inputs import ModelProviderInputs
+from llms.rag.retrieval_llm import RetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import DEFAULT_RAG_CHAIN_TYPE, DEFAULT_RETURN_SOURCE_DOCS, TRACE_ID_ENV_VAR
-from utils.custom_exceptions import LLMInvocationError
-from utils.enum_types import BedrockModelProviders, CloudWatchMetrics, CloudWatchNamespaces
-from utils.helpers import get_metrics_client
+from utils.constants import (
+    BEDROCK_GUARDRAILS_KEY,
+    DEFAULT_BEDROCK_MODEL_FAMILY,
+    DEFAULT_BEDROCK_MODELS_MAP,
+    DEFAULT_RETURN_SOURCE_DOCS,
+)
+from utils.enum_types import BedrockModelProviders, CloudWatchNamespaces
+from utils.helpers import get_metrics_client, type_cast
 
 tracer = Tracer()
 logger = Logger(utc=True)
 metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
 
 
-class BedrockRetrievalLLM(BedrockLLM):
+class BedrockRetrievalLLM(RetrievalLLM, BedrockLLM):
     """
     BedrockRetrievalLLM is a wrapper around the Bedrock LangChain API which can generate chat responses, provided a conversation memory
     and knowledge base. Specifically, this enables the usage of RAG with Bedrock available models.
 
     Attributes:
         - llm_params: LLM dataclass object which has the following:
-            api_token (str): Set to None for Bedrock models. Not required for Bedrock as a Bedrock client is used to invoke the Bedrock models.
             conversation_memory (BaseMemory): A BaseMemory object which helps store and access user chat history
             knowledge_base (KnowledgeBase): A KnowledgeBase object which retrieves information from the user's knowledge base for LLM context
             return_source_docs (bool): A boolean which represents whether the source documents are returned or not [optional, defaults to DEFAULT_RETURN_SOURCE_DOCS]
@@ -60,118 +59,54 @@ class BedrockRetrievalLLM(BedrockLLM):
         - return_source_docs (bool): A boolean which represents whether the source documents are returned or not [optional, defaults to DEFAULT_RETURN_SOURCE_DOCS]
 
     Methods:
-        generate(question): Generates a chat response
-        get_conversation_chain(): Creates a `ConversationalRetrievalChain` chain that is connected to a conversation memory and the specified prompt
-        get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template, default_prompt_template_placeholders): Generates the PromptTemplate using
-            the provided prompt template and placeholders. In case of errors, falls back on default values.
-        prompt(): Returns the prompt set on the underlying LLM
-        memory_buffer(): Returns the conversation memory buffer for the underlying LLM
+        - generate(question): Generates a chat response
+        - get_conversation_chain(): Creates a `ConversationalRetrievalChain` chain that is connected to a conversation
+        memory and the specified prompt
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
+        default_prompt_template_placeholders): Generates the PromptTemplate using the provided prompt template and placeholders. In case of errors, falls back on default values.
+        - get_validated_disambiguation_prompt(disambiguation_prompt_template, default_disambiguation_prompt_template,
+        disambiguation_prompt_template_placeholders): Generates the PromptTemplate using the provided disambiguation prompt template. In case of errors, falls back on default values.
 
     """
 
     def __init__(
         self,
-        llm_params: LLM,
+        llm_params: ModelProviderInputs,
         model_defaults: ModelDefaults,
         model_family: BedrockModelProviders = None,
-        return_source_docs=DEFAULT_RETURN_SOURCE_DOCS,
+        return_source_docs: bool = DEFAULT_RETURN_SOURCE_DOCS,
     ):
-        self._condensing_prompt_template = PromptTemplate.from_template(model_defaults.disambiguation_prompt)
-        self._return_source_docs = return_source_docs
-        super().__init__(
-            llm_params=llm_params, model_defaults=model_defaults, model_family=model_family, rag_enabled=True
+        RetrievalLLM.__init__(
+            self,
+            llm_params=llm_params,
+            model_defaults=model_defaults,
+            return_source_docs=return_source_docs,
+            disambiguation_prompt_template=llm_params.disambiguation_prompt_template,
         )
+        if llm_params.model is not None and model_family is not None and len(llm_params.model) and len(model_family):
+            self.model = llm_params.model
+            self.model_family = model_family
+        else:
+            self.model = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
+            self.model_family = DEFAULT_BEDROCK_MODEL_FAMILY
 
-    @property
-    def condensing_prompt_template(self) -> bool:
-        return self._condensing_prompt_template
+        self.model_arn = llm_params.model_arn
 
-    @property
-    def return_source_docs(self) -> bool:
-        return self._return_source_docs
+        if llm_params.model_params is not None and BEDROCK_GUARDRAILS_KEY in llm_params.model_params:
+            self.guardrails = type_cast(
+                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Value"),
+                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Type"),
+            )
+            llm_params.model_params.pop(BEDROCK_GUARDRAILS_KEY)
+        else:
+            self.guardrails = None
 
-    def get_conversation_chain(self) -> ConversationalRetrievalChain:
-        """
-        Creates a `ConversationalRetrievalChain` chain that uses a `retriever` connected to a knowledge base.
-        Args: None
+        self.model_params = self.get_clean_model_params(llm_params.model_params)
 
-        Returns:
-            ConversationalRetrievalChain: An LLM chain uses a `retriever` connected to a knowledge base.
-        """
-        return ConversationalRetrievalChain.from_llm(
-            llm=self.llm,
-            retriever=self.knowledge_base.retriever,
-            chain_type=DEFAULT_RAG_CHAIN_TYPE,
-            verbose=self.verbose,
-            memory=self.conversation_memory,
-            return_source_documents=self.return_source_docs,
-            combine_docs_chain_kwargs={"prompt": self.prompt_template},
-            get_chat_history=lambda chat_history: chat_history,
-            condense_question_llm=self.get_llm(condense_prompt_model=True),
-            condense_question_prompt=self.condensing_prompt_template,
-            callbacks=self.callbacks,
-        )
+        self.llm = self.get_llm()
+        self.conversation_chain = self.get_conversation_chain()
 
     @tracer.capture_method(capture_response=True)
     def generate(self, question: str) -> Dict[str, Any]:
-        """@overrides BedrockLLM.generate
-
-        Args:
-            question (str): the question that should be sent to the LLM model
-
-        Returns:
-            (Dict): The LLM response message as a dictionary with the relevant source documents
-            Response dict form:
-            {
-             "answer": str,
-             "source_documents": List[Dict]
-            }
-        """
-        logger.info(
-            f"Prompt for LLM: {self.prompt_template.template.replace('{input}', '{question}').replace('{history}', '{chat_history}')}"
-        )
-        logger.debug(f"Condensing prompt for LLM: {self.condensing_prompt_template.template}")
         error_message = f"Error occurred while invoking {self.model_family} {self.model} model. "
-
-        with tracer.provider.in_subsegment("## llm_chain") as subsegment:
-            subsegment.put_annotation("library", "langchain")
-            subsegment.put_annotation("operation", "ConversationalRetrievalChain")
-            metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_QUERY.value, unit=MetricUnit.Count, value=1)
-            metrics.flush_metrics()
-
-            try:
-                start_time = time.time()
-                chain_result = self.conversation_chain.invoke(
-                    {"question": question, "chat_history": self.conversation_memory.chat_memory.messages},
-                )
-                end_time = time.time()
-                metrics.flush_metrics()
-
-                metrics.add_metric(
-                    name=CloudWatchMetrics.LANGCHAIN_QUERY_PROCESSING_TIME.value,
-                    unit=MetricUnit.Seconds,
-                    value=(end_time - start_time),
-                )
-                metrics.flush_metrics()
-
-                logger.debug(f"LLM response: {chain_result}")
-                llm_response = {"answer": chain_result["answer"].strip()}
-                if "source_documents" in chain_result:
-                    llm_response["source_documents"] = chain_result["source_documents"]
-
-                return llm_response
-            except ValueError as ve:
-                error_message = error_message + str(ve)
-                logger.error(
-                    error_message,
-                    xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-                )
-                metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1)
-                raise LLMInvocationError(error_message)
-            except Exception as ex:
-                error_message = error_message + str(ex)
-                logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-                metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1)
-                raise LLMInvocationError(error_message)
-            finally:
-                metrics.flush_metrics()
+        return super().generate(question, error_message)

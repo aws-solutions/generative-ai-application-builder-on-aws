@@ -34,7 +34,7 @@ export const jwtVerifier = CognitoJwtVerifier.create({
  * The function will return a policy with the effect 'Allow' if the token is valid, and 'Deny' otherwise.
  *
  * @param event Request authorization event received from APIGateway websocket api
- * @param context Lamdba event context
+ * @param context Lambda event context
  * @returns Object containing `principalId`, `policyDocument` and optionally `context` and `usageIdentifierKey`
  */
 export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<AuthResponse> => {
