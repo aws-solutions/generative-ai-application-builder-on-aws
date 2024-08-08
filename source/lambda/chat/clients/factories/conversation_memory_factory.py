@@ -19,7 +19,16 @@ from aws_lambda_powertools import Logger
 from langchain_core.memory import BaseMemory
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR, TRACE_ID_ENV_VAR
+from utils.constants import (
+    AI_PREFIX,
+    CONTEXT_KEY,
+    CONVERSATION_TABLE_NAME_ENV_VAR,
+    HISTORY_KEY,
+    HUMAN_PREFIX,
+    INPUT_KEY,
+    OUTPUT_KEY,
+    TRACE_ID_ENV_VAR,
+)
 from utils.enum_types import ConversationMemoryTypes
 
 logger = Logger(utc=True)
@@ -28,41 +37,36 @@ logger = Logger(utc=True)
 class ConversationMemoryFactory:
     """
     Factory class for creating a conversation memory object based on the ConversationMemoryType provided, along with its configuration
-    in the llm_config.
+    in the use_case_config.
     """
 
     def get_conversation_memory(
         self,
-        llm_config: Dict,
+        use_case_config: Dict,
+        default_memory_config: Dict,
         user_id: str,
         conversation_id: str,
-        errors: List[str],
-        memory_key: Optional[str] = None,
-        input_key: Optional[str] = None,
-        output_key: Optional[str] = None,
-        context_key: Optional[str] = None,
-        human_prefix: Optional[str] = None,
-        ai_prefix: Optional[str] = None,
+        errors: Optional[List[str]] = None,
     ) -> BaseMemory:
         """
         Returns a BaseMemory object based on the conversation-memory object constructed with the provided configuration.
         Args:
-            llm_config(Dict): Model configuration set by admin
-            errors(List): List of errors to append to
+            use_case_config(Dict): Model configuration set by admin
+            default_memory_config: Default memory configuration that includes the memory_key, input_key, output_key, human_prefix, ai_prefix
             user_id(str): User ID
             conversation_id (str): Conversation ID
-            memory_key(Optional[str]): Memory/history key for the conversation memory
-            input_key(Optional[str]): Input key for the conversation memory
-            output_key(Optional[str]): Output key for the conversation memory
-            human_prefix(Optional[str]): Human prefix in the conversation
-            ai_prefix(Optional[str]): AI prefix in the conversation
+            errors (List[str]): List of errors to append to
 
         Returns:
             BaseMemory: the conversation-memory constructed with the provided configuration
         """
+        if errors is None:
+            errors = []
 
-        conversation_memory_type = llm_config.get("ConversationMemoryType")
+        conversation_memory_type = use_case_config.get("ConversationMemoryParams", {}).get("ConversationMemoryType")
         unsupported_memory_error = f"Unsupported Memory base type: {conversation_memory_type}."
+
+        max_history_length = use_case_config.get("ConversationMemoryParams", {}).get("ChatHistoryLength")
 
         if conversation_memory_type is None:
             errors.append(
@@ -95,18 +99,26 @@ class ConversationMemoryFactory:
                 )
                 return
             chat_history = DynamoDBChatMessageHistory(
-                table_name=table_name, user_id=user_id, conversation_id=conversation_id
-            )
-            chat_memory = DynamoDBChatMemory(
-                chat_message_history=chat_history,
-                memory_key=memory_key,
-                input_key=input_key,
-                output_key=output_key,
-                context_key=context_key,
-                human_prefix=human_prefix,
-                ai_prefix=ai_prefix,
+                table_name=table_name,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                max_history_length=max_history_length,
             )
 
+            ai_prefix = use_case_config.get("ConversationMemoryParams", {}).get("AiPrefix")
+            human_prefix = use_case_config.get("ConversationMemoryParams", {}).get("HumanPrefix")
+
+            chat_memory = DynamoDBChatMemory(
+                chat_message_history=chat_history,
+                memory_key=default_memory_config[HISTORY_KEY],
+                input_key=default_memory_config[INPUT_KEY],
+                output_key=default_memory_config[OUTPUT_KEY],
+                context_key=default_memory_config[CONTEXT_KEY],
+                human_prefix=(
+                    default_memory_config[HUMAN_PREFIX] if human_prefix is None or not human_prefix else human_prefix
+                ),
+                ai_prefix=(default_memory_config[AI_PREFIX] if ai_prefix is None or not ai_prefix else ai_prefix),
+            )
             return chat_memory
 
         else:

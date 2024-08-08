@@ -18,6 +18,7 @@ import { CodeEditor, CodeEditorProps, FormField } from '@cloudscape-design/compo
 import 'ace-builds/css/ace.css';
 import 'ace-builds/css/theme/dawn.css';
 import 'ace-builds/css/theme/tomorrow_night_bright.css';
+
 import {
     INPUT_SCHEMA_RESERVED_KEYS,
     PROMPT_SCHEMA_REGEX,
@@ -25,8 +26,9 @@ import {
     modelParamsToJson,
     validateModelParamsInTemplate
 } from './helpers';
-import { InfoLink } from 'components/commons';
+import { InfoLink } from '@/components/commons';
 import { modelToolsContent } from '../helpers';
+import { loadAce } from '../../utils';
 
 export interface InputSchemaProps extends BaseFormComponentProps {
     modelData: any;
@@ -90,17 +92,6 @@ export const InputSchema = (props: InputSchemaProps) => {
     const editorRef = useRef<any>();
 
     useEffect(() => {
-        async function loadAce() {
-            const ace = await import('ace-builds');
-            await import('ace-builds/webpack-resolver');
-            ace.config.set('useStrictCSP', true);
-
-            ace.config.set('fontSize', '14px');
-            ace.config.set('fontFamily', 'monospace');
-
-            return ace;
-        }
-
         loadAce()
             .then((ace) => setAce(ace))
             .finally(() => setLoading(false));

@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "target": "es6",
+    "types": [
+      "vite/client",
+      "vitest/globals"
+    ],
     "lib": [
       "dom",
       "dom.iterable",
@@ -10,7 +14,7 @@
     "paths": {
       "@/*": [
         "*"
-      ],
+      ]
     },
     "allowJs": true,
     "skipLibCheck": true,
@@ -19,7 +23,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,

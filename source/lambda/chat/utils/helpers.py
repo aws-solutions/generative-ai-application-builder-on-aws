@@ -104,6 +104,7 @@ def validate_prompt_placeholders(prompt_template: str, required_placeholders: Li
     Raises:
         ValueError: When a placeholder is not present in the prompt template, or there is more than 1 occurrence of it.
     """
+
     metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
     try:
         if not prompt_template:
@@ -205,4 +206,4 @@ def pop_null_values(input_dict: Union[Dict[Any, Any], List[Dict[Any, Any]]]):
         }
     if isinstance(input_dict, list):
         return [value for value in map(pop_null_values, input_dict) if value]
-    return input_dict
+    return input_dict  # This not unreachable code.

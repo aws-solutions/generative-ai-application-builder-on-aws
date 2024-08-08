@@ -16,61 +16,69 @@ import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { Construct, IConstruct } from 'constructs';
+import { Construct } from 'constructs';
 
 import { LambdaToDynamoDB } from '@aws-solutions-constructs/aws-lambda-dynamodb';
 import { NagSuppressions } from 'cdk-nag';
 import { WebsocketRequestProcessor } from '../api/websocket-request-processor';
+import { UserCaseUserPoolClientProps } from '../auth/use-case-cognito-setup';
 import { ApplicationSetup } from '../framework/application-setup';
 import { BaseStack, BaseStackProps } from '../framework/base-stack';
 import { DashboardType } from '../metrics/custom-dashboard';
+import { CopyUIAssets } from '../s3web/copy-ui-assets-nested-stack';
+import { UIDistribution } from '../s3web/ui-distribution-nested-stack';
 import { KnowledgeBaseSetup } from '../search/knowledge-base-setup';
 import { ChatStorageSetup } from '../storage/chat-storage-setup';
-import { UIInfrastructure } from '../ui/ui-infrastructure';
-import { generateSourceCodeMapping } from '../utils/common-utils';
+import { UIInfrastructureBuilder } from '../ui/ui-infrastructure-builder';
+import * as cfn_guard from '../utils/cfn-guard-suppressions';
+import { createCustomResourceForLambdaLogRetention, generateSourceCodeMapping } from '../utils/common-utils';
 import {
+    BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR,
     CHAT_PROVIDERS,
     CLIENT_ID_ENV_VAR,
     CONVERSATION_TABLE_NAME_ENV_VAR,
     DEFAULT_KENDRA_EDITION,
     DEFAULT_KENDRA_QUERY_CAPACITY_UNITS,
     DEFAULT_KENDRA_STORAGE_CAPACITY_UNITS,
+    DEFAULT_KNOWLEDGE_BASE_TYPE,
     DEFAULT_NEW_KENDRA_INDEX_NAME,
     DEFAULT_RAG_ENABLED_STATUS,
     EMAIL_REGEX_PATTERN,
     INTERNAL_EMAIL_DOMAIN,
     KENDRA_EDITIONS,
     KENDRA_INDEX_ID_ENV_VAR,
-    LLM_PARAMETERS_SSM_KEY_ENV_VAR,
+    KNOWLEDGE_BASE_TYPES,
     MAX_KENDRA_QUERY_CAPACITY_UNITS,
     MAX_KENDRA_STORAGE_CAPACITY_UNITS,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     PLACEHOLDER_EMAIL,
-    RAG_ENABLED_ENV_VAR,
+    SUPPORTED_KNOWLEDGE_BASE_TYPES,
+    UIAssetFolders,
     USER_POOL_ID_ENV_VAR,
+    USE_CASE_CONFIG_RECORD_KEY_ENV_VAR,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     USE_CASE_UUID_ENV_VAR,
     UseCaseNames,
     WEBSOCKET_API_ID_ENV_VAR,
     WEB_CONFIG_PREFIX
 } from '../utils/constants';
 import { VPCSetup } from '../vpc/vpc-setup';
-import { UIAssets } from './ui-asset';
 
 export class UseCaseChatParameters {
-    /**
-     * This application sends data to 3rd party LLM parameters. You must explicitly consent to this in order to deploy the stack.
-     */
-    public readonly consentToDataLeavingAWS: cdk.CfnParameter;
-
     /**
      * Unique ID for this deployed use case within an application. Provided by the deployment platform if in use.
      */
     public readonly useCaseUUID: cdk.CfnParameter;
 
     /**
-     * Name of secret in Secrets Manager holding the API key used by langchain to call the third party LLM provider
+     * If set to 'false', the deployed use case stack will only interact with the LLM provider directly, and will not reference a knowledge base.
      */
-    public readonly providerApiKeySecret: cdk.CfnParameter;
+    public readonly ragEnabled: cdk.CfnParameter;
+
+    /**
+     * RAG knowledge base type. Should only be set if ragEnabled is true;
+     */
+    public readonly knowledgeBaseType: cdk.CfnParameter;
 
     /**
      * Index ID of an existing Kendra index to be used for the use case. If none is provided, a new index will be created.
@@ -98,10 +106,22 @@ export class UseCaseChatParameters {
     public readonly newKendraIndexEdition: cdk.CfnParameter;
 
     /**
-     * Name of the SSM parameter containing configurations required by the chat provider lambda at runtime. Parameter value is expected to be a JSON string.
-     * The SSM parameter will be populated by the deployment platform if in use. For standalone deployments of this use-case, manual configuration is required.
+     * ID of the bedrock knowledge base to use in a RAG use case. Cannot be provided if existingKendraIndexId or newKendraIndexName are provided.
      */
-    public readonly chatConfigSSMParameterName: cdk.CfnParameter;
+    public readonly bedrockKnowledgeBaseId: cdk.CfnParameter;
+
+    /**
+     * Name of the table that stores the configuration for a use case.
+     */
+    public readonly useCaseConfigTableName: cdk.CfnParameter;
+
+    /**
+     * Key corresponding of the record containing configurations required by the chat provider lambda at runtime. The record in the table should have a "key"
+     * attribute matching this value, and a "config" attribute containing the desired config. This record will be populated by the deployment platform if in
+     * use. For standalone deployments of this use-case, a manually created entry in the table defined in `UseCaseConfigTableName` is required.
+     * Consult the implementation guide for more details.
+     */
+    public readonly useCaseConfigRecordKey: cdk.CfnParameter;
 
     /**
      * Email of the default user for this use case. A cognito user for this email will be created to access the use case.
@@ -121,21 +141,20 @@ export class UseCaseChatParameters {
     public readonly existingCognitoGroupPolicyTableName: cdk.CfnParameter;
 
     /**
+     * Cfn parameter for existing user pool client Id (App Client Id)
+     */
+    public readonly existingUserPoolClientId: cdk.CfnParameter;
+
+    /**
      * Name of the table which stores info/defaults for models. If not provided (passed an empty string), the table will be created.
      */
     public readonly existingModelInfoTableName: cdk.CfnParameter;
 
-    /**
-     * If set to 'false', the deployed use case stack will only interact with the LLM provider directly, and will not reference a knowledge base.
-     */
-    public readonly ragEnabled: cdk.CfnParameter;
+    private cfnStack: cdk.Stack;
 
-    /**
-     * Deploys UI, if set to 'Yes'
-     */
-    public readonly deployUI: cdk.CfnParameter;
+    constructor(stack: BaseStack) {
+        this.cfnStack = cdk.Stack.of(stack);
 
-    constructor(stack: IConstruct) {
         this.useCaseUUID = new cdk.CfnParameter(stack, 'UseCaseUUID', {
             type: 'String',
             description:
@@ -145,11 +164,26 @@ export class UseCaseChatParameters {
             constraintDescription: 'Please provide an 8 character long UUID'
         });
 
+        this.ragEnabled = new cdk.CfnParameter(stack, 'RAGEnabled', {
+            type: 'String',
+            allowedValues: ['true', 'false'],
+            default: DEFAULT_RAG_ENABLED_STATUS,
+            description:
+                'If set to "true", the deployed use case stack will use the specified knowledge base to provide RAG functionality. If set to false, the user interacts directly with the LLM.'
+        });
+
+        this.knowledgeBaseType = new cdk.CfnParameter(stack, 'KnowledgeBaseType', {
+            type: 'String',
+            allowedValues: SUPPORTED_KNOWLEDGE_BASE_TYPES,
+            default: DEFAULT_KNOWLEDGE_BASE_TYPE,
+            description: 'Knowledge base type to be used for RAG. Should only be set if RAGEnabled is true'
+        });
+
         this.existingKendraIndexId = new cdk.CfnParameter(stack, 'ExistingKendraIndexId', {
             type: 'String',
             allowedPattern: '^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
             description:
-                'Index ID of an existing Kendra index to be used for the use case. If none is provided, a new index will be created for you.',
+                'Index ID of an existing Kendra index to be used for the use case. If none is provided and KnowledgeBaseType is Kendra, a new index will be created for you.',
             default: ''
         });
 
@@ -158,14 +192,14 @@ export class UseCaseChatParameters {
             allowedPattern: '^$|^[0-9a-zA-Z-]{1,64}$',
             maxLength: 64,
             description:
-                'Name for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.',
+                'Name for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied.',
             default: DEFAULT_NEW_KENDRA_INDEX_NAME
         });
 
         this.newKendraQueryCapacityUnits = new cdk.CfnParameter(stack, 'NewKendraQueryCapacityUnits', {
             type: 'Number',
             description:
-                'Additional query capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
+                'Additional query capacity units for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
             default: DEFAULT_KENDRA_QUERY_CAPACITY_UNITS,
             maxValue: MAX_KENDRA_QUERY_CAPACITY_UNITS,
             minValue: 0,
@@ -175,7 +209,7 @@ export class UseCaseChatParameters {
         this.newKendraStorageCapacityUnits = new cdk.CfnParameter(stack, 'NewKendraStorageCapacityUnits', {
             type: 'Number',
             description:
-                'Additional storage capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
+                'Additional storage capacity units for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
             default: DEFAULT_KENDRA_STORAGE_CAPACITY_UNITS,
             maxValue: MAX_KENDRA_STORAGE_CAPACITY_UNITS,
             minValue: 0,
@@ -186,16 +220,32 @@ export class UseCaseChatParameters {
             type: 'String',
             allowedValues: KENDRA_EDITIONS,
             description:
-                'The edition of Kendra to use for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/dg/kendra-editions.html',
+                'The edition of Kendra to use for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/dg/kendra-editions.html',
             default: DEFAULT_KENDRA_EDITION
         });
 
-        this.chatConfigSSMParameterName = new cdk.CfnParameter(stack, 'ChatConfigSSMParameterName', {
+        this.bedrockKnowledgeBaseId = new cdk.CfnParameter(stack, 'BedrockKnowledgeBaseId', {
             type: 'String',
-            allowedPattern: '^(\\/[^\\/ ]*)+\\/?$',
-            maxLength: 63,
+            allowedPattern: '^[0-9a-zA-Z]{0,10}$',
             description:
-                'Name of the SSM parameter containing configurations required by the chat provider lambda at runtime. Parameter value is expected to be a JSON string. The SSM parameter will be populated by the deployment platform if in use. For standalone deployments of this use-case, manual configuration is required.'
+                'ID of the bedrock knowledge base to use in a RAG use case. Cannot be provided if ExistingKendraIndexId or NewKendraIndexName are provided.',
+            default: ''
+        });
+
+        this.useCaseConfigTableName = new cdk.CfnParameter(stack, 'UseCaseConfigTableName', {
+            type: 'String',
+            maxLength: 255,
+            allowedPattern: '^[a-zA-Z0-9_.-]{3,255}$',
+            description: 'DynamoDB table name for the table which contains the configuration for this use case.',
+            constraintDescription:
+                'This parameter is required. The stack will read the configuration from this table to configure the resources during deployment'
+        });
+
+        this.useCaseConfigRecordKey = new cdk.CfnParameter(stack, 'UseCaseConfigRecordKey', {
+            type: 'String',
+            maxLength: 2048,
+            description:
+                'Key corresponding of the record containing configurations required by the chat provider lambda at runtime. The record in the table should have a "key" attribute matching this value, and a "config" attribute containing the desired config. This record will be populated by the deployment platform if in use. For standalone deployments of this use-case, a manually created entry in the table defined in `UseCaseConfigTableName` is required. Consult the implementation guide for more details.'
         });
 
         this.defaultUserEmail = new cdk.CfnParameter(stack, 'DefaultUserEmail', {
@@ -225,6 +275,15 @@ export class UseCaseChatParameters {
             default: ''
         });
 
+        this.existingUserPoolClientId = new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClient', {
+            type: 'String',
+            allowedPattern: '^$|^[a-z0-9]{3,128}$',
+            maxLength: 128,
+            description:
+                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
+            default: ''
+        });
+
         this.existingModelInfoTableName = new cdk.CfnParameter(stack, 'ExistingModelInfoTableName', {
             type: 'String',
             maxLength: 255,
@@ -233,33 +292,32 @@ export class UseCaseChatParameters {
             description: 'DynamoDB table name for the table which contains model info and defaults.'
         });
 
-        this.ragEnabled = new cdk.CfnParameter(stack, 'RAGEnabled', {
-            type: 'String',
-            allowedValues: ['true', 'false'],
-            default: DEFAULT_RAG_ENABLED_STATUS,
-            description:
-                'If set to "true", the deployed use case stack will use the provided/created Kendra index to provide RAG functionality. If set to false, the user interacts directly with the LLM.'
-        });
+        this.createCfnParameterGroups(stack);
+        this.setCfnParameterRules(stack);
+    }
 
-        this.deployUI = new cdk.CfnParameter(stack, 'DeployUI', {
-            type: 'String',
-            allowedValues: ['Yes', 'No'],
-            default: 'Yes',
-            description: 'Please select the option to deploy the front end UI for this deployment'
-        });
-
-        const cfnStack = cdk.Stack.of(stack);
-        let existingParameterGroups =
-            cfnStack.templateOptions.metadata !== undefined &&
-            cfnStack.templateOptions.metadata.hasOwnProperty('AWS::CloudFormation::Interface') &&
-            cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
-                ? cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
+    private createCfnParameterGroups(stack: BaseStack) {
+        const existingParameterGroups =
+            this.cfnStack.templateOptions.metadata !== undefined &&
+            Object.hasOwn(this.cfnStack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
+            this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
+                ? this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
                 : [];
 
         existingParameterGroups.unshift({
-            Label: { default: 'Please provide Kendra configuration if using RAG based architecture' },
+            Label: {
+                default:
+                    'Please provide Bedrock knowledge base configuration if using RAG based architecture with Bedrock selected as your knowledge base type'
+            },
+            Parameters: [this.bedrockKnowledgeBaseId.logicalId]
+        });
+
+        existingParameterGroups.unshift({
+            Label: {
+                default:
+                    'Please provide Kendra configuration if using RAG based architecture with Kendra selected as your knowledge base type'
+            },
             Parameters: [
-                this.ragEnabled.logicalId,
                 this.existingKendraIndexId.logicalId,
                 this.newKendraIndexName.logicalId,
                 this.newKendraQueryCapacityUnits.logicalId,
@@ -269,20 +327,35 @@ export class UseCaseChatParameters {
         });
 
         existingParameterGroups.unshift({
-            Label: { default: 'Please provide configuration for the use case' },
+            Label: { default: 'Please provide RAG configuration if using RAG based architecture' },
+            Parameters: [this.ragEnabled.logicalId, this.knowledgeBaseType.logicalId]
+        });
+
+        existingParameterGroups.unshift({
+            Label: { default: 'Please provide identity configuration to setup Amazon Cognito for the use case' },
             Parameters: [
-                this.deployUI.logicalId,
-                this.useCaseUUID.logicalId,
-                this.chatConfigSSMParameterName.logicalId,
-                this.existingModelInfoTableName.logicalId,
                 this.defaultUserEmail.logicalId,
                 this.existingCognitoUserPoolId.logicalId,
+                stack.cognitoDomainPrefixParam.logicalId,
+                this.existingUserPoolClientId.logicalId,
                 this.existingCognitoGroupPolicyTableName.logicalId
             ]
         });
 
+        existingParameterGroups.unshift({
+            Label: { default: 'Please provide configuration for the use case' },
+            Parameters: [
+                this.useCaseUUID.logicalId,
+                this.useCaseConfigRecordKey.logicalId,
+                this.useCaseConfigTableName.logicalId,
+                this.existingModelInfoTableName.logicalId
+            ]
+        });
+    }
+
+    private setCfnParameterRules(stack: BaseStack) {
         // prettier-ignore
-        new cdk.CfnRule(stack, 'PolicyTableRequiredRule', { // NOSONAR - construct instantiation
+        new cdk.CfnRule(this.cfnStack, 'PolicyTableRequiredRule', { // NOSONAR - construct instantiation
             ruleCondition: cdk.Fn.conditionNot(
                 cdk.Fn.conditionEquals(this.existingCognitoUserPoolId.valueAsString, '')
             ),
@@ -298,7 +371,7 @@ export class UseCaseChatParameters {
         });
 
         // prettier-ignore
-        new cdk.CfnRule(stack, 'ExistingUserPoolRequiredRule', { // NOSONAR - construct instantiation
+        new cdk.CfnRule(this.cfnStack, 'ExistingUserPoolRequiredRule', { // NOSONAR - construct instantiation
             ruleCondition: cdk.Fn.conditionNot(
                 cdk.Fn.conditionEquals(this.existingCognitoGroupPolicyTableName.valueAsString, '')
             ),
@@ -313,9 +386,26 @@ export class UseCaseChatParameters {
             ]
         });
 
+        new cdk.CfnRule(this.cfnStack, 'UserPoolClientProvidedWithEmptyUserPoolId', {
+            ruleCondition: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.existingUserPoolClientId.valueAsString, '')),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionNot(
+                        cdk.Fn.conditionEquals(this.existingCognitoUserPoolId.valueAsString, '')
+                    ),
+                    assertDescription:
+                        'When providing an ExistingUserPoolClientId ExistingCognitoUserPoolId must also be provided.'
+                }
+            ]
+        });
+
+        const kendraKnowledgeBaseSelected = cdk.Fn.conditionAnd(
+            cdk.Fn.conditionEquals(this.ragEnabled.valueAsString, 'true'),
+            cdk.Fn.conditionEquals(this.knowledgeBaseType.valueAsString, KNOWLEDGE_BASE_TYPES.KENDRA)
+        );
         // prettier-ignore
-        new cdk.CfnRule(stack, 'NoKendraWithoutRagRule', { // NOSONAR - construct instantiation
-            ruleCondition: cdk.Fn.conditionEquals(this.ragEnabled.valueAsString, 'false'),
+        new cdk.CfnRule(this.cfnStack, 'NoKendraParamsWhenNotSelectedRule', { // NOSONAR - construct instantiation
+            ruleCondition: cdk.Fn.conditionNot(kendraKnowledgeBaseSelected),
             assertions: [
                 {
                     assert: cdk.Fn.conditionAnd(
@@ -325,7 +415,74 @@ export class UseCaseChatParameters {
                         cdk.Fn.conditionEquals(this.newKendraStorageCapacityUnits.valueAsString, '0'),
                         cdk.Fn.conditionEquals(this.newKendraIndexEdition.valueAsString, DEFAULT_KENDRA_EDITION)
                     ),
-                    assertDescription: 'If RAG is not enabled, no Kendra resources can be referenced or created.'
+                    assertDescription: 'If RAG is not enabled or we are not using Kendra as a knowledge base, no Kendra resources can not be referenced or created.'
+                }
+            ]
+        });
+        const kendraRequiredParamsPresent = cdk.Fn.conditionOr(
+            cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.existingKendraIndexId.valueAsString, '')),
+            cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.newKendraIndexName.valueAsString, ''))
+        );
+
+        // prettier-ignore
+        new cdk.CfnRule(this.cfnStack, 'KendraParamsPresentWhenSelectedRule', { // NOSONAR - construct instantiation
+            ruleCondition: cdk.Fn.conditionAnd(
+                cdk.Fn.conditionEquals(this.ragEnabled.valueAsString, 'true'),
+                cdk.Fn.conditionEquals(this.knowledgeBaseType.valueAsString, KNOWLEDGE_BASE_TYPES.BEDROCK)
+            ),
+            assertions: [
+                {
+                    assert: kendraRequiredParamsPresent,
+                    assertDescription:
+                        'If using Kendra as a knowledge base, either ExistingKendraIndexId or NewKendraIndexName must be provided'
+                }
+            ]
+        });
+
+        const bedrockKnowledgeBaseSelected = cdk.Fn.conditionAnd(
+            cdk.Fn.conditionEquals(this.ragEnabled.valueAsString, 'true'),
+            cdk.Fn.conditionEquals(this.knowledgeBaseType.valueAsString, KNOWLEDGE_BASE_TYPES.BEDROCK)
+        );
+        // prettier-ignore
+        new cdk.CfnRule(this.cfnStack, 'NoBedrockKnowledgeBaseParamsWhenNotSelectedRule', { // NOSONAR - construct instantiation
+            ruleCondition: cdk.Fn.conditionNot(bedrockKnowledgeBaseSelected),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals(this.bedrockKnowledgeBaseId.valueAsString, ''),
+                    assertDescription: 'If RAG is not enabled or we are not using Bedrock as a knowledge base, no Bedrock knowledge base can be referenced.'
+                }
+            ]
+        });
+        const bedrockRequiredParamsPresent = cdk.Fn.conditionNot(
+            cdk.Fn.conditionEquals(this.bedrockKnowledgeBaseId.valueAsString, '')
+        );
+        // prettier-ignore
+        new cdk.CfnRule(this.cfnStack, 'BedrockParamsPresentWhenSelectedRule', { // NOSONAR - construct instantiation
+            ruleCondition: bedrockKnowledgeBaseSelected,
+            assertions: [
+                {
+                    assert: bedrockRequiredParamsPresent,
+                    assertDescription:
+                        'If using Bedrock as a knowledge base, BedrockKnowledgeBaseId must be provided'
+                }
+            ]
+        });
+
+        /**
+         * The rule is to check if user pool id is not provided and only add a custom prefix. The template does not mutate existing
+         * resources and hence will not create a domain if the user pool already exists
+         */
+        new cdk.CfnRule(stack, 'CheckIfUserPoolIsEmptyForDomainPrefix', {
+            ruleCondition: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(stack.cognitoDomainPrefixParam.valueAsString, '')
+            ),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionNot(
+                        cdk.Fn.conditionEquals(this.existingCognitoUserPoolId.valueAsString, '')
+                    ),
+                    assertDescription:
+                        "When providing UserPoolDomainPrefix, user pool id should not be empty. Provide the existing user pool's domain prefix"
                 }
             ]
         });
@@ -348,9 +505,14 @@ export abstract class UseCaseChat extends BaseStack {
     public readonly knowledgeBaseSetup: KnowledgeBaseSetup;
 
     /**
-     * Construct managing the optional deployment of the UI in a nested stack.
+     * Construct creating the cloudfront distribution assets in a nested stack.
      */
-    public readonly uiInfrastructure: UIInfrastructure;
+    public readonly uiDistribution: UIDistribution;
+
+    /**
+     * Construct creating the custom resource to copy assets in a nested stack.
+     */
+    public readonly copyAssetsStack: CopyUIAssets;
 
     /**
      * The name of the chat provider lambda to be deployed
@@ -368,9 +530,14 @@ export abstract class UseCaseChat extends BaseStack {
     public chatLlmProviderLambda: lambda.Function;
 
     /**
+     * Condition to be used for setting up the model info table.
+     */
+    protected newModelInfoTableCondition: cdk.CfnCondition;
+
+    /**
      * Stack parameters for use case stacks
      */
-    protected stackParameters: UseCaseChatParameters;
+    protected declare stackParameters: UseCaseChatParameters;
 
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
@@ -403,11 +570,20 @@ export abstract class UseCaseChat extends BaseStack {
             expression: cdk.Fn.conditionEquals(this.stackParameters.ragEnabled, 'true')
         });
 
+        // connection to the model info table.
+        this.newModelInfoTableCondition = new cdk.CfnCondition(this, 'NewModelInfoTableCondition', {
+            expression: cdk.Fn.conditionEquals(this.stackParameters.existingModelInfoTableName, '')
+        });
+
         // the nested stack for Kendra will only be deployed if the existing Kendra index ID is blank and we are deploying with RAG
         const deployKendraIndexCondition = new cdk.CfnCondition(this, 'DeployKendraIndexCondition', {
             expression: cdk.Fn.conditionAnd(
+                ragEnabledCondition,
                 cdk.Fn.conditionEquals(this.stackParameters.existingKendraIndexId.valueAsString, ''),
-                ragEnabledCondition
+                cdk.Fn.conditionEquals(
+                    this.stackParameters.knowledgeBaseType.valueAsString,
+                    KNOWLEDGE_BASE_TYPES.KENDRA
+                )
             )
         });
 
@@ -435,19 +611,45 @@ export abstract class UseCaseChat extends BaseStack {
             newKendraStorageCapacityUnits: this.stackParameters.newKendraStorageCapacityUnits.valueAsNumber,
             newKendraIndexEdition: this.stackParameters.newKendraIndexEdition.valueAsString,
             deployKendraIndexCondition: deployKendraIndexCondition,
-            customInfra: this.applicationSetup.customResourceLambda
+            customInfra: this.applicationSetup.customResourceLambda,
+            ...this.baseStackProps
         });
-
         this.chatStorageSetup = new ChatStorageSetup(this, 'ChatStorageSetup', {
             useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
             existingModelInfoTableName: this.stackParameters.existingModelInfoTableName.valueAsString,
+            newModelInfoTableCondition: this.newModelInfoTableCondition,
             customResourceLambda: this.applicationSetup.customResourceLambda,
-            customResourceRole: this.applicationSetup.customResourceRole
+            customResourceRole: this.applicationSetup.customResourceRole,
+            ...this.baseStackProps
         });
 
         this.llmProviderSetup();
+        // setup lambda logs retention policy
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'ChatLambdaLogRetention',
+            this.chatLlmProviderLambda.functionName,
+            this.applicationSetup.customResourceLambda.functionArn
+        );
+        // With the previous call, the assumption is that `this.chatLlmProviderLambda` has a valid instance object associated with it.
         this.createVpcConfigForLambda(this.chatLlmProviderLambda);
-        this.setLlmProviderPermissions(ragEnabledCondition);
+        this.setLlmProviderPermissions();
+        this.setRagPermissions(ragEnabledCondition);
+
+        const uiInfrastructureBuilder = new UIInfrastructureBuilder({
+            uiAssetFolder: UIAssetFolders.CHAT,
+            deployWebApp: this.deployWebApp.valueAsString
+        });
+
+        this.uiDistribution = uiInfrastructureBuilder.createDistribution(this, 'WebApp', {
+            parameters: {
+                CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn,
+                UseCaseUUID: this.stackParameters.useCaseUUID.valueAsString
+            },
+            description: `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${props.solutionVersion}`
+        });
 
         this.requestProcessor = new WebsocketRequestProcessor(this, 'WebsocketRequestProcessor', {
             chatProviderLambda: this.chatLlmProviderLambda,
@@ -456,22 +658,32 @@ export abstract class UseCaseChat extends BaseStack {
             existingCognitoUserPoolId: this.stackParameters.existingCognitoUserPoolId.valueAsString,
             existingCognitoGroupPolicyTableName: this.stackParameters.existingCognitoGroupPolicyTableName.valueAsString,
             customResourceLambda: this.applicationSetup.customResourceLambda,
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString
+            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
+            cognitoDomainPrefix: this.cognitoDomainPrefixParam.valueAsString,
+            existingCognitoUserPoolClientId: this.stackParameters.existingUserPoolClientId.valueAsString
         });
 
-        // Note: chatConfigSSMParameterName has a leading / included
-        const webConfigSsmKey = `${WEB_CONFIG_PREFIX}${this.stackParameters.chatConfigSSMParameterName.valueAsString}`;
+        this.requestProcessor.createUserPoolClient({
+            callbackUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
+            logoutUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
+            existingCognitoUserPoolClientId: this.stackParameters.existingUserPoolClientId.valueAsString,
+            deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition
+        } as UserCaseUserPoolClientProps);
+
+        const webConfigSsmKey = `${WEB_CONFIG_PREFIX}/${this.stackParameters.useCaseUUID.valueAsString}`;
         this.applicationSetup.createWebConfigStorage(
             {
                 apiEndpoint: this.requestProcessor.webSocketApi.apiEndpoint,
                 userPoolId: this.requestProcessor.userPool.userPoolId,
-                userPoolClientId: this.requestProcessor.userPoolClient.ref,
-                additionalConfigurationSSMParameterName: this.stackParameters.chatConfigSSMParameterName.valueAsString,
+                userPoolClientId: this.requestProcessor.userPoolClient.userPoolClientId,
+                cognitoDomainPrefix: this.requestProcessor.getCognitoDomainName(),
+                cognitoRedirectUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
                 isInternalUserCondition: isInternalUserCondition,
                 additionalProperties: {
                     SocketURL: `${this.requestProcessor.webSocketApi.apiEndpoint}/${this.requestProcessor.websocketApiStage.stageName}`,
                     ModelProviderName: this.getLlmProviderName()
-                }
+                },
+                deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition
             },
             webConfigSsmKey
         );
@@ -480,27 +692,40 @@ export abstract class UseCaseChat extends BaseStack {
             {
                 apiName: this.requestProcessor.webSocketApi.apiId,
                 userPoolId: this.requestProcessor.userPool.userPoolId,
-                userPoolClientId: this.requestProcessor.userPoolClient.ref,
+                userPoolClientId: this.requestProcessor.userPoolClient.userPoolClientId,
                 useCaseUUID: this.stackParameters.useCaseUUID.valueAsString
             },
             DashboardType.UseCase
         );
 
-        this.uiInfrastructure = new UIInfrastructure(this, 'WebApp', {
-            webRuntimeConfigKey: webConfigSsmKey,
-            customInfra: this.applicationSetup.customResourceLambda,
-            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
-            uiAssetFolder: 'ui-chat',
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
-            deployWebApp: this.stackParameters.deployUI.valueAsString
+        this.copyAssetsStack = uiInfrastructureBuilder.createUIAssetsCustomResource(this, 'CopyUICustomResource', {
+            parameters: {
+                CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+                CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                WebConfigKey: webConfigSsmKey,
+                WebS3BucketArn: this.uiDistribution.websiteBucket.bucketArn,
+                UseCaseConfigRecordKey: this.stackParameters.useCaseConfigRecordKey.valueAsString,
+                UseCaseConfigTableName: this.stackParameters.useCaseConfigTableName.valueAsString
+            },
+            description: `Custom resource that copies UI assets to S3 bucket - Version ${props.solutionVersion}`
         });
-        this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
-            this.applicationSetup.webConfigCustomResource
-        );
-        this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
+
+        this.uiDistribution.node.defaultChild?.node.addDependency(
             this.applicationSetup.accessLoggingBucket.node
                 .tryFindChild('Policy')
                 ?.node.tryFindChild('Resource') as cdk.CfnResource
+        );
+        this.copyAssetsStack.node.defaultChild?.node.addDependency(this.applicationSetup.webConfigCustomResource);
+        this.copyAssetsStack.node.defaultChild?.node.addDependency(
+            this.applicationSetup.accessLoggingBucket.node
+                .tryFindChild('Policy')
+                ?.node.tryFindChild('Resource') as cdk.CfnResource
+        );
+
+        this.chatLlmProviderLambda.addEnvironment(USER_POOL_ID_ENV_VAR, this.requestProcessor.userPool.userPoolId);
+        this.chatLlmProviderLambda.addEnvironment(
+            CLIENT_ID_ENV_VAR,
+            this.requestProcessor.userPoolClient.userPoolClientId
         );
 
         this.applicationSetup.scheduledMetricsLambda.addEnvironment(
@@ -517,7 +742,7 @@ export abstract class UseCaseChat extends BaseStack {
         );
         this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             CLIENT_ID_ENV_VAR,
-            this.requestProcessor.userPoolClient.ref
+            this.requestProcessor.userPoolClient.userPoolClientId
         );
         this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             USE_CASE_UUID_ENV_VAR,
@@ -528,9 +753,9 @@ export abstract class UseCaseChat extends BaseStack {
 
         // prettier-ignore
         const cloudfrontUrlOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'CloudFrontWebUrl', {
-            value: `https://${(this.uiInfrastructure.nestedUIStack as UIAssets).cloudFrontDistribution.domainName}`
+            value: `https://${this.uiDistribution.cloudFrontDistribution.domainName}`
         });
-        cloudfrontUrlOutput.condition = this.uiInfrastructure.deployWebApp;
+        cloudfrontUrlOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
 
         // prettier-ignore
         new cdk.CfnOutput(cdk.Stack.of(this), 'KendraIndexId', { // NOSONAR - construct instantiation
@@ -542,9 +767,15 @@ export abstract class UseCaseChat extends BaseStack {
             value: `https://${cdk.Aws.REGION}.console.aws.amazon.com/cloudwatch/home?region=${cdk.Aws.REGION}#dashboards/dashboard/${cloudwatchDashboard.dashboardName}`
         });
 
+        new cdk.CfnOutput(cdk.Stack.of(this), 'WebsockEndpoint', {
+            value: this.requestProcessor.webSocketApi.apiEndpoint,
+            description: 'Websocket API endpoint'
+        });
+
         if (process.env.DIST_OUTPUT_BUCKET) {
             generateSourceCodeMapping(this, props.solutionName, props.solutionVersion);
-            generateSourceCodeMapping(this.uiInfrastructure.nestedUIStack, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(this.uiDistribution, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(this.copyAssetsStack, props.solutionName, props.solutionVersion);
             generateSourceCodeMapping(this.chatStorageSetup.chatStorage, props.solutionName, props.solutionVersion);
         }
 
@@ -553,7 +784,8 @@ export abstract class UseCaseChat extends BaseStack {
             ...(this.stackParameters.newKendraIndexEdition.valueAsString && {
                 KENDRA_EDITION: this.stackParameters.newKendraIndexEdition.valueAsString
             }),
-            SSM_CONFIG_KEY: this.stackParameters.chatConfigSSMParameterName.valueAsString,
+            USE_CASE_CONFIG_RECORD_KEY: this.stackParameters.useCaseConfigRecordKey.valueAsString,
+            USE_CASE_CONFIG_TABLE_NAME: this.stackParameters.useCaseConfigTableName.valueAsString,
             UUID: this.stackParameters.useCaseUUID.valueAsString,
             VPC_ENABLED: this.vpcEnabled.valueAsString,
             CREATE_VPC: this.createNewVpc.valueAsString
@@ -581,15 +813,14 @@ export abstract class UseCaseChat extends BaseStack {
     protected abstract setupVPC(): VPCSetup;
 
     protected initializeCfnParameters(): void {
-        this.stackParameters = new UseCaseChatParameters(cdk.Stack.of(this));
+        super.initializeCfnParameters();
+        this.stackParameters = new UseCaseChatParameters(this);
     }
 
     /**
      * Provides the correct environment variables and permissions to the llm provider lambda
      */
-    private setLlmProviderPermissions(ragEnabledCondition: cdk.CfnCondition): void {
-        this.chatLlmProviderLambda.addEnvironment(RAG_ENABLED_ENV_VAR, this.stackParameters.ragEnabled.valueAsString);
-
+    private setLlmProviderPermissions(): void {
         // connection to the conversation memory
         // prettier-ignore
         new LambdaToDynamoDB(this, 'ChatProviderLambdaToConversationTable', { // NOSONAR - construct instantiation
@@ -599,16 +830,16 @@ export abstract class UseCaseChat extends BaseStack {
             tableEnvironmentVariableName: CONVERSATION_TABLE_NAME_ENV_VAR
         });
 
-        // connection to the model info table.
-        const newModelInfoTableCondition = new cdk.CfnCondition(this, 'NewModelInfoTableCondition', {
-            expression: cdk.Fn.conditionEquals(this.stackParameters.existingModelInfoTableName, '')
-        });
         const modelInfoTableName = cdk.Fn.conditionIf(
-            newModelInfoTableCondition.logicalId,
-            this.chatStorageSetup.chatStorage.modelInfoStorage.newModelInfoTableName,
+            this.newModelInfoTableCondition.logicalId,
+            cdk.Fn.getAtt(
+                this.chatStorageSetup.chatStorage.nestedStackResource!.logicalId,
+                'Outputs.ModelInfoTableName'
+            ),
             this.stackParameters.existingModelInfoTableName
         ).toString();
         const modelInfoTable = dynamodb.Table.fromTableName(this, 'ModelInfoTable', modelInfoTableName);
+
         // prettier-ignore
         new LambdaToDynamoDB(this, 'ChatProviderLambdaToModelInfoTable', { // NOSONAR - construct instantiation)
             existingLambdaObj: this.chatLlmProviderLambda,
@@ -617,33 +848,25 @@ export abstract class UseCaseChat extends BaseStack {
             tableEnvironmentVariableName: MODEL_INFO_TABLE_NAME_ENV_VAR
         });
 
-        // connection to the Kendra knowledge base (optional)
-        this.chatLlmProviderLambda.addEnvironment(KENDRA_INDEX_ID_ENV_VAR, this.knowledgeBaseSetup.kendraIndexId);
-        const lambdaQueryKendraIndexPolicy = new iam.Policy(this, 'LambdaQueryKendraIndexPolicy', {
-            statements: [
-                new iam.PolicyStatement({
-                    effect: iam.Effect.ALLOW,
-                    actions: ['kendra:Query', 'kendra:SubmitFeedback', 'kendra:Retrieve'],
-                    resources: [
-                        `arn:${cdk.Aws.PARTITION}:kendra:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:index/${this.knowledgeBaseSetup.kendraIndexId}`
-                    ]
-                })
-            ]
-        });
-        (lambdaQueryKendraIndexPolicy.node.defaultChild as cdk.CfnResource).cfnOptions.condition = ragEnabledCondition;
-        lambdaQueryKendraIndexPolicy.attachToRole(this.chatLlmProviderLambda.role!);
-
-        // connection to the chat config SSM parameter
         this.chatLlmProviderLambda.addEnvironment(
-            LLM_PARAMETERS_SSM_KEY_ENV_VAR,
-            this.stackParameters.chatConfigSSMParameterName.valueAsString
+            USE_CASE_CONFIG_RECORD_KEY_ENV_VAR,
+            this.stackParameters.useCaseConfigRecordKey.valueAsString
+        );
+        this.chatLlmProviderLambda.addEnvironment(
+            USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+            this.stackParameters.useCaseConfigTableName.valueAsString
         );
         this.chatLlmProviderLambda.addToRolePolicy(
             new cdk.aws_iam.PolicyStatement({
-                actions: ['ssm:DescribeParameters', 'ssm:GetParameter', 'ssm:GetParameterHistory', 'ssm:GetParameters'],
+                actions: ['dynamodb:GetItem', 'dynamodb:BatchGetItem', 'dynamodb:Query'],
                 resources: [
-                    `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter${this.stackParameters.chatConfigSSMParameterName.valueAsString}`
-                ]
+                    `arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${this.stackParameters.useCaseConfigTableName.valueAsString}`
+                ],
+                conditions: {
+                    'ForAllValues:StringEquals': {
+                        'dynamodb:LeadingKeys': [this.stackParameters.useCaseConfigRecordKey.valueAsString]
+                    }
+                }
             })
         );
 
@@ -666,12 +889,83 @@ export abstract class UseCaseChat extends BaseStack {
             ]
         );
 
-        NagSuppressions.addResourceSuppressions(this.chatLlmProviderLambda, [
+        cfn_guard.addCfnSuppressRules(this.chatLlmProviderLambda, [
             {
-                id: 'AwsSolutions-L1',
-                reason: 'The lambda uses python 3.10'
+                id: 'W89',
+                reason: 'Use of VPC is not enforced. If VPC option is selected, this lambda will deploy in a VPC, hence VPC configuration is implemented using Conditions'
+            },
+            {
+                id: 'W92',
+                reason: 'The solution does not enforce reserved concurrency'
             }
         ]);
+
+        cfn_guard.addCfnSuppressRules(this.chatLlmProviderLambda.role?.node.tryFindChild('Resource') as iam.CfnRole, [
+            {
+                id: 'F10',
+                reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
+            }
+        ]);
+    }
+
+    /**
+     * Optionally provides the correct environment variables and permissions to the llm provider lambda for RAG
+     */
+    private setRagPermissions(ragEnabledCondition: cdk.CfnCondition): void {
+        // connection to the Kendra knowledge base (optional). Must have RAG enabled and either a
+        const kendraRagEnabledCondition = new cdk.CfnCondition(this, 'KendraRAGEnabledCondition', {
+            expression: cdk.Fn.conditionAnd(
+                ragEnabledCondition,
+                cdk.Fn.conditionEquals(
+                    this.stackParameters.knowledgeBaseType.valueAsString,
+                    KNOWLEDGE_BASE_TYPES.KENDRA
+                )
+            )
+        });
+        this.chatLlmProviderLambda.addEnvironment(KENDRA_INDEX_ID_ENV_VAR, this.knowledgeBaseSetup.kendraIndexId);
+        const lambdaQueryKendraIndexPolicy = new iam.Policy(this, 'LambdaQueryKendraIndexPolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['kendra:Query', 'kendra:SubmitFeedback', 'kendra:Retrieve'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:kendra:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:index/${this.knowledgeBaseSetup.kendraIndexId}`
+                    ]
+                })
+            ]
+        });
+        (lambdaQueryKendraIndexPolicy.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            kendraRagEnabledCondition;
+        lambdaQueryKendraIndexPolicy.attachToRole(this.chatLlmProviderLambda.role!);
+
+        // connection to the bedrock knowledge base (optional)
+        const bedrockRagEnabledCondition = new cdk.CfnCondition(this, 'BedrockRAGEnabledCondition', {
+            expression: cdk.Fn.conditionAnd(
+                ragEnabledCondition,
+                cdk.Fn.conditionEquals(
+                    this.stackParameters.knowledgeBaseType.valueAsString,
+                    KNOWLEDGE_BASE_TYPES.BEDROCK
+                )
+            )
+        });
+        this.chatLlmProviderLambda.addEnvironment(
+            BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR,
+            this.stackParameters.bedrockKnowledgeBaseId.valueAsString
+        );
+        const lambdaQueryBedrockKnowledgeBasePolicy = new iam.Policy(this, 'LambdaQueryBedrockKnowledgeBasePolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['bedrock:Retrieve'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:knowledge-base/${this.stackParameters.bedrockKnowledgeBaseId.valueAsString}`
+                    ]
+                })
+            ]
+        });
+        (lambdaQueryBedrockKnowledgeBasePolicy.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            bedrockRagEnabledCondition;
+        lambdaQueryBedrockKnowledgeBasePolicy.attachToRole(this.chatLlmProviderLambda.role!);
     }
 
     /**

@@ -26,7 +26,7 @@ interface KnowledgeBaseTypeProps extends BaseFormComponentProps {
 export const KnowledgeBaseType = (props: KnowledgeBaseTypeProps) => {
     const onKnowledgeBaseTypeChange = (detail: SelectProps.ChangeDetail) => {
         props.onChangeFn({
-            KnowledgeBaseType: detail.selectedOption.value
+            knowledgeBaseType: detail.selectedOption
         });
     };
 

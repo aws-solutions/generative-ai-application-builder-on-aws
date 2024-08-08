@@ -11,7 +11,7 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { renderWithProvider, mockFormComponentCallbacks, mockReactMarkdown } from '@/utils';
+import { renderWithProvider, mockFormComponentCallbacks, mockReactMarkdown, mockModelNamesQuery } from '@/utils';
 import { screen } from '@testing-library/react';
 
 import { BEDROCK_MODEL_OPTION_IDX, MODEL_FAMILY_PROVIDER_OPTIONS } from '../../steps-config';
@@ -20,14 +20,15 @@ import { ModelProviderOption } from '../../interfaces';
 let Model: any;
 
 describe('Model', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         // lazy loading Model with mocked react markdown components
         mockReactMarkdown();
-        Model = require('../Model').default;
+        Model = (await import('../Model')).default;
+        mockModelNamesQuery();
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('renders with the right components', () => {
@@ -39,7 +40,6 @@ describe('Model', () => {
                     temperature: 0.3,
                     streaming: true,
                     verbose: false,
-                    promptTemplate: 'fake prompt template',
                     modelParameters: []
                 },
                 knowledgeBase: {

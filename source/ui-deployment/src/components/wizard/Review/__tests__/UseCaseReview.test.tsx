@@ -12,12 +12,16 @@
  **********************************************************************************************************************/
 
 import UseCaseReview from '../UseCaseReview';
-import { cloudscapeRender } from '@/utils';
+import { cloudscapeRender, mockedModelInfoQuery } from '@/utils';
 import { screen } from '@testing-library/react';
 
 describe('UseCaseReview', () => {
+    beforeEach(async () => {
+        mockedModelInfoQuery();
+    });
+
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('renders', () => {
@@ -25,7 +29,8 @@ describe('UseCaseReview', () => {
             useCase: { label: 'Test Use Case', value: 'testUseCase' },
             useCaseDescription: 'Test Use Case Description',
             useCaseName: 'Test Use Case',
-            defaultUserEmail: 'fake-email@example.com'
+            defaultUserEmail: 'fake-email@example.com',
+            deployUI: true
         };
         const { cloudscapeWrapper } = cloudscapeRender(
             <UseCaseReview header="Test Review Section" setActiveStepIndex={jest.fn()} useCaseData={useCaseData} />

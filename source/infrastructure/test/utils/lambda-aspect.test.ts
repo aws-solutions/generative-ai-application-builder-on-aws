@@ -104,7 +104,7 @@ describe('When applying aspect to a Node based lambda function', () => {
                                 'cloudwatch:namespace': [
                                     CloudWatchNamespace.API_GATEWAY,
                                     CloudWatchNamespace.AWS_KENDRA,
-                                    CloudWatchNamespace.COGNITO,
+                                    CloudWatchNamespace.AWS_COGNITO,
                                     CloudWatchNamespace.LANGCHAIN_LLM
                                 ]
                             }
@@ -180,7 +180,7 @@ describe('When applying aspect to a Python based lambda function', () => {
                                 'cloudwatch:namespace': [
                                     CloudWatchNamespace.API_GATEWAY,
                                     CloudWatchNamespace.AWS_KENDRA,
-                                    CloudWatchNamespace.COGNITO,
+                                    CloudWatchNamespace.AWS_COGNITO,
                                     CloudWatchNamespace.LANGCHAIN_LLM
                                 ]
                             }
@@ -206,7 +206,7 @@ describe('When applying the langchain aspect', () => {
 
         (testLambda.node.defaultChild as lambda.CfnFunction).addMetadata(
             ADDITIONAL_LLM_LIBRARIES,
-            [LLM_LIBRARY_LAYER_TYPES.LANGCHAIN_LIB_LAYER, LLM_LIBRARY_LAYER_TYPES.HUGGING_FACE_LIB_LAYER].join(',')
+            [LLM_LIBRARY_LAYER_TYPES.LANGCHAIN_LIB_LAYER].join(',')
         );
 
         cdk.Aspects.of(stack).add(
@@ -221,17 +221,14 @@ describe('When applying the langchain aspect', () => {
     it('Should check metadata for lambda function to inject langchain layer', () => {
         template.hasResource('AWS::Lambda::Function', {
             Metadata: {
-                AdditionalLLMLibraries: [
-                    LLM_LIBRARY_LAYER_TYPES.LANGCHAIN_LIB_LAYER,
-                    LLM_LIBRARY_LAYER_TYPES.HUGGING_FACE_LIB_LAYER
-                ].join(',')
+                AdditionalLLMLibraries: LLM_LIBRARY_LAYER_TYPES.LANGCHAIN_LIB_LAYER
             }
         });
     });
 
     it('should inject the layer for the lambda function', () => {
         const layerCapture = new Capture();
-        template.resourceCountIs('AWS::Lambda::LayerVersion', 3);
+        template.resourceCountIs('AWS::Lambda::LayerVersion', 2);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
             CompatibleRuntimes: [
                 GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
@@ -244,9 +241,6 @@ describe('When applying the langchain aspect', () => {
 
         template.hasResourceProperties('AWS::Lambda::Function', {
             Layers: [
-                {
-                    Ref: layerCapture
-                },
                 {
                     Ref: layerCapture
                 },

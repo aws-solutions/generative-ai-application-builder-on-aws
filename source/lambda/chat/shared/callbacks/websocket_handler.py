@@ -19,6 +19,8 @@ from aws_lambda_powertools import Logger
 from helper import get_service_client
 from utils.constants import (
     CONVERSATION_ID_EVENT_KEY,
+    GENERATED_QUESTION_KEY,
+    SOURCE_DOCUMENTS_KEY,
     TRACE_ID_ENV_VAR,
     WEBSOCKET_CALLBACK_URL_ENV_VAR,
 )
@@ -105,8 +107,12 @@ class WebsocketHandler:
             payload (str): Token to send to the client.
         """
         self.post_token_to_connection(payload["answer"])
-        if "source_documents" in payload and payload["source_documents"]:
-            self.send_references(payload["source_documents"])
+
+        if SOURCE_DOCUMENTS_KEY in payload and payload[SOURCE_DOCUMENTS_KEY]:
+            self.send_references(payload[SOURCE_DOCUMENTS_KEY])
+
+        if GENERATED_QUESTION_KEY in payload and payload[GENERATED_QUESTION_KEY]:
+            self.post_token_to_connection(payload[GENERATED_QUESTION_KEY], GENERATED_QUESTION_KEY)
 
     def format_response(self, payload: str, payload_key: str = "data") -> str:
         """

@@ -18,25 +18,31 @@ from unittest import mock
 
 import pytest
 from langchain.chains import ConversationChain
-from langchain_aws.chat_models.bedrock import BedrockChat
+from langchain_aws.chat_models.bedrock import ChatBedrock
 from langchain_aws.llms.bedrock import BedrockLLM as Bedrock
 from llms.bedrock import BedrockLLM
-from llms.models.llm import LLM
+from llms.models.model_provider_inputs import BedrockInputs
 from shared.defaults.model_defaults import ModelDefaults
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import CHAT_IDENTIFIER, DEFAULT_PLACEHOLDERS, DEFAULT_TEMPERATURE, MODEL_INFO_TABLE_NAME_ENV_VAR
+from utils.constants import (
+    CHAT_IDENTIFIER,
+    DEFAULT_PROMPT_PLACEHOLDERS,
+    DEFAULT_REPHRASE_RAG_QUESTION,
+    DEFAULT_TEMPERATURE,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
+)
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 RAG_ENABLED = False
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
 CONDENSE_QUESTION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:"""
-model_family = BedrockModelProviders.AMAZON.value
 
 model_provider = LLMProviderTypes.BEDROCK
 model_id = "amazon.model-xx"
-llm_params = LLM(
+test_provisioned_arn = "arn:aws:bedrock:us-east-1:123456789:provisioned-model/z8g9xzoxoxmw"
+llm_params = BedrockInputs(
     **{
         "conversation_memory": DynamoDBChatMemory(
             DynamoDBChatMessageHistory(
@@ -44,14 +50,14 @@ llm_params = LLM(
             )
         ),
         "knowledge_base": None,
-        "api_token": "fake-token",
         "model": model_id,
         "model_params": {
             "topP": {"Type": "float", "Value": "0.2"},
             "maxTokenCount": {"Type": "integer", "Value": "512"},
         },
         "prompt_template": BEDROCK_PROMPT,
-        "prompt_placeholders": DEFAULT_PLACEHOLDERS,
+        "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
+        "rephrase_question": DEFAULT_REPHRASE_RAG_QUESTION,
         "streaming": False,
         "verbose": False,
         "temperature": DEFAULT_TEMPERATURE,
@@ -140,10 +146,10 @@ def test_implement_error_not_raised(
 ):
     chat = request.getfixturevalue(chat_fixture)
     try:
-        assert chat.api_token is None
         assert chat.model == "amazon.model-xx"
+        assert chat.model_arn is None
         assert chat.prompt_template.template == BEDROCK_PROMPT
-        assert chat.prompt_template.input_variables == DEFAULT_PLACEHOLDERS
+        assert chat.prompt_template.input_variables == DEFAULT_PROMPT_PLACEHOLDERS
         assert chat.model_params["topP"] == 0.2
         assert chat.model_params["maxTokenCount"] == 512
         assert chat.model_params["temperature"] == 0.0
@@ -178,7 +184,8 @@ def test_generate(use_case, prompt, is_streaming, chat_fixture, request, bedrock
             BEDROCK_PROMPT,
             False,
             model_id,
-        )
+        ),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, model_id),
     ],
 )
 def test_exception_for_failed_model_response(
@@ -208,7 +215,7 @@ def test_exception_for_failed_model_response(
     )
 
     with pytest.raises(LLMInvocationError) as error:
-        llm_params.streaming = is_streaming
+        llm_params.streaming = False
         chat = BedrockLLM(
             llm_params=llm_params,
             model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
@@ -217,10 +224,8 @@ def test_exception_for_failed_model_response(
         )
         chat.generate("What is the weather in Seattle?")
 
-    print("error=", error)
-
     assert error.value.args[0] == (
-        f"Error occurred while invoking {model_family} {model_id} model. "
+        f"Error occurred while invoking Bedrock model family 'amazon' model '{model_id}'. "
         "Error raised by bedrock service: An error occurred (InternalServerError) when calling the InvokeModel operation: some-error"
     )
 
@@ -336,7 +341,7 @@ def test_guardrails(
             False,
             None,
             "anthropic.fake-claude-2",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -345,7 +350,7 @@ def test_guardrails(
             False,
             None,
             "anthropic.fake-claude-3",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -372,7 +377,7 @@ def test_guardrails(
             False,
             None,
             "anthropic.fake-claude-2",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -390,7 +395,7 @@ def test_guardrails(
             False,
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "anthropic.fake-claude-2",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -399,7 +404,7 @@ def test_guardrails(
             False,
             None,
             "anthropic.fake-claude-3",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -408,7 +413,7 @@ def test_guardrails(
             False,
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "anthropic.fake-claude-3",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -432,7 +437,7 @@ def test_guardrails(
     ],
 )
 def test_bedrock_get_llm_class(guardrails, model_id, bedrock_class, temp_bedrock_dynamodb_defaults_table, model_family):
-    # BedrockChat vs Bedrock class as output
+    # ChatBedrock vs Bedrock class as output
     RAG_ENABLED = False
     llm_params.model = model_id
     llm_params.model_params = {}
@@ -459,7 +464,7 @@ def test_bedrock_get_llm_class(guardrails, model_id, bedrock_class, temp_bedrock
             False,
             None,
             "anthropic.fake-claude-2",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -468,7 +473,7 @@ def test_bedrock_get_llm_class(guardrails, model_id, bedrock_class, temp_bedrock
             False,
             None,
             "anthropic.fake-claude-3",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -486,7 +491,7 @@ def test_bedrock_get_llm_class(guardrails, model_id, bedrock_class, temp_bedrock
             False,
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "anthropic.fake-claude-2",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -495,7 +500,7 @@ def test_bedrock_get_llm_class(guardrails, model_id, bedrock_class, temp_bedrock
             False,
             {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
             "anthropic.fake-claude-3",
-            BedrockChat,
+            ChatBedrock,
             BedrockModelProviders.ANTHROPIC,
         ),
         (
@@ -527,3 +532,33 @@ def test_bedrock_get_llm_class_no_env(
     )
 
     assert type(chat.llm) == bedrock_class
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, model_id",
+    [(CHAT_IDENTIFIER, BEDROCK_PROMPT, False, model_id)],
+)
+def test_bedrock_provisioned_model(
+    use_case,
+    prompt,
+    is_streaming,
+    request,
+    setup_environment,
+    model_id,
+    temp_bedrock_dynamodb_defaults_table,
+    test_provisioned_arn,
+):
+    llm_params.model_arn = test_provisioned_arn
+    model_provider = LLMProviderTypes.BEDROCK.value
+    llm_params.streaming = is_streaming
+    llm_params.model = model_id
+
+    chat = BedrockLLM(
+        llm_params=llm_params,
+        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+        model_family=BedrockModelProviders.AMAZON.value,
+        rag_enabled=False,
+    )
+    assert chat.model == model_id
+    assert chat.model_arn == test_provisioned_arn
+    assert chat.model_family == BedrockModelProviders.AMAZON.value

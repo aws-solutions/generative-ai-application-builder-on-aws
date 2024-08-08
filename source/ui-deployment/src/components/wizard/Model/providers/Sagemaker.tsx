@@ -13,7 +13,7 @@
 
 import { SpaceBetween } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
-import InferenceEndpointNameInput from '../common/InferenceEndpointName';
+import SageMakerEndpointNameInput from '../common/SageMakerEndpointName';
 import SagemakerPayloadSchema from '../SagemakerPayloadSchema';
 
 export interface SagemakerModelProps extends BaseFormComponentProps {
@@ -23,7 +23,7 @@ export interface SagemakerModelProps extends BaseFormComponentProps {
 export const SagemakerModel = (props: SagemakerModelProps) => {
     return (
         <SpaceBetween data-testid="sagemaker-components" size="l">
-            <InferenceEndpointNameInput {...props} />
+            <SageMakerEndpointNameInput {...props} />
             <SagemakerPayloadSchema {...props} />
         </SpaceBetween>
     );

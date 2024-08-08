@@ -12,6 +12,7 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
+import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { CognitoSetup, CognitoSetupProps } from './cognito-setup';
 
@@ -19,8 +20,23 @@ export class DeploymentPlatformCognitoSetup extends CognitoSetup {
     constructor(scope: Construct, id: string, props: CognitoSetupProps) {
         super(scope, id);
 
-        this.userPool = this.createUserPool(props.applicationTrademarkName);
+        this.userPool = this.createUserPool(props.userPoolProps!);
+        this.createUserAndUserGroup(props.userPoolProps!);
+        this.createUserPoolDomain(props.userPoolProps!);
         this.cognitoGroupPolicyTable = this.createPolicyTable();
-        this.configureCognitoUserPool(props);
+        this.getOrCreateDeployWebAppCondition(this, props.userPoolClientProps?.deployWebApp!);
+        this.createUserPoolClient({
+            callbackUrl: cdk.Fn.conditionIf(
+                this.deployWebAppCondition.logicalId,
+                props.userPoolClientProps!.callbackUrl,
+                cdk.Aws.NO_VALUE
+            ).toString(),
+            logoutUrl: cdk.Fn.conditionIf(
+                this.deployWebAppCondition.logicalId,
+                props.userPoolClientProps!.callbackUrl,
+                cdk.Aws.NO_VALUE
+            ).toString(),
+            deployWebApp: props.userPoolClientProps?.deployWebApp
+        });
     }
 }

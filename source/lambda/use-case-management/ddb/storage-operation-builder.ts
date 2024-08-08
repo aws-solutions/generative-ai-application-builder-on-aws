@@ -21,9 +21,12 @@ import {
 import { UseCase } from '../model/use-case';
 import { logger, tracer } from '../power-tools-init';
 import {
+    CfnParameterKeys,
+    CHAT_PROVIDERS,
     DYNAMODB_TTL_ATTRIBUTE_NAME,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     TTL_SECONDS,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     USE_CASES_TABLE_NAME_ENV_VAR,
     UseCaseTypes
 } from '../utils/constants';
@@ -63,9 +66,10 @@ export class PutItemCommandInputBuilder extends CommandInputBuilder {
                 ...(this.useCase.description && {
                     Description: { S: this.useCase.description }
                 }),
-                SSMParameterKey: { S: this.useCase.cfnParameters!.get('ChatConfigSSMParameterName') },
                 CreatedBy: { S: this.useCase.userId },
-                CreatedDate: { S: new Date().toISOString() }
+                CreatedDate: { S: new Date().toISOString() },
+                UseCaseConfigRecordKey: { S: this.useCase.getUseCaseConfigRecordKey() },
+                UseCaseConfigTableName: { S: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR], }
             }
         } as PutItemCommandInput;
     }
@@ -88,18 +92,20 @@ export class UpdateItemCommandBuilder extends CommandInputBuilder {
                 UseCaseId: { S: this.useCase.useCaseId }
             },
             UpdateExpression:
-                'SET #Description = :description, #UpdatedDate = :date, #UpdatedBy = :user, #SSMParameterKey = :ssm_parameter_key',
+                'SET #Description = :description, #UpdatedDate = :date, #UpdatedBy = :user, #UseCaseConfigRecordKey = :dynamo_db_record_key',
             ExpressionAttributeNames: {
                 ['#Description']: 'Description',
                 ['#UpdatedDate']: 'UpdatedDate',
                 ['#UpdatedBy']: 'UpdatedBy',
-                ['#SSMParameterKey']: 'SSMParameterKey'
+                ['#UseCaseConfigRecordKey']: 'UseCaseConfigRecordKey'
             },
             ExpressionAttributeValues: {
                 [':description']: { S: this.useCase.description ?? '' },
                 [':date']: { S: new Date().toISOString() },
                 [':user']: { S: this.useCase.userId },
-                [':ssm_parameter_key']: { S: this.useCase.cfnParameters!.get('ChatConfigSSMParameterName') }
+                [':dynamo_db_record_key']: {
+                    S: this.useCase.cfnParameters?.get(CfnParameterKeys.UseCaseConfigRecordKey)
+                }
             }
         } as UpdateItemCommandInput;
     }
@@ -192,6 +198,18 @@ export class GetModelInfoCommandInputBuilder extends CommandInputBuilder {
     @tracer.captureMethod({ captureResponse: false, subSegmentName: '###getModelInfoRecord' })
     public build(): GetItemCommandInput {
         logger.debug('Building GetItemCommandInput');
+        let sortKey = `${this.useCase.configuration.LlmParams!.ModelProvider}#`;
+        switch (this.useCase.configuration.LlmParams!.ModelProvider) {
+            case CHAT_PROVIDERS.BEDROCK:
+                sortKey += this.useCase.configuration.LlmParams!.BedrockLlmParams!.ModelId;
+                break;
+            case CHAT_PROVIDERS.SAGEMAKER:
+                sortKey += 'default';
+                break;
+            default:
+                logger.error(`Unknown model provider: ${this.useCase.configuration.LlmParams!.ModelProvider}`);
+                break;
+        }
         return {
             TableName: process.env[MODEL_INFO_TABLE_NAME_ENV_VAR],
             Key: {
@@ -199,9 +217,7 @@ export class GetModelInfoCommandInputBuilder extends CommandInputBuilder {
                     S: this.useCase.configuration.LlmParams!.RAGEnabled ? UseCaseTypes.RAGChat : UseCaseTypes.CHAT
                 },
                 SortKey: {
-                    S: `${this.useCase.configuration.LlmParams!.ModelProvider}#${
-                        this.useCase.configuration.LlmParams!.ModelId
-                    }`
+                    S: sortKey
                 }
             }
         } as GetItemCommandInput;

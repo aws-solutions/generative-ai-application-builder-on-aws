@@ -15,7 +15,6 @@ import { MutableRefObject, useContext, useState } from 'react';
 import { Button, Container, StatusIndicator, StatusIndicatorProps, Textarea } from '@cloudscape-design/components';
 import HomeContext from '../home/home.context';
 import { Message } from '../types/chat';
-import { MODEL_MAX_INPUT_LENGTH } from '../utils/constants';
 import './ChatInput.css';
 
 interface Props {
@@ -27,7 +26,7 @@ interface Props {
 
 export const ChatInput = ({ onSend, stopConversationRef, socketStatusType, socketStatusMessage }: Props) => {
     const {
-        state: { messageIsStreaming, loading }
+        state: { messageIsStreaming, loading, maxInputTextLength }
     } = useContext(HomeContext);
 
     const [content, setContent] = useState<string>('');
@@ -40,7 +39,7 @@ export const ChatInput = ({ onSend, stopConversationRef, socketStatusType, socke
     };
 
     const verifyLength = () => {
-        const maxLength = MODEL_MAX_INPUT_LENGTH;
+        const maxLength = maxInputTextLength;
 
         if (maxLength && content.length > maxLength) {
             alert(`Message limit is ${maxLength} characters. You have entered ${content.length} characters.`);

@@ -20,7 +20,7 @@ import 'ace-builds/css/theme/dawn.css';
 import 'ace-builds/css/theme/tomorrow_night_bright.css';
 import { modelParamsToJson, replaceInTemplate } from './helpers';
 import { FormattedModelParamsAttribute } from '../helpers';
-import { MarkdownRenderer } from './RenderedMarkdown';
+import JsonCodeView from '@/components/commons/json-code-view';
 
 export interface RenderedInputPayloadProps extends BaseFormComponentProps {
     modelData: any;
@@ -53,10 +53,6 @@ export const RenderedInputPayload = (props: RenderedInputPayloadProps) => {
         setValue(renPayload);
     }, [props.modelData.modelProvider, props.modelData.sagemakerInputSchema, props.modelData.modelParameters]);
 
-    // convert value string into a markdown string
-    const valueAsMarkdown = value.replace(/\\n/g, '\n');
-    const valueAsMarkdownString = `\`\`\`json\n${valueAsMarkdown}\n\`\`\``;
-
     return (
         <FormField
             label={<span>Rendered Input Payload</span>}
@@ -64,7 +60,7 @@ export const RenderedInputPayload = (props: RenderedInputPayloadProps) => {
             description="Rendered payload with the provided prompt and model parameters."
         >
             <Box data-testid="markdown-rendered-string">
-                <MarkdownRenderer>{valueAsMarkdownString}</MarkdownRenderer>
+                <JsonCodeView content={value}></JsonCodeView>
             </Box>
         </FormField>
     );

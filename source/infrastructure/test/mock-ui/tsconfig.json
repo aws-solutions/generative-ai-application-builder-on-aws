@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
     "target": "es6",
+    "types": [
+      "vite/client",
+      "vitest/globals"
+    ],
     "lib": [
       "dom",
       "dom.iterable",

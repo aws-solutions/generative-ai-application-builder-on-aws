@@ -22,10 +22,14 @@ import { generateToken } from '../../utils/utils';
  *
  * @param {Object} params Use case deployment params to send to the API
  */
-export async function listDeployedUseCases() {
+export async function listDeployedUseCases(currentPageIndex, searchFilter) {
     try {
         const token = await generateToken();
         const response = await API.get(API_NAME, DEPLOYMENT_PLATFORM_API_ROUTES.LIST_USE_CASES.route, {
+            queryStringParameters: {
+                pageNumber: currentPageIndex,
+                searchFilter: searchFilter
+            },
             headers: {
                 Authorization: token
             }

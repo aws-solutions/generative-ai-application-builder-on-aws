@@ -11,6 +11,7 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
+
 from enum import Enum
 
 
@@ -65,7 +66,9 @@ PUBLISH_METRICS_DAYS = 1  # Equivalent (in number of days) to the runtime schedu
 
 SSM_CONFIG_KEY = "SSM_CONFIG_KEY"
 LLM_PARAMS = "LlmParams"
+PROMPT_PARAMS = "PromptParams"
 PROMPT_TEMPLATE = "PromptTemplate"
+DISAMBIGUATION_PROMPT_TEMPLATE = "DisambiguationPromptTemplate"
 NEW_KENDRA_INDEX_CREATED = "NEW_KENDRA_INDEX_CREATED"
 KENDRA_EDITION = "KENDRA_EDITION"
 RAG_ENABLED = "RAG_ENABLED"
@@ -79,3 +82,7 @@ REST_API_NAME_ENV_VAR = "REST_API_NAME"
 USER_POOL_ID_ENV_VAR = "USER_POOL_ID"
 CLIENT_ID_ENV_VAR = "CLIENT_ID"
 UUID = "UUID"
+USE_CASE_CONFIG_TABLE_NAME = "USE_CASE_CONFIG_TABLE_NAME"
+USE_CASE_CONFIG_RECORD_KEY = "USE_CASE_CONFIG_RECORD_KEY"
+USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME = "key"
+USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME = "config"

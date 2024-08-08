@@ -1,6 +1,6 @@
 {
   "name": "mock-typescript-lambda",
-  "version": "1.4.5",
+  "version": "2.0.0",
   "description": "A mock lambda implementation for CDK infrastructure unit",
   "main": "index.ts",
   "scripts": {
@@ -14,13 +14,13 @@
     "code-formatter": "./node_modules/prettier/bin-prettier.js --config .prettierrc.yml '**/*.ts' '**/*.js' --write"
   },
   "dependencies": {
-    "@types/aws-lambda": "8.10.115",
-    "@types/jest": "^29.5.4",
-    "@types/node": "^20.3.1",
-    "jest": "^29.6.4",
-    "ts-jest": "^29.1.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.2.2"
+    "@types/aws-lambda": "^8.10.138",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
   },
   "author": {
     "name": "Amazon Web Services",

@@ -11,29 +11,128 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
+import { CHAT_PROVIDERS, KnowledgeBaseTypes } from '../utils/constants';
+
 export const createUseCaseEvent = {
     body: {
-        ConsentToDataLeavingAWS: true,
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
-        ConversationMemoryType: 'DDBMemoryType',
-        ConversationMemoryParams: {},
-        KnowledgeBaseType: 'Kendra',
+        DeployUI: true,
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
         KnowledgeBaseParams: {
-            KendraIndexName: 'fake-index-name',
-            NumberOfDocs: '5',
-            ReturnSourceDocs: '5'
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            NoDocsFoundResponse: 'No references were found',
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
         },
         LlmParams: {
-            ModelProvider: 'HuggingFace',
-            ApiKey: 'some-fake-key',
-            ModelId: 'google/flan-t5-xxl',
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
             ModelParams: { 'Param1': 'value1' },
-            PromptTemplate: 'Prompt1 {history} {context} {input}',
             Streaming: true,
             RAGEnabled: true,
+            Temperature: 0.1,
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {context} {input}',
+                DisambiguationPromptTemplate: 'Prompt1 {history} {context} {input}'
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createUseCaseEventNonRag = {
+    body: {
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
+        LlmParams: {
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
+            ModelParams: { 'Param1': 'value1' },
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {input}'
+            },
+            Streaming: true,
+            RAGEnabled: false,
             Temperature: 0.1
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createUseCaseEventBedrockKnowledgeBase = {
+    body: {
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
+        KnowledgeBaseParams: {
+            KnowledgeBaseType: KnowledgeBaseTypes.BEDROCK,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            BedrockKnowledgeBaseParams: {
+                BedrockKnowledgeBaseId: 'fake-index-id',
+                RetrievalFilter: {},
+                OverrideSearchType: 'HYBRID'
+            }
+        },
+        LlmParams: {
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
+            ModelParams: { 'Param1': 'value1' },
+            Streaming: true,
+            RAGEnabled: true,
+            Temperature: 0.1,
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {context} {input}'
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createUseCaseEventBedrockKnowledgeBaseNoOverride = {
+    body: {
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
+        KnowledgeBaseParams: {
+            KnowledgeBaseType: KnowledgeBaseTypes.BEDROCK,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            BedrockKnowledgeBaseParams: {
+                BedrockKnowledgeBaseId: 'fake-index-id',
+                RetrievalFilter: {},
+                OverrideSearchType: 'NONE'
+            }
+        },
+        LlmParams: {
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
+            ModelParams: { 'Param1': 'value1' },
+            Streaming: true,
+            RAGEnabled: true,
+            Temperature: 0.1,
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {context} {input}'
+            }
         }
     },
     requestContext: {
@@ -45,22 +144,19 @@ export const createUseCaseEvent = {
 
 export const createUseCaseEventNoPrompt = {
     body: {
-        ConsentToDataLeavingAWS: true,
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
-        ConversationMemoryType: 'DDBMemoryType',
-        ConversationMemoryParams: {},
-        KnowledgeBaseType: 'Kendra',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
         KnowledgeBaseParams: {
-            KendraIndexName: 'fake-index-name',
-            NumberOfDocs: '5',
-            ReturnSourceDocs: '5'
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
         },
         LlmParams: {
-            ModelProvider: 'HuggingFace',
-            ApiKey: 'some-fake-key',
-            ModelId: 'google/flan-t5-xxl',
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
             ModelParams: { 'Param1': 'value1' },
             Streaming: true,
             RAGEnabled: true,
@@ -76,19 +172,17 @@ export const createUseCaseEventNoPrompt = {
 
 export const createUseCaseEventVPC = {
     body: {
-        ConsentToDataLeavingAWS: true,
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
-        ConversationMemoryType: 'DDBMemoryType',
-        ConversationMemoryParams: {},
-        KnowledgeBaseType: 'Kendra',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
         KnowledgeBaseParams: {
-            KendraIndexName: 'fake-index-name',
-            NumberOfDocs: '5',
-            ReturnSourceDocs: '5'
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
         },
-        VPCParams: {
+        VpcParams: {
             VpcEnabled: true,
             CreateNewVpc: false,
             ExistingVpcId: 'vpc-id',
@@ -96,14 +190,15 @@ export const createUseCaseEventVPC = {
             ExistingSecurityGroupIds: ['sg-id-1']
         },
         LlmParams: {
-            ModelProvider: 'HuggingFace',
-            ApiKey: 'some-fake-key',
-            ModelId: 'google/flan-t5-xxl',
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
             ModelParams: { 'Param1': 'value1' },
-            PromptTemplate: 'Prompt1 {history} {context} {input}',
             Streaming: true,
             RAGEnabled: true,
-            Temperature: 0.1
+            Temperature: 0.1,
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {context} {input}'
+            }
         }
     },
     requestContext: {
@@ -115,6 +210,28 @@ export const createUseCaseEventVPC = {
 
 export const createUseCaseApiEvent = {
     body: JSON.stringify(createUseCaseEvent.body),
+    resource: '/deployments',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createUseCaseApiEventBedrockKnowledgeBase = {
+    body: JSON.stringify(createUseCaseEventBedrockKnowledgeBase.body),
+    resource: '/deployments',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createUseCaseApiEventBedrockKnowledgeBaseNoOverride = {
+    body: JSON.stringify(createUseCaseEventBedrockKnowledgeBaseNoOverride.body),
     resource: '/deployments',
     httpMethod: 'POST',
     requestContext: {
@@ -148,27 +265,27 @@ export const createUseCaseApiEventVPC = {
 
 export const updateUseCaseEvent = {
     body: {
-        ConsentToDataLeavingAWS: false,
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
-        ConversationMemoryType: 'DDBMemoryType',
-        ConversationMemoryParams: {},
-        KnowledgeBaseType: 'Kendra',
+
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
         KnowledgeBaseParams: {
-            KendraIndexName: 'fake-index-name',
-            NumberOfDocs: '5',
-            ReturnSourceDocs: '5'
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
         },
         LlmParams: {
-            ModelProvider: 'HuggingFace',
-            ApiKey: 'some-fake-key',
-            ModelId: 'google/flan-t5-xxl',
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model', 'ModelArn': 'fake-arn' },
             ModelParams: { 'Param1': 'value1' },
-            PromptTemplate: 'Prompt1 {history} {context} {input}',
             Streaming: true,
             RAGEnabled: true,
-            Temperature: 0.1
+            Temperature: 0.1,
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {context} {input}'
+            }
         }
     },
     pathParameters: {
@@ -183,29 +300,28 @@ export const updateUseCaseEvent = {
 
 export const updateUseCaseVPCEvent = {
     body: {
-        ConsentToDataLeavingAWS: false,
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
-        ConversationMemoryType: 'DDBMemoryType',
-        ConversationMemoryParams: {},
-        KnowledgeBaseType: 'Kendra',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
         KnowledgeBaseParams: {
-            KendraIndexName: 'fake-index-name',
-            NumberOfDocs: '5',
-            ReturnSourceDocs: '5'
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
         },
         LlmParams: {
-            ModelProvider: 'HuggingFace',
-            ApiKey: 'some-fake-key',
-            ModelId: 'google/flan-t5-xxl',
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
             ModelParams: { 'Param1': 'value1' },
-            PromptTemplate: 'Prompt1 {history} {context} {input}',
             Streaming: true,
             RAGEnabled: true,
-            Temperature: 0.1
+            Temperature: 0.1,
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {context} {input}'
+            }
         },
-        VPCParams: {
+        VpcParams: {
             ExistingPrivateSubnetIds: ['subnet-id-1', 'subnet-id-2', 'subnet-id-3'],
             ExistingSecurityGroupIds: ['sg-id-1', 'sg-id-2']
         }
@@ -266,7 +382,7 @@ export const getUseCaseApiEvent = {
     resource: '/deployments',
     httpMethod: 'GET',
     queryStringParameters: {
-        pageSize: '10'
+        pageNumber: '1'
     },
     requestContext: {
         authorizer: {

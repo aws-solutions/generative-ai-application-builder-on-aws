@@ -12,7 +12,7 @@
  **********************************************************************************************************************/
 
 import { MODEL_PROVIDER_NAME_MAP } from '../steps-config';
-import { AnthropicModel, BedrockModel, HFInferenceEndpointModel, HuggingFaceModel } from './providers';
+import { BedrockModel } from './providers';
 import SagemakerModel from './providers/Sagemaker';
 
 export interface ModelSelectionProps {
@@ -29,36 +29,9 @@ export const ModelSelection = ({
     setNumFieldsInError
 }: ModelSelectionProps) => {
     switch (modelData.modelProvider.value.toLowerCase()) {
-        case MODEL_PROVIDER_NAME_MAP.HuggingFace.toLowerCase():
-            return (
-                <HuggingFaceModel
-                    modelData={modelData}
-                    onChangeFn={onChange}
-                    setHelpPanelContent={setHelpPanelContent}
-                    setNumFieldsInError={setNumFieldsInError}
-                />
-            );
-        case MODEL_PROVIDER_NAME_MAP.HFInfEndpoint.toLowerCase():
-            return (
-                <HFInferenceEndpointModel
-                    modelData={modelData}
-                    onChangeFn={onChange}
-                    setHelpPanelContent={setHelpPanelContent}
-                    setNumFieldsInError={setNumFieldsInError}
-                />
-            );
         case MODEL_PROVIDER_NAME_MAP.Bedrock.toLowerCase():
             return (
                 <BedrockModel
-                    modelData={modelData}
-                    onChangeFn={onChange}
-                    setHelpPanelContent={setHelpPanelContent}
-                    setNumFieldsInError={setNumFieldsInError}
-                />
-            );
-        case MODEL_PROVIDER_NAME_MAP.Anthropic.toLowerCase():
-            return (
-                <AnthropicModel
                     modelData={modelData}
                     onChangeFn={onChange}
                     setHelpPanelContent={setHelpPanelContent}

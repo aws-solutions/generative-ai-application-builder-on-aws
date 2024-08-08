@@ -22,24 +22,16 @@ describe('When performing storage management operations', () => {
     let storageManagement: StorageManagement;
     let adaptedEvent: ListUseCasesAdapter;
 
-    describe('When sucessfully invoking the commands', () => {
+    describe('When successfully invoking the commands', () => {
         beforeAll(() => {
             process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
 
-            const inputLastEvaluatedKey = {
-                'Description': { 'S': 'test case 1' },
-                'CreatedBy': { 'S': 'fake-user-id' },
-                'StackId': { 'S': 'fake-stack-id' },
-                'Name': { 'S': 'test-1' }
-            };
-
             const event = {
                 queryStringParameters: {
-                    pageSize: '10'
+                    pageNumber: '1'
                 },
                 headers: {
-                    Authorization: 'Bearer 123',
-                    'last-evaluated-key': JSON.stringify(inputLastEvaluatedKey)
+                    Authorization: 'Bearer 123'
                 }
             } as Partial<APIGatewayEvent>;
 
@@ -52,10 +44,14 @@ describe('When performing storage management operations', () => {
             const expectedResponse = {
                 Items: [
                     {
-                        'Description': { 'S': 'test case 1' },
+                        'UseCaseId': { 'S': 'fake-usecase-id' },
                         'CreatedBy': { 'S': 'fake-user-id' },
+                        'CreatedDate': { 'S': 'fake-date' },
                         'StackId': { 'S': 'fake-stack-id' },
-                        'Name': { 'S': 'test-1' }
+                        'Name': { 'S': 'test-1' },
+                        'UseCaseConfigRecordKey': { 'S': 'fake-record-key' },
+                        'UseCaseConfigTableName': { 'S': 'fake-table-name' },
+                        'Description': { 'S': 'test case 1' }
                     }
                 ],
                 LastEvaluatedKey: null,
@@ -68,10 +64,12 @@ describe('When performing storage management operations', () => {
 
             expect(useCaseRecords.length).toEqual(1);
             expect(scannedCount).toEqual(1);
-            expect(useCaseRecords[0].Description).toEqual('test case 1');
+            expect(useCaseRecords[0].UseCaseId).toEqual('fake-usecase-id');
             expect(useCaseRecords[0].CreatedBy).toEqual('fake-user-id');
+            expect(useCaseRecords[0].CreatedDate).toEqual('fake-date');
             expect(useCaseRecords[0].StackId).toEqual('fake-stack-id');
             expect(useCaseRecords[0].Name).toEqual('test-1');
+            expect(useCaseRecords[0].Description).toEqual('test case 1');
         });
 
         afterAll(() => {

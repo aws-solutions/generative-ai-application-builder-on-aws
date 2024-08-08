@@ -22,14 +22,13 @@ from utils.constants import METRICS_ENDPOINT
 from utils.data import BuilderMetrics
 from utils.metrics import push_builder_metrics, verify_env_setup
 
-builder_metrics = BuilderMetrics("SO0999", "v99.99.99", {"fake-metric-1": 0, "fake-metric-2": 2})
+builder_metrics = BuilderMetrics("fake-uuid", "SO0999", "v99.99.99", {"fake-metric-1": 0, "fake-metric-2": 2})
 
 
 def test_when_env_variables_set(monkeypatch):
     envs = {
         "UNIT_TEST_ENV": "yes",
         "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
-        "LOG_LEVEL": "DEBUG",
         "SOLUTION_ID": "SO0001",
         "SOLUTION_VERSION": "v99.99.99",
     }
@@ -42,7 +41,6 @@ def test_when_solution_version_not_set(monkeypatch):
     envs = {
         "UNIT_TEST_ENV": "yes",
         "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
-        "LOG_LEVEL": "DEBUG",
         "SOLUTION_ID": "SO0001",
     }
     monkeypatch.setattr(os, "environ", envs)
@@ -55,7 +53,6 @@ def test_when_solution_id_not_set(monkeypatch):
     envs = {
         "UNIT_TEST_ENV": "yes",
         "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
-        "LOG_LEVEL": "DEBUG",
         "SOLUTION_VERSION": "v99.99.99",
     }
     monkeypatch.setattr(os, "environ", envs)
@@ -73,7 +70,7 @@ def test_sending_cw_metrics():
         assert call_kwargs["url"] == METRICS_ENDPOINT
         body = json.loads(call_kwargs["body"])
         assert body["Solution"] == "SO0999"
-        assert body["UUID"] is None
+        assert body["UUID"] == "fake-uuid"
         assert body["Version"] == "v99.99.99"
         assert body["Data"] == {"fake-metric-1": 0, "fake-metric-2": 2}
 

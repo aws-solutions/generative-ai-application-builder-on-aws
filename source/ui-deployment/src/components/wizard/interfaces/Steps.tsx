@@ -65,6 +65,7 @@ export interface ReviewProps {
         knowledgeBase: any;
         model: any;
         vpc: any;
+        prompt: any;
     };
     setActiveStepIndex: (e: number) => void;
 }

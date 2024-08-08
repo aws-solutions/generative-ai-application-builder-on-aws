@@ -24,8 +24,6 @@ import { API, Auth } from 'aws-amplify';
 import { API_NAME } from '@/utils/constants';
 import { mockedAuthenticator } from '@/utils';
 
-jest.mock('@aws-amplify/api');
-
 describe('When using hook to fetch model names', () => {
     const mockAPI = {
         get: jest.fn()
@@ -199,7 +197,7 @@ describe('When using hook to fetch the model providers', () => {
 
     beforeEach(() => {
         const queryClient = new QueryClient();
-        mockAPI.get.mockResolvedValue(['Bedrock', 'Anthropic', 'HuggingFace', 'HuggingFace-InferenceEndpoint']);
+        mockAPI.get.mockResolvedValue(['Bedrock', 'SageMaker']);
         API.get = mockAPI.get;
         Auth.currentAuthenticatedUser = mockedAuthenticator();
 

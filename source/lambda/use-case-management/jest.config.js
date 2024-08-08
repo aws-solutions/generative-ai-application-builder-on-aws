@@ -15,7 +15,6 @@ module.exports = {
     modulePaths: [
         '<rootDir>/../layers/',
         '<rootDir>/../layers/aws-sdk-lib/node_modules/',
-        '<rootDir>/../layers/common-node-lib/',
         '<rootDir>/../layers/aws-node-user-agent-config/',
         '<rootDir>/../layers/aws-node-user-agent-config/node_modules/'
     ],

@@ -1,3 +1,17 @@
+#!/usr/bin/env python
+######################################################################################################################
+#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
+#                                                                                                                    #
+#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
+#  with the License. A copy of the License is located at                                                             #
+#                                                                                                                    #
+#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
+#                                                                                                                    #
+#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
+#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
+#  and limitations under the License.                                                                                #
+######################################################################################################################
+
 import json
 import os
 from copy import deepcopy
@@ -83,8 +97,7 @@ class SageMakerContentHandler(LLMContentHandler):
             Your output response JSONPath will be: "$.response.generated_text". The chat lambda extracts the response from the provided path
                 each time
 
-            The <<prompt>> and <<temperature>> are special keywords to replace prompt and temperature received from the user-inputted
-            values in the UI (which are stored in the SSM config)
+            The <<prompt>> and <<temperature>> are special keywords to replace prompt and temperature received from the user-inputted values in the UI (stored in the DynamoDB config)
     """
 
     def __init__(self, input_schema: Dict[Any, Any], output_path_expression: str):

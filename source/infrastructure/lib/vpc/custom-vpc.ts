@@ -15,9 +15,13 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
+import * as cfn_nag from '../utils/cfn-guard-suppressions';
+import { createCustomResourceForLambdaLogRetention } from '../utils/common-utils';
+import { LOG_RETENTION_PERIOD } from '../utils/constants';
 
 /**
  * Props extending from NestedStackProps, for any properties to be set for the VPC nested stack
@@ -27,21 +31,21 @@ export interface CustomVPCProps extends cdk.NestedStackProps {}
 /**
  * Construct to deploy the VPC as a nested stack
  */
-export class CustomVPC extends cdk.NestedStack {
+export abstract class CustomVPC extends cdk.NestedStack {
     /**
      * The VPC for the stack
      */
-    public readonly vpc: ec2.Vpc;
+    public vpc: ec2.Vpc;
 
     /**
      * security group created as part of this VPC creation and used by the lambda functions
      */
-    public readonly securityGroup: ec2.SecurityGroup;
+    public securityGroup: ec2.SecurityGroup;
 
     /**
      * security group for all VPCEndpoints
      */
-    public readonly vpcEndpointSecurityGroup: ec2.SecurityGroup;
+    public vpcEndpointSecurityGroup: ec2.SecurityGroup;
 
     /**
      * Arn of the Lambda function to use for custom resource implementation.
@@ -52,6 +56,11 @@ export class CustomVPC extends cdk.NestedStack {
      * Arn of the IAM role to use for custom resource implementation.
      */
     public readonly customResourceRoleArn: string;
+
+    /**
+     *  If you would like to assign the CIDR range using AWS VPC IP Address Manager, please provide the IPAM pool Id to use
+     */
+    public readonly iPamPoolId: string;
 
     constructor(scope: Construct, id: string, props: CustomVPCProps) {
         super(scope, id, props);
@@ -70,7 +79,7 @@ export class CustomVPC extends cdk.NestedStack {
             description: 'Arn of the IAM role to use for custom resource implementation.'
         }).valueAsString;
 
-        const iPamPoolId = new cdk.CfnParameter(this, 'IPAMPoolId', {
+        this.iPamPoolId = new cdk.CfnParameter(this, 'IPAMPoolId', {
             type: 'String',
             description:
                 'If you would like to assign the CIDR range using AWS VPC IP Address Manager, please provide the IPAM pool Id to use',
@@ -79,70 +88,67 @@ export class CustomVPC extends cdk.NestedStack {
             constraintDescription:
                 'The provided IPAM Pool Id is not a valid format. IPAM Id should be be of the following format "^ipam-pool-([0-9a-zA-Z])+$"',
             maxLength: 50
+        }).valueAsString;
+    }
+
+    protected setOutputs(stack: cdk.Stack) {
+        new cdk.CfnOutput(stack, 'VpcId', {
+            value: this.vpc.vpcId,
+            description: 'The ID of the VPC'
         });
 
-        const vpcFlowLogLogGroup = new logs.LogGroup(this, 'VPCFlowLogs', {
-            retention: logs.RetentionDays.TWO_YEARS
+        new cdk.CfnOutput(stack, 'PrivateSubnetIds', {
+            value: this.vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds.join(','),
+            description: 'Comma separated list of private subnet ids'
         });
 
-        const subnetCidrMask = 24;
-
-        const subnets: ec2.SubnetConfiguration[] = [
-            {
-                subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-                name: 'private-egress',
-                cidrMask: subnetCidrMask
-            },
-            {
-                subnetType: ec2.SubnetType.PUBLIC,
-                name: 'public',
-                cidrMask: subnetCidrMask
-            }
-        ];
-
-        const iPamPoolIdNotEmptyCondition = new cdk.CfnCondition(this, 'IPAMPoolIdProvidedCondition', {
-            expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(iPamPoolId.valueAsString, ''))
+        new cdk.CfnOutput(stack, 'SecurityGroupIds', {
+            value: this.securityGroup.securityGroupId,
+            description: 'Security group for the lambda functions in the VPC'
         });
 
-        this.vpc = new ec2.Vpc(this, 'UseCaseVPC', {
-            createInternetGateway: true,
-            subnetConfiguration: subnets,
-            flowLogs: {
-                flowLogs: {
-                    destination: ec2.FlowLogDestination.toCloudWatchLogs(vpcFlowLogLogGroup),
-                    trafficType: ec2.FlowLogTrafficType.REJECT
-                }
-            },
-            restrictDefaultSecurityGroup: true
+        new cdk.CfnOutput(stack, 'AvailabilityZones', {
+            value: this.vpc.availabilityZones.join(','),
+            description: 'Comma separated list of AZs in which subnets of the VPCs are created'
         });
+    }
 
-        const cfnVpc: ec2.CfnVPC = this.vpc.node.defaultChild as ec2.CfnVPC;
-        cfnVpc.addPropertyOverride(
-            'CidrBlock',
-            // prettier-ignore
-            cdk.Fn.conditionIf(iPamPoolIdNotEmptyCondition.logicalId, cdk.Aws.NO_VALUE, `10.0.0.0/${subnetCidrMask-4}`) // NOSONAR - have to provide CIDR if not available through IPAM
-        );
-        cfnVpc.addPropertyOverride(
-            'Ipv4IpamPoolId',
-            cdk.Fn.conditionIf(iPamPoolIdNotEmptyCondition.logicalId, iPamPoolId.valueAsString, cdk.Aws.NO_VALUE)
-        );
-        cfnVpc.addPropertyOverride(
-            'Ipv4NetmaskLength',
-            cdk.Fn.conditionIf(iPamPoolIdNotEmptyCondition.logicalId, 20, cdk.Aws.NO_VALUE)
-        );
-
-        const allSubnets = this.vpc
-            .selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS })
-            .subnets.concat(this.vpc.selectSubnets({ subnetType: ec2.SubnetType.PUBLIC }).subnets);
-
-        allSubnets.forEach((subnet, index) => {
-            const cfnSubnet = subnet.node.defaultChild as ec2.CfnSubnet;
-            cfnSubnet.addPropertyOverride(
-                'CidrBlock',
-                cdk.Fn.select(index, cdk.Fn.cidr(this.vpc.vpcCidrBlock, 6, (32 - subnetCidrMask).toString()))
-            );
-        });
-
+    /**
+     * Creates VPC endpoints for various AWS services within the VPC.
+     *
+     * This method sets up the following VPC endpoints:
+     *
+     * 1. DynamoDB Gateway Endpoint:
+     *    - Allows resources within the VPC to access DynamoDB without going through the public internet.
+     *    - Configured to be accessible from private subnets with egress.
+     *    - Adds an IAM policy statement allowing various DynamoDB actions on all tables in the account.
+     *
+     * 2. CloudWatch Monitoring Interface Endpoint:
+     *    - Allows resources within the VPC to send custom metrics to CloudWatch.
+     *    - Configured to be accessible only from the specified security group.
+     *    - Adds an IAM policy statement allowing the `PutMetricData` action on CloudWatch for specific namespaces.
+     *
+     * 3. CloudWatch Logs Interface Endpoint:
+     *    - Allows resources within the VPC to send log data to CloudWatch Logs.
+     *    - Configured to be accessible only from the specified security group.
+     *    - Adds an IAM policy statement allowing various CloudWatch Logs actions on all log groups in the account.
+     *
+     * 4. AWS X-Ray Interface Endpoint:
+     *    - Allows resources within the VPC to send trace data to X-Ray.
+     *    - Configured to be accessible only from the specified security group.
+     *    - Adds an IAM policy statement allowing the `PutTraceSegments` and `PutTelemetryRecords` actions on X-Ray.
+     *
+     * 5. Amazon SQS Interface Endpoint:
+     *    - Allows resources within the VPC to interact with SQS queues.
+     *    - Configured to be accessible only from the specified security group.
+     *    - Adds an IAM policy statement allowing various SQS actions on all queues.
+     *
+     * The purpose of this method is to create secure connections between resources within the VPC
+     * and various AWS services, without exposing them to the public internet. By using VPC endpoints,
+     * traffic between the VPC and the services is routed through the Amazon network, providing enhanced
+     * security and reducing data transfer costs.
+     */
+    protected createServiceEndpoints() {
         const ddbEndpoint: ec2.GatewayVpcEndpoint = this.vpc.addGatewayEndpoint('DDBEndpoint', {
             service: ec2.GatewayVpcEndpointAwsService.DYNAMODB,
             subnets: [{ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }]
@@ -150,8 +156,9 @@ export class CustomVPC extends cdk.NestedStack {
 
         ddbEndpoint.addToPolicy(
             new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW, // NOSONAR - typescript:S6270, creating an allow policy for specific actions
+                effect: iam.Effect.ALLOW,
                 principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
+
                 //Also this is an endpoint policy, to perform the actions on dynamodb, the lambda still requires requisite permissions.
                 resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`],
                 actions: [
@@ -166,41 +173,11 @@ export class CustomVPC extends cdk.NestedStack {
                     'dynamodb:PutItem',
                     'dynamodb:Query',
                     'dynamodb:Scan',
-                    'dynamodb:UpdateItem'
+                    'dynamodb:UpdateItem',
+                    'dynamodb:CreateTable',
+                    'dynamodb:DeleteTable'
                 ]
             })
-        );
-
-        this.securityGroup = new ec2.SecurityGroup(this, 'SecurityGroup', {
-            vpc: this.vpc,
-            description: 'Security Group for lambda functions inside the VPC in the private subnets',
-            allowAllOutbound: false,
-            securityGroupName: 'LambdaSecurityGroup'
-        });
-
-        this.securityGroup.addEgressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'Allow outbound access');
-
-        this.vpcEndpointSecurityGroup = new ec2.SecurityGroup(this, 'VPCEndpointSecurityGroup', {
-            vpc: this.vpc,
-            description: 'Security Group for the VPC Endpoints',
-            allowAllOutbound: false,
-            securityGroupName: 'VPCEndpointSecurityGroup'
-        });
-        this.securityGroup.connections.allowTo(
-            this.vpcEndpointSecurityGroup,
-            ec2.Port.tcp(443),
-            'Allow connections to VPC Endpoint security group'
-        );
-
-        this.vpcEndpointSecurityGroup.connections.allowFrom(
-            this.securityGroup,
-            ec2.Port.tcp(443),
-            'Allow inbound HTTPs connection'
-        );
-
-        this.vpcEndpointSecurityGroup.connections.allowToAnyIpv4(
-            ec2.Port.tcp(443),
-            'Allow outbound HTTPS to access AWS services'
         );
 
         const cloudWatchEndpoint = new ec2.InterfaceVpcEndpoint(this, 'CloudWatchEndpoint', {
@@ -213,8 +190,8 @@ export class CustomVPC extends cdk.NestedStack {
             new iam.PolicyStatement({
                 principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
                 actions: ['cloudwatch:PutMetricData'],
-                effect: iam.Effect.ALLOW, // NOSONAR - typescript:S6270, creating an allow policy for specific actions
-                resources: ['*'], // NOSONAR - this is a wildcard since the destination for metrics has no arn
+                effect: iam.Effect.ALLOW,
+                resources: ['*'],
                 conditions: {
                     'StringEquals': {
                         'cloudwatch:namespace': ['AWS/ApiGateway', 'AWS/Kendra', 'AWS/Cognito', 'Langchain/LLM']
@@ -240,32 +217,11 @@ export class CustomVPC extends cdk.NestedStack {
                     'logs:DescribeLogStreams',
                     'logs:FilterLogEvents',
                     'logs:GetLogEvents',
-                    'logs:PutLogEvents'
+                    'logs:PutLogEvents',
+                    'logs:ListTagsForResource'
                 ],
-                effect: iam.Effect.ALLOW, // NOSONAR - typescript:S6270, creating an allow policy for specific actions
+                effect: iam.Effect.ALLOW,
                 resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:*`] // NOSONAR - this is a wildcard.
-            })
-        );
-
-        const ssmEndpoint = new ec2.InterfaceVpcEndpoint(this, 'SSMEndpoint', {
-            vpc: this.vpc,
-            service: ec2.InterfaceVpcEndpointAwsService.SSM,
-            open: false,
-            securityGroups: [this.vpcEndpointSecurityGroup]
-        });
-        ssmEndpoint.addToPolicy(
-            new iam.PolicyStatement({
-                principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
-                actions: [
-                    'ssm:DescribeParameters',
-                    'ssm:GetParameter',
-                    'ssm:GetParameterHistory',
-                    'ssm:GetParameters',
-                    'ssm:DeleteParameter',
-                    'ssm:PutParameter'
-                ],
-                effect: iam.Effect.ALLOW, // NOSONAR - typescript:S6270, creating an allow policy for specific actions
-                resources: [`arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter/*`]
             })
         );
 
@@ -279,7 +235,7 @@ export class CustomVPC extends cdk.NestedStack {
             new iam.PolicyStatement({
                 principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
                 actions: ['xray:PutTraceSegments', 'xray:PutTelemetryRecords'],
-                effect: iam.Effect.ALLOW, // NOSONAR - typescript:S6270, creating an allow policy for specific actions
+                effect: iam.Effect.ALLOW,
                 resources: ['*'] // NOSONAR - this is a wildcard since the desintation does not have an arn
             })
         );
@@ -293,13 +249,62 @@ export class CustomVPC extends cdk.NestedStack {
         sqsEndpoint.addToPolicy(
             new iam.PolicyStatement({
                 principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
-                actions: ['sqs:sendMessage'],
-                resources: ['*'], // NOSONAR - providing a resource pattern does not work, hence wildcard
-                effect: iam.Effect.ALLOW // NOSONAR - typescript:S6270, creating an allow policy for specific actions
+                actions: [
+                    'sqs:sendMessage',
+                    'sqs:ChangeMessageVisibility',
+                    'sqs:DeleteMessage',
+                    'sqs:GetQueueUrl',
+                    'sqs:GetQueueAttributes',
+                    'sqs:ReceiveMessage'
+                ],
+                resources: ['*'],
+                effect: iam.Effect.ALLOW
             })
         );
+    }
 
-        //adding NACL
+    protected createSecurityGroups() {
+        this.securityGroup = new ec2.SecurityGroup(this, 'SecurityGroup', {
+            vpc: this.vpc,
+            description: 'Security Group for lambda functions inside the VPC in the private subnets',
+            allowAllOutbound: false
+        });
+
+        this.securityGroup.addEgressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'Allow outbound access');
+
+        this.vpcEndpointSecurityGroup = new ec2.SecurityGroup(this, 'VPCEndpointSecurityGroup', {
+            vpc: this.vpc,
+            description: 'Security Group for the VPC Endpoints',
+            allowAllOutbound: false
+        });
+
+        this.vpcEndpointSecurityGroup.connections.allowFrom(
+            this.securityGroup,
+            ec2.Port.tcp(443),
+            'Allow inbound HTTPs connection'
+        );
+
+        this.vpcEndpointSecurityGroup.connections.allowToAnyIpv4(
+            ec2.Port.tcp(443),
+            'Allow outbound HTTPS to access AWS services'
+        );
+
+        cfn_nag.addCfnSuppressRules(this.vpcEndpointSecurityGroup, [
+            {
+                id: 'W5',
+                reason: 'Security group allows connection from within lambda function to AWS services using HTTPS'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(this.securityGroup, [
+            {
+                id: 'W5',
+                reason: 'Security group for all lambda functions'
+            }
+        ]);
+    }
+
+    protected configureNacl() {
         const nacl = new ec2.NetworkAcl(this, 'NACL', {
             vpc: this.vpc,
             subnetSelection: {
@@ -333,26 +338,6 @@ export class CustomVPC extends cdk.NestedStack {
             cidr: ec2.AclCidr.anyIpv4(),
             traffic: ec2.AclTraffic.tcpPortRange(1024, 65535),
             ruleAction: ec2.Action.ALLOW
-        });
-
-        new cdk.CfnOutput(stack, 'VpcId', {
-            value: this.vpc.vpcId,
-            description: 'The ID of the VPC'
-        });
-
-        new cdk.CfnOutput(stack, 'PrivateSubnetIds', {
-            value: this.vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds.join(','),
-            description: 'Comma separated list of private subnet ids'
-        });
-
-        new cdk.CfnOutput(stack, 'SecurityGroupIds', {
-            value: this.securityGroup.securityGroupId,
-            description: 'Security group for the lambda functions in the VPC'
-        });
-
-        new cdk.CfnOutput(stack, 'AvailabilityZones', {
-            value: this.vpc.availabilityZones.join(','),
-            description: 'Comma separated list of AZs in which subnets of the VPCs are created'
         });
 
         NagSuppressions.addResourceSuppressions(nacl, [
@@ -401,5 +386,136 @@ export class CustomVPC extends cdk.NestedStack {
                 }
             ]
         );
+    }
+
+    /**
+     * Create the VPC. Can be overridden by child classes for custom behaviour.
+     *
+     * @param subnetCidrMask
+     */
+    protected createVpc(subnetCidrMask: number) {
+        const vpcFlowLogLogGroup = new logs.LogGroup(this, 'VPCFlowLogs', {
+            retention: LOG_RETENTION_PERIOD
+        });
+        const subnets: ec2.SubnetConfiguration[] = [
+            {
+                subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                name: 'private-egress',
+                cidrMask: subnetCidrMask
+            },
+            {
+                subnetType: ec2.SubnetType.PUBLIC,
+                name: 'public',
+                cidrMask: subnetCidrMask
+            }
+        ];
+
+        const iPamPoolIdNotEmptyCondition = new cdk.CfnCondition(this, 'IPAMPoolIdProvidedCondition', {
+            expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.iPamPoolId, ''))
+        });
+
+        this.vpc = new ec2.Vpc(this, 'UseCaseVPC', {
+            createInternetGateway: true,
+            subnetConfiguration: subnets,
+            flowLogs: {
+                flowLogs: {
+                    destination: ec2.FlowLogDestination.toCloudWatchLogs(vpcFlowLogLogGroup),
+                    trafficType: ec2.FlowLogTrafficType.REJECT
+                }
+            },
+            restrictDefaultSecurityGroup: true
+        });
+
+        const restrictDefaultSecurityGroupFunction: lambda.CfnFunction = this.node
+            .tryFindChild('Custom::VpcRestrictDefaultSGCustomResourceProvider')
+            ?.node.tryFindChild('Handler') as lambda.CfnFunction;
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'RestrictDefaultSecGrpFuncLogRetention',
+            restrictDefaultSecurityGroupFunction.ref,
+            this.customResourceLambdaArn
+        );
+
+        const cfnVpc: ec2.CfnVPC = this.vpc.node.defaultChild as ec2.CfnVPC;
+        cfnVpc.addPropertyOverride(
+            'CidrBlock',
+            // prettier-ignore
+            cdk.Fn.conditionIf(iPamPoolIdNotEmptyCondition.logicalId, cdk.Aws.NO_VALUE, `10.0.0.0/${subnetCidrMask - 4}`) // NOSONAR - have to provide CIDR if not available through IPAM
+        );
+        cfnVpc.addPropertyOverride(
+            'Ipv4IpamPoolId',
+            cdk.Fn.conditionIf(iPamPoolIdNotEmptyCondition.logicalId, this.iPamPoolId, cdk.Aws.NO_VALUE)
+        );
+        cfnVpc.addPropertyOverride(
+            'Ipv4NetmaskLength',
+            cdk.Fn.conditionIf(iPamPoolIdNotEmptyCondition.logicalId, 20, cdk.Aws.NO_VALUE)
+        );
+        const allSubnets = this.vpc
+            .selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS })
+            .subnets.concat(this.vpc.selectSubnets({ subnetType: ec2.SubnetType.PUBLIC }).subnets);
+
+        allSubnets.forEach((subnet, index) => {
+            const cfnSubnet = subnet.node.defaultChild as ec2.CfnSubnet;
+            cfnSubnet.addPropertyOverride(
+                'CidrBlock',
+                cdk.Fn.select(index, cdk.Fn.cidr(this.vpc.vpcCidrBlock, 6, (32 - subnetCidrMask).toString()))
+            );
+        });
+
+        cfn_nag.addCfnSuppressRules(
+            this.node
+                .tryFindChild('Custom::VpcRestrictDefaultSGCustomResourceProvider')
+                ?.node.tryFindChild('Role') as cdk.CfnResource,
+            [
+                {
+                    id: 'F10',
+                    reason: 'Inline policy generated by CDK. The lambda role is associated with a function that suppresses default security group'
+                }
+            ]
+        );
+
+        cfn_nag.addCfnSuppressRules(
+            this.node
+                .tryFindChild('Custom::VpcRestrictDefaultSGCustomResourceProvider')
+                ?.node.tryFindChild('Handler') as cdk.CfnResource,
+            [
+                {
+                    id: 'W89',
+                    reason: 'VPC is not enforced, its an option to configure for the solution. This lambda does not have any business logic, it only removes default security group'
+                },
+                {
+                    id: 'W92',
+                    reason: 'The solution does not set reserved concurrency for lambda functions'
+                }
+            ]
+        );
+
+        cfn_nag.addCfnSuppressRules(
+            this.vpc.node.tryFindChild('publicSubnet2')?.node.tryFindChild('Subnet') as ec2.Subnet,
+            [
+                {
+                    id: 'W33',
+                    reason: 'Subnet is a public subnet to host NAT gateways'
+                }
+            ]
+        );
+
+        cfn_nag.addCfnSuppressRules(
+            this.vpc.node.tryFindChild('publicSubnet1')?.node.tryFindChild('Subnet') as ec2.Subnet,
+            [
+                {
+                    id: 'W33',
+                    reason: 'Subnet is a public subnet to host NAT gateways'
+                }
+            ]
+        );
+
+        cfn_nag.addCfnSuppressRules(vpcFlowLogLogGroup, [
+            {
+                id: 'W84',
+                reason: 'Log group is encrypted by default with KMS'
+            }
+        ]);
     }
 }

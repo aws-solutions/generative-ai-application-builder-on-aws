@@ -15,10 +15,12 @@
 import os
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
+from moto import mock_aws
 
 import pytest
+from helper import get_service_resource
 from operations import operation_types
-from operations.copy_model_info_to_ddb import DDB_TABLE_NAME, create, execute, verify_env_setup
+from operations.copy_model_info_to_ddb import DDB_TABLE_NAME
 from operations.operation_types import (
     RESOURCE,
     RESOURCE_PROPERTIES,
@@ -77,3 +79,29 @@ def setup_model_info(tmp_path, s3, ddb, copy_to_ddb_event):
     )
 
     yield copy_to_ddb_event, s3, ddb
+
+
+@pytest.fixture
+def ddb_table(ddb):
+    with mock_aws():
+        table_name = "test-table"
+        table = ddb.create_table(
+            TableName=table_name,
+            KeySchema=[
+                {"AttributeName": "UseCase", "KeyType": "HASH"},
+                {"AttributeName": "SortKey", "KeyType": "RANGE"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": "UseCase", "AttributeType": "S"},
+                {"AttributeName": "SortKey", "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+        )
+
+        # Add some test data
+        table.put_item(Item={"UseCase": "UseCase1", "SortKey": "item1"})
+        table.put_item(Item={"UseCase": "UseCase2", "SortKey": "item2"})
+        table.put_item(Item={"UseCase": "UseCase3", "SortKey": "item2"})
+        table.put_item(Item={"UseCase": "UseCase4", "SortKey": "item4"})
+
+        yield table

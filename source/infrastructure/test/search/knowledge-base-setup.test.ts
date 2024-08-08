@@ -44,7 +44,11 @@ describe('When a new Kendra index is to be created', () => {
             customInfra: new ApplicationSetup(stack, 'ApplicationSetup', {
                 solutionID: rawCdkJson.context.solution_id,
                 solutionVersion: rawCdkJson.context.solution_version
-            }).customResourceLambda
+            }).customResourceLambda,
+            solutionID: rawCdkJson.context.solution_id,
+            solutionVersion: rawCdkJson.context.solution_version,
+            solutionName: rawCdkJson.context.solution_name,
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name
         });
 
         template = Template.fromStack(stack);
@@ -121,7 +125,11 @@ describe('When using an existing Kendra index', () => {
             customInfra: new ApplicationSetup(stack, 'ApplicationSetup', {
                 solutionID: rawCdkJson.context.solution_id,
                 solutionVersion: rawCdkJson.context.solution_version
-            }).customResourceLambda
+            }).customResourceLambda,
+            solutionID: rawCdkJson.context.solution_id,
+            solutionVersion: rawCdkJson.context.solution_version,
+            solutionName: rawCdkJson.context.solution_name,
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name
         });
 
         template = Template.fromStack(stack);

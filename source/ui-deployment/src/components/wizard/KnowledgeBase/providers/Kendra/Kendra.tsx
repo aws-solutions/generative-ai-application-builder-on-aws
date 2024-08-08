@@ -22,6 +22,7 @@ import { KendraIndexName } from './KendraIndexName';
 import AdditionalKendraOptions from './AdditionalKendraOptions';
 import { DEPLOYMENT_ACTIONS } from '../../../../../utils/constants';
 import HomeContext from '../../../../../contexts/home.context';
+import { KNOWLEDGE_BASE_PROVIDERS } from '@/components/wizard/steps-config';
 
 type KendraProps = KnowledgeBaseConfigProps;
 
@@ -50,10 +51,15 @@ export const Kendra = (props: KendraProps) => {
     } = useContext(HomeContext);
 
     useEffect(() => {
-        if (props.knowledgeBaseData.existingKendraIndex === 'yes') {
-            props.setRequiredFields!(['kendraIndexId']);
-        } else {
-            props.setRequiredFields!(['kendraIndexName']);
+        if (props.knowledgeBaseData.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.kendra) {
+            if (props.knowledgeBaseData.existingKendraIndex === 'yes' || deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
+                props.onChangeFn({
+                    existingKendraIndex: 'yes'
+                });
+                props.setRequiredFields!(['kendraIndexId']);
+            } else {
+                props.setRequiredFields!(['kendraIndexName']);
+            }
         }
     }, [props.knowledgeBaseData.existingKendraIndex]);
 

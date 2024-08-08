@@ -17,9 +17,9 @@ from unittest import mock
 
 import pytest
 from langchain.chains import ConversationalRetrievalChain
-from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
-from llms.models.llm import LLM
+from langchain_core.documents import Document
+from llms.models.model_provider_inputs import ModelProviderInputs
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
@@ -27,7 +27,8 @@ from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
     DEFAULT_MODELS_MAP,
-    DEFAULT_RAG_PLACEHOLDERS,
+    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+    DEFAULT_REPHRASE_RAG_QUESTION,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     RAG_CHAT_IDENTIFIER,
 )
@@ -36,16 +37,18 @@ from utils.enum_types import LLMProviderTypes
 
 SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
 RAG_ENABLED = True
-SAGEMAKER_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE = """\n\nHuman: Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.\n\nChat history:\n{chat_history}\n\nFollow up question: {question}\n\nAssistant: Standalone question:"""
-SAGEMAKER_ANTHROPIC_CONDENSING_PROMPT = PromptTemplate.from_template(SAGEMAKER_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE)
+SAGEMAKER_ANTHROPIC_DISAMBIGUATION_PROMPT_TEMPLATE = """\n\nHuman: Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.\n\nChat history:\n{chat_history}\n\nFollow up question: {question}\n\nAssistant: Standalone question:"""
+SAGEMAKER_ANTHROPIC_DISAMBIGUATION_PROMPT = PromptTemplate.from_template(
+    SAGEMAKER_ANTHROPIC_DISAMBIGUATION_PROMPT_TEMPLATE
+)
 
-CONDENSE_QUESTION_PROMPT_TEMPLATE = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
+DISAMBIGUATION_PROMPT_TEMPLATE = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
 
 Chat History:
 {chat_history}
 Follow Up Input: {question}
 Standalone question:"""
-CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(CONDENSE_QUESTION_PROMPT_TEMPLATE)
+DISAMBIGUATION_PROMPT = PromptTemplate.from_template(DISAMBIGUATION_PROMPT_TEMPLATE)
 model_provider = LLMProviderTypes.SAGEMAKER.value
 model_id = DEFAULT_MODELS_MAP[LLMProviderTypes.SAGEMAKER.value]  # default
 mocked_doc = Document(**{"page_content": "some-page-content-1", "metadata": {"source": "fake-url-1"}})
@@ -62,7 +65,7 @@ input_schema = {
 
 @pytest.fixture
 def llm_params(is_streaming, setup_environment, return_source_docs):
-    yield LLM(
+    yield ModelProviderInputs(
         **{
             "conversation_memory": DynamoDBChatMemory(
                 DynamoDBChatMessageHistory(
@@ -83,14 +86,16 @@ def llm_params(is_streaming, setup_environment, return_source_docs):
                     "UserContext": None,
                 }
             ),
-            "api_token": None,
             "model": model_id,
             "model_params": {
                 "topP": {"Type": "float", "Value": "0.9"},
                 "maxTokenCount": {"Type": "integer", "Value": "200"},
             },
             "prompt_template": SAGEMAKER_RAG_PROMPT,
-            "prompt_placeholders": DEFAULT_RAG_PLACEHOLDERS,
+            "prompt_placeholders": DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+            "rephrase_question": DEFAULT_REPHRASE_RAG_QUESTION,
+            "disambiguation_prompt_template": "test disambiguation prompt",
+            "disambiguation_prompt_enabled": True,
             "streaming": is_streaming,
             "verbose": False,
             "temperature": 0.25,
@@ -144,7 +149,7 @@ def temp_sagemaker_dynamodb_defaults_table(dynamodb_resource, prompt, dynamodb_d
             "ModelProviderName": model_provider,
             "Prompt": prompt,
             "DefaultStopSequences": [],
-            "DisambiguationPrompt": SAGEMAKER_ANTHROPIC_CONDENSING_PROMPT_TEMPLATE,
+            "DisambiguationPrompt": SAGEMAKER_ANTHROPIC_DISAMBIGUATION_PROMPT_TEMPLATE,
         }
     )
 
@@ -201,14 +206,14 @@ def test_implement_error_not_raised(
     try:
         assert chat_model.model == model_id
         assert chat_model.prompt_template.template == SAGEMAKER_RAG_PROMPT
-        assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_RAG_PLACEHOLDERS)
+        assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
         assert chat_model.model_params == {
             "temperature": 0.25,
             "maxTokenCount": 200,
             "topP": 0.9,
         }
         assert chat_model.prompt_template.template == prompt
-        assert sorted(chat_model.prompt_template.input_variables) == DEFAULT_RAG_PLACEHOLDERS
+        assert sorted(chat_model.prompt_template.input_variables) == DEFAULT_PROMPT_RAG_PLACEHOLDERS
         assert chat_model.sagemaker_endpoint_name == "fake-endpoint"
         assert chat_model.input_schema == input_schema
         assert chat_model.response_jsonpath == "$.generated_text"
@@ -216,7 +221,7 @@ def test_implement_error_not_raised(
         assert chat_model.verbose == False
         assert chat_model.knowledge_base.kendra_index_id == "fake-kendra-index-id"
         assert chat_model.conversation_memory.chat_memory.messages == []
-        assert chat_model.condensing_prompt_template == CONDENSE_QUESTION_PROMPT
+        assert chat_model.disambiguation_prompt_template == DISAMBIGUATION_PROMPT
         assert chat_model.return_source_docs == return_source_docs
 
         assert type(chat_model.conversation_chain) == ConversationalRetrievalChain

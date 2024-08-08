@@ -15,10 +15,9 @@
 
 import json
 import mimetypes
-import os
 import uuid
+from typing import Optional
 
-import boto3
 import botocore
 from aws_lambda_powertools import Logger, Tracer
 from cfn_response import send_response
@@ -34,11 +33,20 @@ from operations.operation_types import (
     SUCCESS,
 )
 from operations.shared import get_zip_archive
+from utils.constants import (
+    USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME,
+    USE_CASE_CONFIG_RECORD_KEY,
+    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
+    USE_CASE_CONFIG_TABLE_NAME,
+)
+from utils.data import DecimalEncoder
 from utils.lambda_context_parser import get_invocation_account_id
 
 DESTINATION_BUCKET_NAME = "DESTINATION_BUCKET_NAME"
 WEBSITE_CONFIG_PARAM_KEY = "WEBSITE_CONFIG_PARAM_KEY"
 WEBSITE_CONFIG_FILE_NAME = "runtimeConfig.json"
+IS_INTERNAL_USER_KEY = "IsInternalUser"
+USE_CASE_CONFIG_KEY = "UseCaseConfig"
 
 logger = Logger(utc=True)
 tracer = Tracer()
@@ -46,7 +54,6 @@ tracer = Tracer()
 
 @tracer.capture_method
 def get_params(ssm_param_key):
-    logger.debug("Getting web params from Parameter Store. Parameter key: ")
     ssm = get_service_client("ssm")
 
     param_str_value = None
@@ -56,6 +63,44 @@ def get_params(ssm_param_key):
         logger.error(f"Error in retrieving configuration from parameter store. The key provided is {ssm_param_key}")
         raise error
     return param_str_value
+
+
+@tracer.capture_method
+def get_usecase_config(table_name: str, key: str) -> dict:
+    ddb_resource = get_service_resource("dynamodb")
+    config_table = ddb_resource.Table(table_name)
+    usecase_config = (
+        config_table.get_item(
+            Key={USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME: key},
+        )
+        .get("Item", {})
+        .get(USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME)
+    )
+
+    if usecase_config is None:
+        raise ValueError(f"No record found in the table {table_name} for the key {key}")
+
+    return usecase_config
+
+
+def create_config_string(
+    ssm_param_key, usecase_table_name: Optional[str] = None, usecase_config_key: Optional[str] = None
+):
+    ssm_params = json.loads(get_params(ssm_param_key))
+    if usecase_table_name and usecase_config_key:
+        config = get_usecase_config(usecase_table_name, usecase_config_key)
+        logger.info(f"create_config_string:config:: {config}")
+        # IS_INTERNAL_USER_KEY can be populated inside the usecase config via the deployment platform, or be inside the SSM param as determined by the cloudformation stack creating the use case based on inputted email
+        config_sourced_is_internal_user = config.pop(IS_INTERNAL_USER_KEY, None)
+        ssm_params[IS_INTERNAL_USER_KEY] = (
+            "true"
+            if ssm_params.get(IS_INTERNAL_USER_KEY, None) == "true" or config_sourced_is_internal_user == "true"
+            else "false"
+        )
+        config.pop(IS_INTERNAL_USER_KEY, None)  # removing the duplicate value to avoid confusion
+        ssm_params[USE_CASE_CONFIG_KEY] = config
+
+    return json.dumps(ssm_params, cls=DecimalEncoder)
 
 
 @tracer.capture_method
@@ -113,6 +158,8 @@ def create(
     source_prefix,
     destination_bucket_name,
     ssm_param_key,
+    usecase_table_name,
+    usecase_config_key,
     invocation_account_id,
 ):
     """This method implements the operations to be performed when a `create` (or update) event is received by a AWS CloudFormation
@@ -126,11 +173,14 @@ def create(
         source_prefix (str): The prefix under the source bucket which corresponds to the archive for email templates
         destination_bucket_name (str): Bucket name created during deployment where email templates will be uploaded after unzipping them from the archive
         ssm_param_key (str): The key in SSM parameter store which contains the JSON string for the web configuration
+        usecase_table_name (str): Name of the table where the usecase config is stored. Full LLM config will be copied into the runtimeConfig.json file for the UI
+        usecase_config_key (str): Key in the usecase table which contains the JSON string for the web configuration.
         invocation_account_id (str): Account Id of parsed from the lambda context, used to set expected bucket owner for all s3 api calls
 
     Raises:
         botocore.exceptions.ClientError: Failures related to S3 bucket operations
     """
+
     zip_archive = get_zip_archive(s3_resource, source_bucket_name, source_prefix)
 
     for filename in zip_archive.namelist():
@@ -139,18 +189,20 @@ def create(
         content_type = "binary/octet-stream" if content_type is None else content_type
 
         try:
-            s3_resource.meta.client.put_object(
-                Body=zip_archive.open(filename),
-                Bucket=destination_bucket_name,
-                Key=filename,
-                ContentType=content_type,
-            )
+            with zip_archive.open(filename) as file_object:
+                s3_resource.meta.client.put_object(
+                    Body=file_object,
+                    Bucket=destination_bucket_name,
+                    Key=filename,
+                    ContentType=content_type,
+                )
         except botocore.exceptions.ClientError as error:
             logger.error(f"Error occurred when uploading file object, error is {error}")
             raise error
+
     try:
         s3_resource.meta.client.put_object(
-            Body=get_params(ssm_param_key),
+            Body=create_config_string(ssm_param_key, usecase_table_name, usecase_config_key),
             Bucket=destination_bucket_name,
             Key=WEBSITE_CONFIG_FILE_NAME,
             ContentType="application/json",
@@ -160,7 +212,7 @@ def create(
         logger.error(f"Error occurred when copying web configuration file, error is {error}")
         raise error
 
-    logger.debug(
+    logger.info(
         "Finished uploading. Bucket %s has %s files"
         % (
             {destination_bucket_name},
@@ -193,6 +245,11 @@ def execute(event, context):
         source_prefix = event[RESOURCE_PROPERTIES][SOURCE_PREFIX]
         destination_bucket_name = event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME]
         ssm_param_key = event[RESOURCE_PROPERTIES][WEBSITE_CONFIG_PARAM_KEY]
+        usecase_table_name = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_TABLE_NAME)
+        usecase_config_key = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_RECORD_KEY)
+
+        logger.info(f"usecase_table_name: {usecase_table_name}")
+        logger.info(f"usecase_config_key: {usecase_config_key}")
 
         s3_resource = get_service_resource("s3")
 
@@ -203,6 +260,8 @@ def execute(event, context):
                 source_prefix,
                 destination_bucket_name,
                 ssm_param_key,
+                usecase_table_name,
+                usecase_config_key,
                 get_invocation_account_id(context),
             )
         elif event["RequestType"] == "Delete":

@@ -12,16 +12,15 @@
  **********************************************************************************************************************/
 
 import { StackNotFoundException } from '@aws-sdk/client-cloudformation';
-import { ResourceNotFoundException } from '@aws-sdk/client-secrets-manager';
-import { ParameterNotFound } from '@aws-sdk/client-ssm';
+import { ResourceNotFoundException } from '@aws-sdk/client-dynamodb';
 import { StackManagement, UseCaseStackDetails } from './cfn/stack-management';
 import { StorageManagement } from './ddb/storage-management';
+import { UseCaseConfigManagement } from './ddb/use-case-config-management';
 import { ListUseCasesAdapter, UseCaseRecord } from './model/list-use-cases';
 import { UseCase } from './model/use-case';
-import { logger, tracer } from './power-tools-init';
-import { SecretManagement } from './secretsmanager/secret-management';
-import { ConfigManagement } from './ssm/config-management';
 import { UseCaseValidator } from './model/use-case-validator';
+import { logger, tracer } from './power-tools-init';
+import { DEFAULT_USE_CASES_PER_PAGE } from './utils/constants';
 
 export enum Status {
     SUCCESS = 'SUCCESS',
@@ -44,16 +43,14 @@ export interface CaseCommand {
 export abstract class UseCaseMgmtCommand implements CaseCommand {
     stackMgmt: StackManagement;
     storageMgmt: StorageManagement;
-    configMgmt: ConfigManagement;
-    secretMgmt: SecretManagement;
+    useCaseConfigMgmt: UseCaseConfigManagement;
     validator: UseCaseValidator;
 
     constructor() {
         this.stackMgmt = new StackManagement();
         this.storageMgmt = new StorageManagement();
-        this.configMgmt = new ConfigManagement();
-        this.secretMgmt = new SecretManagement();
-        this.validator = new UseCaseValidator(this.storageMgmt, this.configMgmt);
+        this.useCaseConfigMgmt = new UseCaseConfigManagement();
+        this.validator = new UseCaseValidator(this.storageMgmt, this.useCaseConfigMgmt);
     }
 
     /**
@@ -71,6 +68,13 @@ export class CreateUseCaseCommand extends UseCaseMgmtCommand {
     public async execute(useCase: UseCase): Promise<Status> {
         let stackId: string;
         try {
+            await this.useCaseConfigMgmt.createUseCaseConfig(useCase);
+        } catch (error) {
+            logger.error(`Error while creating the DDB record containing the use case config, Error: ${error}`);
+            throw error;
+        }
+
+        try {
             useCase = await this.validator.validateNewUseCase(useCase);
             stackId = await this.stackMgmt.createStack(useCase);
             useCase.stackId = stackId;
@@ -86,22 +90,6 @@ export class CreateUseCaseCommand extends UseCaseMgmtCommand {
             throw error;
         }
 
-        try {
-            await this.configMgmt.createUseCaseConfig(useCase);
-        } catch (error) {
-            logger.error(`Error while creating the SSM parameter containing the use case config, Error: ${error}`);
-            throw error;
-        }
-
-        if (useCase.requiresAPIKey()) {
-            try {
-                await this.secretMgmt.createSecret(useCase);
-            } catch (error) {
-                logger.error(`Error while creating the secret in secrets manager, Error: ${error}`);
-                throw error;
-            }
-        }
-
         return Status.SUCCESS;
     }
 }
@@ -112,15 +100,17 @@ export class CreateUseCaseCommand extends UseCaseMgmtCommand {
 export class UpdateUseCaseCommand extends UseCaseMgmtCommand {
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###updateUseCaseCommand' })
     public async execute(useCase: UseCase): Promise<any> {
-        let oldSSMParamName;
+        let oldDynamoDbRecordKey;
         try {
             const useCaseRecord = await this.storageMgmt.getUseCaseRecord(useCase);
-            oldSSMParamName = useCaseRecord.SSMParameterKey;
+            oldDynamoDbRecordKey = useCaseRecord.UseCaseConfigRecordKey;
             useCase.stackId = useCaseRecord.StackId;
-            useCase = await this.validator.validateUpdateUseCase(useCase, oldSSMParamName);
-            await this.stackMgmt.updateStack(useCase);
+            useCase = await this.validator.validateUpdateUseCase(useCase, oldDynamoDbRecordKey);
+
+            const roleArn = await this.stackMgmt.getStackRoleArnIfExists(useCaseRecord);
+            await this.stackMgmt.updateStack(useCase, roleArn);
         } catch (error) {
-            // If the update fails don't add to DLQ. hence do not throw the error
+            // If the update fails don't throw the error, otherwise it adds to the DLQ
             return Status.FAILED;
         }
         try {
@@ -130,41 +120,30 @@ export class UpdateUseCaseCommand extends UseCaseMgmtCommand {
             throw error;
         }
         try {
-            await this.configMgmt.updateUseCaseConfig(useCase, oldSSMParamName);
+            await this.useCaseConfigMgmt.updateUseCaseConfig(useCase, oldDynamoDbRecordKey);
         } catch (error) {
-            logger.error(`Error while updating the SSM parameter containing the use case config, Error: ${error}`);
+            logger.error(`Error while updating the DynamoDB key containing the use case config, Error: ${error}`);
             throw error;
         }
-        if (useCase.requiresAPIKey()) {
-            try {
-                await this.secretMgmt.updateSecret(useCase);
-            } catch (error) {
-                logger.error(`Error while updating the secret in secrets manager, Error: ${error}`);
-                throw error;
-            }
-        }
-
         return Status.SUCCESS;
     }
 }
 
 /**
  * Command to delete a use case. A deleted use case simply means the underlying stack is deleted,
- * however the data in the DB as well as settings in SSM are still retained.
+ * however the data in the DB as well as settings in use case config DB is still retained.
  * PermanentlyDeleteUseCaseCommand implements full 'true' deletion.
  */
 export class DeleteUseCaseCommand implements CaseCommand {
     stackMgmt: StackManagement;
-    configMgmt: ConfigManagement;
     storageMgmt: StorageManagement;
-    secretMgmt: SecretManagement;
+    useCaseConfigMgmt: UseCaseConfigManagement;
 
     constructor() {
         // NOSONAR - typescript:S4144 - this hierarchy is separate from line 152.
         this.stackMgmt = new StackManagement();
-        this.configMgmt = new ConfigManagement();
         this.storageMgmt = new StorageManagement();
-        this.secretMgmt = new SecretManagement();
+        this.useCaseConfigMgmt = new UseCaseConfigManagement();
     }
 
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###deleteUseCaseCommand' })
@@ -172,26 +151,24 @@ export class DeleteUseCaseCommand implements CaseCommand {
         try {
             // we need to retrieve the stackId from DDB in order to perform the deletion
             const useCaseRecord = await this.storageMgmt.getUseCaseRecord(useCase);
+            // this record key mapping is required to mark the LLM config of the use case.
+            useCase.setUseCaseConfigRecordKey(useCaseRecord.UseCaseConfigRecordKey);
             useCase.stackId = useCaseRecord.StackId;
-            await this.stackMgmt.deleteStack(useCase);
+
+            const roleArn = await this.stackMgmt.getStackRoleArnIfExists(useCaseRecord);
+            await this.stackMgmt.deleteStack(useCase, roleArn);
         } catch (error) {
             // If the deletion fails don't add to DLQ. hence do not throw the error
             return Status.FAILED;
         }
         try {
             await this.storageMgmt.markUseCaseRecordForDeletion(useCase);
+            await this.useCaseConfigMgmt.markUseCaseRecordForDeletion(useCase);
         } catch (error) {
             logger.error(`Error while setting TTL for use case record in DDB, Error: ${error}`);
             throw error;
         }
-        if (useCase.requiresAPIKey()) {
-            try {
-                await this.secretMgmt.deleteSecret(useCase);
-            } catch (error) {
-                logger.error(`Error while creating the secret in secrets manager, Error: ${error}`);
-                throw error;
-            }
-        }
+
         return Status.SUCCESS;
     }
 }
@@ -201,16 +178,14 @@ export class DeleteUseCaseCommand implements CaseCommand {
  */
 export class PermanentlyDeleteUseCaseCommand implements CaseCommand {
     stackMgmt: StackManagement;
-    configMgmt: ConfigManagement;
     storageMgmt: StorageManagement;
-    secretMgmt: SecretManagement;
+    useCaseConfigMgmt: UseCaseConfigManagement;
 
     // prettier-ignore
     constructor() { // NOSONAR - typescript:S4144 - this hierarchy is separate from line 152.
         this.stackMgmt = new StackManagement();
-        this.configMgmt = new ConfigManagement();
         this.storageMgmt = new StorageManagement();
-        this.secretMgmt = new SecretManagement();
+        this.useCaseConfigMgmt = new UseCaseConfigManagement();
     }
 
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###permanentlyDeleteUseCaseCommand' })
@@ -219,6 +194,8 @@ export class PermanentlyDeleteUseCaseCommand implements CaseCommand {
         let useCaseRecord;
         try {
             useCaseRecord = await this.storageMgmt.getUseCaseRecord(useCase);
+            // this record key mapping is required for deleting LLM config for the use case.
+            useCase.setUseCaseConfigRecordKey(useCaseRecord.UseCaseConfigRecordKey);
             useCase.stackId = useCaseRecord.StackId;
         } catch (error) {
             logger.error(`Error while retrieving use case record from DDB, Error: ${error}`);
@@ -226,7 +203,8 @@ export class PermanentlyDeleteUseCaseCommand implements CaseCommand {
         }
 
         try {
-            await this.stackMgmt.deleteStack(useCase);
+            const roleArn = await this.stackMgmt.getStackRoleArnIfExists(useCaseRecord);
+            await this.stackMgmt.deleteStack(useCase, roleArn);
         } catch (error) {
             // If the stack is already deleted, we can proceed
             if (error instanceof StackNotFoundException) {
@@ -237,13 +215,8 @@ export class PermanentlyDeleteUseCaseCommand implements CaseCommand {
             }
         }
 
-        useCase.setSSMParameterKey(useCaseRecord.SSMParameterKey);
-        await this.deleteDdbRecord(useCase);
         await this.deleteConfig(useCase);
-
-        if (useCase.requiresAPIKey()) {
-            await this.deleteSecret(useCase);
-        }
+        await this.deleteDdbRecord(useCase);
 
         return Status.SUCCESS;
     }
@@ -257,27 +230,14 @@ export class PermanentlyDeleteUseCaseCommand implements CaseCommand {
         }
     }
 
-    private async deleteSecret(useCase: UseCase) {
-        try {
-            await this.secretMgmt.deleteSecret(useCase);
-        } catch (error) {
-            if (error instanceof ResourceNotFoundException) {
-                logger.warn('Secret does not exist, hence skipping deletion.');
-            } else {
-                logger.error(`Error while deleting the secret for the use case, Error: ${error}`);
-                throw error;
-            }
-        }
-    }
-
     private async deleteConfig(useCase: UseCase) {
         try {
-            await this.configMgmt.deleteUseCaseConfig(useCase);
+            await this.useCaseConfigMgmt.deleteUseCaseConfig(useCase);
         } catch (error) {
-            if (error instanceof ParameterNotFound) {
-                logger.warn('Parameter does not exist, hence skipping deletion.');
+            if (error instanceof ResourceNotFoundException) {
+                logger.warn('Table does not exist, hence skipping deletion.');
             } else {
-                logger.error(`Error while deleting the SSM parameter containing the use case config, Error: ${error}`);
+                logger.error(`Error while deleting use case configuration, Error: ${error}`);
                 throw error;
             }
         }
@@ -290,12 +250,13 @@ export class PermanentlyDeleteUseCaseCommand implements CaseCommand {
 export class ListUseCasesCommand implements CaseCommand {
     stackMgmt: StackManagement;
     storageMgmt: StorageManagement;
-    configMgmt: ConfigManagement;
+    useCaseConfigMgmt: UseCaseConfigManagement;
 
-    constructor() {
+    // prettier-ignore
+    constructor() { // NOSONAR - typescript:S4144 - this hierarchy is separate from line 152.
         this.stackMgmt = new StackManagement();
         this.storageMgmt = new StorageManagement();
-        this.configMgmt = new ConfigManagement();
+        this.useCaseConfigMgmt = new UseCaseConfigManagement();
     }
 
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###listUseCasesCommand' })
@@ -305,12 +266,22 @@ export class ListUseCasesCommand implements CaseCommand {
         const useCaseDeploymentsMap = new Map<string, DeploymentDetails>();
 
         let useCaseRecords: UseCaseRecord[];
-        let scannedCount: number | undefined;
+        let numUseCases: number;
 
         try {
             const response = await this.storageMgmt.getAllCaseRecords(listUseCasesEvent);
             useCaseRecords = response.useCaseRecords;
-            scannedCount = response.scannedCount;
+            if (listUseCasesEvent.searchFilter) {
+                useCaseRecords = this.filterUseCases(useCaseRecords, listUseCasesEvent.searchFilter);
+            }
+
+            useCaseRecords = this.sortUseCasesByCreationDate(useCaseRecords);
+
+            numUseCases = useCaseRecords.length;
+            const startIndex = (listUseCasesEvent.pageNumber - 1) * DEFAULT_USE_CASES_PER_PAGE;
+            const endIndex = startIndex + DEFAULT_USE_CASES_PER_PAGE;
+
+            useCaseRecords = useCaseRecords.slice(startIndex, endIndex); // Get subset of use cases based on page number
         } catch (error) {
             logger.error(`Error while listing the use case records in DDB, Error: ${error}`);
             throw error;
@@ -321,17 +292,15 @@ export class ListUseCasesCommand implements CaseCommand {
                 const useCaseRecord = element;
                 const stackDetails = await this.stackMgmt.getStackDetailsFromUseCaseRecord(useCaseRecord);
 
-                if (!stackDetails.chatConfigSSMParameterName) {
-                    logger.error('ChatConfigSSMParameterName missing in the stack details');
+                if (!useCaseRecord.UseCaseConfigRecordKey) {
+                    logger.error('UseCaseConfigRecordKey missing in the use case record');
                 } else {
                     let useCaseConfigDetails;
 
                     try {
-                        useCaseConfigDetails = await this.configMgmt.getUseCaseConfigFromName(
-                            stackDetails.chatConfigSSMParameterName
-                        );
+                        useCaseConfigDetails = await this.useCaseConfigMgmt.getUseCaseConfigFromRecord(useCaseRecord);
                     } catch (error) {
-                        logger.error(`Error while retrieving the use case config from SSM, Error: ${error}`);
+                        logger.error(`Error while retrieving the use case config from Ddb table, Error: ${error}`);
                     }
 
                     if (useCaseConfigDetails) {
@@ -343,7 +312,11 @@ export class ListUseCasesCommand implements CaseCommand {
                     }
                 }
             }
-            return this.formatUseCasesToList(useCaseDeploymentsMap, scannedCount);
+            return this.formatUseCasesToList(
+                useCaseDeploymentsMap,
+                numUseCases,
+                this.findNextPage(numUseCases, listUseCasesEvent.pageNumber)
+            );
         } catch (error) {
             logger.error(`Error while listing the stack details, Error: ${error}`);
             throw error;
@@ -351,7 +324,54 @@ export class ListUseCasesCommand implements CaseCommand {
     }
 
     /**
-     * Formatting the data from ddb, ssm config, and a stack's deployment details to a list of use cases
+     * Filters use cases based on presence of the search filter in the UseCaseId and Name fields if present (case insensitive)
+     *
+     * @param useCaseRecords - Retrieved use case records from DDB to be filtered and selected from.
+     * @param searchFilter - Search filter provided by the user. Will search against UseCaseId and Name fields
+     * @returns - Filtered list of use cases to return to the user, and total number of
+     */
+    private filterUseCases(useCaseRecords: UseCaseRecord[], searchFilter: string) {
+        // Filter use cases based on search filter
+        const searchFilterLower = searchFilter.toLowerCase();
+        useCaseRecords = useCaseRecords.filter(
+            (useCaseRecord) =>
+                useCaseRecord.UseCaseId.toLowerCase().includes(searchFilterLower) ||
+                useCaseRecord.Name.toLowerCase().includes(searchFilterLower)
+        );
+
+        return useCaseRecords;
+    }
+
+    /**
+     * Computes the next page number if there are more use cases beyond the current page.
+     *
+     * @param totalUseCases
+     * @param currentPage
+     * @param useCasesPerPage
+     * @returns the next page or undefined if there are no more use cases beyond the current page.
+     */
+    private findNextPage(
+        totalUseCases: number,
+        currentPage: number,
+        useCasesPerPage: number = DEFAULT_USE_CASES_PER_PAGE
+    ) {
+        if (currentPage * useCasesPerPage < totalUseCases) {
+            return currentPage + 1;
+        }
+        return undefined;
+    }
+
+    /**
+     * sorts the use case records by creation date. This can be done lexicographically since dates are in ISO 8601 format,
+     * with the latest being shown first.
+     */
+    private sortUseCasesByCreationDate(useCaseRecords: UseCaseRecord[]) {
+        useCaseRecords.sort((a, b) => b.CreatedDate.localeCompare(a.CreatedDate));
+        return useCaseRecords;
+    }
+
+    /**
+     * Formatting the data from ddb, use case config config, and a stack's deployment details to a list of use cases
      * to send to the front end.
      *
      * @param useCaseDeploymentsMap
@@ -359,7 +379,8 @@ export class ListUseCasesCommand implements CaseCommand {
      */
     private formatUseCasesToList = (
         useCaseDeploymentsMap: Map<string, DeploymentDetails>,
-        scannedCount: number | undefined
+        numUseCases: number,
+        nextPage: number | undefined
     ): any => {
         // note: future server side sorting may go here
         const formattedData: any = [];
@@ -374,7 +395,8 @@ export class ListUseCasesCommand implements CaseCommand {
 
             const response = {
                 deployments: formattedData,
-                scannedCount: scannedCount
+                numUseCases: numUseCases,
+                nextPage: nextPage
             };
 
             logger.debug(`Formatted use cases list: ${JSON.stringify(response)}`);

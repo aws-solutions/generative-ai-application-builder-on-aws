@@ -65,7 +65,9 @@ describe('When Chat use case is created', () => {
                             [
                                 'https://',
                                 {
-                                    'Ref': Match.stringLikeRegexp('RequestProcessorWebSocketEndpointChatAPI*')
+                                    'Ref': Match.stringLikeRegexp(
+                                        'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApi*'
+                                    )
                                 },
                                 '.execute-api.',
                                 {
@@ -91,23 +93,46 @@ describe('When Chat use case is created', () => {
                     {
                         'Action': ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
                         'Effect': 'Allow',
-                        'Resource': {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        'Ref': 'AWS::Partition'
-                                    },
-                                    ':bedrock:',
-                                    {
-                                        'Ref': 'AWS::Region'
-                                    },
-                                    '::foundation-model/*'
+                        'Resource': [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            'Ref': 'AWS::Partition'
+                                        },
+                                        ':bedrock:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            'Ref': 'AWS::AccountId'
+                                        },
+                                        ':provisioned-model/*'
+                                    ]
                                 ]
-                            ]
-                        }
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            'Ref': 'AWS::Partition'
+                                        },
+                                        ':bedrock:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        '::foundation-model/*'
+                                    ]
+                                ]
+                            }
+                        ]
                     },
+                    Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue(),
@@ -148,6 +173,7 @@ describe('When Chat use case is created', () => {
                             ]
                         }
                     },
+                    Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue(),

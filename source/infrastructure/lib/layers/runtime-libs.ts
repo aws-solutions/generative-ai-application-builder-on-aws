@@ -15,9 +15,10 @@
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import * as path from 'path';
-import { getCommandsForNodejsDockerBuild, getCommandsForPythonDockerBuild } from '../utils/asset-bundling';
-import { localBundling } from '../utils/common-utils';
+import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import {
+    COMMERCIAL_REGION_LAMBDA_JS_LAYER_RUNTIME,
+    COMMERCIAL_REGION_LAMBDA_LAYER_PYTHON_RUNTIME,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
     COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
     GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME,
@@ -45,20 +46,12 @@ export class AwsNodeSdkLibLayer extends lambda.LayerVersion {
         const entry = path.resolve(props.entry);
 
         super(scope, id, {
-            code: lambda.Code.fromAsset(entry, {
-                bundling: {
-                    image: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.bundlingImage,
-                    user: 'root',
-                    local: {
-                        tryBundle(outputDir: string) {
-                            const cliCommand = `cd ${entry} && rm -fr node_modules && npm ci --omit=dev`;
-                            const targetDirectory = `${outputDir}/nodejs/node_modules/`;
-                            return localBundling(cliCommand, `${entry}/node_modules`, targetDirectory);
-                        }
-                    },
-                    command: getCommandsForNodejsDockerBuild('/asset-output/nodejs', 'node aws-sdk lambda layer')
-                }
-            }),
+            code: lambda.Code.fromAsset(
+                entry,
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_JS_LAYER_RUNTIME)
+                    .options(scope, entry)
+            ),
             compatibleRuntimes,
             description: props.description
         } as lambda.LayerVersionProps);
@@ -85,34 +78,12 @@ export class Boto3SdkLibLayer extends lambda.LayerVersion {
         const entry = path.resolve(props.entry);
 
         super(scope, id, {
-            code: lambda.Code.fromAsset(entry, {
-                bundling: {
-                    image: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.bundlingImage,
-                    user: 'root',
-                    local: {
-                        tryBundle(outputDir: string) {
-                            const cliCommand = [
-                                `cd ${entry}`,
-                                'echo "Trying local bundling of python modules"',
-                                'rm -fr .venv*',
-                                'python3 -m venv .venv',
-                                '. .venv/bin/activate',
-                                'python3 -m pip install poetry --upgrade',
-                                'poetry build',
-                                'poetry install --only main',
-                                `poetry run pip install -t ${outputDir}/python dist/*.whl`,
-                                `find ${outputDir}/python -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
-                                'deactivate',
-                                'rm -fr dist',
-                                'rm -fr .venv*'
-                            ].join(' && ');
-                            const targetDirectory = `${outputDir}/python/`;
-                            return localBundling(cliCommand, `${entry}/`, targetDirectory);
-                        }
-                    },
-                    command: getCommandsForPythonDockerBuild('/asset-output/python', 'boto3 lambda layer')
-                }
-            }),
+            code: lambda.Code.fromAsset(
+                entry,
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_LAYER_PYTHON_RUNTIME)
+                    .options(scope, entry)
+            ),
             compatibleRuntimes,
             description: props.description
         } as lambda.LayerVersionProps);

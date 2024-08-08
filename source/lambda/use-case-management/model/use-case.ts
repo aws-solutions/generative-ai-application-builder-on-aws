@@ -16,53 +16,17 @@ import * as crypto from 'crypto';
 import { MissingValueError } from '../exception/missing-value-error';
 import { logger } from '../power-tools-init';
 import {
+    CLIENT_ID_ENV_VAR,
+    COGNITO_DOMAIN_PREFIX_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     CfnParameterKeys,
-    EXTERNAL_PROVIDERS,
     IS_INTERNAL_USER_ENV_VAR,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
-    PROVIDERS_REQUIRING_API_KEY,
     USER_POOL_ID_ENV_VAR,
-    USE_CASE_API_KEY_SUFFIX_ENV_VAR,
-    USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+    USE_EXISTING_USER_POOL_CLIENT_ENV_VAR
 } from '../utils/constants';
-
-/**
- * Interface to describe a record in the ModelInfo dynamoDB table
- */
-export interface ModelInfoRecord {
-    UseCase: string;
-    SortKey: string;
-    ModelProviderName: string;
-    ModelName: string;
-    AllowsStreaming: boolean;
-    Prompt: string;
-    DefaultTemperature: number;
-}
-
-export interface LlmParams {
-    ModelProvider?: string;
-    ModelId?: string;
-    InferenceEndpoint?: string;
-    ModelParams?: Object;
-    ModelInputPayloadSchema?: Object;
-    ModelOutputJSONPath?: string;
-    PromptTemplate?: string;
-    Temperature?: number;
-    RAGEnabled?: boolean;
-    Streaming?: boolean;
-    Verbose?: boolean;
-}
-
-export interface UseCaseConfiguration {
-    UseCaseName?: string;
-    ConversationMemoryType?: string;
-    ConversationMemoryParams?: Object;
-    KnowledgeBaseType?: string;
-    KnowledgeBaseParams?: Object;
-    LlmParams?: LlmParams;
-    IsInternalUser?: string;
-}
+import { UseCaseConfiguration } from './types';
 
 /**
  * Data Model to store capture use case specific information
@@ -147,6 +111,12 @@ export class UseCase {
         this.apiKey = apiKey;
     }
 
+    private createCfnParametersMapIfNotExists(): void {
+        if (this.cfnParameters === undefined) {
+            this.cfnParameters = new Map<string, string>();
+        }
+    }
+
     get stackId(): string {
         return this._stackId;
     }
@@ -155,16 +125,17 @@ export class UseCase {
         this._stackId = stackId;
     }
 
-    public getSSMParameterKey(): string | undefined {
-        return this.cfnParameters?.get(CfnParameterKeys.ChatConfigSSMParameterName);
+    public getUseCaseConfigRecordKey() {
+        return this.cfnParameters?.get(CfnParameterKeys.UseCaseConfigRecordKey);
     }
 
-    public setSSMParameterKey(ssmParameterKey: string) {
-        if (this.cfnParameters === undefined) {
-            this.cfnParameters = new Map<string, string>();
-        }
+    public setUseCaseConfigRecordKey(useCaseConfigRecordKey: string) {
+        this.createCfnParametersMapIfNotExists();
+        this.cfnParameters!.set(CfnParameterKeys.UseCaseConfigRecordKey, useCaseConfigRecordKey);
+    }
 
-        this.cfnParameters.set(CfnParameterKeys.ChatConfigSSMParameterName, ssmParameterKey);
+    public static generateUseCaseConfigRecordKey(shortUUID: string, recordKeySuffixUUID: string): string {
+        return `${shortUUID}-${recordKeySuffixUUID}`;
     }
 
     /**
@@ -189,10 +160,6 @@ export class UseCase {
         );
 
         return newUseCase;
-    }
-
-    public requiresAPIKey(): boolean {
-        return PROVIDERS_REQUIRING_API_KEY.includes(this.providerName);
     }
 }
 
@@ -226,41 +193,50 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
             config,
             userId,
             jsonBody.LlmParams.ModelProvider,
-            'Chat',
-            jsonBody.LlmParams.ApiKey
+            'Chat'
         );
     }
 
     private static createCfnParameters(eventBody: any, useCaseId: string): Map<string, string> {
         const cfnParameters = new Map<string, string>();
         const shortUUID = this.generateShortUUID(useCaseId);
-        const ssmParamSuffixUUID = this.generateShortUUID(crypto.randomUUID());
+        const recordKeySuffixUUID = this.generateShortUUID(crypto.randomUUID());
 
-        // Kendra related Params
+        // Knowledge base related Params
+        ChatUseCaseDeploymentAdapter.setParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.KnowledgeBaseType,
+            eventBody.KnowledgeBaseParams?.KnowledgeBaseType
+        );
+        ChatUseCaseDeploymentAdapter.setParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.BedrockKnowledgeBaseId,
+            eventBody.KnowledgeBaseParams?.BedrockKnowledgeBaseParams?.BedrockKnowledgeBaseId
+        );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
             CfnParameterKeys.ExistingKendraIndexId,
-            eventBody.KnowledgeBaseParams?.ExistingKendraIndexId
+            eventBody.KnowledgeBaseParams?.KendraKnowledgeBaseParams?.ExistingKendraIndexId
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
             CfnParameterKeys.NewKendraIndexName,
-            eventBody.KnowledgeBaseParams?.KendraIndexName
+            eventBody.KnowledgeBaseParams?.KendraKnowledgeBaseParams?.KendraIndexName
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
             CfnParameterKeys.NewKendraQueryCapacityUnits,
-            eventBody.KnowledgeBaseParams?.QueryCapacityUnits
+            eventBody.KnowledgeBaseParams?.KendraKnowledgeBaseParams?.QueryCapacityUnits
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
             CfnParameterKeys.NewKendraStorageCapacityUnits,
-            eventBody.KnowledgeBaseParams?.StorageCapacityUnits
+            eventBody.KnowledgeBaseParams?.KendraKnowledgeBaseParams?.StorageCapacityUnits
         );
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
             CfnParameterKeys.NewKendraIndexEdition,
-            eventBody.KnowledgeBaseParams?.KendraIndexEdition
+            eventBody.KnowledgeBaseParams?.KendraKnowledgeBaseParams?.KendraIndexEdition
         );
         // in order to set this as a cfnParameter, note the boolean will be converted to a string (e.g. "true")
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
@@ -275,45 +251,73 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
             eventBody.DefaultUserEmail
         );
 
+        ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.DeployUI,
+            eventBody.DeployUI
+        );
+
         // VPC related params
         ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
             cfnParameters,
             CfnParameterKeys.VpcEnabled,
-            eventBody.VPCParams?.VpcEnabled
+            eventBody.VpcParams?.VpcEnabled
         );
 
         ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
             cfnParameters,
             CfnParameterKeys.CreateNewVpc,
-            eventBody.VPCParams?.CreateNewVpc
+            eventBody.VpcParams?.CreateNewVpc
         );
 
         ChatUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,
             CfnParameterKeys.ExistingVpcId,
-            eventBody.VPCParams?.ExistingVpcId
+            eventBody.VpcParams?.ExistingVpcId
         );
 
         ChatUseCaseDeploymentAdapter.setListParameterIfExists(
             cfnParameters,
             CfnParameterKeys.ExistingPrivateSubnetIds,
-            eventBody.VPCParams?.ExistingPrivateSubnetIds
+            eventBody.VpcParams?.ExistingPrivateSubnetIds
         );
 
         ChatUseCaseDeploymentAdapter.setListParameterIfExists(
             cfnParameters,
             CfnParameterKeys.ExistingSecurityGroupIds,
-            eventBody.VPCParams?.ExistingSecurityGroupIds
+            eventBody.VpcParams?.ExistingSecurityGroupIds
         );
 
         // fixed/mandatory parameters for the deployment
-
         // each new deployment or update requires a new SSM param in order to properly have cloudformation update all resources on a deploy
         cfnParameters.set(
-            CfnParameterKeys.ChatConfigSSMParameterName,
-            `${process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR]!}/${shortUUID}/${ssmParamSuffixUUID}`
+            CfnParameterKeys.UseCaseConfigRecordKey,
+            UseCase.generateUseCaseConfigRecordKey(shortUUID, recordKeySuffixUUID)
         );
+        cfnParameters.set(CfnParameterKeys.UseCaseConfigTableName, process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]!);
+
         cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, process.env[USER_POOL_ID_ENV_VAR]!);
+        if (
+            process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR] &&
+            process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR].toLowerCase() === 'true' &&
+            process.env[CLIENT_ID_ENV_VAR]
+        ) {
+            cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, process.env[CLIENT_ID_ENV_VAR]);
+        }
+
+        if (process.env[USER_POOL_ID_ENV_VAR]) {
+            if (process.env[COGNITO_DOMAIN_PREFIX_VAR]) {
+                cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, process.env[COGNITO_DOMAIN_PREFIX_VAR]);
+            } else {
+                logger.error(
+                    'Lambda has an environment variable to use existing user pool, but could not find the environment variable for Cognito domain prefix. This use case setup will have an incorrect sign-in url.'
+                );
+                throw new Error(
+                    'Domain prefix not available for existing user pool. Without domain prefix, authenticating into a use case would fail.'
+                );
+            }
+        }
+
         cfnParameters.set(
             CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
             process.env[COGNITO_POLICY_TABLE_ENV_VAR]!
@@ -321,22 +325,6 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
         cfnParameters.set(CfnParameterKeys.ExistingModelInfoTableName, process.env[MODEL_INFO_TABLE_NAME_ENV_VAR]!);
         cfnParameters.set(CfnParameterKeys.UseCaseUUID, `${shortUUID}`);
 
-        // only setting the param for API key if it exists
-        if (eventBody.LlmParams?.ApiKey) {
-            cfnParameters.set(
-                CfnParameterKeys.ProviderApiKeySecret,
-                `${shortUUID}/${process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR]}`
-            );
-        }
-
-        // Mapping the bool input from the API payload to the expected format for the CFN parameter
-        if (EXTERNAL_PROVIDERS.includes(eventBody.LlmParams.ModelProvider)) {
-            ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
-                cfnParameters,
-                CfnParameterKeys.ConsentToDataLeavingAWS,
-                eventBody.ConsentToDataLeavingAWS
-            );
-        }
         return cfnParameters;
     }
 
@@ -404,30 +392,40 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
     }
 
     private static createConfiguration(eventBody: any): UseCaseConfiguration {
-        return {
+        let config = {
             UseCaseName: eventBody.UseCaseName,
-            ConversationMemoryType: eventBody.ConversationMemoryType,
             ConversationMemoryParams: eventBody.ConversationMemoryParams,
-            KnowledgeBaseType: eventBody.KnowledgeBaseType,
             KnowledgeBaseParams: {
+                KnowledgeBaseType: eventBody.KnowledgeBaseParams?.KnowledgeBaseType,
                 NumberOfDocs: eventBody.KnowledgeBaseParams?.NumberOfDocs,
-                ReturnSourceDocs: eventBody.KnowledgeBaseParams?.ReturnSourceDocs
+                ScoreThreshold: eventBody.KnowledgeBaseParams?.ScoreThreshold,
+                NoDocsFoundResponse: eventBody.KnowledgeBaseParams?.NoDocsFoundResponse,
+                ReturnSourceDocs: eventBody.KnowledgeBaseParams?.ReturnSourceDocs,
+                KendraKnowledgeBaseParams: eventBody.KnowledgeBaseParams?.KendraKnowledgeBaseParams,
+                BedrockKnowledgeBaseParams: eventBody.KnowledgeBaseParams?.BedrockKnowledgeBaseParams
             },
             LlmParams: {
                 ModelProvider: eventBody.LlmParams.ModelProvider,
-                ModelId: eventBody.LlmParams.ModelId !== undefined ? eventBody.LlmParams.ModelId : 'default',
-                InferenceEndpoint: eventBody.LlmParams.InferenceEndpoint,
+                BedrockLlmParams: eventBody.LlmParams.BedrockLlmParams,
+                SageMakerLlmParams: eventBody.LlmParams.SageMakerLlmParams,
+                PromptParams: eventBody.LlmParams.PromptParams,
                 ModelParams: eventBody.LlmParams.ModelParams,
-                PromptTemplate: eventBody.LlmParams.PromptTemplate,
-                Streaming: eventBody.LlmParams.Streaming,
-                Verbose: eventBody.LlmParams.Verbose,
                 Temperature: eventBody.LlmParams.Temperature,
+                MaxInputTextLength: eventBody.LlmParams.MaxInputTextLength,
                 RAGEnabled: eventBody.LlmParams.RAGEnabled,
-                ModelInputPayloadSchema: eventBody.LlmParams.ModelInputPayloadSchema,
-                ModelOutputJSONPath: eventBody.LlmParams.ModelOutputJSONPath
+                Streaming: eventBody.LlmParams.Streaming,
+                Verbose: eventBody.LlmParams.Verbose
             },
             IsInternalUser: process.env[IS_INTERNAL_USER_ENV_VAR]! // env var value is set as 'true' or 'false' on deployment of management stack
         };
+
+        // since this is mapped to a json config to be parsed by the chat lambda, replace the string NONE with a null value.
+        // we require this functionality to clear a previously set OverrideSearchType on edits.
+        if (config.KnowledgeBaseParams?.BedrockKnowledgeBaseParams?.OverrideSearchType == 'NONE') {
+            config.KnowledgeBaseParams.BedrockKnowledgeBaseParams.OverrideSearchType = null;
+        }
+
+        return config;
     }
 
     private static generateShortUUID(id: string): string {

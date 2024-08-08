@@ -22,14 +22,26 @@ import {
     StatusIndicator,
     SpaceBetween
 } from '@cloudscape-design/components';
+import { BedrockDetails } from './BedrockDetails';
+import { SageMakerDetails } from './SageMakerDetails';
 import { useNavigate } from 'react-router-dom';
 import HomeContext from '../../contexts/home.context';
-import { DEFAULT_STEP_INFO, MODEL_FAMILY_PROVIDER_OPTIONS, HF_INF_ENDPOINT_OPTION_IDX } from '../wizard/steps-config';
+import {
+    DEFAULT_STEP_INFO,
+    KNOWLEDGE_BASE_PROVIDERS,
+    BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES
+} from '../wizard/steps-config';
 import { createCfnLink, parseStackName } from '../commons/table-config';
 import { ExternalLinkWarningModal } from '../commons/external-link-warning-modal';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
-import { useComponentId } from '../commons/use-component-id';
-import { BEDROCK_MODEL_PROVIDER_NAME, CFN_STACK_STATUS_INDICATOR } from '../../utils/constants';
+import {
+    BEDROCK_MODEL_PROVIDER_NAME,
+    SAGEMAKER_MODEL_PROVIDER_NAME,
+    CFN_STACK_STATUS_INDICATOR
+} from '../../utils/constants';
+import { getQueryFilterFromDeployment } from '../wizard/utils';
+import JsonCodeView from '../commons/json-code-view';
+import { scoreToKendraMapping } from '../wizard/KnowledgeBase/helpers';
 
 const resourcesBreadcrumbs = [
     {
@@ -96,6 +108,12 @@ export const createKendraConsoleLink = (region, kendraIndexId) => {
     return `https://console.aws.amazon.com/kendra/home?region=${region}#/indexes/${kendraIndexId}/details`;
 };
 
+// Note: there currently does not exist a direct link given a knowledge base ID
+// the console link uses the KB name in the URL, which we do not have access to at this point
+export const createBedrockKnowledgeBaseConsoleLink = (region, bedrockKnowledgeBaseId) => {
+    return `https://console.aws.amazon.com/bedrock/home?region=${region}#/knowledge-bases`;
+};
+
 export const GeneralConfig = () => {
     const {
         state: { selectedDeployment }
@@ -126,6 +144,10 @@ export const GeneralConfig = () => {
                 )}
                 {selectedDeployment.UseCaseId && (
                     <ValueWithLabel label={'Application ID'}>{selectedDeployment.UseCaseId}</ValueWithLabel>
+                )}
+
+                {selectedDeployment.deployUI && (
+                    <ValueWithLabel label={'Deploy UI'}>{selectedDeployment.deployUI}</ValueWithLabel>
                 )}
 
                 <ValueWithLabel label={'Status'}>
@@ -216,41 +238,6 @@ export const GeneralConfig = () => {
     );
 };
 
-const getBedrockModelFamily = (modelName) => {
-    try {
-        return modelName.split('.')[0];
-    } catch (error) {
-        return undefined;
-    }
-};
-
-const cleanProviderName = (modelProvider) => {
-    return modelProvider === MODEL_FAMILY_PROVIDER_OPTIONS[HF_INF_ENDPOINT_OPTION_IDX].value
-        ? modelProvider.split('-')[0]
-        : modelProvider;
-};
-
-export const getSystemPromptFromRuntimeConfig = (runtimeConfig, modelProvider, isRagEnabled, modelName) => {
-    const cleanedModelProviderName = cleanProviderName(modelProvider);
-    const modelProviderInfo = runtimeConfig.ModelProviders[cleanedModelProviderName];
-    let modelProviderParam;
-    if (modelProvider === BEDROCK_MODEL_PROVIDER_NAME) {
-        modelProviderParam = modelProviderInfo.ModelFamilyParams?.[getBedrockModelFamily(modelName)];
-    } else {
-        modelProviderParam = modelProviderInfo?.ModelProviderParams;
-    }
-
-    if (!modelProviderParam) {
-        return 'No system prompt found';
-    }
-
-    if (isRagEnabled === 'true' || isRagEnabled === true) {
-        return modelProviderParam.RAGPromptTemplate;
-    } else {
-        return modelProviderParam.ChatPromptTemplate;
-    }
-};
-
 export const createBox = (data) => {
     return <Box variant="p">{data}</Box>;
 };
@@ -290,63 +277,20 @@ export const escapedNewLineToLineBreakTag = (str, componentId) => {
 
 export const ModelDetails = () => {
     const {
-        state: { selectedDeployment, runtimeConfig }
+        state: { selectedDeployment }
     } = useContext(HomeContext);
 
-    const promptTemplate =
-        selectedDeployment.LlmParams.PromptTemplate !== ''
-            ? selectedDeployment.LlmParams.PromptTemplate
-            : getSystemPromptFromRuntimeConfig(
-                  runtimeConfig,
-                  selectedDeployment.LlmParams.ModelProvider,
-                  selectedDeployment.ragEnabled,
-                  selectedDeployment.LlmParams.ModelId
-              );
-
-    const componentId = useComponentId();
-
     return (
-        <ColumnLayout columns={3} variant="text-grid" data-testid="model-details-tab">
-            <SpaceBetween size="l">
-                {selectedDeployment.LlmParams && selectedDeployment.LlmParams.InferenceEndpoint ? (
-                    <SpaceBetween size="l">
-                        <ValueWithLabel label={'Model Provider'}>
-                            {selectedDeployment.LlmParams.ModelProvider}
-                        </ValueWithLabel>
-                        <ValueWithLabel label={'Inference Endpoint'}>
-                            {selectedDeployment.LlmParams.InferenceEndpoint}
-                        </ValueWithLabel>
-                    </SpaceBetween>
-                ) : (
-                    <SpaceBetween size="l">
-                        <ValueWithLabel label={'Model Provider'}>
-                            {selectedDeployment.LlmParams.ModelProvider}
-                        </ValueWithLabel>
-                        <ValueWithLabel label={'Model Name'}>{selectedDeployment.LlmParams.ModelId}</ValueWithLabel>
-                    </SpaceBetween>
-                )}
-
-                {selectedDeployment.LlmParams.ModelInputPayloadSchema && (
-                    <SpaceBetween size="l">
-                        <ValueWithLabel label={'SageMaker Model Output JSON Path'}>
-                            <Box variant="code">{selectedDeployment.LlmParams.ModelOutputJSONPath}</Box>
-                        </ValueWithLabel>
-
-                        <ValueWithLabel label={'SageMaker Input Payload Schema'}>
-                            <Box variant="code">
-                                {escapedNewLineToLineBreakTag(
-                                    JSON.stringify(selectedDeployment.LlmParams.ModelInputPayloadSchema, null, '\t'),
-                                    componentId
-                                )}
-                            </Box>
-                        </ValueWithLabel>
-                    </SpaceBetween>
-                )}
-
-                {Object.keys(selectedDeployment.LlmParams.ModelParams).length > 0 && (
-                    <FormattedModelParams modelParams={selectedDeployment.LlmParams.ModelParams} />
-                )}
-            </SpaceBetween>
+        <ColumnLayout columns={2} variant="text-grid" data-testid="model-details-tab">
+            {
+                {
+                    [BEDROCK_MODEL_PROVIDER_NAME]: <BedrockDetails />,
+                    [SAGEMAKER_MODEL_PROVIDER_NAME]: <SageMakerDetails />
+                }[selectedDeployment.LlmParams.ModelProvider]
+            }
+            {Object.keys(selectedDeployment.LlmParams.ModelParams).length > 0 && (
+                <FormattedModelParams modelParams={selectedDeployment.LlmParams.ModelParams} />
+            )}
 
             <SpaceBetween size="l">
                 <ValueWithLabel label={'Temperature'}>{selectedDeployment.LlmParams.Temperature}</ValueWithLabel>
@@ -355,19 +299,13 @@ export const ModelDetails = () => {
                     {selectedDeployment.LlmParams.Streaming ? 'on' : 'off'}
                 </ValueWithLabel>
             </SpaceBetween>
-
-            <SpaceBetween size="l">
-                <ValueWithLabel label={'System Prompt'}>
-                    <Box variant="code">{escapedNewLineToLineBreakTag(promptTemplate, useComponentId())}</Box>
-                </ValueWithLabel>
-            </SpaceBetween>
         </ColumnLayout>
     );
 };
 
 export const DisabledKnowledgeBase = () => {
     return (
-        <ColumnLayout columns={2} variant="text-grid">
+        <ColumnLayout columns={2} variant="text-grid" data-testid="kb-disabled-tab">
             <SpaceBetween size="l">
                 <ValueWithLabel label={'Retrieval Augmented Generation (RAG) Enabled'}>
                     <StatusIndicator type={'warning'}>disabled</StatusIndicator>
@@ -377,13 +315,10 @@ export const DisabledKnowledgeBase = () => {
     );
 };
 
-export const KnowledgeBaseDetails = ({ isInProgress }) => {
+export const KnowledgeBaseDetails = () => {
     const {
         state: { selectedDeployment, runtimeConfig }
     } = useContext(HomeContext);
-
-    const [showExternalLinkWarningModal, setShowExternalLinkWarningModal] = useState(false);
-    const discardModal = () => setShowExternalLinkWarningModal(false);
 
     if (selectedDeployment.ragEnabled === 'false' || selectedDeployment.ragEnabled === false) {
         return <DisabledKnowledgeBase />;
@@ -396,44 +331,32 @@ export const KnowledgeBaseDetails = ({ isInProgress }) => {
         selectedDeployment.status === 'CREATE_COMPLETE' || selectedDeployment.status === 'UPDATE_COMPLETE';
 
     return (
-        <ColumnLayout columns={2} variant="text-grid">
+        <ColumnLayout columns={2} variant="text-grid" data-testid="kb-details-tab">
             <SpaceBetween size="l">
                 <div>
                     <Box variant="awsui-key-label">Knowledge base type</Box>
-                    <div>{DEFAULT_STEP_INFO.knowledgeBase.knowledgeBaseType.label}</div>
+                    <div>{selectedDeployment.knowledgeBaseType}</div>
                 </div>
 
-                <div>
-                    <Box variant="awsui-key-label">Kendra index ID</Box>
-                    {!isDeploymentInActiveState && (
-                        <StatusIndicator type="in-progress">create in progress</StatusIndicator>
-                    )}
-                    {isDeploymentInActiveState && (
-                        <div>
-                            <Link
-                                target="_blank"
-                                onFollow={() => {
-                                    setShowExternalLinkWarningModal(true);
-                                }}
-                                external
-                            >
-                                {selectedDeployment.kendraIndexId ?? ''}
-                            </Link>
-                            <ExternalLinkWarningModal
-                                visible={showExternalLinkWarningModal}
-                                onDiscard={discardModal}
-                                externalLink={createKendraConsoleLink(
-                                    runtimeConfig.AwsRegion,
-                                    selectedDeployment.kendraIndexId
-                                )}
-                                resourceType="Kendra Index"
-                            />
-                        </div>
-                    )}
-                </div>
+                {selectedDeployment.knowledgeBaseType === KNOWLEDGE_BASE_PROVIDERS.kendra && (
+                    <KendraKnowledgeBaseDetails
+                        isDeploymentInActiveState={isDeploymentInActiveState}
+                        selectedDeployment={selectedDeployment}
+                        runtimeConfig={runtimeConfig}
+                        deploymentStatus={selectedDeployment.status}
+                    />
+                )}
+                {selectedDeployment.knowledgeBaseType === KNOWLEDGE_BASE_PROVIDERS.bedrock && (
+                    <BedrockKnowledgeBaseDetails
+                        isDeploymentInActiveState={isDeploymentInActiveState}
+                        selectedDeployment={selectedDeployment}
+                        runtimeConfig={runtimeConfig}
+                        deploymentStatus={selectedDeployment.status}
+                    />
+                )}
             </SpaceBetween>
 
-            <SpaceBetween size="l">
+            <SpaceBetween size="l" data-testid="kb-settings-tab">
                 <ValueWithLabel label={'Retrieval Augmented Generation (RAG) Enabled'}>
                     <StatusIndicator type={ragEnabledType}>{ragEnabledStatus}</StatusIndicator>
                 </ValueWithLabel>
@@ -442,10 +365,137 @@ export const KnowledgeBaseDetails = ({ isInProgress }) => {
                     {selectedDeployment.KnowledgeBaseParams.NumberOfDocs?.toString()}
                 </ValueWithLabel>
 
+                <ValueWithLabel label={'Score threshold'}>
+                    {selectedDeployment.knowledgeBaseType === KNOWLEDGE_BASE_PROVIDERS.kendra
+                        ? scoreToKendraMapping(selectedDeployment.KnowledgeBaseParams.ScoreThreshold)
+                        : selectedDeployment.KnowledgeBaseParams.ScoreThreshold}
+                </ValueWithLabel>
+
+                <ValueWithLabel label={'Static response when no documents found'}>
+                    {selectedDeployment.KnowledgeBaseParams.NoDocsFoundResponse
+                        ? selectedDeployment.KnowledgeBaseParams.NoDocsFoundResponse
+                        : '-'}
+                </ValueWithLabel>
+
                 <ValueWithLabel label={'Display document source'}>
                     {selectedDeployment.KnowledgeBaseParams.ReturnSourceDocs ? 'Yes' : 'No'}
                 </ValueWithLabel>
             </SpaceBetween>
         </ColumnLayout>
+    );
+};
+
+const KendraKnowledgeBaseDetails = ({
+    isDeploymentInActiveState,
+    selectedDeployment,
+    runtimeConfig,
+    deploymentStatus
+}) => {
+    const [showExternalLinkWarningModal, setShowExternalLinkWarningModal] = useState(false);
+    const discardModal = () => setShowExternalLinkWarningModal(false);
+
+    const queryFilter = getQueryFilterFromDeployment(selectedDeployment);
+
+    return (
+        <div>
+            <Box variant="awsui-key-label">Kendra index ID</Box>
+            {deploymentStatus === 'CREATE_IN_PROGRESS' && !selectedDeployment.kendraIndexId && (
+                <StatusIndicator type="in-progress">create in progress</StatusIndicator>
+            )}
+            {deploymentStatus === 'CREATE_IN_PROGRESS' && (selectedDeployment.kendraIndexId ? '-' : '')}
+            {isDeploymentInActiveState && (
+                <SpaceBetween size="s">
+                    <Link
+                        target="_blank"
+                        onFollow={() => {
+                            setShowExternalLinkWarningModal(true);
+                        }}
+                        external
+                    >
+                        {selectedDeployment.kendraIndexId ?? ''}
+                    </Link>
+                    <ExternalLinkWarningModal
+                        visible={showExternalLinkWarningModal}
+                        onDiscard={discardModal}
+                        externalLink={createKendraConsoleLink(
+                            runtimeConfig.AwsRegion,
+                            selectedDeployment.kendraIndexId
+                        )}
+                        resourceType="Kendra Index"
+                    />
+
+                    {queryFilter && (
+                        <ValueWithLabel label="Attribute filter">
+                            <JsonCodeView content={queryFilter} />
+                        </ValueWithLabel>
+                    )}
+                </SpaceBetween>
+            )}
+        </div>
+    );
+};
+
+const BedrockKnowledgeBaseDetails = ({
+    isDeploymentInActiveState,
+    selectedDeployment,
+    runtimeConfig,
+    deploymentStatus
+}) => {
+    const [showExternalLinkWarningModal, setShowExternalLinkWarningModal] = useState(false);
+    const discardModal = () => setShowExternalLinkWarningModal(false);
+
+    const queryFilter = getQueryFilterFromDeployment(selectedDeployment);
+
+    return (
+        <div>
+            <Box variant="awsui-key-label">Bedrock Knowledge base ID</Box>
+            {deploymentStatus === 'CREATE_IN_PROGRESS' && !selectedDeployment.bedrockKnowledgeBaseId && (
+                <Box>
+                    <StatusIndicator type="in-progress">create in progress</StatusIndicator>
+                    {!isDeploymentInActiveState && (selectedDeployment.bedrockKnowledgeBaseId ?? '-')}
+                </Box>
+            )}
+            {!isDeploymentInActiveState && (selectedDeployment.bedrockKnowledgeBaseId ?? '-')}
+            {isDeploymentInActiveState && (
+                <SpaceBetween size="s">
+                    <Link
+                        target="_blank"
+                        onFollow={() => {
+                            setShowExternalLinkWarningModal(true);
+                        }}
+                        external
+                    >
+                        {selectedDeployment.bedrockKnowledgeBaseId ?? ''}
+                    </Link>
+                    <ExternalLinkWarningModal
+                        visible={showExternalLinkWarningModal}
+                        onDiscard={discardModal}
+                        externalLink={createBedrockKnowledgeBaseConsoleLink(
+                            runtimeConfig.AwsRegion,
+                            selectedDeployment.bedrockKnowledgeBaseId
+                        )}
+                        resourceType="Bedrock Knowledge base"
+                    />
+
+                    {queryFilter && (
+                        <ValueWithLabel label="Attribute filter">
+                            <JsonCodeView content={queryFilter} />
+                        </ValueWithLabel>
+                    )}
+                    {selectedDeployment.KnowledgeBaseParams?.BedrockKnowledgeBaseParams?.OverrideSearchType && (
+                        <ValueWithLabel label="Override Search Type">
+                            {
+                                BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES.find(
+                                    (item) =>
+                                        item.value ===
+                                        selectedDeployment.KnowledgeBaseParams?.BedrockKnowledgeBaseParams
+                                            ?.OverrideSearchType
+                                ).label
+                            }
+                        </ValueWithLabel>
+                    )}
+                </SpaceBetween>
+            )}
+        </div>
     );
 };

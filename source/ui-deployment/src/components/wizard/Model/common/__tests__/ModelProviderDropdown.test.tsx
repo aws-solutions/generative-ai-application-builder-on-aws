@@ -14,17 +14,19 @@
 import * as QueryHooks from 'hooks/useQueries';
 import ModelProviderDropdown from '../ModelProvider';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
+import { cleanup } from '@testing-library/react';
 
 describe('ModelProviderDropdown', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
+        cleanup();
     });
 
     test('renders', () => {
-        jest.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
+        vi.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
             isLoading: false,
             isError: false,
-            data: ['Bedrock', 'Anthropic', 'HuggingFace', 'HuggingFace-InferenceEndpoint', 'SageMaker']
+            data: ['Bedrock', 'SageMaker']
         } as any);
         const mockModelData = {
             modelProvider: { label: 'Bedrock', value: 'Bedrock' }
@@ -38,19 +40,16 @@ describe('ModelProviderDropdown', () => {
 
         const select = cloudscapeWrapper.findSelect();
         select?.openDropdown();
-        expect(select?.findDropdown().findOptions().length).toBe(5);
+        expect(select?.findDropdown().findOptions().length).toBe(2);
         expect(select?.findDropdown().findOptionByValue('Bedrock')).toBeTruthy();
-        expect(select?.findDropdown().findOptionByValue('Anthropic')).toBeTruthy();
-        expect(select?.findDropdown().findOptionByValue('HuggingFace')).toBeTruthy();
         expect(select?.findDropdown().findOptionByValue('SageMaker')).toBeTruthy();
-        expect(select?.findDropdown().findOptionByValue('HuggingFace-InferenceEndpoint')).toBeTruthy();
     });
 
     test('invokes callback function on selection', () => {
-        jest.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
+        vi.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
             isLoading: false,
             isError: false,
-            data: ['Bedrock', 'Anthropic', 'HuggingFace', 'HuggingFace-InferenceEndpoint', 'SageMaker']
+            data: ['Bedrock', 'SageMaker']
         } as any);
         const callbacks = mockFormComponentCallbacks();
         const mockModelData = {
@@ -65,11 +64,11 @@ describe('ModelProviderDropdown', () => {
 
         const select = cloudscapeWrapper.findSelect();
         select?.openDropdown();
-        select?.selectOptionByValue('Anthropic');
+        select?.selectOptionByValue('SageMaker');
         expect(callbacks.onChangeFn).toHaveBeenCalledTimes(1);
         expect(callbacks.onChangeFn).toHaveBeenLastCalledWith({
             modelName: '',
-            modelProvider: { label: 'Anthropic', value: 'Anthropic' }
+            modelProvider: { label: 'SageMaker', value: 'SageMaker' }
         });
     });
 });

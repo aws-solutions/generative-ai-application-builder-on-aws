@@ -18,11 +18,9 @@ import * as crypto from 'crypto';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 
-import { AnthropicChat } from '../../lib/anthropic-chat-stack';
 import { BedrockChat } from '../../lib/bedrock-chat-stack';
 import { DeploymentPlatformStack } from '../../lib/deployment-platform-stack';
 import { BaseStack } from '../../lib/framework/base-stack';
-import { HuggingFaceChat } from '../../lib/hugging-face-chat-stack';
 import { SageMakerChat } from '../../lib/sagemaker-chat-stack';
 import { AppRegistry } from '../../lib/utils/app-registry-aspects';
 
@@ -88,7 +86,7 @@ describe('When Solution Stack with a nested stack is registered with AppRegistry
     });
 
     it('should create ResourceAssociation for WebApp Nested Stack', () => {
-        const webAppStack = stack.uiInfrastructure.nestedUIStack;
+        const webAppStack = stack.uiDistribution;
         const nestedTemplate = Template.fromStack(webAppStack);
         nestedTemplate.hasResourceProperties('AWS::ServiceCatalogAppRegistry::ResourceAssociation', {
             Application: {
@@ -153,7 +151,7 @@ describe('When Solution Stack with a nested stack is registered with AppRegistry
 
 describe('When injecting AppRegistry aspect', () => {
     it('The use case stack should have also have DependsOn with DeleteResourceAssociation', () => {
-        const stackList: (typeof BaseStack)[] = [HuggingFaceChat, AnthropicChat, BedrockChat, SageMakerChat];
+        const stackList: (typeof BaseStack)[] = [BedrockChat, SageMakerChat];
         const solutionID = rawCdkJson.context.solution_id;
         const version = rawCdkJson.context.solution_version;
         const solutionName = rawCdkJson.context.solution_name;

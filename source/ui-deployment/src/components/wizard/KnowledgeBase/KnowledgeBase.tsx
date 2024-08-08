@@ -41,18 +41,8 @@ export const KnowledgeBase = ({ info: { knowledgeBase }, setHelpPanelContent, on
         return 'false';
     };
 
-    const initRequiredFieldsValue = () => {
-        try {
-            if (knowledgeBase.isRagRequired) {
-                return ['existingKendraIndex'];
-            }
-            return [];
-        } catch (error) {
-            return [];
-        }
-    };
     const [ragSelectedOption, setRagSelectedOption] = React.useState(initRagSelectedOption);
-    const [requiredFields, setRequiredFields] = React.useState(initRequiredFieldsValue);
+    const [requiredFields, setRequiredFields] = React.useState<any>([]);
 
     const isRequiredFieldsFilled = () => {
         for (const field of requiredFields) {
@@ -78,17 +68,25 @@ export const KnowledgeBase = ({ info: { knowledgeBase }, setHelpPanelContent, on
         numFieldsInError,
         requiredFields,
         knowledgeBase.kendraIndexName,
-        knowledgeBase.existingKendraIndex,
         knowledgeBase.kendraIndexId,
         knowledgeBase.kendraAdditionalQueryCapacity,
         knowledgeBase.kendraAdditionalStorageCapacity,
-        knowledgeBase.maxNumDocs
+        knowledgeBase.maxNumDocs,
+        knowledgeBase.knowledgeBaseType,
+        knowledgeBase.bedrockKnowledgeBaseId,
+        knowledgeBase.bedrockOverrideSearchType
     ]);
 
     const handleRagSelection = (detail: RadioGroupProps.ChangeDetail) => {
         setRagSelectedOption(detail.value);
         setRequiredFields([]);
         knowledgeBase.isRagRequired = detail.value === 'true';
+
+        // set error state to false if rag is off
+        if (detail.value === 'false') {
+            setNumFieldsInError(0);
+            onChange({ inError: false });
+        }
     };
 
     return (

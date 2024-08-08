@@ -16,12 +16,12 @@ export interface Message {
 }
 
 export interface SourceDocument {
-    result_id: string;
-    document_id: string;
-    source: string;
-    title: string;
     excerpt: string;
-    document_attributes: any;
+    location: string;
+    score: string | number;
+    document_title: string;
+    document_id: string;
+    additional_attributes: any;
 }
 
 export interface MessageWithSource extends Message {

@@ -17,12 +17,12 @@ from unittest import mock
 
 import pytest
 from langchain.chains import ConversationChain
-from llms.models.llm import LLM
+from llms.models.model_provider_inputs import ModelProviderInputs
 from llms.sagemaker import SageMakerLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import CHAT_IDENTIFIER, DEFAULT_PLACEHOLDERS, DEFAULT_TEMPERATURE
+from utils.constants import CHAT_IDENTIFIER, DEFAULT_PROMPT_PLACEHOLDERS, DEFAULT_TEMPERATURE
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import LLMProviderTypes
 
@@ -41,7 +41,7 @@ input_schema = {
 
 model_provider = LLMProviderTypes.SAGEMAKER
 model_id = "default"
-llm_params = LLM(
+llm_params = ModelProviderInputs(
     **{
         "conversation_memory": DynamoDBChatMemory(
             DynamoDBChatMessageHistory(
@@ -51,14 +51,13 @@ llm_params = LLM(
             )
         ),
         "knowledge_base": None,
-        "api_token": None,
         "model": model_id,
         "model_params": {
             "topP": {"Type": "float", "Value": "0.2"},
             "maxTokenCount": {"Type": "integer", "Value": "512"},
         },
         "prompt_template": SAGEMAKER_PROMPT,
-        "prompt_placeholders": DEFAULT_PLACEHOLDERS,
+        "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
         "streaming": False,
         "verbose": False,
         "temperature": DEFAULT_TEMPERATURE,
@@ -203,9 +202,8 @@ def test_implement_error_not_raised(
 ):
     chat = request.getfixturevalue(chat_fixture)
     try:
-        assert chat.api_token is None
         assert chat.prompt_template.template == prompt
-        assert chat.prompt_template.input_variables == DEFAULT_PLACEHOLDERS
+        assert chat.prompt_template.input_variables == DEFAULT_PROMPT_PLACEHOLDERS
         assert chat.sagemaker_endpoint_name == "fake-endpoint"
         assert chat.input_schema == input_schema
         assert chat.response_jsonpath == "$.generated_text"

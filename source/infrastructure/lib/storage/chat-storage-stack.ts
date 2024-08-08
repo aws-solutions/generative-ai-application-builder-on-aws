@@ -17,6 +17,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
+import * as cfn_guard from '../utils/cfn-guard-suppressions';
 import { DynamoDBAttributes } from '../utils/constants';
 import { UseCaseModelInfoStorage } from './use-case-model-info-storage';
 
@@ -62,15 +63,6 @@ export class DynamoDBChatStorageParameters {
             description: 'DynamoDB table name for the existing table which contains model info and defaults.'
         }).valueAsString;
 
-        this.newModelInfoTableName = new cdk.CfnParameter(stack, 'NewModelInfoTableName', {
-            type: 'String',
-            maxLength: 255,
-            allowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
-            default: '',
-            description:
-                'DynamoDB table name for a new table which contains model info and defaults (used in standalone deployments).'
-        }).valueAsString;
-
         this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
             type: 'String',
             maxLength: 255,
@@ -108,6 +100,17 @@ export class DynamoDBChatStorage extends cdk.NestedStack {
                 reason: 'Enabling point-in-time recovery is recommended in the implementation guide, but is not enforced'
             }
         ]);
+
+        cfn_guard.addCfnSuppressRules(this.conversationTable, [
+            {
+                id: 'W74',
+                reason: 'The table is encrypted using AWS manged keys'
+            },
+            {
+                id: 'W78',
+                reason: 'Enabling point-in-time recovery is recommended in the implementation guide, but is not enforced'
+            }
+        ]);
     }
 
     /**
@@ -117,7 +120,6 @@ export class DynamoDBChatStorage extends cdk.NestedStack {
      */
     private createDynamoDBTables(stackParams: DynamoDBChatStorageParameters) {
         this.conversationTable = new dynamodb.Table(this, 'ConversationTable', {
-            tableName: stackParams.conversationTableName,
             encryption: dynamodb.TableEncryption.AWS_MANAGED,
             billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
             partitionKey: {
@@ -134,7 +136,6 @@ export class DynamoDBChatStorage extends cdk.NestedStack {
 
         this.modelInfoStorage = new UseCaseModelInfoStorage(this, 'ModelInfoStorage', {
             existingModelInfoTableName: stackParams.existingModelInfoTableName,
-            newModelInfoTableName: stackParams.newModelInfoTableName,
             customResourceLambdaArn: stackParams.customResourceLambdaArn,
             customResourceRoleArn: stackParams.customResourceRoleArn
         });

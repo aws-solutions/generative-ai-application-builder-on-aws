@@ -18,8 +18,10 @@ import boto3
 import pytest
 from aws_lambda_powertools import Metrics
 from aws_lambda_powertools.metrics import metrics as metrics_global
+from botocore.stub import Stubber
 from custom_config import custom_usr_agent_config
-from moto import mock_dynamodb, mock_logs, mock_s3, mock_secretsmanager, mock_ssm
+from helper import get_service_client
+from moto import mock_aws
 
 
 @pytest.fixture(autouse=True)
@@ -34,32 +36,47 @@ def aws_credentials():
 
 @pytest.fixture
 def s3():
-    with mock_s3():
+    with mock_aws():
         yield boto3.resource("s3", config=custom_usr_agent_config())
 
 
 @pytest.fixture
 def ddb():
-    with mock_dynamodb():
+    with mock_aws():
         yield boto3.resource("dynamodb", config=custom_usr_agent_config())
 
 
 @pytest.fixture
 def cw_logs():
-    with mock_logs():
+    with mock_aws():
         yield boto3.client("logs", config=custom_usr_agent_config())
 
 
 @pytest.fixture
 def ssm():
-    with mock_ssm():
+    with mock_aws():
         yield boto3.client("ssm", config=custom_usr_agent_config())
 
 
 @pytest.fixture
 def secretsmanager():
-    with mock_secretsmanager():
+    with mock_aws():
         yield boto3.client("secretsmanager", config=custom_usr_agent_config())
+
+
+@pytest.fixture
+def logs():
+    with mock_aws():
+        yield boto3.client("logs", config=custom_usr_agent_config())
+
+
+# ec2 must be stubbed rather than using moto since the moto ec2 library pulls in many dependencies, some with vulnerabilities
+@pytest.fixture()
+def ec2_stubber():
+    ec2_client = get_service_client("ec2")
+    with Stubber(ec2_client) as stubber:
+        yield stubber
+        stubber.assert_no_pending_responses()
 
 
 @pytest.fixture

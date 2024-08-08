@@ -13,7 +13,8 @@
 import {
     DEFAULT_KENDRA_NUMBER_OF_DOCS,
     DEFAULT_ADDITIONAL_KENDRA_QUERY_CAPACITY,
-    DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY
+    DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY,
+    DEFAULT_SCORE_THRESHOLD
 } from '../../utils/constants';
 
 export const USE_CASE_OPTIONS = [
@@ -28,29 +29,31 @@ export const KENDRA_EDITIONS = [
     { value: 'enterprise', label: 'Enterprise' }
 ];
 
-export const KNOWLEDGE_BASE_TYPES = [{ value: 'Kendra', label: 'Kendra' }];
+export const KNOWLEDGE_BASE_TYPES = [
+    { value: 'Kendra', label: 'Kendra' },
+    { value: 'Bedrock', label: 'Bedrock Knowledge Base' }
+];
+export const KNOWLEDGE_BASE_PROVIDERS = {
+    kendra: 'Kendra',
+    bedrock: 'Bedrock'
+};
+
+export const KNOWLEDGE_BASE_NUM_DOCS_MAP = {
+    [KNOWLEDGE_BASE_PROVIDERS.kendra]: { min: 1, max: 100 },
+    [KNOWLEDGE_BASE_PROVIDERS.bedrock]: { min: 1, max: 10 }
+};
+
+export const BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES = [
+    { label: 'Hybrid', value: 'HYBRID' },
+    { label: 'Semantic', value: 'SEMANTIC' }
+];
 
 export const BEDROCK_MODEL_OPTION_IDX = 0;
-export const ANTHROPIC_MODEL_OPTION_IDX = 1;
-export const HF_MODEL_OPTION_IDX = 2;
-export const HF_INF_ENDPOINT_OPTION_IDX = 3;
 
 export const MODEL_FAMILY_PROVIDER_OPTIONS = [
     {
         label: 'Bedrock',
         value: 'Bedrock'
-    },
-    {
-        label: 'Anthropic',
-        value: 'Anthropic'
-    },
-    {
-        label: 'HuggingFace',
-        value: 'HuggingFace'
-    },
-    {
-        label: 'HuggingFace - Inference Endpoint',
-        value: 'HuggingFace-InferenceEndpoint'
     },
     {
         label: 'SageMaker',
@@ -60,9 +63,6 @@ export const MODEL_FAMILY_PROVIDER_OPTIONS = [
 
 export const MODEL_PROVIDER_NAME_MAP = {
     Bedrock: 'Bedrock',
-    Anthropic: 'Anthropic',
-    HFInfEndpoint: 'HuggingFace-InferenceEndpoint',
-    HuggingFace: 'HuggingFace',
     SageMaker: 'SageMaker'
 };
 
@@ -75,15 +75,12 @@ export const MODEL_ADVANCED_PARAMETERS_TYPE = {
     dictionary: 'dictionary'
 };
 
-export const KNOWLEDGE_BASE_PROVIDERS = {
-    kendra: 'Kendra'
-};
-
 export const WIZARD_PAGE_INDEX = {
     USE_CASE: 0,
     VPC: 1,
     MODEL: 2,
-    KNOWLEDGE_BASE: 3
+    KNOWLEDGE_BASE: 3,
+    PROMPT: 4
 };
 
 export const INCLUDE_UI_OPTIONS = [
@@ -105,6 +102,7 @@ export const DEFAULT_STEP_INFO = {
         useCaseName: '',
         useCaseDescription: '',
         defaultUserEmail: '',
+        deployUI: true,
         inError: false
     },
     vpc: {
@@ -123,17 +121,25 @@ export const DEFAULT_STEP_INFO = {
         kendraAdditionalStorageCapacity: DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY,
         kendraEdition: KENDRA_EDITIONS[0],
         maxNumDocs: DEFAULT_KENDRA_NUMBER_OF_DOCS,
+        scoreThreshold: DEFAULT_SCORE_THRESHOLD,
+        noDocsFoundResponse: undefined,
         inError: false,
         kendraIndexName: '',
         returnDocumentSource: false,
-        outputPathSchema: ''
+        bedrockKnowledgeBaseId: '',
+        enableRoleBasedAccessControl: false,
+        queryFilter: JSON.stringify({})
     },
     model: {
         modelProvider: { label: '', value: '' },
         apiKey: '',
         modelName: '',
         modelFamily: '',
-        promptTemplate: '',
+        provisionedModel: false,
+        modelArn: '',
+        enableGuardrails: false,
+        guardrailIdentifier: '',
+        guardrailVersion: '',
         inferenceEndpoint: '',
         modelParameters: [],
         inError: false,
@@ -142,7 +148,7 @@ export const DEFAULT_STEP_INFO = {
         streaming: false,
         sagemakerInputSchema: JSON.stringify(
             {
-                input: '<<prompt>>',
+                inputs: '<<prompt>>',
                 parameters: {
                     temperature: '<<temperature>>'
                 }
@@ -152,6 +158,18 @@ export const DEFAULT_STEP_INFO = {
         ),
         sagemakerOutputSchema: '',
         sagemakerEndpointName: ''
+    },
+    prompt: {
+        maxPromptTemplateLength: undefined,
+        maxInputTextLength: undefined,
+        promptTemplate: undefined,
+        rephraseQuestion: undefined,
+        userPromptEditingEnabled: true,
+        chatHistoryLength: undefined,
+        humanPrefix: undefined,
+        aiPrefix: undefined,
+        disambiguationEnabled: undefined,
+        disambiguationPromptTemplate: undefined
     }
 };
 

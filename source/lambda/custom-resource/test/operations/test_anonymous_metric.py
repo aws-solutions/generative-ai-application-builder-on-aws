@@ -15,52 +15,43 @@
 import json
 import re
 from copy import copy
-from test.fixtures.anonymous_metrics_events import lambda_events
+from test.fixtures.anonymous_metrics_events import lambda_events, setup_config_ddb, llm_config_value
 
 import mock
 import operations
 import pytest
 from freezegun import freeze_time
-from helper import get_service_client
 from lambda_func import handler
-from moto import mock_ssm
+from moto import mock_aws
 from operations.anonymous_metrics import (
-    DEPLOY_KENDRA_INDEX,
     SOLUTION_ID,
     VERSION,
-    WORKFLOW_CONFIG_NAME,
     execute,
     sanitize_data,
     verify_env_setup,
 )
 from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
-from utils.constants import LLM_PARAMS, METRICS_ENDPOINT, MODEL_PROVIDER_NAME, PROMPT_TEMPLATE, SSM_CONFIG_KEY
+from utils.constants import (
+    DISAMBIGUATION_PROMPT_TEMPLATE,
+    LLM_PARAMS,
+    METRICS_ENDPOINT,
+    PROMPT_PARAMS,
+    PROMPT_TEMPLATE,
+    SSM_CONFIG_KEY,
+)
 
 UUID_REGEX = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$"
 compiled_regex_uuid = re.compile(UUID_REGEX)
 
 
-@mock_ssm
-def setup_ssm():
-    ssm = get_service_client("ssm")
-    ssm.put_parameter(
-        Name="/fakekey/usecase",
-        Value='{"LlmParams":{"ModelProvider":"Anthropic","ModelId":"Claude","ModelParams":{},"PromptTemplate":"AI","Streaming":true,"Verbose":false,"Temperature":0.1,"RAGEnabled":false}}',
-        Type="SecureString",
-        Tier="Intelligent-Tiering",
-    )
-
-
-@mock_ssm
-def test_when_operation_type_is_invalid(mock_lambda_context, lambda_events):
+@mock_aws
+def test_when_operation_type_is_invalid(mock_lambda_context, lambda_events, setup_config_ddb):
     expected_response = {
         "method": "PUT",
         "url": "https://fakeurl/doesnotexist",
         "headers": {"content-type": "", "content-length": "327"},
         "body": '{"Status": "FAILED", "Reason": "Operation type not available or did not match from the request. Expecting operation type to be ANONYMOUS_METRIC", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
     }
-
-    setup_ssm()
 
     for event in lambda_events:
         event[RESOURCE_PROPERTIES][RESOURCE] = "FAKE_RESOURCE"
@@ -74,11 +65,9 @@ def test_when_operation_type_is_invalid(mock_lambda_context, lambda_events):
             mocked_PoolManager.request.assert_called_once_with(**expected_response)
 
 
-@mock_ssm
+@mock_aws
 @pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
-def test_sending_metric(lambda_events, mock_lambda_context, requestType):
-    setup_ssm()
-
+def test_sending_metric(lambda_events, mock_lambda_context, requestType, setup_config_ddb):
     kendra_workflow_props = [("Yes", "default"), ("No", "default")]
     for idx, event in enumerate(lambda_events[:-1]):
         event["RequestType"] = requestType
@@ -93,6 +82,14 @@ def test_sending_metric(lambda_events, mock_lambda_context, requestType):
                 assert body["Solution"] == "SO0999"
                 assert body.get("UUID") == "fakeuuid"
                 assert body[VERSION] == "v9.9.9"
+                if body["Data"]:
+                    assert body["Data"] == {
+                        "LlmParams": {
+                            "ModelProvider": "Bedrock",
+                            "BedrockLlmParams": {"ModelId": "fakemodel"},
+                            "PromptParams": {"MaxPromptTemplateLength": 100.0},
+                        }
+                    }
 
             cfn_mocked_PoolManager.request.assert_called_once_with(
                 method="PUT",
@@ -102,12 +99,10 @@ def test_sending_metric(lambda_events, mock_lambda_context, requestType):
             )
 
 
-@mock_ssm
+@mock_aws
 @freeze_time("2000-01-01T00:00:00")
 @pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
-def test_sending_metric_missing_props(lambda_events, mock_lambda_context, requestType):
-    setup_ssm()
-
+def test_sending_metric_missing_props(lambda_events, mock_lambda_context, requestType, setup_config_ddb):
     event = lambda_events[-1]
     event["RequestType"] = requestType
     with mock.patch("cfn_response.http") as cfn_mocked_PoolManager:
@@ -133,7 +128,7 @@ def test_sending_metric_missing_props(lambda_events, mock_lambda_context, reques
                 assert call_kwargs["url"] == METRICS_ENDPOINT
                 body = json.loads(call_kwargs["body"])
                 assert body["Solution"] == "SO0999"
-                assert body["TimeStamp"] == "2000-01-01T00:00:00"
+                assert body["TimeStamp"] == "2000-01-01T00:00:00+00:00"
                 assert body.get("UUID") == "fakeuuid"
                 assert body[VERSION] == "v9.9.9"
                 assert body["Data"] == {}
@@ -146,19 +141,14 @@ def test_sending_metric_missing_props(lambda_events, mock_lambda_context, reques
                 )
 
 
-@mock_ssm
+@mock_aws
 @pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
-def test_sanitize_method(lambda_events, requestType):
-    setup_ssm()
-    ssm = get_service_client("ssm")
-
+def test_sanitize_method(lambda_events, requestType, llm_config_value):
     for event in lambda_events:
         event["RequestType"] = requestType
         resource_properties = event[RESOURCE_PROPERTIES]
         metrics_data = copy(resource_properties)
-        ssm_key = metrics_data.get(SSM_CONFIG_KEY, None)
-        if ssm_key is not None:
-            metrics_data[LLM_PARAMS] = ssm.get_parameter(Name=ssm_key, WithDecryption=True)
+        metrics_data[LLM_PARAMS] = llm_config_value
 
         metrics_data = sanitize_data(metrics_data)
 
@@ -177,20 +167,20 @@ def test_sanitize_method(lambda_events, requestType):
         assert metrics_data.get(SSM_CONFIG_KEY, None) is None
 
         if metrics_data.get(LLM_PARAMS) is not None:
-            assert metrics_data[LLM_PARAMS].get(PROMPT_TEMPLATE, None) is None
+            assert metrics_data[LLM_PARAMS].get(PROMPT_PARAMS, {}).get(PROMPT_TEMPLATE, None) is None
+            assert metrics_data[LLM_PARAMS].get(PROMPT_PARAMS, {}).get(DISAMBIGUATION_PROMPT_TEMPLATE, None) is None
 
 
-@mock_ssm
+@mock_aws
 @freeze_time("2000-01-01T00:00:00")
 @pytest.mark.parametrize("requestType", ["Create", "Update"])
-def test_lambda_handler(lambda_events, mock_lambda_context, requestType):
+def test_lambda_handler(lambda_events, mock_lambda_context, requestType, setup_config_ddb):
     expected_body = [("Yes", "default"), ("No", "default")]
 
     for idx, event in enumerate(lambda_events[:-1]):
         event["RequestType"] = requestType
         with mock.patch("cfn_response.http") as cfn_mocked_PoolManager:
             with mock.patch("utils.metrics.http") as metrics_mocked_PoolManager:
-                setup_ssm()
                 handler(event, mock_lambda_context)
                 call_kwargs = metrics_mocked_PoolManager.request.call_args.kwargs
 
@@ -198,18 +188,17 @@ def test_lambda_handler(lambda_events, mock_lambda_context, requestType):
                 assert call_kwargs["url"] == METRICS_ENDPOINT
                 body = json.loads(call_kwargs["body"])
                 assert body["Solution"] == "SO0999"
-                assert body["TimeStamp"] == "2000-01-01T00:00:00"
+                assert body["TimeStamp"] == "2000-01-01T00:00:00+00:00"
                 assert body.get("UUID") == "fakeuuid"
                 assert body[VERSION] == "v9.9.9"
 
 
-@mock_ssm
+@mock_aws
 @freeze_time("2000-01-01T00:00:00")
 @pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
-def test_lambda_handler_for_missing_props(lambda_events, mock_lambda_context, requestType):
+def test_lambda_handler_for_missing_props(lambda_events, mock_lambda_context, requestType, setup_config_ddb):
     event = lambda_events[-1]
     event["RequestType"] = requestType
-    setup_ssm()
 
     with mock.patch("cfn_response.http") as cfn_mocked_PoolManager:
         with mock.patch("utils.metrics.http") as metrics_mocked_PoolManager:
@@ -232,7 +221,7 @@ def test_lambda_handler_for_missing_props(lambda_events, mock_lambda_context, re
                 assert call_kwargs["url"] == METRICS_ENDPOINT
                 body = json.loads(call_kwargs["body"])
                 assert body["Solution"] == "SO0999"
-                assert body["TimeStamp"] == "2000-01-01T00:00:00"
+                assert body["TimeStamp"] == "2000-01-01T00:00:00+00:00"
                 assert body.get("UUID") == "fakeuuid"
                 assert body[VERSION] == "v9.9.9"
                 assert body["Data"] == {}

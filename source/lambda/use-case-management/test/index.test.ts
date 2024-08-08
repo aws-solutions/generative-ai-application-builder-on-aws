@@ -10,7 +10,6 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
-import { APIGatewayEvent } from 'aws-lambda';
 import {
     CloudFormationClient,
     CreateStackCommand,
@@ -20,38 +19,34 @@ import {
 } from '@aws-sdk/client-cloudformation';
 import {
     DeleteItemCommand,
+    DescribeTableCommand,
     DynamoDBClient,
+    GetItemCommand,
     PutItemCommand,
     ScanCommand,
-    GetItemCommand,
     UpdateItemCommand
 } from '@aws-sdk/client-dynamodb';
-import { DeleteSecretCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
-import {
-    DeleteParameterCommand,
-    GetParameterCommand,
-    PutParameterCommand,
-    SSMClient,
-    ParameterTier
-} from '@aws-sdk/client-ssm';
+import { APIGatewayEvent } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
 import {
     ARTIFACT_BUCKET_ENV_VAR,
-    CFN_DEPLOY_ROLE_ARN_ENV_VAR,
+    CHAT_PROVIDERS,
+    COGNITO_DOMAIN_PREFIX_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
+    CfnParameterKeys,
     IS_INTERNAL_USER_ENV_VAR,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
     USE_CASES_TABLE_NAME_ENV_VAR,
-    USE_CASE_API_KEY_SUFFIX_ENV_VAR,
-    USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 } from '../utils/constants';
 
 import { marshall } from '@aws-sdk/util-dynamodb';
 import {
     createUseCaseApiEvent,
+    createUseCaseApiEventBedrockKnowledgeBase,
     createUseCaseApiEventNoPrompt,
     getUseCaseApiEvent,
     updateUseCaseApiEvent
@@ -60,80 +55,88 @@ import {
 describe('When invoking the lambda function', () => {
     let cfnMockedClient: any;
     let ddbMockedClient: any;
-    let ssmMockedClient: any;
-    let secretsmanagerMockedClient: any;
 
     beforeAll(() => {
         process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
         process.env[POWERTOOLS_METRICS_NAMESPACE_ENV_VAR] = 'UnitTest';
         process.env[USE_CASES_TABLE_NAME_ENV_VAR] = 'UseCaseTable';
         process.env[ARTIFACT_BUCKET_ENV_VAR] = 'fake-artifact-bucket';
-        process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'arn:aws:iam::123456789012:role/fake-role';
-        process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR] = '/config';
         process.env[COGNITO_POLICY_TABLE_ENV_VAR] = 'fake-table';
         process.env[USER_POOL_ID_ENV_VAR] = 'fake-user-pool-id';
+        process.env[COGNITO_DOMAIN_PREFIX_VAR] = 'fake-domain-prefix';
         process.env[TEMPLATE_FILE_EXTN_ENV_VAR] = '.json';
-        process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR] = 'api-key';
         process.env[IS_INTERNAL_USER_ENV_VAR] = 'true';
         process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = 'fake-model-table';
+        process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = 'fake-use-case-config-table';
 
         cfnMockedClient = mockClient(CloudFormationClient);
         ddbMockedClient = mockClient(DynamoDBClient);
-        ssmMockedClient = mockClient(SSMClient);
-        secretsmanagerMockedClient = mockClient(SecretsManagerClient);
     });
 
+    afterEach(() => {
+        cfnMockedClient.reset();
+        ddbMockedClient.reset();
+    });
     describe('on success', () => {
-        beforeAll(() => {
+        beforeEach(() => {
             cfnMockedClient.on(CreateStackCommand).resolves({
-                StackId: 'fake-stack-id'
+                StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid'
             });
-            ddbMockedClient.on(PutItemCommand).resolves({
+            ddbMockedClient.on(PutItemCommand, { TableName: `${process.env[USE_CASES_TABLE_NAME_ENV_VAR]}` }).resolves({
                 Attributes: {
                     StackId: {
-                        S: 'fake-stack-id'
+                        S: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid'
                     }
                 }
             });
-            ssmMockedClient.on(PutParameterCommand).resolves({ Version: 1, Tier: ParameterTier.INTELLIGENT_TIERING });
+
+            ddbMockedClient.on(PutItemCommand).resolves({
+                Attributes: {
+                    key: {
+                        S: 'key'
+                    },
+                    config: {
+                        S: 'config'
+                    }
+                }
+            });
+
+            ddbMockedClient.on(DescribeTableCommand).resolves({
+                Table: {
+                    TableStatus: 'ACTIVE'
+                }
+            });
 
             cfnMockedClient.on(UpdateStackCommand).resolves({
-                StackId: 'fake-stack-id'
+                StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid'
             });
             ddbMockedClient.on(UpdateItemCommand).resolves({
                 Attributes: {
                     StackId: {
-                        S: 'fake-stack-id'
+                        S: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid'
                     }
                 }
             });
 
             cfnMockedClient.on(DeleteStackCommand).resolves({});
             ddbMockedClient.on(DeleteItemCommand).resolves({});
-            ssmMockedClient.on(DeleteParameterCommand).resolves({});
-            secretsmanagerMockedClient.on(DeleteSecretCommand).resolves({});
-
-            ssmMockedClient.on(GetParameterCommand).resolves({
-                Parameter: {
-                    Name: '/fake-webconfig/key',
-                    Type: 'String',
-                    Value: '{"ApiEndpoint": "fake.example.com","UserPoolId": "fake-user-pool","UserPoolClientId": "fake-client-id"}'
-                }
-            });
-
             ddbMockedClient
-                .on(GetItemCommand, {
-                    TableName: 'fake-model-table',
-                    Key: { SortKey: { S: 'HuggingFace#google/flan-t5-xxl' }, UseCase: { S: 'RAGChat' } }
-                })
-                .resolves({
+                .on(GetItemCommand)
+                .resolvesOnce({
                     Item: marshall({
-                        'UseCase': 'RAGChat',
-                        'SortKey': 'HuggingFace#google/flan-t5-xxl',
-                        'ModelProviderName': 'HuggingFace-InferenceEndpoint',
-                        'ModelName': 'google/flan-t5-xxl',
+                        UseCaseId: 'fake-id',
+                        StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid',
+                        UseCaseConfigRecordKey: '11111111-fake-id'
+                    })
+                })
+                .resolvesOnce({
+                    Item: marshall({
+                        'UseCase': 'Chat',
+                        'SortKey': `${CHAT_PROVIDERS.BEDROCK}#fake-model`,
+                        'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
+                        'ModelName': 'fake-model',
                         'AllowsStreaming': false,
-                        'Prompt': 'Prompt2 {input}\n\n{history}\n\n{context}',
+                        'Prompt': 'Prompt2 {input}{history}{context}',
                         'MaxTemperature': '100',
                         'DefaultTemperature': '0.1',
                         'MinTemperature': '0',
@@ -150,31 +153,12 @@ describe('When invoking the lambda function', () => {
                         'MaxChatMessageSize': 2500
                     })
                 });
-            ddbMockedClient
-                .on(GetItemCommand, {
-                    TableName: 'UseCaseTable',
-                    Key: { UseCaseId: { S: '11111111-222222222-33333333-44444444-55555555' } }
-                })
-                .resolves({
-                    Item: marshall({
-                        UseCaseId: 'fake-id',
-                        StackId: 'fake-stack-id',
-                        SSMParameterKey: '/config/fake-uuid/old'
-                    })
-                });
-            ssmMockedClient.on(GetParameterCommand).resolves({
-                Parameter: {
-                    Name: '/config/fake-uuid/old',
-                    Type: 'String',
-                    Value: '{"ParamKey1":"OldParamValue"}'
-                }
-            });
         });
 
         it('should create a stack and update ddb for create action', async () => {
-            let lambda = import('../index');
+            const lambda = await import('../index');
 
-            expect(await (await lambda).lambdaHandler(createUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
+            expect(await lambda.lambdaHandler(createUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
                 'body': 'SUCCESS',
                 'headers': {
                     'Access-Control-Allow-Credentials': true,
@@ -188,11 +172,11 @@ describe('When invoking the lambda function', () => {
             });
         });
 
-        it('should create a stack, filling in a prompt template and update ddb for create action', async () => {
-            let lambda = import('../index');
+        it('should create a bedrock kb stack and update ddb for create action', async () => {
+            const lambda = await import('../index');
 
             expect(
-                await (await lambda).lambdaHandler(createUseCaseApiEventNoPrompt as unknown as APIGatewayEvent)
+                await lambda.lambdaHandler(createUseCaseApiEventBedrockKnowledgeBase as unknown as APIGatewayEvent)
             ).toEqual({
                 'body': 'SUCCESS',
                 'headers': {
@@ -207,10 +191,102 @@ describe('When invoking the lambda function', () => {
             });
         });
 
-        it('should allow update to a stack', async () => {
-            let lambda = import('../index');
+        it('should create a stack, filling in a prompt template and update ddb for create action', async () => {
+            ddbMockedClient.on(GetItemCommand, { TableName: process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] }).resolves({
+                Item: marshall({
+                    'UseCase': 'Chat',
+                    'SortKey': `${CHAT_PROVIDERS.BEDROCK}#fake-model`,
+                    'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
+                    'ModelName': 'fake-model',
+                    'AllowsStreaming': false,
+                    'Prompt': 'Prompt2 {input}{history}{context}',
+                    'MaxTemperature': '100',
+                    'DefaultTemperature': '0.1',
+                    'MinTemperature': '0',
+                    'DefaultStopSequences': [],
+                    'MemoryConfig': {
+                        'history': 'chat_history',
+                        'input': 'question',
+                        'context': 'context',
+                        'ai_prefix': 'AI',
+                        'human_prefix': 'Human',
+                        'output': 'answer'
+                    },
+                    'MaxPromptSize': 2000,
+                    'MaxChatMessageSize': 2500
+                })
+            });
 
-            expect(await (await lambda).lambdaHandler(updateUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
+            const lambda = await import('../index');
+
+            expect(await lambda.lambdaHandler(createUseCaseApiEventNoPrompt as unknown as APIGatewayEvent)).toEqual({
+                'body': 'SUCCESS',
+                'headers': {
+                    'Access-Control-Allow-Credentials': true,
+                    'Access-Control-Allow-Headers': 'Origin,X-Requested-With,Content-Type,Accept',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                'isBase64Encoded': false,
+                'statusCode': 200
+            });
+        });
+
+        it('should allow update to a stack', async () => {
+            ddbMockedClient
+                .on(GetItemCommand, { TableName: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] })
+                .resolves({
+                    Item: marshall({
+                        key: 'mockUseCaseConfigRecordKey',
+                        config: {
+                            UseCaseName: 'fake-use-case',
+                            ConversationMemoryParams: {
+                                'ConversationMemoryType': 'DDBMemoryType'
+                            }
+                        }
+                    })
+                });
+
+            ddbMockedClient.on(GetItemCommand, { TableName: process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] }).resolves({
+                Item: marshall({
+                    'UseCase': 'Chat',
+                    'SortKey': `${CHAT_PROVIDERS.BEDROCK}#fake-model`,
+                    'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
+                    'ModelName': 'fake-model',
+                    'AllowsStreaming': false,
+                    'Prompt': 'Prompt2 {input}{history}{context}',
+                    'MaxTemperature': '100',
+                    'DefaultTemperature': '0.1',
+                    'MinTemperature': '0',
+                    'DefaultStopSequences': [],
+                    'MemoryConfig': {
+                        'history': 'chat_history',
+                        'input': 'question',
+                        'context': 'context',
+                        'ai_prefix': 'AI',
+                        'human_prefix': 'Human',
+                        'output': 'answer'
+                    },
+                    'MaxPromptSize': 2000,
+                    'MaxChatMessageSize': 2500
+                })
+            });
+
+            cfnMockedClient.on(DescribeStacksCommand).resolves({
+                Stacks: [
+                    {
+                        StackName: 'test',
+                        StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid',
+                        CreationTime: new Date(),
+                        StackStatus: 'CREATE_COMPLETE'
+                    }
+                ]
+            });
+
+            const lambda = await import('../index');
+
+            expect(await lambda.lambdaHandler(updateUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
                 'body': 'SUCCESS',
                 'headers': {
                     'Access-Control-Allow-Credentials': true,
@@ -225,25 +301,31 @@ describe('When invoking the lambda function', () => {
         });
 
         it('should get deployed stacks with a GET request', async () => {
-            let lambda = import('../index');
+            const lambda = await import('../index');
 
             ddbMockedClient.on(ScanCommand).resolves({
                 Items: [
                     {
                         'Description': { 'S': 'test case 1' },
                         'CreatedBy': { 'S': 'fake-user-id' },
+                        'CreatedDate': { 'S': '2024-07-22T20:31:00Z' },
                         'StackId': {
                             'S': 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-1'
                         },
-                        'Name': { 'S': 'test-1' }
+                        'Name': { 'S': 'test-1' },
+                        'UseCaseId': { 'S': '11111111-fake-id' },
+                        'UseCaseConfigRecordKey': { 'S': 'fake-uuid' }
                     },
                     {
                         'Description': { 'S': 'test case 2' },
                         'CreatedBy': { 'S': 'fake-user-id' },
+                        'CreatedDate': { 'S': '2024-07-22T20:32:00Z' },
                         'StackId': {
                             'S': 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-2'
                         },
-                        'Name': { 'S': 'test-2' }
+                        'Name': { 'S': 'test-2' },
+                        'UseCaseId': { 'S': '11111111-fake-id' },
+                        'UseCaseConfigRecordKey': { 'S': 'fake-uuid-2' }
                     }
                 ],
                 ScannedCount: 2,
@@ -253,9 +335,24 @@ describe('When invoking the lambda function', () => {
                     'StackId': {
                         'S': 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-2'
                     },
-                    'Name': { 'S': 'test-2' }
+                    'Name': { 'S': 'test-2' },
+                    'UseCaseId': { 'S': '11111111-fake-id' },
+                    'UseCaseConfigRecordKey': { 'S': 'fake-uuid-2' }
                 }
             });
+
+            ddbMockedClient
+                .on(GetItemCommand, { TableName: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] })
+                .resolves({
+                    Item: marshall({
+                        key: 'mockUseCaseConfigRecordKey',
+                        config: {
+                            ConversationMemoryParams: {
+                                ConversationMemoryType: 'DDBMemoryType'
+                            }
+                        }
+                    })
+                });
 
             cfnMockedClient.on(DescribeStacksCommand).resolves({
                 Stacks: [
@@ -266,8 +363,8 @@ describe('When invoking the lambda function', () => {
                         StackStatus: 'CREATE_COMPLETE',
                         Parameters: [
                             {
-                                ParameterKey: 'ChatConfigSSMParameterName',
-                                ParameterValue: '/config/fake-id'
+                                ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                                ParameterValue: 'fake-id'
                             }
                         ],
                         Outputs: [
@@ -284,45 +381,43 @@ describe('When invoking the lambda function', () => {
                 ]
             });
 
-            ssmMockedClient.on(GetParameterCommand, { Name: '/config/fake-id' }).resolves({
-                Parameter: {
-                    Name: '/config/fake-id',
-                    Type: 'String',
-                    Value: JSON.stringify({
-                        ParamKey1: 'ParamValue1'
-                    })
-                }
-            });
-
-            expect(await (await lambda).lambdaHandler(getUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
+            expect(await lambda.lambdaHandler(getUseCaseApiEvent as unknown as APIGatewayEvent)).toEqual({
                 'body': JSON.stringify({
                     'deployments': [
                         {
-                            'Description': 'test case 1',
-                            'CreatedBy': 'fake-user-id',
-                            'StackId':
-                                'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-1',
-                            'Name': 'test-1',
-                            'status': 'CREATE_COMPLETE',
-                            'chatConfigSSMParameterName': '/config/fake-id',
-                            'webConfigKey': 'mock-webconfig-ssm-parameter-key',
-                            'cloudFrontWebUrl': 'mock-cloudfront-url',
-                            'ParamKey1': 'ParamValue1'
-                        },
-                        {
                             'Description': 'test case 2',
                             'CreatedBy': 'fake-user-id',
+                            'CreatedDate': '2024-07-22T20:32:00Z',
                             'StackId':
                                 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-2',
                             'Name': 'test-2',
+                            'UseCaseId': '11111111-fake-id',
+                            'UseCaseConfigRecordKey': 'fake-uuid-2',
                             'status': 'CREATE_COMPLETE',
-                            'chatConfigSSMParameterName': '/config/fake-id',
                             'webConfigKey': 'mock-webconfig-ssm-parameter-key',
                             'cloudFrontWebUrl': 'mock-cloudfront-url',
-                            'ParamKey1': 'ParamValue1'
+                            'ConversationMemoryParams': {
+                                'ConversationMemoryType': 'DDBMemoryType'
+                            }
+                        },
+                        {
+                            'Description': 'test case 1',
+                            'CreatedBy': 'fake-user-id',
+                            'CreatedDate': '2024-07-22T20:31:00Z',
+                            'StackId':
+                                'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-1',
+                            'Name': 'test-1',
+                            'UseCaseId': '11111111-fake-id',
+                            'UseCaseConfigRecordKey': 'fake-uuid',
+                            'status': 'CREATE_COMPLETE',
+                            'webConfigKey': 'mock-webconfig-ssm-parameter-key',
+                            'cloudFrontWebUrl': 'mock-cloudfront-url',
+                            'ConversationMemoryParams': {
+                                'ConversationMemoryType': 'DDBMemoryType'
+                            }
                         }
                     ],
-                    'scannedCount': 2
+                    'numUseCases': 2
                 }),
                 'headers': {
                     'Access-Control-Allow-Credentials': true,
@@ -335,13 +430,6 @@ describe('When invoking the lambda function', () => {
                 'statusCode': 200
             });
         });
-
-        afterAll(() => {
-            cfnMockedClient.reset();
-            ddbMockedClient.reset();
-            ssmMockedClient.reset();
-            secretsmanagerMockedClient.reset();
-        });
     });
 
     describe('on failure from missing env vars', () => {
@@ -350,11 +438,11 @@ describe('When invoking the lambda function', () => {
         });
 
         it('Should fail to invoke lambda since env is not set up correctly', async () => {
-            let lambda = import('../index');
+            const lambda = import('../index');
 
             await expect(
                 (await lambda).lambdaHandler(createUseCaseApiEvent as unknown as APIGatewayEvent)
-            ).rejects.toThrowError(
+            ).rejects.toThrow(
                 'Missing required environment variables: USER_POOL_ID. This should not happen and indicates in issue with your deployment.'
             );
         });
@@ -369,18 +457,14 @@ describe('When invoking the lambda function', () => {
         delete process.env[POWERTOOLS_METRICS_NAMESPACE_ENV_VAR];
         delete process.env[USE_CASES_TABLE_NAME_ENV_VAR];
         delete process.env[ARTIFACT_BUCKET_ENV_VAR];
-        delete process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR];
-        delete process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR];
         delete process.env[COGNITO_POLICY_TABLE_ENV_VAR];
         delete process.env[USER_POOL_ID_ENV_VAR];
         delete process.env[TEMPLATE_FILE_EXTN_ENV_VAR];
-        delete process.env[USE_CASE_API_KEY_SUFFIX_ENV_VAR];
         delete process.env[IS_INTERNAL_USER_ENV_VAR];
         delete process.env[MODEL_INFO_TABLE_NAME_ENV_VAR];
+        delete process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR];
 
         cfnMockedClient.restore();
         ddbMockedClient.restore();
-        ssmMockedClient.restore();
-        secretsmanagerMockedClient.restore();
     });
 });

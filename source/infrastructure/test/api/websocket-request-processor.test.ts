@@ -17,6 +17,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 
 import { WebsocketRequestProcessor } from '../../lib/api/websocket-request-processor';
+import { UserPoolClientProps } from '../../lib/auth/cognito-setup';
 import {
     CLIENT_ID_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
@@ -36,15 +37,32 @@ describe('When deploying', () => {
             handler: 'index.handler'
         };
 
-        new WebsocketRequestProcessor(stack, 'WebSocketEndpoint', {
+        const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
+            type: 'String',
+            description:
+                'Select "No", if you do not want to deploy the UI web application. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
+            allowedValues: ['Yes', 'No'],
+            default: 'Yes'
+        });
+
+        const requestProcessor = new WebsocketRequestProcessor(stack, 'WebSocketEndpoint', {
             chatProviderLambda: new lambda.Function(stack, 'chatLambda', mockLambdaFuncProps),
             applicationTrademarkName: 'fake-name',
             defaultUserEmail: 'testuser@example.com',
             existingCognitoUserPoolId: 'fake-id',
             existingCognitoGroupPolicyTableName: 'fake-table-arn',
             customResourceLambda: new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps),
-            useCaseUUID: 'fake-uuid'
+            useCaseUUID: 'fake-uuid',
+            cognitoDomainPrefix: 'fake-prefix',
+            existingCognitoUserPoolClientId: 'fake123clientid'
         });
+
+        requestProcessor.createUserPoolClient({
+            logoutUrl: 'https://fakeurl',
+            callbackUrl: 'https://fakeurl',
+            existingCognitoUserPoolClientId: 'fake123clientid',
+            deployWebApp: deployWebApp.valueAsString
+        } as UserPoolClientProps);
 
         template = Template.fromStack(stack);
         jsonTemplate = template.toJSON();
@@ -87,7 +105,16 @@ describe('When deploying', () => {
                         ]
                     },
                     [CLIENT_ID_ENV_VAR]: {
-                        'Ref': Match.stringLikeRegexp('WebSocketEndpointUseCaseCognitoSetupAppClient*')
+                        'Fn::If': [
+                            Match.anyValue(),
+                            {
+                                'Fn::GetAtt': [
+                                    Match.stringLikeRegexp('WebSocketEndpointUseCaseCognitoSetupCfnAppClient25158A55'),
+                                    'ClientId'
+                                ]
+                            },
+                            'fake123clientid'
+                        ]
                     },
                     [COGNITO_POLICY_TABLE_ENV_VAR]: {
                         'Fn::If': [

@@ -1,0 +1,28 @@
+{
+    "retrievalResults": [
+        {
+            "content": {
+                "text": "this is an excerpt from a fake bedrock knowledge base"
+            },
+            "location": {
+                "type": "S3",
+                "s3Location": {
+                    "uri": "s3://fakepath1"
+                }
+            },
+            "score": 0.25
+        },
+        {
+            "content": {
+                "text": "this is another excerpt from a fake bedrock knowledge base"
+            },
+            "location": {
+                "type": "S3",
+                "s3Location": {
+                    "uri": "s3://fakepath2"
+                }
+            },
+            "score": 0.9
+        }
+    ]
+}

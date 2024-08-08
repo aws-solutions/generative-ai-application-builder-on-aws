@@ -73,7 +73,7 @@ describe('When performing ddb operations', () => {
         ddbMockedClient.on(QueryCommand).resolves(ddbGetProvidersResponse);
         const modelProviders = await modelInfoRetriever.getModelProviders('Chat');
         expect(ddbMockedClient).toHaveReceivedCommand(QueryCommand);
-        expect(modelProviders).toEqual(['Anthropic', 'Bedrock', 'HuggingFace']);
+        expect(modelProviders).toEqual(['Bedrock', 'SageMaker']);
     });
 
     it('getModelProviders causes a paginated query', async () => {
@@ -83,7 +83,7 @@ describe('When performing ddb operations', () => {
             .resolves(ddbGetProvidersMultiPartResponse2);
         const modelProviders = await modelInfoRetriever.getModelProviders('Chat');
         expect(ddbMockedClient).toHaveReceivedCommandTimes(QueryCommand, 2);
-        expect(modelProviders).toEqual(['Anthropic', 'Bedrock', 'HuggingFace']);
+        expect(modelProviders).toEqual(['Bedrock', 'SageMaker']);
     });
 
     it('getModelProviders fails for a bad use case, returning nothing', async () => {

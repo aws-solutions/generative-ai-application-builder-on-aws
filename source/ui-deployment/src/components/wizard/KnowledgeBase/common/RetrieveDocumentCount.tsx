@@ -14,10 +14,10 @@
 import React from 'react';
 import { Input, InputProps, FormField } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
-import { MAX_KNOWLEDGE_BASE_NUM_DOCS, MIN_KNOWLEDGE_BASE_NUM_DOCS } from '../../../../utils/constants';
 import { updateNumFieldsInError } from '../../utils';
 import { InfoLink } from '../../../commons';
 import { TOOLS_CONTENT } from '../../tools-content';
+import { KNOWLEDGE_BASE_NUM_DOCS_MAP } from '../../steps-config';
 
 const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
 
@@ -28,17 +28,16 @@ export interface RetrieveDocumentCountProps extends BaseFormComponentProps {
 export const RetrieveDocumentCount = (props: RetrieveDocumentCountProps) => {
     const [maxNumDocsError, setMaxNumDocsError] = React.useState('');
 
+    const minNumDocs = KNOWLEDGE_BASE_NUM_DOCS_MAP[props.knowledgeBaseData.knowledgeBaseType.value].min;
+    const maxNumDocs = KNOWLEDGE_BASE_NUM_DOCS_MAP[props.knowledgeBaseData.knowledgeBaseType.value].max;
+
     const onMaxNumDocsChange = (detail: InputProps.ChangeDetail) => {
         props.onChangeFn({ maxNumDocs: detail.value });
         let errors = '';
         if (!Number.isInteger(parseFloat(detail.value))) {
             errors += 'Must be a whole number. Can only include characters 0-9. ';
-        } else if (
-            parseFloat(detail.value) < MIN_KNOWLEDGE_BASE_NUM_DOCS ||
-            parseFloat(detail.value) > MAX_KNOWLEDGE_BASE_NUM_DOCS
-        ) {
-            errors +=
-                'Number must be between ' + MIN_KNOWLEDGE_BASE_NUM_DOCS + ' and ' + MAX_KNOWLEDGE_BASE_NUM_DOCS + '. ';
+        } else if (parseFloat(detail.value) < minNumDocs || parseFloat(detail.value) > maxNumDocs) {
+            errors += 'Number must be between ' + minNumDocs + ' and ' + maxNumDocs + '. ';
         }
 
         updateNumFieldsInError(errors, maxNumDocsError, props.setNumFieldsInError);
@@ -49,7 +48,7 @@ export const RetrieveDocumentCount = (props: RetrieveDocumentCountProps) => {
         <FormField
             label="Maximum number of documents to retrieve"
             description="Optional: the max number of documents to use from the knowledge base."
-            constraintText={'Min: ' + MIN_KNOWLEDGE_BASE_NUM_DOCS + ', Max: ' + MAX_KNOWLEDGE_BASE_NUM_DOCS}
+            constraintText={'Min: ' + minNumDocs + ', Max: ' + maxNumDocs}
             info={
                 <InfoLink
                     onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.maxNumDocs)}

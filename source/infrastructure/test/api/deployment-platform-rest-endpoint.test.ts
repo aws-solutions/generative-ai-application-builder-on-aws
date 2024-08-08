@@ -19,7 +19,11 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 
 import { DeploymentPlatformRestEndpoint } from '../../lib/api/deployment-platform-rest-endpoint';
-import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME } from '../../lib/utils/constants';
+import {
+    API_GATEWAY_THROTTLING_BURST_LIMIT,
+    API_GATEWAY_THROTTLING_RATE_LIMIT,
+    COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME
+} from '../../lib/utils/constants';
 
 describe('When creating rest endpoints', () => {
     let template: Template;
@@ -94,7 +98,7 @@ describe('When creating rest endpoints', () => {
                 DestinationArn: {
                     'Fn::GetAtt': Match.anyValue()
                 },
-                Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}'
+                Format: '$context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.responseLength $context.requestId'
             },
             DeploymentId: {
                 Ref: restApiDeploymentCapture
@@ -103,8 +107,10 @@ describe('When creating rest endpoints', () => {
                 {
                     DataTraceEnabled: false,
                     HttpMethod: '*',
-                    LoggingLevel: 'INFO',
-                    ResourcePath: '/*'
+                    LoggingLevel: 'OFF',
+                    ResourcePath: '/*',
+                    ThrottlingBurstLimit: API_GATEWAY_THROTTLING_BURST_LIMIT,
+                    ThrottlingRateLimit: API_GATEWAY_THROTTLING_RATE_LIMIT
                 }
             ],
             StageName: 'prod',
@@ -435,6 +441,185 @@ describe('When creating rest endpoints', () => {
 
         const webAclCapture = new Capture();
         template.resourceCountIs('AWS::WAFv2::WebACL', 1);
+        template.hasResourceProperties('AWS::WAFv2::WebACL', {
+            'CustomResponseBodies': {
+                'HeadersNotAllowed': {
+                    'Content': 'One of your injected headers is not allowed',
+                    'ContentType': 'TEXT_PLAIN'
+                }
+            },
+            'DefaultAction': {
+                'Allow': {}
+            },
+            'Rules': [
+                {
+                    'Name': 'AWS-AWSManagedRulesBotControlRuleSet',
+                    'OverrideAction': {
+                        'None': {}
+                    },
+                    'Priority': 0,
+                    'Statement': {
+                        'ManagedRuleGroupStatement': {
+                            'Name': 'AWSManagedRulesBotControlRuleSet',
+                            'VendorName': 'AWS'
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'AWSManagedRulesBotControlRuleSet',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Name': 'AWS-AWSManagedRulesKnownBadInputsRuleSet',
+                    'OverrideAction': {
+                        'None': {}
+                    },
+                    'Priority': 1,
+                    'Statement': {
+                        'ManagedRuleGroupStatement': {
+                            'Name': 'AWSManagedRulesKnownBadInputsRuleSet',
+                            'VendorName': 'AWS'
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'AWSManagedRulesKnownBadInputsRuleSet',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Name': 'AWS-AWSManagedRulesCommonRuleSet',
+                    'OverrideAction': {
+                        'None': {}
+                    },
+                    'Priority': 2,
+                    'Statement': {
+                        'ManagedRuleGroupStatement': {
+                            'Name': 'AWSManagedRulesCommonRuleSet',
+                            'VendorName': 'AWS'
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'AWSManagedRulesCommonRuleSet',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Name': 'AWS-AWSManagedRulesAnonymousIpList',
+                    'OverrideAction': {
+                        'None': {}
+                    },
+                    'Priority': 3,
+                    'Statement': {
+                        'ManagedRuleGroupStatement': {
+                            'Name': 'AWSManagedRulesAnonymousIpList',
+                            'VendorName': 'AWS'
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'AWSManagedRulesAnonymousIpList',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Name': 'AWS-AWSManagedRulesAmazonIpReputationList',
+                    'OverrideAction': {
+                        'None': {}
+                    },
+                    'Priority': 4,
+                    'Statement': {
+                        'ManagedRuleGroupStatement': {
+                            'Name': 'AWSManagedRulesAmazonIpReputationList',
+                            'VendorName': 'AWS'
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'AWSManagedRulesAmazonIpReputationList',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Name': 'AWS-AWSManagedRulesAdminProtectionRuleSet',
+                    'OverrideAction': {
+                        'None': {}
+                    },
+                    'Priority': 5,
+                    'Statement': {
+                        'ManagedRuleGroupStatement': {
+                            'Name': 'AWSManagedRulesAdminProtectionRuleSet',
+                            'VendorName': 'AWS'
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'AWSManagedRulesAdminProtectionRuleSet',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Name': 'AWS-AWSManagedRulesSQLiRuleSet',
+                    'OverrideAction': {
+                        'None': {}
+                    },
+                    'Priority': 6,
+                    'Statement': {
+                        'ManagedRuleGroupStatement': {
+                            'Name': 'AWSManagedRulesSQLiRuleSet',
+                            'VendorName': 'AWS'
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'AWSManagedRulesSQLiRuleSet',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Action': {
+                        'Block': {
+                            'CustomResponse': {
+                                'ResponseCode': 403
+                            }
+                        }
+                    },
+                    'Name': 'Custom-BlockRequestHeaders',
+                    'Priority': 7,
+                    'Statement': {
+                        'SizeConstraintStatement': {
+                            'ComparisonOperator': 'GE',
+                            'FieldToMatch': {
+                                'SingleHeader': {
+                                    'Name': 'x-amzn-requestid'
+                                }
+                            },
+                            'Size': 0,
+                            'TextTransformations': [
+                                {
+                                    'Priority': 0,
+                                    'Type': 'NONE'
+                                }
+                            ]
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'Custom-BlockRequestHeaders',
+                        'SampledRequestsEnabled': true
+                    }
+                }
+            ],
+            'Scope': 'REGIONAL',
+            'VisibilityConfig': {
+                'CloudWatchMetricsEnabled': true,
+                'MetricName': 'webACL',
+                'SampledRequestsEnabled': true
+            }
+        });
+
         template.resourceCountIs('AWS::WAFv2::WebACLAssociation', 1);
         template.hasResourceProperties('AWS::WAFv2::WebACLAssociation', {
             ResourceArn: {
@@ -500,6 +685,54 @@ describe('When creating rest endpoints', () => {
             PathPart: 'model-info',
             RestApiId: {
                 Ref: restApiCapture.asString()
+            }
+        });
+    });
+
+    it('should have methods with correct parameters', () => {
+        const restApiCapture = new Capture();
+        const authorizerCapture = new Capture();
+        const validatorCapture = new Capture();
+
+        template.resourceCountIs('AWS::ApiGateway::Method', 14);
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            AuthorizationType: 'CUSTOM',
+            AuthorizerId: { 'Ref': authorizerCapture },
+            HttpMethod: 'GET',
+            Integration: {
+                'IntegrationHttpMethod': 'POST',
+                'PassthroughBehavior': 'NEVER',
+                'Type': 'AWS_PROXY',
+                'Uri': {
+                    'Fn::Join': [
+                        '',
+                        [
+                            'arn:',
+                            { 'Ref': 'AWS::Partition' },
+                            ':apigateway:',
+                            { 'Ref': 'AWS::Region' },
+                            ':lambda:path/2015-03-31/functions/',
+                            { 'Fn::GetAtt': [Match.stringLikeRegexp('MockGetRequestFunction*'), 'Arn'] },
+                            '/invocations'
+                        ]
+                    ]
+                }
+            },
+            OperationName: 'GetUseCases',
+            RequestParameters: {
+                'method.request.querystring.pageNumber': true,
+                'method.request.querystring.searchFilter': false,
+                'method.request.header.authorization': true
+            },
+            RequestValidatorId: {
+                'Ref': validatorCapture
+            },
+            ResourceId: {
+                'Ref': Match.stringLikeRegexp('TestEndpointCreationEndPointLambdaRestApideployments*')
+            },
+            RestApiId: {
+                'Ref': restApiCapture
             }
         });
     });
@@ -618,7 +851,8 @@ describe('When creating rest endpoints', () => {
             ResponseType: 'DEFAULT_5XX',
             RestApiId: {
                 Ref: restApiCapture.asString()
-            }
+            },
+            StatusCode: '400'
         });
     });
 });

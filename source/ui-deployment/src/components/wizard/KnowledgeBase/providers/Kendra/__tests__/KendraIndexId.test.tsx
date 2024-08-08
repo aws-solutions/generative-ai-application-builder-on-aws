@@ -16,7 +16,7 @@ import { screen } from '@testing-library/react';
 
 describe('KendraIndexId', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('renders component with default value for index id', () => {
