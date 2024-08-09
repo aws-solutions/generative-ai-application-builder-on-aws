@@ -31,19 +31,19 @@ import workerJson from 'ace-builds/src-min-noconflict/worker-json?url';
 
 export const getFieldOnChange =
     (fieldType, fieldKey, onChangeFn) =>
-    ({ detail: { selectedOption, value, checked } }) => {
-        let fieldValue;
-        if (fieldType === 'select') {
-            fieldValue = selectedOption;
-        } else if (fieldType === 'toggle') {
-            fieldValue = checked;
-        } else {
-            fieldValue = value;
-        }
-        onChangeFn({
-            [fieldKey]: fieldValue
-        });
-    };
+        ({ detail: { selectedOption, value, checked } }) => {
+            let fieldValue;
+            if (fieldType === 'select') {
+                fieldValue = selectedOption;
+            } else if (fieldType === 'toggle') {
+                fieldValue = checked;
+            } else {
+                fieldValue = value;
+            }
+            onChangeFn({
+                [fieldKey]: fieldValue
+            });
+        };
 
 export const createDeployRequestPayload = (stepsInfo) => {
     const payload = {
@@ -90,8 +90,11 @@ export const createUseCaseInfoApiParams = (useCaseStepInfo) => {
         DeployUI: useCaseStepInfo.deployUI,
         ...(useCaseStepInfo.defaultUserEmail &&
             useCaseStepInfo.defaultUserEmail !== '' && {
-                DefaultUserEmail: useCaseStepInfo.defaultUserEmail
-            })
+            DefaultUserEmail: useCaseStepInfo.defaultUserEmail
+        }),
+        ...({
+            ExistingCognitoUserPoolId: useCaseStepInfo.existingUserPool ? useCaseStepInfo.userPoolId : null
+        })
     };
     return params;
 };
@@ -674,6 +677,8 @@ export const mapUseCaseStepInfoFromDeployment = (selectedDeployment) => {
         defaultUserEmail: defaultUserEmail !== 'placeholder@example.com' ? defaultUserEmail : '',
         useCaseDescription: useCaseDescription || '',
         deployUI: selectedDeployment.deployUI === 'Yes',
+        existingUserPool: selectedDeployment.ExistingCognitoUserPoolId ? true : false,
+        userPoolId: selectedDeployment.ExistingCognitoUserPoolId || '',
         inError: false
     };
 };

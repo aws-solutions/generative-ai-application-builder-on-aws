@@ -43,6 +43,10 @@ export const updateUseCaseBodySchema: JsonSchema = {
             description: 'Email address of the user who will be created with permissions to use the deployed use-case',
             format: 'email'
         },
+        ExistingCognitoUserPoolId: {
+            type: [JsonSchemaType.STRING, JsonSchemaType.NULL],
+            description: 'The ID of the Cognito User Pool to be used for the use case deployment. If empty, the default Cognito User Pool (created with deployment dashboard) will be used.'
+        },
         DeployUI: {
             type: JsonSchemaType.BOOLEAN,
             description: 'Deploy the CloudFront based UI for the use case',
@@ -419,6 +423,9 @@ export const updateUseCaseBodySchema: JsonSchema = {
     anyOf: [
         {
             required: ['UseCaseDescription']
+        },
+        {
+            required: ['ExistingCognitoUserPoolId']
         },
         {
             required: ['DefaultUserEmail']

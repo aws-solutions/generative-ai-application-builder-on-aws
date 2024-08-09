@@ -26,6 +26,44 @@ export const TOOLS_CONTENT = {
                 }
             ]
         },
+        existingUserPool: {
+            title: 'Default or Existing User Pool',
+            content: (
+                <Box variant="p">
+                    If <b>No</b> is selected, the solution will use the default user pool. This user pool is by default used for both the Deployment Dashboard and all the use cases.<br /><br />
+                    Otherwise, if you select <b>Yes</b>, you will be asked to provide a UserPoolId rather than using the default one. This allows you to pre-create and configure user pool based on your requirements and use it to authenticate to the use case interface.
+                </Box>
+            ),
+            links: [
+                {
+                    href: IG_DOCS.MANAGE_USERS,
+                    text: 'Manage user access'
+                }
+            ]
+        },
+        byoUserPool: {
+            title: 'Bring Your Own User Pool',
+            content: (
+                <SpaceBetween size="xs">
+                    <Box variant="p">
+                        Use this option to configure the Cognito User Pool Id to be used by the deployment. When deploying the solution,
+                        you have the option to use an existing Congito User Pool. If you choose otherwise, the solution will use the default Cognito User Pool
+                        which is used to login to use case deployment dashboard.
+                    </Box>
+                </SpaceBetween>
+            ),
+
+            links: [
+                {
+                    href: IG_DOCS.VPC,
+                    text: 'VPC'
+                },
+                {
+                    href: IG_DOCS.VPC_CONSOLE,
+                    text: 'VPC Console'
+                }
+            ]
+        },
         defaultUserEmail: {
             title: 'Default user email address',
             content: (

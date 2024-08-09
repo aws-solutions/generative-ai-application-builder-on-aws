@@ -103,7 +103,9 @@ export const DEFAULT_STEP_INFO = {
         useCaseDescription: '',
         defaultUserEmail: '',
         deployUI: true,
-        inError: false
+        existingUserPool: false,
+        userPoolId: '',
+        inError: false,
     },
     vpc: {
         isVpcRequired: false,
