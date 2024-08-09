@@ -74,6 +74,7 @@ export interface ConversationMemoryParams {
 
 export interface UseCaseConfiguration {
     UseCaseName?: string;
+    ExistingCognitoUserPoolId?: string;
     ConversationMemoryParams?: ConversationMemoryParams;
     KnowledgeBaseParams?: KnowledgeBaseParams;
     LlmParams?: LlmParams;

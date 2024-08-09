@@ -58,6 +58,10 @@ export const deployUseCaseBodySchema: JsonSchema = {
             description: 'Deploy the CloudFront based UI for the use case',
             default: true
         },
+        ExistingCognitoUserPoolId: {
+            type: [JsonSchemaType.STRING, JsonSchemaType.NULL],
+            description: 'The ID of the Cognito User Pool to be used for the use case deployment. If empty, the default Cognito User Pool (created with deployment dashboard) will be used.'
+        },
         VpcParams: {
             type: JsonSchemaType.OBJECT,
             description:

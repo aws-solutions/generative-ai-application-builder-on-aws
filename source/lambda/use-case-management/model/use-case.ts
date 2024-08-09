@@ -296,7 +296,7 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
         );
         cfnParameters.set(CfnParameterKeys.UseCaseConfigTableName, process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]!);
 
-        cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, process.env[USER_POOL_ID_ENV_VAR]!);
+        cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, eventBody.ExistingCognitoUserPoolId  || process.env[USER_POOL_ID_ENV_VAR]!);
         if (
             process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR] &&
             process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR].toLowerCase() === 'true' &&
@@ -394,6 +394,7 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
     private static createConfiguration(eventBody: any): UseCaseConfiguration {
         let config = {
             UseCaseName: eventBody.UseCaseName,
+            ExistingCognitoUserPoolId: eventBody.ExistingCognitoUserPoolId,
             ConversationMemoryParams: eventBody.ConversationMemoryParams,
             KnowledgeBaseParams: {
                 KnowledgeBaseType: eventBody.KnowledgeBaseParams?.KnowledgeBaseType,

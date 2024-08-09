@@ -222,6 +222,12 @@ export const GeneralConfig = () => {
                     <ValueWithLabel label={'VPC ID'}>{selectedDeployment.vpcId}</ValueWithLabel>
                 )}
 
+                {selectedDeployment.ExistingCognitoUserPoolId && (
+                    <ValueWithLabel label={'Existing User Pool Id'}>{selectedDeployment.ExistingCognitoUserPoolId}</ValueWithLabel>
+                )}
+
+
+
                 {isVpcEnabled && selectedDeployment.privateSubnetIds && (
                     <ValueWithLabel label={'Subnet IDs'}>
                         {selectedDeployment.privateSubnetIds.join(', ')}
