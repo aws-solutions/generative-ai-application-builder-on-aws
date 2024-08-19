@@ -62,7 +62,7 @@ export const OverrideSearchType = (props: AdvancedKnowledgeBaseConfigProps) => {
                     ariaLabel={'Information about the Bedrock Knowledge Base Override Search Type Option'}
                 />
             }
-            description="ID of an existing Bedrock Knowledge Base in the AWS account."
+            description="Overrides the default knowledge base search behavior to use hybrid or semantic search"
             data-testid="input-bedrock-knowledge-base-override-search-type"
         >
             <SpaceBetween size="l">

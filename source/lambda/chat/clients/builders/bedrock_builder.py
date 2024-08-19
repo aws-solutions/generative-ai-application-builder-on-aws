@@ -20,7 +20,7 @@ from clients.builders.llm_builder import LLMBuilder
 from llms.bedrock import BedrockLLM
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
-from utils.constants import DEFAULT_RAG_ENABLED_MODE, DEFAULT_RETURN_SOURCE_DOCS
+from utils.constants import BEDROCK_GUARDRAILS_KEY, DEFAULT_RAG_ENABLED_MODE, DEFAULT_RETURN_SOURCE_DOCS
 from utils.enum_types import BedrockModelProviders, CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client
 
@@ -78,6 +78,8 @@ class BedrockBuilder(LLMBuilder):
         # ModelArn for Bedrock provisioned models
         model_inputs = self.model_params.__dict__
         model_inputs["model_arn"] = bedrock_config.get("ModelArn")
+        model_inputs[BEDROCK_GUARDRAILS_KEY] = self.get_guardrails(bedrock_config)
+
         self.model_params = BedrockInputs(**model_inputs)
 
         try:

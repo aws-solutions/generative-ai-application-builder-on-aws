@@ -40,18 +40,6 @@ describe('CopyUseCaseUIAssets', () => {
             Description: 'Arn of the S3 bucket to be used for hosting the website'
         });
 
-        template.hasParameter('CustomResourceLambdaArn', {
-            Type: 'String',
-            AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            Description: 'Arn of the Lambda function to use for custom resource implementation.'
-        });
-
-        template.hasParameter('CustomResourceRoleArn', {
-            Type: 'String',
-            AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            Description: 'Arn of the IAM role to use for custom resource implementation.'
-        });
-
         template.hasParameter('UseCaseConfigTableName', {
             Type: 'String',
             AllowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',

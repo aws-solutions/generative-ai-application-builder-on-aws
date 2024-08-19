@@ -208,7 +208,9 @@ describe('When Chat use case is created', () => {
             Description: 'Websocket API endpoint',
             Value: {
                 'Fn::GetAtt': [
-                    'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApi7E5024D8',
+                    Match.stringLikeRegexp(
+                        'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApiApiGatewayV2WebSocketToSqs'
+                    ),
                     'ApiEndpoint'
                 ]
             }

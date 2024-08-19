@@ -14,9 +14,10 @@ import * as cdk from 'aws-cdk-lib';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
+import { BaseNestedStack } from '../framework/base-nested-stack';
 import { StaticWebsite } from './static-site';
 
-export class UIDistribution extends cdk.NestedStack {
+export class UIDistribution extends BaseNestedStack {
     /**
      * The bucket in which the website will be hosted
      */
@@ -30,33 +31,11 @@ export class UIDistribution extends cdk.NestedStack {
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
 
-        const accessLoggingBucket = new cdk.CfnParameter(cdk.Stack.of(this), 'AccessLoggingBucketArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):s3:::\\S+$',
-            description: 'Arn of the S3 bucket to use for access logging.'
-        });
-
-        const customResourceLambdaArn = new cdk.CfnParameter(cdk.Stack.of(this), 'CustomResourceLambdaArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            description: 'Arn of the Lambda function to use for custom resource implementation.'
-        });
-
-        const customResourceRoleArn = new cdk.CfnParameter(cdk.Stack.of(this), 'CustomResourceRoleArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            description: 'Arn of the IAM role to use for custom resource implementation.'
-        });
-
         // this will be in a separate stack
         const staticWebsite = new StaticWebsite(this, 'Website', {
-            accessLoggingBucket: s3.Bucket.fromBucketArn(
-                this,
-                'AccessLoggingBucket',
-                accessLoggingBucket.valueAsString
-            ),
-            customResourceLambdaArn: customResourceLambdaArn.valueAsString,
-            customResourceRoleArn: customResourceRoleArn.valueAsString,
+            accessLoggingBucket: s3.Bucket.fromBucketArn(this, 'AccessLoggingBucket', this.accessLoggingBucket),
+            customResourceLambdaArn: this.customResourceLambdaArn,
+            customResourceRoleArn: this.customResourceLambdaRoleArn,
             cloudFrontUUID: this.getUUID()
         });
         this.websiteBucket = staticWebsite.webS3Bucket;

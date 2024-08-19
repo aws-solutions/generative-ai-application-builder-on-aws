@@ -152,6 +152,7 @@ export class DeploymentPlatformStack extends BaseStack {
             cloudFrontUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
             deployWebApp: this.deployWebApp.valueAsString,
             deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             ...this.baseStackProps
         });
 
@@ -160,6 +161,7 @@ export class DeploymentPlatformStack extends BaseStack {
             modelInfoApiLambda: this.useCaseManagementSetup.useCaseManagement.modelInfoApiLambda,
             customResourceLambda: this.applicationSetup.customResourceLambda,
             customResourceRole: this.applicationSetup.customResourceRole,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             ...this.baseStackProps
         });
 
@@ -196,7 +198,8 @@ export class DeploymentPlatformStack extends BaseStack {
                 CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
                 CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
                 WebConfigKey: webConfigSsmKey,
-                WebS3BucketArn: this.uiDistribution.websiteBucket.bucketArn
+                WebS3BucketArn: this.uiDistribution.websiteBucket.bucketArn,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn
             },
             description: `Custom resource that copies UI assets to S3 bucket - Version ${props.solutionVersion}`
         });
@@ -274,6 +277,7 @@ export class DeploymentPlatformStack extends BaseStack {
             customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
             customResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
             iPamPoolId: this.iPamPoolId.valueAsString,
+            accessLogBucket: this.applicationSetup.accessLoggingBucket,
             ...this.baseStackProps
         });
     }

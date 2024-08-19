@@ -19,14 +19,9 @@ from llms.bedrock import BedrockLLM
 from llms.models.model_provider_inputs import ModelProviderInputs
 from llms.rag.retrieval_llm import RetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import (
-    BEDROCK_GUARDRAILS_KEY,
-    DEFAULT_BEDROCK_MODEL_FAMILY,
-    DEFAULT_BEDROCK_MODELS_MAP,
-    DEFAULT_RETURN_SOURCE_DOCS,
-)
+from utils.constants import DEFAULT_BEDROCK_MODEL_FAMILY, DEFAULT_BEDROCK_MODELS_MAP, DEFAULT_RETURN_SOURCE_DOCS
 from utils.enum_types import BedrockModelProviders, CloudWatchNamespaces
-from utils.helpers import get_metrics_client, type_cast
+from utils.helpers import get_metrics_client
 
 tracer = Tracer()
 logger = Logger(utc=True)
@@ -91,16 +86,7 @@ class BedrockRetrievalLLM(RetrievalLLM, BedrockLLM):
             self.model_family = DEFAULT_BEDROCK_MODEL_FAMILY
 
         self.model_arn = llm_params.model_arn
-
-        if llm_params.model_params is not None and BEDROCK_GUARDRAILS_KEY in llm_params.model_params:
-            self.guardrails = type_cast(
-                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Value"),
-                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Type"),
-            )
-            llm_params.model_params.pop(BEDROCK_GUARDRAILS_KEY)
-        else:
-            self.guardrails = None
-
+        self.guardrails = llm_params.guardrails
         self.model_params = self.get_clean_model_params(llm_params.model_params)
 
         self.llm = self.get_llm()

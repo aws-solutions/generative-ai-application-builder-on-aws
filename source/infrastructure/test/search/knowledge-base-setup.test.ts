@@ -25,6 +25,10 @@ describe('When a new Kendra index is to be created', () => {
 
     beforeAll(() => {
         const stack = new cdk.Stack();
+        const applicationSetup = new ApplicationSetup(stack, 'ApplicationSetup', {
+            solutionID: rawCdkJson.context.solution_id,
+            solutionVersion: rawCdkJson.context.solution_version
+        });
 
         knowledgeBaseSetup = new KnowledgeBaseSetup(stack, 'TestKnowledgeBaseSetup', {
             useCaseUUID: 'FAKEABCD',
@@ -41,14 +45,12 @@ describe('When a new Kendra index is to be created', () => {
                     ''
                 )
             }),
-            customInfra: new ApplicationSetup(stack, 'ApplicationSetup', {
-                solutionID: rawCdkJson.context.solution_id,
-                solutionVersion: rawCdkJson.context.solution_version
-            }).customResourceLambda,
+            customInfra: applicationSetup.customResourceLambda,
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
-            applicationTrademarkName: rawCdkJson.context.application_trademark_name
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name,
+            accessLoggingBucket: applicationSetup.accessLoggingBucket
         });
 
         template = Template.fromStack(stack);
@@ -106,6 +108,10 @@ describe('When using an existing Kendra index', () => {
 
     beforeAll(() => {
         const stack = new cdk.Stack();
+        const applicationSetup = new ApplicationSetup(stack, 'ApplicationSetup', {
+            solutionID: rawCdkJson.context.solution_id,
+            solutionVersion: rawCdkJson.context.solution_version
+        });
 
         knowledgeBaseSetup = new KnowledgeBaseSetup(stack, 'TestKnowledgeBaseSetup', {
             useCaseUUID: 'FAKEABCD',
@@ -122,14 +128,12 @@ describe('When using an existing Kendra index', () => {
                     ''
                 )
             }),
-            customInfra: new ApplicationSetup(stack, 'ApplicationSetup', {
-                solutionID: rawCdkJson.context.solution_id,
-                solutionVersion: rawCdkJson.context.solution_version
-            }).customResourceLambda,
+            customInfra: applicationSetup.customResourceLambda,
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
-            applicationTrademarkName: rawCdkJson.context.application_trademark_name
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name,
+            accessLoggingBucket: applicationSetup.accessLoggingBucket
         });
 
         template = Template.fromStack(stack);

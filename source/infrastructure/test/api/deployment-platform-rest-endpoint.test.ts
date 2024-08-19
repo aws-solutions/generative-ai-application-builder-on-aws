@@ -454,9 +454,7 @@ describe('When creating rest endpoints', () => {
             'Rules': [
                 {
                     'Name': 'AWS-AWSManagedRulesBotControlRuleSet',
-                    'OverrideAction': {
-                        'None': {}
-                    },
+                    'OverrideAction': { 'None': {} },
                     'Priority': 0,
                     'Statement': {
                         'ManagedRuleGroupStatement': {
@@ -472,9 +470,7 @@ describe('When creating rest endpoints', () => {
                 },
                 {
                     'Name': 'AWS-AWSManagedRulesKnownBadInputsRuleSet',
-                    'OverrideAction': {
-                        'None': {}
-                    },
+                    'OverrideAction': { 'None': {} },
                     'Priority': 1,
                     'Statement': {
                         'ManagedRuleGroupStatement': {
@@ -490,27 +486,29 @@ describe('When creating rest endpoints', () => {
                 },
                 {
                     'Name': 'AWS-AWSManagedRulesCommonRuleSet',
-                    'OverrideAction': {
-                        'None': {}
-                    },
+                    'OverrideAction': { 'None': {} },
                     'Priority': 2,
                     'Statement': {
                         'ManagedRuleGroupStatement': {
                             'Name': 'AWSManagedRulesCommonRuleSet',
+                            'RuleActionOverrides': [
+                                {
+                                    'ActionToUse': { 'Count': {} },
+                                    'Name': 'SizeRestrictions_BODY'
+                                }
+                            ],
                             'VendorName': 'AWS'
                         }
                     },
                     'VisibilityConfig': {
                         'CloudWatchMetricsEnabled': true,
-                        'MetricName': 'AWSManagedRulesCommonRuleSet',
+                        'MetricName': 'AWS-AWSManagedRulesCommonRuleSet',
                         'SampledRequestsEnabled': true
                     }
                 },
                 {
                     'Name': 'AWS-AWSManagedRulesAnonymousIpList',
-                    'OverrideAction': {
-                        'None': {}
-                    },
+                    'OverrideAction': { 'None': {} },
                     'Priority': 3,
                     'Statement': {
                         'ManagedRuleGroupStatement': {
@@ -526,9 +524,7 @@ describe('When creating rest endpoints', () => {
                 },
                 {
                     'Name': 'AWS-AWSManagedRulesAmazonIpReputationList',
-                    'OverrideAction': {
-                        'None': {}
-                    },
+                    'OverrideAction': { 'None': {} },
                     'Priority': 4,
                     'Statement': {
                         'ManagedRuleGroupStatement': {
@@ -544,9 +540,7 @@ describe('When creating rest endpoints', () => {
                 },
                 {
                     'Name': 'AWS-AWSManagedRulesAdminProtectionRuleSet',
-                    'OverrideAction': {
-                        'None': {}
-                    },
+                    'OverrideAction': { 'None': {} },
                     'Priority': 5,
                     'Statement': {
                         'ManagedRuleGroupStatement': {
@@ -562,9 +556,7 @@ describe('When creating rest endpoints', () => {
                 },
                 {
                     'Name': 'AWS-AWSManagedRulesSQLiRuleSet',
-                    'OverrideAction': {
-                        'None': {}
-                    },
+                    'OverrideAction': { 'None': {} },
                     'Priority': 6,
                     'Statement': {
                         'ManagedRuleGroupStatement': {
@@ -582,6 +574,7 @@ describe('When creating rest endpoints', () => {
                     'Action': {
                         'Block': {
                             'CustomResponse': {
+                                'CustomResponseBodyKey': 'HeadersNotAllowed',
                                 'ResponseCode': 403
                             }
                         }
@@ -592,22 +585,49 @@ describe('When creating rest endpoints', () => {
                         'SizeConstraintStatement': {
                             'ComparisonOperator': 'GE',
                             'FieldToMatch': {
-                                'SingleHeader': {
-                                    'Name': 'x-amzn-requestid'
-                                }
+                                'SingleHeader': { 'Name': 'x-amzn-requestid' }
                             },
                             'Size': 0,
-                            'TextTransformations': [
+                            'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
+                        }
+                    },
+                    'VisibilityConfig': {
+                        'CloudWatchMetricsEnabled': true,
+                        'MetricName': 'Custom-BlockRequestHeaders',
+                        'SampledRequestsEnabled': true
+                    }
+                },
+                {
+                    'Action': { 'Block': {} },
+                    'Name': 'Custom-BlockOversizedBodyNotInDeploy',
+                    'Priority': 8,
+                    'Statement': {
+                        'AndStatement': {
+                            'Statements': [
                                 {
-                                    'Priority': 0,
-                                    'Type': 'NONE'
+                                    'LabelMatchStatement': {
+                                        'Key': 'awswaf:managed:aws:core-rule-set:SizeRestrictions_Body',
+                                        'Scope': 'LABEL'
+                                    }
+                                },
+                                {
+                                    'NotStatement': {
+                                        'Statement': {
+                                            'ByteMatchStatement': {
+                                                'FieldToMatch': { 'UriPath': {} },
+                                                'PositionalConstraint': 'ENDS_WITH',
+                                                'SearchString': '/deployments',
+                                                'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
+                                            }
+                                        }
+                                    }
                                 }
                             ]
                         }
                     },
                     'VisibilityConfig': {
                         'CloudWatchMetricsEnabled': true,
-                        'MetricName': 'Custom-BlockRequestHeaders',
+                        'MetricName': 'Custom-BlockOversizedBodyNotInDeploy',
                         'SampledRequestsEnabled': true
                     }
                 }

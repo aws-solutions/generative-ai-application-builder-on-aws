@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2024-08-19
+
+### Changed
+
+-   With the release of [AWS-Solutions-Constructs v2.65.0](https://github.com/awslabs/aws-solutions-constructs/tree/main/source/patterns/%40aws-solutions-constructs/aws-apigatewayv2websocket-sqs), the AWS ApiGateway websocket integration with Amazon SQS Queue is available in the library. Hence the
+    implementation has been updated to use this construct.
+
+### Fixed
+
+-   Issue [#131](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/131) which caused an issue with rendering non-S3 source URLs from vector store for a RAG based use case.
+-   Issue [#132](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/132) where configured Guardrails for Amazon Bedrock to have no effect on a use case's text input validations and output responses.
+-   Wizard validation failure for SageMaker model selection type, that allowed user to navigate ahead even when the page had failed validations.
+-   An AWS WAF rule that blocked larger payloads for HTTP POST request to the `/deployments` endpoint. This restricted configuring large system prompts (over 8 KB) for use case cases.
+
 ## [2.0.0] - 2024-08-08
 
 ### Added

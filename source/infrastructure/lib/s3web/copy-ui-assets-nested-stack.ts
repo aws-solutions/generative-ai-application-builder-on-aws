@@ -20,6 +20,7 @@ import * as path from 'path';
 
 import { Construct } from 'constructs';
 import { v4 as uuidv4 } from 'uuid';
+import { BaseNestedStack } from '../framework/base-nested-stack';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import { REACTJS_ASSET_BUNDLER } from '../framework/bundler/constants';
 import { getResourceProperties } from '../utils/common-utils';
@@ -28,7 +29,7 @@ import { getResourceProperties } from '../utils/common-utils';
  * CDK NestedStack that copies UI assets to an S3 bucket
  * and configures the necessary IAM policies.
  */
-export abstract class CopyUIAssets extends cdk.NestedStack {
+export abstract class CopyUIAssets extends BaseNestedStack {
     /**
      * The bucket in which the website will be hosted
      */
@@ -44,18 +45,6 @@ export abstract class CopyUIAssets extends cdk.NestedStack {
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
 
-        const customResourceRoleArn = new cdk.CfnParameter(cdk.Stack.of(this), 'CustomResourceRoleArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            description: 'Arn of the IAM role to use for custom resource implementation.'
-        });
-
-        const customResourceLambdaArn = new cdk.CfnParameter(cdk.Stack.of(this), 'CustomResourceLambdaArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            description: 'Arn of the Lambda function to use for custom resource implementation.'
-        });
-
         const webRuntimeConfigKey = new cdk.CfnParameter(cdk.Stack.of(this), 'WebConfigKey', {
             type: 'String',
             allowedPattern: '^(\\/[^\\/ ]*)+\\/?$',
@@ -70,6 +59,7 @@ export abstract class CopyUIAssets extends cdk.NestedStack {
             description: 'Arn of the S3 bucket to be used for hosting the website'
         });
         this.websiteBucket = s3.Bucket.fromBucketArn(this, 'WebAssetsBucket', webS3BucketArn.valueAsString);
+
         const useCaseConfigTableName = new cdk.CfnParameter(cdk.Stack.of(this), 'UseCaseConfigTableName', {
             type: 'String',
             maxLength: 255,
@@ -115,7 +105,7 @@ export abstract class CopyUIAssets extends cdk.NestedStack {
         const customResourceRole = iam.Role.fromRoleArn(
             scope,
             `AssetReadRole${uuidv4().substring(0, 4)}`,
-            customResourceRoleArn.valueAsString
+            this.customResourceLambdaRoleArn
         );
 
         const customResourceWebsiteBucketPolicy = new iam.Policy(this, 'CustomResourceWebBucketPolicy', {
@@ -181,7 +171,7 @@ export abstract class CopyUIAssets extends cdk.NestedStack {
         const resourceProperties = getResourceProperties(this, uiAssets, undefined, customResourceRole);
         const copyUseCaseWebUICustomResource = new cdk.CustomResource(this, 'CopyUseCaseUI', {
             resourceType: 'Custom::CopyWebUI',
-            serviceToken: customResourceLambdaArn.valueAsString,
+            serviceToken: this.customResourceLambdaArn,
             properties: {
                 ...resourceProperties,
                 Resource: 'COPY_WEB_UI',
@@ -202,7 +192,7 @@ export abstract class CopyUIAssets extends cdk.NestedStack {
 
         const copyDasbboardWebUICustomResource = new cdk.CustomResource(this, 'CopyDashboardUI', {
             resourceType: 'Custom::CopyWebUI',
-            serviceToken: customResourceLambdaArn.valueAsString,
+            serviceToken: this.customResourceLambdaArn,
             properties: {
                 ...resourceProperties,
                 Resource: 'COPY_WEB_UI',
