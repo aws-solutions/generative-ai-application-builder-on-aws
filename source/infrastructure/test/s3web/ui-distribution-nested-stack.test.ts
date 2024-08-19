@@ -21,26 +21,7 @@ describe('When creating a nested stack with the cloudfront distribution', () => 
     beforeAll(() => {
         template = buildStack();
     });
-
-    it('should have the required parameters as input', () => {
-        template.hasParameter('AccessLoggingBucketArn', {
-            Type: 'String',
-            AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):s3:::\\S+$',
-            Description: 'Arn of the S3 bucket to use for access logging.'
-        });
-        template.hasParameter('CustomResourceLambdaArn', {
-            Type: 'String',
-            AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            Description: 'Arn of the Lambda function to use for custom resource implementation.'
-        });
-
-        template.hasParameter('CustomResourceRoleArn', {
-            Type: 'String',
-            AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            Description: 'Arn of the IAM role to use for custom resource implementation.'
-        });
-    });
-
+    
     it('should have the correct output', () => {
         template.hasOutput('WebUrl', {
             Value: {

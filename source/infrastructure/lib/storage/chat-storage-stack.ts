@@ -17,6 +17,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
+import { BaseNestedStack } from '../framework/base-nested-stack';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
 import { DynamoDBAttributes } from '../utils/constants';
 import { UseCaseModelInfoStorage } from './use-case-model-info-storage';
@@ -37,16 +38,6 @@ export class DynamoDBChatStorageParameters {
      */
     public readonly newModelInfoTableName: string;
 
-    /**
-     * Arn of the Lambda function to use for custom resource implementation.
-     */
-    public readonly customResourceLambdaArn: string;
-
-    /**
-     * Arn of the IAM role to use for custom resource implementation.
-     */
-    public readonly customResourceRoleArn: string;
-
     constructor(stack: IConstruct) {
         this.conversationTableName = new cdk.CfnParameter(stack, 'ConversationTableName', {
             type: 'String',
@@ -62,23 +53,10 @@ export class DynamoDBChatStorageParameters {
             default: '',
             description: 'DynamoDB table name for the existing table which contains model info and defaults.'
         }).valueAsString;
-
-        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
-            type: 'String',
-            maxLength: 255,
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            description: 'Arn of the Lambda function to use for custom resource implementation.'
-        }).valueAsString;
-
-        this.customResourceRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            description: 'Arn of the IAM role to use for custom resource implementation.'
-        }).valueAsString;
     }
 }
 
-export class DynamoDBChatStorage extends cdk.NestedStack {
+export class DynamoDBChatStorage extends BaseNestedStack {
     /**
      * The DynamoDB table which will store the conversation state and history
      */
@@ -136,8 +114,8 @@ export class DynamoDBChatStorage extends cdk.NestedStack {
 
         this.modelInfoStorage = new UseCaseModelInfoStorage(this, 'ModelInfoStorage', {
             existingModelInfoTableName: stackParams.existingModelInfoTableName,
-            customResourceLambdaArn: stackParams.customResourceLambdaArn,
-            customResourceRoleArn: stackParams.customResourceRoleArn
+            customResourceLambdaArn: this.customResourceLambdaArn,
+            customResourceRoleArn: this.customResourceLambdaRoleArn
         });
     }
 }

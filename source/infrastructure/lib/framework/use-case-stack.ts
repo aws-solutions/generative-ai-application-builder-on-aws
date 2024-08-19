@@ -612,6 +612,7 @@ export abstract class UseCaseChat extends BaseStack {
             newKendraIndexEdition: this.stackParameters.newKendraIndexEdition.valueAsString,
             deployKendraIndexCondition: deployKendraIndexCondition,
             customInfra: this.applicationSetup.customResourceLambda,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             ...this.baseStackProps
         });
         this.chatStorageSetup = new ChatStorageSetup(this, 'ChatStorageSetup', {
@@ -620,6 +621,7 @@ export abstract class UseCaseChat extends BaseStack {
             newModelInfoTableCondition: this.newModelInfoTableCondition,
             customResourceLambda: this.applicationSetup.customResourceLambda,
             customResourceRole: this.applicationSetup.customResourceRole,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             ...this.baseStackProps
         });
 
@@ -705,7 +707,8 @@ export abstract class UseCaseChat extends BaseStack {
                 WebConfigKey: webConfigSsmKey,
                 WebS3BucketArn: this.uiDistribution.websiteBucket.bucketArn,
                 UseCaseConfigRecordKey: this.stackParameters.useCaseConfigRecordKey.valueAsString,
-                UseCaseConfigTableName: this.stackParameters.useCaseConfigTableName.valueAsString
+                UseCaseConfigTableName: this.stackParameters.useCaseConfigTableName.valueAsString,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn
             },
             description: `Custom resource that copies UI assets to S3 bucket - Version ${props.solutionVersion}`
         });
@@ -883,7 +886,7 @@ export abstract class UseCaseChat extends BaseStack {
                     id: 'AwsSolutions-IAM5',
                     reason: 'Needed by websocket endpoints',
                     appliesTo: [
-                        'Resource::arn:<AWS::Partition>:execute-api:<AWS::Region>:<AWS::AccountId>:<WebsocketRequestProcessorWebSocketEndpointChatAPIBD50D997>/*/*/@connections/*'
+                        'Resource::arn:<AWS::Partition>:execute-api:<AWS::Region>:<AWS::AccountId>:<WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApiApiGatewayV2WebSocketToSqs015CCDDD>/*/*/@connections/*'
                     ]
                 }
             ]

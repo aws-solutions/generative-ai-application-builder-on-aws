@@ -19,6 +19,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
+import { BaseNestedStack } from '../framework/base-nested-stack';
 import * as cfn_nag from '../utils/cfn-guard-suppressions';
 import { createCustomResourceForLambdaLogRetention } from '../utils/common-utils';
 import { LOG_RETENTION_PERIOD } from '../utils/constants';
@@ -31,7 +32,7 @@ export interface CustomVPCProps extends cdk.NestedStackProps {}
 /**
  * Construct to deploy the VPC as a nested stack
  */
-export abstract class CustomVPC extends cdk.NestedStack {
+export abstract class CustomVPC extends BaseNestedStack {
     /**
      * The VPC for the stack
      */
@@ -48,16 +49,6 @@ export abstract class CustomVPC extends cdk.NestedStack {
     public vpcEndpointSecurityGroup: ec2.SecurityGroup;
 
     /**
-     * Arn of the Lambda function to use for custom resource implementation.
-     */
-    public readonly customResourceLambdaArn: string;
-
-    /**
-     * Arn of the IAM role to use for custom resource implementation.
-     */
-    public readonly customResourceRoleArn: string;
-
-    /**
      *  If you would like to assign the CIDR range using AWS VPC IP Address Manager, please provide the IPAM pool Id to use
      */
     public readonly iPamPoolId: string;
@@ -66,20 +57,8 @@ export abstract class CustomVPC extends cdk.NestedStack {
         super(scope, id, props);
 
         const stack = cdk.Stack.of(this);
-        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
-            type: 'String',
-            maxLength: 255,
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            description: 'Arn of the Lambda function to use for custom resource implementation.'
-        }).valueAsString;
 
-        this.customResourceRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            description: 'Arn of the IAM role to use for custom resource implementation.'
-        }).valueAsString;
-
-        this.iPamPoolId = new cdk.CfnParameter(this, 'IPAMPoolId', {
+        this.iPamPoolId = new cdk.CfnParameter(stack, 'IPAMPoolId', {
             type: 'String',
             description:
                 'If you would like to assign the CIDR range using AWS VPC IP Address Manager, please provide the IPAM pool Id to use',

@@ -79,7 +79,7 @@ export class ExistingVPCParameters {
 
         let existingParameterGroups =
             stack.templateOptions.metadata !== undefined &&
-            stack.templateOptions.metadata.hasOwnProperty('AWS::CloudFormation::Interface') &&
+            Object.prototype.hasOwnProperty.call(stack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
             stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
                 ? stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
                 : [];

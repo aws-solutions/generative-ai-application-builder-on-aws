@@ -81,6 +81,7 @@ aws-lambda-powertools==2.20.0                               MIT
 aws-sdk-client-mock                                         MIT
 aws-sdk-mock                                                Apache-2.0
 aws-xray-sdk==2.12.0                                        Apache-2.0
+axios                                                       MIT
 black                                                       MIT
 boolean.py                                                  BSD-2-Clause
 bootstrap                                                   MIT

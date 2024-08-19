@@ -125,8 +125,9 @@ export const InputSchema = (props: InputSchemaProps) => {
             }
 
             if (!isModelParamsInTemplate()) {
-                errors += `Input schema must only contain model parameters present in Advanced Model Parameters below. 
-                Please ensure the model parameters are filled in correctly.`;
+                errors += `Input schema and Advanced Model Parameters must match. 
+                Please ensure the model parameters and schema are filled in correctly.
+                Exception to this rule which need not be placed in the input schema are: "CustomAttributes", "TargetModel", "TargetVariant", "TargetContainerHostname", "InferenceId", "EnableExplanations", "InferenceComponentName".`;
             }
             setInputSchemaError(errors);
         } catch (error) {

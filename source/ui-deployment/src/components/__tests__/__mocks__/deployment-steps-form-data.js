@@ -82,6 +82,7 @@ export const sampleDeployUseCaseFormData = {
         'disambiguationEnabled': true,
         'disambiguationPromptTemplate': 'fake-disambiguation-prompt',
         'chatHistoryLength': 20,
-        'userPromptEditingEnabled': true
+        'userPromptEditingEnabled': true,
+        'rephraseQuestion': true
     }
 };

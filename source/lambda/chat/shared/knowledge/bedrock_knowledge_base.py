@@ -102,16 +102,25 @@ class BedrockKnowledgeBase(KnowledgeBase):
         """
         formatted_source_docs = []
         for doc in source_documents:
-            # location is of type https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_RetrievalResultLocation.html. More types may be added, but for now only s3 is supported.
+            # location is of type https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_RetrievalResultLocation.html. More types may be added, but for now only those below are supported.
             doc_location = None
             location_type = doc.metadata.get("location", {}).get("type")
 
-            if location_type == "S3":
-                doc_location = doc.metadata.get("location", {}).get("s3Location", {}).get("uri")
-            else:
-                logger.warning(
-                    f"Unsupported Bedrock location type ${location_type} detected. No location will be returned."
-                )
+            match location_type:
+                case "S3":
+                    doc_location = doc.metadata.get("location", {}).get("s3Location", {}).get("uri")
+                case "WEB":
+                    doc_location = doc.metadata.get("location", {}).get("webLocation", {}).get("url")
+                case "CONFLUENCE":
+                    doc_location = doc.metadata.get("location", {}).get("confluenceLocation", {}).get("url")
+                case "SALESFORCE":
+                    doc_location = doc.metadata.get("location", {}).get("salesforceLocation", {}).get("url")
+                case "SHAREPOINT":
+                    doc_location = doc.metadata.get("location", {}).get("sharePointLocation", {}).get("url")
+                case _:
+                    logger.warning(
+                        f"Unsupported Bedrock location type ${location_type} detected. No location will be returned."
+                    )
 
             doc = SourceDocument(
                 excerpt=doc.page_content,

@@ -55,6 +55,7 @@ export class BedrockChat extends UseCaseChat {
             customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
             customResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
             iPamPoolId: this.iPamPoolId.valueAsString,
+            accessLogBucket: this.applicationSetup.accessLoggingBucket,
             ...this.baseStackProps
         });
     }

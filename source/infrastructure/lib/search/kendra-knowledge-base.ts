@@ -20,6 +20,7 @@ import * as kms from 'aws-cdk-lib/aws-kms';
 import { Construct, IConstruct } from 'constructs';
 
 import { NagSuppressions } from 'cdk-nag';
+import { BaseUseCaseNestedStack } from '../framework/base-nested-stack';
 import {
     DEFAULT_KENDRA_EDITION,
     DEFAULT_KENDRA_QUERY_CAPACITY_UNITS,
@@ -31,11 +32,6 @@ import {
 } from '../utils/constants';
 
 export class KendraKnowledgeBaseParameters {
-    /**
-     * Unique ID for this deployed use case within an application. Provided by the deployment platform if in use.
-     */
-    public readonly useCaseUUID: string;
-
     /**
      * Name of the new Kendra index to be created. Will have useCaseUUID appended.
      */
@@ -61,26 +57,7 @@ export class KendraKnowledgeBaseParameters {
      */
     public readonly kendraIndexEdition: string;
 
-    /**
-     * The custom resource lambda arn
-     */
-    public customResourceLambdaArn: string;
-
-    /**
-     * The custom resource lambda role arn
-     */
-    public customResourceLambdaRoleArn: string;
-
     constructor(stack: IConstruct) {
-        this.useCaseUUID = new cdk.CfnParameter(stack, 'UseCaseUUID', {
-            type: 'String',
-            description:
-                'UUID to identify this deployed use case within an application. Please provide an 8 character long UUID. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones',
-            allowedPattern: '^[0-9a-fA-F]{8}$',
-            maxLength: 8,
-            constraintDescription: 'Please provide an 8 character long UUID'
-        }).valueAsString;
-
         this.kendraIndexName = new cdk.CfnParameter(stack, 'KendraIndexName', {
             type: 'String',
             default: DEFAULT_NEW_KENDRA_INDEX_NAME,
@@ -115,24 +92,10 @@ export class KendraKnowledgeBaseParameters {
             description: 'Indicates whether the index is a Enterprise Edition index or a Developer Edition index',
             constraintDescription: 'You can only choose between "DEVELOPER_EDITION" OR "ENTERPRISE_EDITION"'
         }).valueAsString;
-
-        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
-            type: 'String',
-            description: 'The custom resource lambda arn',
-            allowedPattern: '^arn:aws[a-zA-Z-]*:lambda:[a-z0-9-]+:\\d{12}:function:[a-zA-Z0-9-_]+$',
-            constraintDescription: 'Please provide a valid lambda arn.'
-        }).valueAsString;
-
-        this.customResourceLambdaRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
-            type: 'String',
-            description: 'The custom resource lambda role arn',
-            allowedPattern: '^arn:aws[a-zA-Z-]*:iam::\\d{12}:role/[a-zA-Z_0-9+=,.@\\-_/]+$',
-            constraintDescription: 'Please provide a valid lambda role arn.'
-        }).valueAsString;
     }
 }
 
-export class KendraKnowledgeBase extends cdk.NestedStack {
+export class KendraKnowledgeBase extends BaseUseCaseNestedStack {
     /**
      * KMS managed key for accessing kendra
      */
@@ -207,7 +170,7 @@ export class KendraKnowledgeBase extends cdk.NestedStack {
             },
             description: `Kendra index which provides a knowledge base for the Chat use case.`,
             edition: props.kendraIndexEdition,
-            name: `${props.kendraIndexName}-${props.useCaseUUID}`,
+            name: `${props.kendraIndexName}-${this.useCaseUUID}`,
             roleArn: this.kendraKnowledgeBaseRole.roleArn,
             serverSideEncryptionConfiguration: {
                 kmsKeyId: this.kendraKMSKey.keyId
@@ -215,7 +178,7 @@ export class KendraKnowledgeBase extends cdk.NestedStack {
         } as kendra.CfnIndexProps;
 
         // we do not want the Kendra index being deleted when a use case is deleted or updated to a new index.
-        let kendraKnowledgeBaseIndex = new kendra.CfnIndex(this, 'KendraKnowledgeBase', kendraProps);
+        const kendraKnowledgeBaseIndex = new kendra.CfnIndex(this, 'KendraKnowledgeBase', kendraProps);
         kendraKnowledgeBaseIndex.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
         return kendraKnowledgeBaseIndex;
     }

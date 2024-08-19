@@ -14,6 +14,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as rawCdkJson from '../../cdk.json';
@@ -48,7 +49,8 @@ describe('When creating the use case storage construct', () => {
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
-            applicationTrademarkName: rawCdkJson.context.application_trademark_name
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name,
+            accessLoggingBucket: new s3.Bucket(stack, 'fakelogggingbucket')
         });
         template = Template.fromStack(stack);
     });

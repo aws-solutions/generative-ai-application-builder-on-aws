@@ -97,6 +97,16 @@ export const INPUT_SCHEMA_RESERVED_KEYS = {
     temperature: '<<temperature>>'
 };
 
+const SAGEMAKER_ENDPOINT_ARGS = [
+    'CustomAttributes',
+    'TargetModel',
+    'TargetVariant',
+    'TargetContainerHostname',
+    'InferenceId',
+    'EnableExplanations',
+    'InferenceComponentName'
+];
+
 export const PROMPT_SCHEMA_REGEX = /\<\<prompt\>\>/g;
 // prettier-ignore
 export const TEMPLATE_MATCHING_REGEX = /<<\w+>>/g;
@@ -138,18 +148,20 @@ export const replaceValuesInTemplate = (template: object, modelParameters: Parse
 export const validateModelParamsInTemplate = (template: string, modelParameters: ParsedModelParams): boolean => {
     const matches = template.match(TEMPLATE_MATCHING_REGEX);
     if (matches) {
-        _.remove(matches, (match) => {
-            return Object.values(INPUT_SCHEMA_RESERVED_KEYS).includes(match);
-        });
+        const filteredMatches = matches.filter((match) => !Object.values(INPUT_SCHEMA_RESERVED_KEYS).includes(match));
 
-        const isValid = matches.every((match) => {
+        const allTemplateParamsInModel = filteredMatches.every((match) => {
             const key = match.replace('<<', '').replace('>>', '');
             return _.has(modelParameters, key);
         });
 
-        return isValid;
+        const allModelParamsInTemplate = Object.keys(modelParameters).every(
+            (key) => SAGEMAKER_ENDPOINT_ARGS.includes(key) || filteredMatches.includes(`<<${key}>>`)
+        );
+
+        return allTemplateParamsInModel && allModelParamsInTemplate;
     }
-    return true;
+    return Object.keys(modelParameters).every((key) => SAGEMAKER_ENDPOINT_ARGS.includes(key));
 };
 
 /**

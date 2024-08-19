@@ -72,7 +72,8 @@ describe('When knew VPC is to be created', () => {
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
-            applicationTrademarkName: rawCdkJson.context.application_trademark_name
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name,
+            accessLogBucket: applicationSetup.accessLoggingBucket
         });
 
         template = Template.fromStack(stack);
@@ -172,7 +173,8 @@ describe('When using an existing VPC', () => {
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
-            applicationTrademarkName: rawCdkJson.context.application_trademark_name
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name,
+            accessLogBucket: applicationSetup.accessLoggingBucket
         });
 
         template = Template.fromStack(stack);

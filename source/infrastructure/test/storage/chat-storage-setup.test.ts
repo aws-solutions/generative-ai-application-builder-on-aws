@@ -15,6 +15,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as rawCdkJson from '../../cdk.json';
 import { ChatStorageSetup } from '../../lib/storage/chat-storage-setup';
 import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME } from '../../lib/utils/constants';
@@ -50,6 +51,7 @@ describe('When creating the chat storage construct', () => {
             }),
             customResourceLambda: crLambda,
             customResourceRole: crLambda.role! as iam.Role,
+            accessLoggingBucket: new s3.Bucket(stack, 'fakeaccesslog'),
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
@@ -100,6 +102,7 @@ describe('When creating the chat storage construct with an existing model info t
             }),
             customResourceLambda: crLambda,
             customResourceRole: crLambda.role! as iam.Role,
+            accessLoggingBucket: new s3.Bucket(stack, 'fakeaccesslog'),
             solutionID: rawCdkJson.context.solution_id,
             solutionVersion: rawCdkJson.context.solution_version,
             solutionName: rawCdkJson.context.solution_name,
