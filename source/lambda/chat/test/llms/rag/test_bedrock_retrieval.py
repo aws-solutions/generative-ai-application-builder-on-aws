@@ -205,6 +205,7 @@ def test_implement_error_not_raised(
         assert chat_model.conversation_memory.chat_memory.messages == []
         assert chat_model.disambiguation_prompt_template == DISAMBIGUATION_PROMPT
         assert chat_model.return_source_docs == return_source_docs
+        assert chat_model.guardrails is None
 
         assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
         assert type(chat_model.conversation_memory) == DynamoDBChatMemory
@@ -323,6 +324,7 @@ def test_bedrock_model_variation(
     assert chat_model.conversation_memory.chat_memory.messages == []
     assert chat_model.disambiguation_prompt_template == DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT
     assert chat_model.return_source_docs == return_source_docs
+    assert chat_model.guardrails is None
 
     assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
     assert type(chat_model.conversation_memory) == DynamoDBChatMemory
@@ -345,10 +347,11 @@ def test_guardrails(
     temp_bedrock_dynamodb_defaults_table,
 ):
     # testing another bedrock model
-    llm_params.model_params = {
-        "top_p": {"Value": "0.9", "Type": "float"},
-        "guardrails": {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
-    }
+    model_provider = LLMProviderTypes.BEDROCK.value
+    llm_params.model_params = {"top_p": {"Value": "0.9", "Type": "float"}}
+    llm_params.streaming = is_streaming
+    llm_params.guardrails = {"guardrailIdentifier": "fake-id", "guardrailVersion": "1"}
+
     chat = BedrockRetrievalLLM(
         llm_params=llm_params,
         model_defaults=ModelDefaults(model_provider, "anthropic.claude-x", RAG_ENABLED),
@@ -356,8 +359,7 @@ def test_guardrails(
         return_source_docs=return_source_docs,
     )
     assert chat.model_params["top_p"] == 0.9
-    assert "guardrails" not in chat.model_params
-    assert chat.guardrails == {"id": "fake-id", "version": "DRAFT"}
+    assert chat.guardrails == {"guardrailIdentifier": "fake-id", "guardrailVersion": "1"}
 
 
 @pytest.mark.parametrize(

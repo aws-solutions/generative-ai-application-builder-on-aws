@@ -20,6 +20,8 @@ from clients.builders.bedrock_builder import BedrockBuilder
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from utils.constants import (
+    BEDROCK_GUARDRAIL_IDENTIFIER_KEY,
+    BEDROCK_GUARDRAIL_VERSION_KEY,
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
     CONVERSATION_TABLE_NAME_ENV_VAR,
@@ -167,3 +169,33 @@ def test_conversation_memory_builder(
     assert builder.conversation_memory.chat_memory.table == dynamodb_resource.Table(
         os.environ[CONVERSATION_TABLE_NAME_ENV_VAR]
     )
+
+
+@pytest.mark.parametrize(
+    "model_config, output_response",
+    [
+        (
+            {},
+            None,
+        ),
+        (
+            {BEDROCK_GUARDRAIL_IDENTIFIER_KEY: "some-key"},
+            None,
+        ),
+        (
+            {BEDROCK_GUARDRAIL_IDENTIFIER_KEY: "fake-key", BEDROCK_GUARDRAIL_VERSION_KEY: "fake-version"},
+            {"guardrailIdentifier": "fake-key", "guardrailVersion": "fake-version"},
+        ),
+    ],
+)
+def test_get_guardrails(
+    model_config,
+    output_response,
+):
+    builder = BedrockBuilder(
+        use_case_config={},
+        rag_enabled=False,
+        connection_id="fake-connection-id",
+        conversation_id="fake-conversation-id",
+    )
+    builder.get_guardrails(model_config)

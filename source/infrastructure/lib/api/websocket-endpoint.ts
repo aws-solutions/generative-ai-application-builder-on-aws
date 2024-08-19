@@ -10,19 +10,18 @@
  *  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES *
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
  *  and limitations under the License.                                                                                *
- **********************************************************************************************************************/
+ *********************************************************************************************************************/
 
+import { ApiGatewayV2WebSocketToSqs } from '@aws-solutions-constructs/aws-apigatewayv2websocket-sqs';
 import { SqsToLambda } from '@aws-solutions-constructs/aws-sqs-lambda';
-import * as cdk from 'aws-cdk-lib';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
 import { WebSocketLambdaAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
-import { WebSocketAwsIntegration, WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
-import { ApiGatewayV2WebSocketToSqs } from '../framework/aws-apigwv2websocket-sqs';
 import { LOG_RETENTION_PERIOD } from '../utils/constants';
 
 export interface WebSocketProps {
@@ -99,21 +98,10 @@ export class WebSocketEndpoint extends Construct {
             maxReceiveCount: 3,
             logGroupProps: {
                 retention: LOG_RETENTION_PERIOD
-            }
-        });
-
-        apiGatewayV2WebSocketToSqs.webSocketApi.addRoute('sendMessage', {
-            integration: new WebSocketAwsIntegration('DefaultIntegration', {
-                integrationMethod: apigwv2.HttpMethod.POST,
-                integrationUri: `arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}:sqs:path/${cdk.Aws.ACCOUNT_ID}/${apiGatewayV2WebSocketToSqs.sqsQueue.queueName}`,
-                requestTemplates: { 'sendMessage': requestTemplate },
-                templateSelectionExpression: 'sendMessage',
-                passthroughBehavior: apigwv2.PassthroughBehavior.NEVER,
-                credentialsRole: apiGatewayV2WebSocketToSqs.apiGatewayRole,
-                requestParameters: {
-                    'integration.request.header.Content-Type': "'application/x-www-form-urlencoded'"
-                }
-            })
+            },
+            createDefaultRoute: false,
+            customRouteName: 'sendMessage',
+            defaultRouteRequestTemplate: { 'sendMessage': requestTemplate }
         });
 
         // the socket URL to post responses
@@ -159,5 +147,12 @@ export class WebSocketEndpoint extends Construct {
                 }
             ]
         );
+
+        NagSuppressions.addResourceSuppressions(this.websocketApiStage, [
+            {
+                id: 'AwsSolutions-APIG1',
+                reason: 'Access logging configuration has been provided as per ApiGateway v2 requirements'
+            }
+        ]);
     }
 }

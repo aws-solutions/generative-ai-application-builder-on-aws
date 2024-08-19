@@ -11,7 +11,7 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-import { DEFAULT_KENDRA_NUMBER_OF_DOCS } from '../../utils/constants';
+import { DEFAULT_KENDRA_NUMBER_OF_DOCS, DEPLOYMENT_ACTIONS } from '../../utils/constants';
 import {
     DEFAULT_STEP_INFO,
     KNOWLEDGE_BASE_PROVIDERS,
@@ -73,7 +73,7 @@ export const createUpdateRequestPayload = (stepsInfo) => {
 
     const payload = {
         ...useCaseInfoParams,
-        ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase),
+        ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase, DEPLOYMENT_ACTIONS.EDIT),
         ...createLLMParamsApiParams(stepsInfo.model, stepsInfo.prompt, stepsInfo.knowledgeBase.isRagRequired),
         ...createConversationMemoryApiParams(stepsInfo.prompt),
         ...updateVpcApiParams(stepsInfo.vpc)
@@ -239,10 +239,16 @@ export const createLLMParamsApiParams = (modelStepInfo, promptStepInfo, isRagEna
     return payload;
 };
 
-export const createKendraKnowledgeBaseParams = (knowledgeBaseStepInfo) => {
+export const createKendraKnowledgeBaseParams = (
+    knowledgeBaseStepInfo,
+    deploymentAction = DEPLOYMENT_ACTIONS.CREATE
+) => {
     const queryFilter = sanitizeQueryFilter(knowledgeBaseStepInfo.queryFilter);
 
-    if (knowledgeBaseStepInfo.existingKendraIndex === 'yes') {
+    if (
+        knowledgeBaseStepInfo.existingKendraIndex === 'yes' ||
+        (deploymentAction === DEPLOYMENT_ACTIONS.EDIT && knowledgeBaseStepInfo.kendraIndexId)
+    ) {
         return {
             KnowledgeBaseParams: {
                 KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.kendra,
@@ -312,13 +318,13 @@ export const createBedrockKnowledgeBaseParams = (knowledgeBaseStepInfo) => {
  * If RAG requirement is set to false in the knowledgeBase step then an empty object is returned
  * @param {Object} knowledgeBaseStep KnowledgeBase step form details
  */
-export const createKnowledgeBaseApiParams = (knowledgeBaseStepInfo) => {
+export const createKnowledgeBaseApiParams = (knowledgeBaseStepInfo, deploymentAction = DEPLOYMENT_ACTIONS.CREATE) => {
     if (!knowledgeBaseStepInfo.isRagRequired) {
         return {};
     }
 
     if (knowledgeBaseStepInfo.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.kendra) {
-        return createKendraKnowledgeBaseParams(knowledgeBaseStepInfo);
+        return createKendraKnowledgeBaseParams(knowledgeBaseStepInfo, deploymentAction);
     } else if (knowledgeBaseStepInfo.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.bedrock) {
         return createBedrockKnowledgeBaseParams(knowledgeBaseStepInfo);
     }

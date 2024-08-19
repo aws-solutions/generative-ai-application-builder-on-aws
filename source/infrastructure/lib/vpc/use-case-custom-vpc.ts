@@ -121,7 +121,7 @@ export class UseCaseVPC extends CustomVPC {
         const customResourceLambdaRole = iam.Role.fromRoleArn(
             this,
             'DescribeVpcEndpointServicesCustomResourceRole',
-            this.customResourceRoleArn
+            this.customResourceLambdaRoleArn
         );
 
         const describeVpcEndpointServicesPolicy = new iam.Policy(this, 'DescribeVpcEndpointServicesPolicy', {

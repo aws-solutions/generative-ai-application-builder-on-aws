@@ -79,7 +79,7 @@ export const PromptTemplate: FC<Props> = ({ onChangePrompt, showPromptWindow, ha
         if (value.length > 0) {
             if (isPromptTemplateValid()) {
                 onChangePrompt(value);
-                setSaveSuccessMessage('Prompt template saved');
+                setSaveSuccessMessage('Prompt template saved for current session');
             } else {
                 setSaveSuccessMessage('');
             }

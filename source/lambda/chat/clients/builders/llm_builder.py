@@ -25,6 +25,9 @@ from shared.callbacks.websocket_streaming_handler import WebsocketStreamingCallb
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import (
     AI_PREFIX,
+    BEDROCK_GUARDRAIL_IDENTIFIER_KEY,
+    BEDROCK_GUARDRAIL_VERSION_KEY,
+    BEDROCK_GUARDRAILS_KEY,
     CONTEXT_KEY,
     DEFAULT_DISAMBIGUATION_ENABLED_MODE,
     DEFAULT_RAG_ENABLED_MODE,
@@ -302,6 +305,17 @@ class LLMBuilder(ABC):
             ]
         else:
             self.callbacks = None
+
+    def get_guardrails(self, model_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if BEDROCK_GUARDRAIL_IDENTIFIER_KEY in model_config and BEDROCK_GUARDRAIL_VERSION_KEY in model_config:
+            guardrails_config = {}
+            guardrails_config[BEDROCK_GUARDRAILS_KEY] = {
+                "guardrailIdentifier": model_config[BEDROCK_GUARDRAIL_IDENTIFIER_KEY],
+                "guardrailVersion": model_config[BEDROCK_GUARDRAIL_VERSION_KEY],
+            }
+            return guardrails_config[BEDROCK_GUARDRAILS_KEY]
+        else:
+            return None
 
     def set_llm_model(self, model: str) -> None:
         """Sets the value of the LLM model in the builder. Each subclass implements its own LLM model.

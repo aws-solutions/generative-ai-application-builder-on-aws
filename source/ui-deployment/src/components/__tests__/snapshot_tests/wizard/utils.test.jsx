@@ -244,7 +244,8 @@ describe('createDeployRequestPayload', () => {
                     PromptTemplate: '{history}\n\n{input}',
                     DisambiguationEnabled: true,
                     DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
-                    UserPromptEditingEnabled: true
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
                 },
                 ModelParams: {},
                 Temperature: 0.1,
@@ -288,7 +289,8 @@ describe('createDeployRequestPayload', () => {
                     PromptTemplate: '{history}\n\n{input}',
                     DisambiguationEnabled: true,
                     DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
-                    UserPromptEditingEnabled: true
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
                 },
                 ModelParams: {},
                 Temperature: 0.1,
@@ -311,7 +313,8 @@ describe('createDeployRequestPayload', () => {
                     PromptTemplate: '{history}\n\n{input}',
                     DisambiguationEnabled: true,
                     DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
-                    UserPromptEditingEnabled: true
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
                 },
                 ModelParams: {},
                 Temperature: 0.1,
@@ -382,6 +385,7 @@ describe('createDeployRequestPayload', () => {
         expect(payload).toEqual({
             KnowledgeBaseParams: {
                 KnowledgeBaseType: 'Kendra',
+                NoDocsFoundResponse: undefined,
                 KendraKnowledgeBaseParams: {
                     QueryCapacityUnits: 0,
                     KendraIndexEdition: 'DEVELOPER_EDITION',
@@ -416,7 +420,8 @@ describe('createDeployRequestPayload', () => {
                     PromptTemplate: '{history}\n\n{input}',
                     DisambiguationEnabled: true,
                     DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
-                    UserPromptEditingEnabled: true
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
                 },
                 RAGEnabled: true
             },
@@ -450,13 +455,11 @@ describe('createUpdateRequestPayload', () => {
             KnowledgeBaseParams: {
                 ReturnSourceDocs: false,
                 KendraKnowledgeBaseParams: {
-                    QueryCapacityUnits: 0,
-                    KendraIndexEdition: 'DEVELOPER_EDITION',
-                    StorageCapacityUnits: 0,
-                    KendraIndexName: 'new-fake-index',
+                    ExistingKendraIndexId: 'fake-idx-id',
                     RoleBasedAccessControlEnabled: false
                 },
                 KnowledgeBaseType: 'Kendra',
+                NoDocsFoundResponse: undefined,
                 NumberOfDocs: 10
             },
             LlmParams: {
@@ -480,7 +483,8 @@ describe('createUpdateRequestPayload', () => {
                     PromptTemplate: '{history}\n\n{input}',
                     DisambiguationEnabled: true,
                     DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
-                    UserPromptEditingEnabled: true
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
                 },
                 Temperature: 0.1,
                 RAGEnabled: true
