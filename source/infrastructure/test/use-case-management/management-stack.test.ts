@@ -682,6 +682,7 @@ describe('When creating a use case management Stack', () => {
                             'cognito-idp:CreateUserPool*',
                             'cognito-idp:Delete*',
                             'cognito-idp:DescribeUserPoolClient',
+                            'cognito-idp:GetGroup',
                             'cognito-idp:SetUserPoolMfaConfig',
                             'cognito-idp:UpdateUserPoolClient'
                         ],
