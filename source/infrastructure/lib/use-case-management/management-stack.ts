@@ -707,6 +707,7 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     'cognito-idp:CreateUserPool*',
                     'cognito-idp:Delete*',
                     'cognito-idp:DescribeUserPoolClient',
+                    'cognito-idp:GetGroup',
                     'cognito-idp:SetUserPoolMfaConfig',
                     'cognito-idp:UpdateUserPoolClient'
                 ],
