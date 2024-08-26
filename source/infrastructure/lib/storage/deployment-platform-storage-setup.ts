@@ -14,18 +14,19 @@
 
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { Construct } from 'constructs';
 import { DynamoDBDeploymentPlatformStorage } from './deployment-platform-storage-stack';
 
 import { LambdaToDynamoDB } from '@aws-solutions-constructs/aws-lambda-dynamodb';
 import { NagSuppressions } from 'cdk-nag';
+import { BaseStackProps } from '../framework/base-stack';
 import {
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     USE_CASES_TABLE_NAME_ENV_VAR
 } from '../utils/constants';
-import { BaseStackProps } from '../framework/base-stack';
 
 export interface DeploymentPlatformStorageProps extends BaseStackProps {
     /**
@@ -47,6 +48,11 @@ export interface DeploymentPlatformStorageProps extends BaseStackProps {
      * The IAM role to use for custom resource implementation.
      */
     customResourceRole: iam.Role;
+
+    /**
+     * access logging bucket for any s3 resources
+     */
+    accessLoggingBucket: s3.Bucket;
 }
 
 /**
@@ -72,7 +78,8 @@ export class DeploymentPlatformStorageSetup extends Construct {
             description: `Nested Stack that creates the DynamoDB table to manage use cases - Version ${props.solutionVersion}`,
             parameters: {
                 CustomResourceLambdaArn: props.customResourceLambda.functionArn,
-                CustomResourceRoleArn: props.customResourceRole.roleArn
+                CustomResourceRoleArn: props.customResourceRole.roleArn,
+                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn
             }
         });
 

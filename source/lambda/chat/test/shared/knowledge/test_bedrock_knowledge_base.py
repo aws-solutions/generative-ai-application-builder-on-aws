@@ -134,6 +134,31 @@ def test_source_docs_formatter():
             page_content="this is a second excerpt",
             metadata={"location": {"type": "other"}, "score": 0.9},
         ),
+        Document(
+            page_content="this is a third excerpt",
+            metadata={"location": {"type": "WEB", "webLocation": {"url": "https://example.com/1"}}, "score": 0.9},
+        ),
+        Document(
+            page_content="this is a fourth excerpt",
+            metadata={
+                "location": {"type": "CONFLUENCE", "confluenceLocation": {"url": "https://example.com/2"}},
+                "score": 0.9,
+            },
+        ),
+        Document(
+            page_content="this is a fifth excerpt",
+            metadata={
+                "location": {"type": "SALESFORCE", "salesforceLocation": {"url": "https://example.com/3"}},
+                "score": 0.9,
+            },
+        ),
+        Document(
+            page_content="this is a sixth excerpt",
+            metadata={
+                "location": {"type": "SHAREPOINT", "sharePointLocation": {"url": "https://example.com/4"}},
+                "score": 0.9,
+            },
+        ),
     ]
     knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
     formatted_docs = knowledge_base.source_docs_formatter(bedrock_kb_results)
@@ -152,6 +177,38 @@ def test_source_docs_formatter():
             "excerpt": "this is a second excerpt",
             "document_id": None,
             "location": None,
+            "score": 0.9,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "this is a third excerpt",
+            "document_id": None,
+            "location": "https://example.com/1",
+            "score": 0.9,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "this is a fourth excerpt",
+            "document_id": None,
+            "location": "https://example.com/2",
+            "score": 0.9,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "this is a fifth excerpt",
+            "document_id": None,
+            "location": "https://example.com/3",
+            "score": 0.9,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "this is a sixth excerpt",
+            "document_id": None,
+            "location": "https://example.com/4",
             "score": 0.9,
         },
     ]

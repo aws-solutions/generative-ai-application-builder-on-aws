@@ -14,9 +14,10 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { UseCaseManagement } from './management-stack';
 import { BaseStackProps } from '../framework/base-stack';
+import { UseCaseManagement } from './management-stack';
 
 export interface UseCaseManagementProps extends BaseStackProps {
     /**
@@ -63,6 +64,11 @@ export interface UseCaseManagementProps extends BaseStackProps {
      * condition to decide if web application will be deployed
      */
     deployWebAppCondition: cdk.CfnCondition;
+
+    /**
+     * access logging bucket for the nested stack
+     */
+    accessLoggingBucket: s3.Bucket;
 }
 
 /**
@@ -96,7 +102,8 @@ export class UseCaseManagementSetup extends Construct {
                 ExistingPrivateSubnetIds: props.privateSubnetIds!,
                 CognitoDomainPrefix: props.cognitoDomainPrefix.valueAsString,
                 CloudFrontUrl: props.cloudFrontUrl,
-                DeployUI: props.deployWebApp
+                DeployUI: props.deployWebApp,
+                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn
             },
             description: `Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${props.solutionVersion}`
         });

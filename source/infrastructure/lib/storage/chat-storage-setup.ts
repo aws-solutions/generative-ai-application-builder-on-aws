@@ -15,10 +15,11 @@
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { Construct } from 'constructs';
-import { DynamoDBChatStorage } from './chat-storage-stack';
 import { BaseStackProps } from '../framework/base-stack';
+import { DynamoDBChatStorage } from './chat-storage-stack';
 
 export interface ChatStorageProps extends BaseStackProps {
     /**
@@ -45,6 +46,11 @@ export interface ChatStorageProps extends BaseStackProps {
      * The IAM role to use for custom resource implementation.
      */
     customResourceRole: iam.Role;
+
+    /**
+     * Access logging bucket for the S3 buckets created by the stack.
+     */
+    accessLoggingBucket: s3.Bucket;
 }
 
 /**
@@ -75,7 +81,8 @@ export class ChatStorageSetup extends Construct {
                     props.existingModelInfoTableName
                 ).toString(),
                 CustomResourceLambdaArn: props.customResourceLambda.functionArn,
-                CustomResourceRoleArn: props.customResourceRole.roleArn
+                CustomResourceRoleArn: props.customResourceRole.roleArn,
+                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn
             },
             description: `Nested Stack that creates the DynamoDB tables for the chat use case - Version ${props.solutionVersion}`
         });

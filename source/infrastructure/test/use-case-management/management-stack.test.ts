@@ -81,18 +81,6 @@ describe('When creating a use case management Stack', () => {
             ConstraintDescription: 'Please provide a valid web config SSM key',
             AllowedPattern: '^(\\/[^\\/ ]*)+\\/?$'
         });
-
-        template.hasParameter('CustomResourceLambdaArn', {
-            Type: 'String',
-            Description: 'Arn of the Lambda function to use for custom resource implementation.',
-            AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$'
-        });
-
-        template.hasParameter('CustomResourceRoleArn', {
-            Type: 'String',
-            Description: 'Arn of the IAM role to use for custom resource implementation.',
-            AllowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$'
-        });
     });
 
     it('should create a DLQ and attached it to the Lambda function', () => {
@@ -694,6 +682,7 @@ describe('When creating a use case management Stack', () => {
                             'cognito-idp:CreateUserPool*',
                             'cognito-idp:Delete*',
                             'cognito-idp:DescribeUserPoolClient',
+                            'cognito-idp:GetGroup',
                             'cognito-idp:SetUserPoolMfaConfig',
                             'cognito-idp:UpdateUserPoolClient'
                         ],

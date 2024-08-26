@@ -19,7 +19,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 import { ApiGatewayToLambda } from '@aws-solutions-constructs/aws-apigateway-lambda';
 import { WafwebaclToApiGateway } from '@aws-solutions-constructs/aws-wafwebacl-apigateway';
-import { DefaultWafRules } from '@aws-solutions-constructs/core';
+import { wrapManagedRuleSet } from '@aws-solutions-constructs/core';
 import { CfnWebACL } from 'aws-cdk-lib/aws-wafv2';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
@@ -70,9 +70,15 @@ export class DeploymentPlatformRestEndpoint extends Construct {
      */
     private readonly stack: cdk.Stack;
 
+    /**
+     * Counter for the priority of custom WAF rules
+     */
+    private rulePriorityCounter: number;
+
     constructor(scope: Construct, id: string, props: DeploymentPlatformRestEndpointProps) {
         super(scope, id);
         this.stack = cdk.Stack.of(scope);
+        this.rulePriorityCounter = CUSTOM_RULE_PRIORITY;
 
         const lambdaRestApi = new ApiGatewayToLambda(this, 'EndPoint', {
             existingLambdaObj: props.useCaseManagementAPILambda,
@@ -108,7 +114,17 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             webaclProps: {
                 defaultAction: { allow: {} },
                 scope: 'REGIONAL',
-                rules: [...DefaultWafRules(), this.defineBlockRequestHeadersRule()],
+                rules: [
+                    wrapManagedRuleSet('AWSManagedRulesBotControlRuleSet', 'AWS', 0),
+                    wrapManagedRuleSet('AWSManagedRulesKnownBadInputsRuleSet', 'AWS', 1),
+                    this.defineAWSManagedRulesCommonRuleSetWithBodyOverride(2),
+                    wrapManagedRuleSet('AWSManagedRulesAnonymousIpList', 'AWS', 3),
+                    wrapManagedRuleSet('AWSManagedRulesAmazonIpReputationList', 'AWS', 4),
+                    wrapManagedRuleSet('AWSManagedRulesAdminProtectionRuleSet', 'AWS', 5),
+                    wrapManagedRuleSet('AWSManagedRulesSQLiRuleSet', 'AWS', 6),
+                    this.defineBlockRequestHeadersRule(),
+                    this.defineBlockOversizedBodyNotInDeployRule()
+                ],
                 customResponseBodies: {
                     [HEADERS_NOT_ALLOWED_KEY]: this.createHeadersNotAllowedResponse()
                 }
@@ -474,7 +490,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
      */
     private defineBlockRequestHeadersRule(): CfnWebACL.RuleProperty {
         return {
-            priority: CUSTOM_RULE_PRIORITY,
+            priority: this.getCustomRulePriority(),
             name: 'Custom-BlockRequestHeaders',
             action: {
                 block: {
@@ -514,5 +530,97 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             content: 'One of your injected headers is not allowed',
             contentType: 'TEXT_PLAIN'
         };
+    }
+
+    /**
+     * Define WAF rule which enforces the SizeRestrictions_Body rule from the core rule set for URIs not in the /deployments path
+     * @returns WAF rule
+     */
+    private defineBlockOversizedBodyNotInDeployRule(): CfnWebACL.RuleProperty {
+        return {
+            priority: this.getCustomRulePriority(),
+            name: 'Custom-BlockOversizedBodyNotInDeploy',
+            action: {
+                block: {}
+            },
+            visibilityConfig: {
+                cloudWatchMetricsEnabled: true,
+                metricName: 'Custom-BlockOversizedBodyNotInDeploy',
+                sampledRequestsEnabled: true
+            },
+            statement: {
+                andStatement: {
+                    statements: [
+                        {
+                            labelMatchStatement: {
+                                scope: 'LABEL',
+                                key: 'awswaf:managed:aws:core-rule-set:SizeRestrictions_Body'
+                            }
+                        },
+                        {
+                            notStatement: {
+                                statement: {
+                                    byteMatchStatement: {
+                                        searchString: '/deployments',
+                                        fieldToMatch: {
+                                            uriPath: {}
+                                        },
+                                        textTransformations: [
+                                            {
+                                                priority: 0,
+                                                type: 'NONE'
+                                            }
+                                        ],
+                                        positionalConstraint: 'ENDS_WITH'
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        };
+    }
+
+    /**
+     * Defines a WAF rule which enforces the AWSManagedRulesCommonRuleSet, with an override to only count the SizeRestrictions_BODY.
+     * @param priority The priority of the rule
+     * @returns The WAF rule
+     */
+    private defineAWSManagedRulesCommonRuleSetWithBodyOverride(priority: number): CfnWebACL.RuleProperty {
+        return {
+            name: 'AWS-AWSManagedRulesCommonRuleSet',
+            priority: priority,
+            statement: {
+                managedRuleGroupStatement: {
+                    vendorName: 'AWS',
+                    name: 'AWSManagedRulesCommonRuleSet',
+                    ruleActionOverrides: [
+                        {
+                            name: 'SizeRestrictions_BODY',
+                            actionToUse: {
+                                count: {}
+                            }
+                        }
+                    ]
+                }
+            },
+            overrideAction: {
+                none: {}
+            },
+            visibilityConfig: {
+                sampledRequestsEnabled: true,
+                cloudWatchMetricsEnabled: true,
+                metricName: 'AWS-AWSManagedRulesCommonRuleSet'
+            }
+        };
+    }
+
+    /**
+     * Gets a unique priority for a custom rule, incrementing an internal counter
+     * @returns A unique priority for each custom rule
+     */
+    private getCustomRulePriority(): number {
+        return this.rulePriorityCounter++;
     }
 }

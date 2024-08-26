@@ -15,7 +15,7 @@
 import re
 from abc import ABC
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.memory import BaseMemory
@@ -58,6 +58,7 @@ class BedrockInputs(ModelProviderInputs):
     """
 
     model_arn: Optional[str] = None
+    guardrails: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
         if self.model_arn is not None:

@@ -39,7 +39,7 @@ export const ModelArnInput = (props: ModelArnInputProps) => {
             errors += 'Required field. ';
         }
         if (!detail.value.match(arnPattern)) {
-            errors += 'Invalid ARN formatting.';
+            errors += 'Invalid model ARN.';
         }
         updateNumFieldsInError(errors, modelArnError, props.setNumFieldsInError);
         setModelArnError(errors);

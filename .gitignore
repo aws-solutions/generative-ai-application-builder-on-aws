@@ -53,5 +53,8 @@ source/infrastructure/test/mock-lambda-func/java-lambda/checkstyle-result.xml
 dist/
 *.log
 bak.*
+*.bak
 *.ipynb*
 _bandit_temp.json
+RapidAi.code-workspace
+source/scripts/v2_migration/poetry.lock

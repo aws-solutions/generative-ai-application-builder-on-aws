@@ -22,6 +22,7 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
 import { RestRequestProcessor } from '../api/rest-request-processor';
+import { BaseNestedStack } from '../framework/base-nested-stack';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import * as cfn_nag from '../utils/cfn-guard-suppressions';
 import {
@@ -62,16 +63,6 @@ export class UseCaseManagementParameters {
      * The SSM key where template file list is stored as web config
      */
     webConfigSSMKey: string;
-
-    /**
-     * The ARN of the Lambda function to use for custom resource implementation.
-     */
-    customResourceLambdaArn: string;
-
-    /**
-     * The ARN of the IAM role to use for custom resource implementation.
-     */
-    customResourceRoleArn: string;
 
     /**
      * ID of an existing VPC to be used for the use case. If none is provided, a new VPC will be created.
@@ -132,18 +123,6 @@ export class UseCaseManagementParameters {
             constraintDescription: 'Please provide a valid web config SSM key'
         }).valueAsString;
 
-        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            description: 'Arn of the Lambda function to use for custom resource implementation.'
-        }).valueAsString;
-
-        this.customResourceRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            description: 'Arn of the IAM role to use for custom resource implementation.'
-        }).valueAsString;
-
         this.cognitoDomainPrefix = new cdk.CfnParameter(stack, 'CognitoDomainPrefix', {
             type: 'String',
             description:
@@ -183,7 +162,7 @@ export class UseCaseManagementParameters {
  * This construct creates a nested stack containing resources for ApiGateway, Cognito User Pool,
  * and the lambda function backing the deployment of use cases.
  */
-export class UseCaseManagement extends cdk.NestedStack {
+export class UseCaseManagement extends BaseNestedStack {
     /**
      * The lambda backing use case management API calls
      */
@@ -342,7 +321,7 @@ export class UseCaseManagement extends cdk.NestedStack {
             this,
             'UCMLLogRetention',
             this.useCaseManagementApiLambda.functionName,
-            this.stackParameters.customResourceLambdaArn
+            this.customResourceLambdaArn
         );
 
         // Since creating a L2 vpc construct from `fromAttributes` is difficult with conditions, resorting
@@ -397,7 +376,7 @@ export class UseCaseManagement extends cdk.NestedStack {
             this,
             'ModeInfoLambdaLogRetention',
             this.modelInfoApiLambda.functionName,
-            this.stackParameters.customResourceLambdaArn
+            this.customResourceLambdaArn
         );
 
         // Since creating a L2 vpc construct from `fromAttributes` is difficult with conditions, resorting
@@ -411,8 +390,8 @@ export class UseCaseManagement extends cdk.NestedStack {
             modelInfoAPILambda: this.modelInfoApiLambda,
             defaultUserEmail: this.stackParameters.defaultUserEmail,
             applicationTrademarkName: this.stackParameters.applicationTrademarkName,
-            customResourceLambdaArn: this.stackParameters.customResourceLambdaArn,
-            customResourceRoleArn: this.stackParameters.customResourceRoleArn,
+            customResourceLambdaArn: this.customResourceLambdaArn,
+            customResourceRoleArn: this.customResourceLambdaRoleArn,
             cognitoDomainPrefix: this.stackParameters.cognitoDomainPrefix.valueAsString,
             cloudFrontUrl: this.stackParameters.cloudFrontUrl.valueAsString,
             deployWebApp: this.stackParameters.deployWebApp.valueAsString
@@ -728,6 +707,7 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     'cognito-idp:CreateUserPool*',
                     'cognito-idp:Delete*',
                     'cognito-idp:DescribeUserPoolClient',
+                    'cognito-idp:GetGroup',
                     'cognito-idp:SetUserPoolMfaConfig',
                     'cognito-idp:UpdateUserPoolClient'
                 ],

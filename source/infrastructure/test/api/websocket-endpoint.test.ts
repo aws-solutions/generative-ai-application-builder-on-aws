@@ -132,6 +132,51 @@ describe('When creating a WebSocketEndpoint', () => {
         });
     });
 
+    it('should have a sendMessage requestTemplate in this sendMessage route integration', () => {
+        template.hasResourceProperties('AWS::ApiGatewayV2::Integration', {
+            ApiId: {
+                'Ref': Match.anyValue()
+            },
+            CredentialsArn: {
+                'Fn::GetAtt': [Match.anyValue(), 'Arn']
+            },
+            IntegrationMethod: 'POST',
+            IntegrationType: 'AWS',
+            IntegrationUri: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'arn:',
+                        {
+                            Ref: 'AWS::Partition'
+                        },
+                        ':apigateway:',
+                        {
+                            Ref: 'AWS::Region'
+                        },
+                        ':sqs:path/',
+                        {
+                            Ref: 'AWS::AccountId'
+                        },
+                        '/',
+                        {
+                            'Fn::GetAtt': [Match.anyValue(), 'QueueName']
+                        }
+                    ]
+                ]
+            },
+            PassthroughBehavior: 'NEVER',
+            RequestParameters: {
+                'integration.request.header.Content-Type': "'application/x-www-form-urlencoded'"
+            },
+            RequestTemplates: {
+                sendMessage:
+                    'Action=SendMessage&MessageGroupId=$context.connectionId&MessageDeduplicationId=$context.requestId&MessageAttribute.1.Name=connectionId&MessageAttribute.1.Value.StringValue=$context.connectionId&MessageAttribute.1.Value.DataType=String&MessageAttribute.2.Name=requestId&MessageAttribute.2.Value.StringValue=$context.requestId&MessageAttribute.2.Value.DataType=String&MessageBody={"requestContext": {"authorizer": {"UserId": "$context.authorizer.UserId"}, "connectionId": "$context.connectionId"}, "message": $util.urlEncode($input.json($util.escapeJavaScript("$").replaceAll("\\\\\'","\'")))}'
+            },
+            TemplateSelectionExpression: 'sendMessage'
+        });
+    });
+
     it('should have an SQS queue and a DLQ', () => {
         template.resourceCountIs('AWS::SQS::Queue', 2);
         template.hasResourceProperties('AWS::SQS::Queue', {

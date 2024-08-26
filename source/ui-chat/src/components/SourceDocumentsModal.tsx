@@ -86,8 +86,14 @@ export const SourceDocSection: React.FC<SourceDocSectionProps> = ({
     const [externalLinkModalVisible, setExternalLinkModalVisible] = React.useState(false);
     const onModalDismiss = () => setExternalLinkModalVisible(false);
 
+    const isValidLocation = (loc: string | null | undefined): boolean =>
+        loc !== null && loc !== undefined && loc !== '';
+
     // converts an s3 location to a URL we can navigate to in the browser
-    let locationUrl = location.startsWith('s3://') ? `https://s3.amazonaws.com/${location.substring(5)}` : location;
+    let locationUrl =
+        isValidLocation(location) && location.startsWith('s3://')
+            ? `https://s3.amazonaws.com/${location.substring(5)}`
+            : location;
 
     return (
         <Box>
@@ -97,8 +103,12 @@ export const SourceDocSection: React.FC<SourceDocSectionProps> = ({
             >
                 <SpaceBetween size="s">
                     <div>
-                        <Box variant="awsui-key-label">Source</Box>
-                        <Link onFollow={() => setExternalLinkModalVisible(true)}>{documentId ?? location}</Link>
+                        {isValidLocation(location) && (
+                            <>
+                                <Box variant="awsui-key-label">Source</Box>
+                                <Link onFollow={() => setExternalLinkModalVisible(true)}>{documentId ?? location}</Link>
+                            </>
+                        )}
 
                         <ExternalLinkWarningModal
                             data-testid={`external-link-warning-modal`}

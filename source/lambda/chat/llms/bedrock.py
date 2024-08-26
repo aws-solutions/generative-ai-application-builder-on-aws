@@ -24,10 +24,10 @@ from llms.base_langchain import BaseLangChainModel
 from llms.factories.bedrock_adapter_factory import BedrockAdapterFactory
 from llms.models.model_provider_inputs import BedrockInputs
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import BEDROCK_GUARDRAILS_KEY, DEFAULT_RAG_ENABLED_MODE, TRACE_ID_ENV_VAR
+from utils.constants import DEFAULT_RAG_ENABLED_MODE, TRACE_ID_ENV_VAR
 from utils.custom_exceptions import LLMBuildError, LLMInvocationError
 from utils.enum_types import BedrockModelProviders, CloudWatchMetrics, CloudWatchNamespaces
-from utils.helpers import get_metrics_client, type_cast
+from utils.helpers import get_metrics_client
 
 tracer = Tracer()
 logger = Logger(utc=True)
@@ -103,16 +103,7 @@ class BedrockLLM(BaseLangChainModel):
             )
 
         self.model_arn = llm_params.model_arn
-
-        if llm_params.model_params is not None and BEDROCK_GUARDRAILS_KEY in llm_params.model_params:
-            self.guardrails = type_cast(
-                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Value"),
-                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Type"),
-            )
-            llm_params.model_params.pop(BEDROCK_GUARDRAILS_KEY)
-        else:
-            self.guardrails = None
-
+        self.guardrails = llm_params.guardrails
         self.model_params = self.get_clean_model_params(llm_params.model_params)
 
         self.llm = self.get_llm()

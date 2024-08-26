@@ -13,6 +13,7 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { BaseStackProps } from '../framework/base-stack';
 import { BedrockUseCaseVPC } from './bedrock-vpc';
@@ -55,6 +56,11 @@ export interface VPCSetupProps extends BaseStackProps {
      * VPC IPAM Id to use for the CIDR block
      */
     iPamPoolId: string;
+
+    /**
+     * access log bucket for s3 buckets created by this stack
+     */
+    accessLogBucket: s3.Bucket;
 }
 
 /**
@@ -73,6 +79,7 @@ export class VPCSetup extends Construct {
         const coreParameters = {
             CustomResourceLambdaArn: props.customResourceLambdaArn,
             CustomResourceRoleArn: props.customResourceRoleArn,
+            AccessLoggingBucketArn: props.accessLogBucket.bucketArn,
             IPAMPoolId: props.iPamPoolId
         };
 

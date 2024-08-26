@@ -41,7 +41,7 @@ CONDENSE_QUESTION_PROMPT = """Given the following conversation and a follow up q
 
 model_provider = LLMProviderTypes.BEDROCK
 model_id = "amazon.model-xx"
-test_provisioned_arn = "arn:aws:bedrock:us-east-1:123456789:provisioned-model/z8g9xzoxoxmw"
+test_provisioned_arn = "arn:aws:bedrock:us-east-1:123456789012:provisioned-model/z8g9xzoxoxmw"
 llm_params = BedrockInputs(
     **{
         "conversation_memory": DynamoDBChatMemory(
@@ -313,13 +313,12 @@ def test_guardrails(
     temp_bedrock_dynamodb_defaults_table,
 ):
     model_provider = LLMProviderTypes.BEDROCK.value
-    llm_params.streaming = False
+    llm_params.streaming = is_streaming
     llm_params.model_params = {
         "topP": {"Type": "float", "Value": "0.2"},
-        "guardrails": {"Value": '{"id": "fake-id", "version": "DRAFT"}', "Type": "dictionary"},
+        "maxTokenCount": {"Type": "integer", "Value": "512"},
     }
-
-    llm_params.streaming = is_streaming
+    llm_params.guardrails = {"guardrailIdentifier": "fake-id", "guardrailVersion": "1"}
 
     chat = BedrockLLM(
         llm_params=llm_params,
@@ -327,9 +326,8 @@ def test_guardrails(
         model_family=BedrockModelProviders.AMAZON.value,
         rag_enabled=False,
     )
-    assert chat.model_params["topP"] == 0.2
-    assert "guardrails" not in chat.model_params
-    assert chat.guardrails == {"id": "fake-id", "version": "DRAFT"}
+    assert chat.model_params == {"maxTokenCount": 512, "topP": 0.2, "temperature": 0.0}
+    assert chat.guardrails == {"guardrailIdentifier": "fake-id", "guardrailVersion": "1"}
 
 
 @pytest.mark.parametrize(
@@ -443,7 +441,7 @@ def test_bedrock_get_llm_class(guardrails, model_id, bedrock_class, temp_bedrock
     llm_params.model_params = {}
 
     if guardrails:
-        llm_params.model_params["guardrails"] = guardrails
+        llm_params.guardrails = guardrails
 
     chat = BedrockLLM(
         llm_params=llm_params,
@@ -522,7 +520,7 @@ def test_bedrock_get_llm_class_no_env(
     llm_params.model_params = {}
 
     if guardrails:
-        llm_params.model_params["guardrails"] = guardrails
+        llm_params.guardrails = guardrails
 
     chat = BedrockLLM(
         llm_params=llm_params,
