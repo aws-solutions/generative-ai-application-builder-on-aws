@@ -128,7 +128,7 @@ export class CustomInfraSetup extends Construct {
             timeout: cdk.Duration.minutes(15)
         });
 
-        createCustomResourceForLambdaLogRetention(
+        const logRetentionForSchedule = createCustomResourceForLambdaLogRetention(
             this,
             'ScheduleLogRetention',
             this.scheduledMetricsLambda.functionName,
@@ -148,6 +148,9 @@ export class CustomInfraSetup extends Construct {
 
         (this.scheduledMetricsLambda.node.tryFindChild('Resource') as cdk.CfnCustomResource).cfnOptions.condition =
             props.sendAnonymousMetricsCondition;
+        (logRetentionForSchedule.node.defaultChild as cdk.CfnCustomResource).cfnOptions.condition =
+            props.sendAnonymousMetricsCondition;
+
 
         // eventbridge rule to the default event-bus to push anonymous metrics
         const rule = new events.Rule(this, 'MetricsPublishFrequency', {
