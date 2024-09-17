@@ -29,7 +29,7 @@
     "jsdom": "^24.1.1",
     "mock-socket": "^9.3.1",
     "react-test-renderer": "^18.3.1",
-    "vite": "^5.3.5",
+    "vite": "^5.4.6",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^1.6.0"
   },
