@@ -13,18 +13,18 @@
 
 import React from 'react';
 import { Input, InputProps, FormField } from '@cloudscape-design/components';
-import { updateNumFieldsInError } from '../utils';
+import { updateNumFieldsInError } from '../../utils';
 import { UserPoolFieldProps, isUserPoolIdValid } from './UserPool';
 import { InfoLink } from 'components/commons';
-import { TOOLS_CONTENT } from '../tools-content';
+import { TOOLS_CONTENT } from '../../tools-content';
 const { useCase: useCaseToolsContent } = TOOLS_CONTENT;
 
 
-export const UserPoolId = (props: UserPoolFieldProps) => {
-    const [userPoolIdError, setUserPoolIdError] = React.useState('');
+export const ExistingUserPoolId = (props: UserPoolFieldProps) => {
+    const [existingUserPoolIdError, setExistingUserPoolIdError] = React.useState('');
 
-    const onUserPoolIdChange = (detail: InputProps.ChangeDetail) => {
-        props.onChangeFn({ userPoolId: detail.value });
+    const onExistingUserPoolIdChange = (detail: InputProps.ChangeDetail) => {
+        props.onChangeFn({ existingUserPoolId: detail.value });
         let errors = '';
         if (detail.value.length === 0) {
             errors += 'Required field. ';
@@ -33,12 +33,12 @@ export const UserPoolId = (props: UserPoolFieldProps) => {
         if (!isUserPoolIdValid(detail.value)) {
             errors += 'USER POOL ID is invalid.';
         }
-        updateNumFieldsInError(errors, userPoolIdError, props.setNumFieldsInError);
-        setUserPoolIdError(errors);
+        updateNumFieldsInError(errors, existingUserPoolIdError, props.setNumFieldsInError);
+        setExistingUserPoolIdError(errors);
     };
 
     React.useEffect(() => {
-        onUserPoolIdChange({ value: props.userPoolId } as InputProps.ChangeDetail);
+        onExistingUserPoolIdChange({ value: props.existingUserPoolId } as InputProps.ChangeDetail);
     }, []);
 
     return (
@@ -48,17 +48,17 @@ export const UserPoolId = (props: UserPoolFieldProps) => {
                     Cognito User Pool Id <i>- required</i>{' '}
                 </span>
             }
-            errorText={userPoolIdError}
+            errorText={existingUserPoolIdError}
             data-testid="user-pool-id-field"
             description="The Id of the Cognito User Pool to be used for the use case."
-            info={<InfoLink onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.byoUserPool)} />}
+            info={<InfoLink onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.existingUserPool)} />}
         >
             <Input
                 placeholder="Cognito User Pool Id..."
                 autoFocus
-                value={props.userPoolId}
-                onChange={({ detail }) => onUserPoolIdChange(detail)}
-                disabled={props.disabled}
+                value={props.existingUserPoolId}
+                onChange={({ detail }) => onExistingUserPoolIdChange(detail)}
+                disabled={false}
                 autoComplete={false}
                 data-testid="user-pool-id-input"
             />
@@ -66,4 +66,4 @@ export const UserPoolId = (props: UserPoolFieldProps) => {
     );
 };
 
-export default UserPoolId;
+export default ExistingUserPoolId;

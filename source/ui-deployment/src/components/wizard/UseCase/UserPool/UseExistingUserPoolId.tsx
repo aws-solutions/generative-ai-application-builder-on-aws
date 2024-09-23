@@ -14,19 +14,24 @@
 import { FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 
 import { InfoLink } from 'components/commons';
-import { TOOLS_CONTENT } from '../tools-content';
+import { TOOLS_CONTENT } from '../../tools-content';
 import { UserPoolFieldProps } from './UserPool';
 const { useCase: useCaseToolsContent } = TOOLS_CONTENT;
 
 
-export const UseExistingUserPool = (props: UserPoolFieldProps) => {
+export const UseExistingUserPoolId = (props: UserPoolFieldProps) => {
 
-    const onUseExistingUserPoolChange = (detail: RadioGroupProps.ChangeDetail) => {
-        const existingUserPool = detail.value === 'yes';
-        if (existingUserPool) {
-            props.onChangeFn({ existingUserPool: existingUserPool });
+    const onUseExistingUserPoolIdChange = (detail: RadioGroupProps.ChangeDetail) => {
+        if (detail.value === 'yes') {
+            props.onChangeFn({ useExistingUserPoolId: true });
         } else {
-            props.onChangeFn({ existingUserPool: existingUserPool, userPoolId: '', inError: false });
+            props.onChangeFn({
+                useExistingUserPoolId: false,
+                existingUserPoolId: '',
+                useExistingUserPoolClientId: false,
+                existingUserPoolClientId: '',
+                inError: false
+            });
         }
     };
 
@@ -37,16 +42,16 @@ export const UseExistingUserPool = (props: UserPoolFieldProps) => {
                 <InfoLink
                     onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.existingUserPool)}
                     ariaLabel={
-                        'You can use an existing Cognito user pool, or choose "No" to use the default user pool.'
+                        'You can use an existing Cognito User Pool, or choose "No" to use the default user pool.'
                     }
                 />
             }
             stretch={true}
             data-testid="use-existing-user-pool-field"
-            description="You can use an existing user pool, or choose 'No' to use the default user pool."
+            description="You can use an existing Cognito User Pool, or choose 'No' to use the default user pool."
         >
             <RadioGroup
-                onChange={({ detail }) => onUseExistingUserPoolChange(detail)}
+                onChange={({ detail }) => onUseExistingUserPoolIdChange(detail)}
                 items={[
                     {
                         value: 'yes',
@@ -57,11 +62,11 @@ export const UseExistingUserPool = (props: UserPoolFieldProps) => {
                         label: 'No'
                     }
                 ]}
-                value={props.existingUserPool === true ? 'yes' : 'no'}
+                value={props.useExistingUserPoolId === true ? 'yes' : 'no'}
                 data-testid="use-existing-user-pool-radio-group"
             />
         </FormField>
     );
 };
 
-export default UseExistingUserPool;
+export default UseExistingUserPoolId;

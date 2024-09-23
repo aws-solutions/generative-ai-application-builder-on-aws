@@ -24,7 +24,7 @@ import UseCaseName from './UseCaseName';
 import UseCaseTypeSelection from './UseCaseTypeSelection';
 import { StepContentProps } from '../interfaces/Steps';
 import DeployUI from './DeployUI';
-import UserPool from './UserPool';
+import UserPool from './UserPool/UserPool';
 
 const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepContentProps) => {
     const {
@@ -119,8 +119,10 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
                     />
 
                     <UserPool
-                        existingUserPool={useCase.existingUserPool}
-                        userPoolId={useCase.userPoolId}
+                        useExistingUserPoolId={useCase.useExistingUserPoolId}
+                        existingUserPoolId={useCase.existingUserPoolId}
+                        useExistingUserPoolClientId={useCase.useExistingUserPoolClientId}
+                        existingUserPoolClientId={useCase.existingUserPoolClientId}
                         setHelpPanelContent={setHelpPanelContent}
                         onChangeFn={onChange}
                         setNumFieldsInError={setNumFieldsInError}

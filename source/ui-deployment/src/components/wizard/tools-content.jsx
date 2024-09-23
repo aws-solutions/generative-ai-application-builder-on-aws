@@ -26,7 +26,7 @@ export const TOOLS_CONTENT = {
                 }
             ]
         },
-        existingUserPool: {
+        existingUserPoolClient: {
             title: 'Default or Existing User Pool',
             content: (
                 <Box variant="p">
@@ -41,7 +41,7 @@ export const TOOLS_CONTENT = {
                 }
             ]
         },
-        byoUserPool: {
+        existingUserPool: {
             title: 'Bring Your Own User Pool',
             content: (
                 <SpaceBetween size="xs">
