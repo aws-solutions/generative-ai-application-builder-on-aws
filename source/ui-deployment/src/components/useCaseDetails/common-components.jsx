@@ -126,6 +126,9 @@ export const GeneralConfig = () => {
         return value === undefined || value === '' || value === null;
     };
 
+    const existingUserPoolId = selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolId;
+    const existingUserPoolClientId = selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolClientId;
+
     const isVpcEnabled = selectedDeployment.vpcEnabled ? selectedDeployment.vpcEnabled.toLowerCase() === 'yes' : false;
 
     return (
@@ -222,8 +225,12 @@ export const GeneralConfig = () => {
                     <ValueWithLabel label={'VPC ID'}>{selectedDeployment.vpcId}</ValueWithLabel>
                 )}
 
-                {selectedDeployment.ExistingCognitoUserPoolId && (
-                    <ValueWithLabel label={'Existing User Pool Id'}>{selectedDeployment.ExistingCognitoUserPoolId}</ValueWithLabel>
+                {existingUserPoolId && (
+                    <ValueWithLabel label={'Existing User Pool Id'}>{existingUserPoolId}</ValueWithLabel>
+                )}
+
+                {existingUserPoolClientId && (
+                    <ValueWithLabel label={'Existing User Pool Client Id'}>{existingUserPoolClientId}</ValueWithLabel>
                 )}
 
 
