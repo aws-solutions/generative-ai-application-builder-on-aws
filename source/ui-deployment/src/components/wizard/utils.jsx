@@ -51,7 +51,8 @@ export const createDeployRequestPayload = (stepsInfo) => {
         ...createLLMParamsApiParams(stepsInfo.model, stepsInfo.prompt, stepsInfo.knowledgeBase.isRagRequired),
         ...createConversationMemoryApiParams(stepsInfo.prompt),
         ...createUseCaseInfoApiParams(stepsInfo.useCase),
-        ...createVpcApiParams(stepsInfo.vpc)
+        ...createVpcApiParams(stepsInfo.vpc),
+        ...createAuthenticationApiParams(stepsInfo.useCase),
     };
 
     return payload;
@@ -91,9 +92,6 @@ export const createUseCaseInfoApiParams = (useCaseStepInfo) => {
         ...(useCaseStepInfo.defaultUserEmail &&
             useCaseStepInfo.defaultUserEmail !== '' && {
             DefaultUserEmail: useCaseStepInfo.defaultUserEmail
-        }),
-        ...({
-            ExistingCognitoUserPoolId: useCaseStepInfo.existingUserPool ? useCaseStepInfo.userPoolId : null
         })
     };
     return params;
@@ -375,6 +373,34 @@ export const createVpcApiParams = (vpcStepInfo) => {
             VpcEnabled: vpcEnabled
         }
     };
+};
+
+/**
+ * Construct the params for the Authentication config for the api.
+ * @param {*} useCaseStepInfo Use Case step wizard details
+ * @returns
+ */
+export const createAuthenticationApiParams = (useCaseStepInfo) => {
+
+    if (!useCaseStepInfo.useExistingUserPoolId) {
+        return {
+            AuthenticationParams: {}
+        };
+    }
+
+    return {
+        AuthenticationParams: {
+            AuthenticationProvider: "Cognito",
+            CognitoParams: {
+                ExistingUserPoolId: useCaseStepInfo.existingUserPoolId,
+                ...(
+                    useCaseStepInfo.useExistingUserPoolClientId ? {
+                        ExistingUserPoolClientId: useCaseStepInfo.existingUserPoolClientId
+                    } : {}
+                ),
+            }
+        }
+    }
 };
 
 /**
@@ -677,15 +703,24 @@ export const mapPromptStepInfoFromDeployment = (selectedDeployment) => {
 export const mapUseCaseStepInfoFromDeployment = (selectedDeployment) => {
     const { Name: useCaseName, defaultUserEmail, Description: useCaseDescription } = selectedDeployment;
 
+    const useExistingUserPoolId = selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolId != null;
+    const useExistingUserPoolClientId = selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolClientId != null
+
     return {
         useCase: DEFAULT_STEP_INFO.useCase.useCase,
         useCaseName: useCaseName || '',
         defaultUserEmail: defaultUserEmail !== 'placeholder@example.com' ? defaultUserEmail : '',
         useCaseDescription: useCaseDescription || '',
         deployUI: selectedDeployment.deployUI === 'Yes',
-        existingUserPool: selectedDeployment.ExistingCognitoUserPoolId ? true : false,
-        userPoolId: selectedDeployment.ExistingCognitoUserPoolId || '',
-        inError: false
+        inError: false,
+        useExistingUserPoolId: useExistingUserPoolId,
+        ...(useExistingUserPoolId && {
+            existingUserPoolId: selectedDeployment.AuthenticationParams.CognitoParams.ExistingUserPoolId
+        }),
+        useExistingUserPoolClientId: useExistingUserPoolClientId,
+        ...(useExistingUserPoolClientId && {
+            existingUserPoolClientId: selectedDeployment.AuthenticationParams.CognitoParams.ExistingUserPoolClientId
+        })
     };
 };
 
