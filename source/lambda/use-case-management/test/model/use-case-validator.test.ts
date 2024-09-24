@@ -1199,9 +1199,6 @@ describe('Testing use case validation', () => {
                 }
             };
 
-            let authenticationParams = {
-            };
-
             expect(
                 await validator
                     .validateNewUseCase(
@@ -1210,7 +1207,6 @@ describe('Testing use case validation', () => {
                             'fake-test',
                             'Create a stack for test',
                             cfnParameters,
-                            authenticationParams,
                             modelParamConfig,
                             'test-user',
                             'FakeProviderName',

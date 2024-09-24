@@ -13,6 +13,7 @@
     "@aws-sdk/types": "^3.609.0",
     "@aws-sdk/util-arn-parser": "^3.568.0",
     "@aws-sdk/util-dynamodb": "^3.620.1",
+    "@aws-sdk/client-cognito-identity-provider": "3.620.1",
     "@smithy/types": "^2.12.0",
     "@types/aws-lambda": "^8.10.142"
   },
