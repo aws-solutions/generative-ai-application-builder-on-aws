@@ -366,10 +366,26 @@ export const deployUseCaseBodySchema: JsonSchema = {
             properties: {
                 AuthenticationProvider: {
                     type: JsonSchemaType.STRING,
-                    description: 'Supported authentication provider',
+                    description: 'Supported authentication provider.',
                     enum: SUPPORTED_AUTHENTICATION_PROVIDERS
+                },
+                CognitoParams: {
+                    type: JsonSchemaType.OBJECT,
+                    description: 'Cognito user pool related parameters.',
+                    properties: {
+                        ExistingUserPoolId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Id.'
+                        },
+                        ExistingUserPoolClientId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Client Id.'
+                        }
+                    },
+                    required: ['ExistingUserPoolId']
                 }
-            }
+            },
+            required: ['AuthenticationProvider']
         },
         LlmParams: {
             type: JsonSchemaType.OBJECT,
