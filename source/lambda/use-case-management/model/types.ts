@@ -72,11 +72,22 @@ export interface ConversationMemoryParams {
     ChatHistoryLength?: number;
 }
 
+export interface CognitoParams {
+    ExistingUserPoolId: string;
+    ExistingUserPoolClientId: string;
+}
+
+export interface AuthenticationParams {
+    AuthenticationProvider: string;
+    CognitoParams: CognitoParams;
+}
+
 export interface UseCaseConfiguration {
     UseCaseName?: string;
     ExistingCognitoUserPoolId?: string;
     ConversationMemoryParams?: ConversationMemoryParams;
     KnowledgeBaseParams?: KnowledgeBaseParams;
     LlmParams?: LlmParams;
+    AuthenticationParams: AuthenticationParams;
     IsInternalUser?: string;
 }

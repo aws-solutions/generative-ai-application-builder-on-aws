@@ -16,6 +16,7 @@ import * as crypto from 'crypto';
 import { MissingValueError } from '../exception/missing-value-error';
 import { logger } from '../power-tools-init';
 import {
+    AUTHENTICATION_PROVIDERS,
     CLIENT_ID_ENV_VAR,
     COGNITO_DOMAIN_PREFIX_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
@@ -296,13 +297,34 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
         );
         cfnParameters.set(CfnParameterKeys.UseCaseConfigTableName, process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]!);
 
-        cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, eventBody.ExistingCognitoUserPoolId  || process.env[USER_POOL_ID_ENV_VAR]!);
-        if (
-            process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR] &&
-            process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR].toLowerCase() === 'true' &&
-            process.env[CLIENT_ID_ENV_VAR]
-        ) {
-            cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, process.env[CLIENT_ID_ENV_VAR]);
+        if (eventBody.AuthenticationParams) {
+            switch (eventBody.AuthenticationParams.AuthenticationProvider) {
+                case AUTHENTICATION_PROVIDERS.COGNITO:
+                    const existingUserPoolId = eventBody.AuthenticationParams.CognitoParams.ExistingUserPoolId;
+                    const existingUserPoolClientId = eventBody.AuthenticationParams.CognitoParams.ExistingUserPoolClientId;
+
+                    if (!existingUserPoolId) {
+                        throw new Error(`Required field existingUserPoolId not provided for the "Cognito" AuthenticationProvider.`);
+                    }
+
+                    cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, existingUserPoolId);
+
+                    if (existingUserPoolClientId) {
+                        cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, existingUserPoolClientId);
+                    }
+                    break;
+            }
+        }
+        else {
+            cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, process.env[USER_POOL_ID_ENV_VAR]!);
+
+            if (
+                process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR] &&
+                process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR].toLowerCase() === 'true' &&
+                process.env[CLIENT_ID_ENV_VAR]
+            ) {
+                cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, process.env[CLIENT_ID_ENV_VAR]);
+            }
         }
 
         if (process.env[USER_POOL_ID_ENV_VAR]) {

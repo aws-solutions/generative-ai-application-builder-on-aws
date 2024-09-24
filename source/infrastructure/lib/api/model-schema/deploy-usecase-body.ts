@@ -31,6 +31,7 @@ import {
     MIN_KENDRA_NUMBER_OF_DOCS,
     MIN_SCORE_THRESHOLD,
     MODEL_PARAM_TYPES,
+    SUPPORTED_AUTHENTICATION_PROVIDERS,
     SUPPORTED_CHAT_PROVIDERS,
     SUPPORTED_CONVERSATION_MEMORY_TYPES,
     SUPPORTED_KNOWLEDGE_BASE_TYPES
@@ -57,10 +58,6 @@ export const deployUseCaseBodySchema: JsonSchema = {
             type: JsonSchemaType.BOOLEAN,
             description: 'Deploy the CloudFront based UI for the use case',
             default: true
-        },
-        ExistingCognitoUserPoolId: {
-            type: [JsonSchemaType.STRING, JsonSchemaType.NULL],
-            description: 'The ID of the Cognito User Pool to be used for the use case deployment. If empty, the default Cognito User Pool (created with deployment dashboard) will be used.'
         },
         VpcParams: {
             type: JsonSchemaType.OBJECT,
@@ -361,6 +358,18 @@ export const deployUseCaseBodySchema: JsonSchema = {
             ],
             required: ['KnowledgeBaseType'],
             additionalProperties: false
+        },
+
+        AuthenticationParams: {
+            type: JsonSchemaType.OBJECT,
+            description: 'Parameters related to the Authentication.',
+            properties: {
+                AuthenticationProvider: {
+                    type: JsonSchemaType.STRING,
+                    description: 'Supported authentication provider',
+                    enum: SUPPORTED_AUTHENTICATION_PROVIDERS
+                }
+            }
         },
         LlmParams: {
             type: JsonSchemaType.OBJECT,
