@@ -79,7 +79,7 @@ export interface CognitoParams {
 
 export interface AuthenticationParams {
     AuthenticationProvider: string;
-    CognitoParams: CognitoParams;
+    CognitoParams?: CognitoParams;
 }
 
 export interface UseCaseConfiguration {
@@ -88,6 +88,6 @@ export interface UseCaseConfiguration {
     ConversationMemoryParams?: ConversationMemoryParams;
     KnowledgeBaseParams?: KnowledgeBaseParams;
     LlmParams?: LlmParams;
-    AuthenticationParams: AuthenticationParams;
+    AuthenticationParams?: AuthenticationParams;
     IsInternalUser?: string;
 }
