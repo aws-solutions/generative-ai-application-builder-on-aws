@@ -312,6 +312,7 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
                     if (existingUserPoolClientId) {
                         cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, existingUserPoolClientId);
                     }
+                    
                     break;
             }
         }
@@ -325,18 +326,18 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
             ) {
                 cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, process.env[CLIENT_ID_ENV_VAR]);
             }
-        }
 
-        if (process.env[USER_POOL_ID_ENV_VAR]) {
-            if (process.env[COGNITO_DOMAIN_PREFIX_VAR]) {
-                cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, process.env[COGNITO_DOMAIN_PREFIX_VAR]);
-            } else {
-                logger.error(
-                    'Lambda has an environment variable to use existing user pool, but could not find the environment variable for Cognito domain prefix. This use case setup will have an incorrect sign-in url.'
-                );
-                throw new Error(
-                    'Domain prefix not available for existing user pool. Without domain prefix, authenticating into a use case would fail.'
-                );
+            if (process.env[USER_POOL_ID_ENV_VAR]) {
+                if (process.env[COGNITO_DOMAIN_PREFIX_VAR]) {
+                    cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, process.env[COGNITO_DOMAIN_PREFIX_VAR]);
+                } else {
+                    logger.error(
+                        'Lambda has an environment variable to use existing user pool, but could not find the environment variable for Cognito domain prefix. This use case setup will have an incorrect sign-in url.'
+                    );
+                    throw new Error(
+                        'Domain prefix not available for existing user pool. Without domain prefix, authenticating into a use case would fail.'
+                    );
+                }
             }
         }
 
