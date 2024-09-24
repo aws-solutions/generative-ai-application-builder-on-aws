@@ -53,11 +53,13 @@ export const UseExistingUserPoolClientId = (props: UserPoolFieldProps) => {
                 items={[
                     {
                         value: 'yes',
-                        label: 'Yes'
+                        label: 'Yes',
+                        disabled: props.disabled
                     },
                     {
                         value: 'no',
-                        label: 'No'
+                        label: 'No',
+                        disabled: props.disabled
                     }
                 ]}
                 value={props.useExistingUserPoolClientId === true ? 'yes' : 'no'}

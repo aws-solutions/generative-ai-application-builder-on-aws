@@ -58,7 +58,7 @@ export const ExistingUserPoolId = (props: UserPoolFieldProps) => {
                 autoFocus
                 value={props.existingUserPoolId}
                 onChange={({ detail }) => onExistingUserPoolIdChange(detail)}
-                disabled={false}
+                disabled={props.disabled}
                 autoComplete={false}
                 data-testid="user-pool-id-input"
             />

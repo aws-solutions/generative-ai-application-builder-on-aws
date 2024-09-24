@@ -126,6 +126,7 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
                         setHelpPanelContent={setHelpPanelContent}
                         onChangeFn={onChange}
                         setNumFieldsInError={setNumFieldsInError}
+                        disabled={deploymentAction === DEPLOYMENT_ACTIONS.EDIT}
                     />
                 </SpaceBetween>
             </Container>
