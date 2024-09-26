@@ -312,7 +312,7 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
                     if (existingUserPoolClientId) {
                         cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, existingUserPoolClientId);
                     }
-                    
+
                     break;
             }
         }
@@ -440,6 +440,7 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
                 Streaming: eventBody.LlmParams.Streaming,
                 Verbose: eventBody.LlmParams.Verbose
             },
+            AuthenticationParams: eventBody.AuthenticationParams,
             IsInternalUser: process.env[IS_INTERNAL_USER_ENV_VAR]! // env var value is set as 'true' or 'false' on deployment of management stack
         };
 
