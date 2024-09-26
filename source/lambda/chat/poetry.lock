@@ -246,7 +246,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "boto3-layer"
-version = "2.0.3"
+version = "2.0.4"
 description = "Layer for AWS Boto3 python SDK"
 optional = false
 python-versions = "^3.11"
@@ -615,7 +615,7 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "custom-boto3-init"
-version = "2.0.3"
+version = "2.0.4"
 description = "Initialize boto config for AWS Python SDK with custom configuration"
 optional = false
 python-versions = "^3.11"
@@ -1025,7 +1025,7 @@ tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<9.0.0"
 
 [[package]]
 name = "langchain-layer"
-version = "2.0.3"
+version = "2.0.4"
 description = "Layer for LangChain libraries"
 optional = false
 python-versions = "^3.11"
