@@ -74,7 +74,7 @@ export class UseCaseValidator {
                         throw new Error(`Undefined user pool provided for the cognito authentication provider.`)
                     }
 
-                    const cognitoDomainPrefix = await this.getCognitoDomainByUserPool(existingUserPoolId);
+                    const cognitoDomainPrefix = await this.getCognitoDomainPrefixByUserPool(existingUserPoolId);
 
                     if (!useCase.cfnParameters) {
                         throw new Error(`CFNParameters are not available yet for setting Cognito Domain Prefix.`)
@@ -92,7 +92,7 @@ export class UseCaseValidator {
         return useCase;
     }
 
-    private async getCognitoDomainByUserPool(userPoolId: string) {
+    private async getCognitoDomainPrefixByUserPool(userPoolId: string) {
 
         const region = process.env.AWS_REGION;
 
@@ -103,7 +103,7 @@ export class UseCaseValidator {
             const response = await client.send(command);
 
             if (response.UserPool && response.UserPool.Domain) {
-                return `https://${response.UserPool.Domain}.auth.${region}.amazoncognito.com`;
+                return response.UserPool.Domain;
             } else {
                 throw new Error(`No domain found for this user pool.`);
             }
