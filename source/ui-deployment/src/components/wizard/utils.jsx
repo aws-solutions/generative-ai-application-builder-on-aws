@@ -384,7 +384,6 @@ export const createAuthenticationApiParams = (useCaseStepInfo) => {
 
     if (!useCaseStepInfo.useExistingUserPoolId) {
         return {
-            AuthenticationParams: {}
         };
     }
 
