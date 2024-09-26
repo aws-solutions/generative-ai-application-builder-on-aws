@@ -719,6 +719,13 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
             new iam.PolicyStatement({
                 effect: iam.Effect.ALLOW,
                 actions: [
+                    'cognito-idp:DescribeUserPool'
+                ],
+                resources: [`arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`],
+            }),
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
                     'cloudfront:Create*',
                     'cloudfront:Delete*',
                     'cloudfront:DescribeFunction',
