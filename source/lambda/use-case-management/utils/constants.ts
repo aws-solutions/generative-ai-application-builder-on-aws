@@ -151,7 +151,10 @@ export const RetainedCfnParameterKeys = [
     CfnParameterKeys.CreateNewVpc,
     CfnParameterKeys.ExistingVpcId,
     CfnParameterKeys.ExistingPrivateSubnetIds,
-    CfnParameterKeys.ExistingSecurityGroupIds
+    CfnParameterKeys.ExistingSecurityGroupIds,
+    CfnParameterKeys.ExistingCognitoUserPoolClient,
+    CfnParameterKeys.ExistingCognitoUserPoolId,
+    CfnParameterKeys.CognitoDomainPrefix
 ];
 
 export const ChatRequiredPlaceholders = ['{input}', '{history}'];
