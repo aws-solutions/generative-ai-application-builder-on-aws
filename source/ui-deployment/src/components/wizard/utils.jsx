@@ -77,7 +77,9 @@ export const createUpdateRequestPayload = (stepsInfo) => {
         ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase, DEPLOYMENT_ACTIONS.EDIT),
         ...createLLMParamsApiParams(stepsInfo.model, stepsInfo.prompt, stepsInfo.knowledgeBase.isRagRequired),
         ...createConversationMemoryApiParams(stepsInfo.prompt),
-        ...updateVpcApiParams(stepsInfo.vpc)
+        ...updateVpcApiParams(stepsInfo.vpc),
+        ...createAuthenticationApiParams(stepsInfo.useCase),
+
     };
     removeEmptyString(payload);
 

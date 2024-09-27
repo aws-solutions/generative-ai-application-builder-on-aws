@@ -25,6 +25,7 @@ import {
     MIN_KENDRA_NUMBER_OF_DOCS,
     MIN_SCORE_THRESHOLD,
     MODEL_PARAM_TYPES,
+    SUPPORTED_AUTHENTICATION_PROVIDERS,
     SUPPORTED_CHAT_PROVIDERS,
     SUPPORTED_CONVERSATION_MEMORY_TYPES,
     SUPPORTED_KNOWLEDGE_BASE_TYPES
@@ -224,6 +225,33 @@ export const updateUseCaseBodySchema: JsonSchema = {
                 }
             ],
             additionalProperties: false
+        },
+        AuthenticationParams: {
+            type: JsonSchemaType.OBJECT,
+            description: 'Parameters related to the Authentication.',
+            properties: {
+                AuthenticationProvider: {
+                    type: JsonSchemaType.STRING,
+                    description: 'Supported authentication provider.',
+                    enum: SUPPORTED_AUTHENTICATION_PROVIDERS
+                },
+                CognitoParams: {
+                    type: JsonSchemaType.OBJECT,
+                    description: 'Cognito user pool related parameters.',
+                    properties: {
+                        ExistingUserPoolId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Id.'
+                        },
+                        ExistingUserPoolClientId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Client Id.'
+                        }
+                    },
+                    required: ['ExistingUserPoolId']
+                }
+            },
+            required: ['AuthenticationProvider']
         },
         LlmParams: {
             type: JsonSchemaType.OBJECT,
