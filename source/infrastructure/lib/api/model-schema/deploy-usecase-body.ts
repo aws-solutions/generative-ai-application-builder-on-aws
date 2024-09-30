@@ -375,11 +375,17 @@ export const deployUseCaseBodySchema: JsonSchema = {
                     properties: {
                         ExistingUserPoolId: {
                             type: JsonSchemaType.STRING,
-                            description: 'Existing Cognito User Pool Id.'
+                            description: 'Existing Cognito User Pool Id.',
+                            pattern: '^[\w-]+_[0-9a-zA-Z]+$',
+                            minLength: 1,
+                            maxLength: 55
                         },
                         ExistingUserPoolClientId: {
                             type: JsonSchemaType.STRING,
-                            description: 'Existing Cognito User Pool Client Id.'
+                            description: 'Existing Cognito User Pool Client Id.',
+                            pattern: '^[\w+]+$',
+                            minLength: 1,
+                            maxLength: 128
                         }
                     },
                     required: ['ExistingUserPoolId']
