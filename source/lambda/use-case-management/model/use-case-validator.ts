@@ -26,6 +26,7 @@ import {
 } from '../utils/constants';
 import RequestValidationError from '../utils/error';
 import { UseCase } from './use-case';
+import { customAwsConfig } from 'aws-node-user-agent-config';
 
 /**
  * Class responsible for validating that use cases can be used for creations and updates,
@@ -94,9 +95,7 @@ export class UseCaseValidator {
 
     private async getCognitoDomainPrefixByUserPool(userPoolId: string) {
 
-        const region = process.env.AWS_REGION;
-
-        const client = new CognitoIdentityProviderClient({ region });
+        const client = new CognitoIdentityProviderClient(customAwsConfig());
 
         try {
             const command = new DescribeUserPoolCommand({ UserPoolId: userPoolId });

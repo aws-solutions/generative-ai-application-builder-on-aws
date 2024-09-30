@@ -314,18 +314,13 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
                     }
 
                     break;
+                default:
+                    console.log(`Error: unsupported AuthenticationProvider. AuthenticationParams provided: ${eventBody.AuthenticationParams}`);
+                    throw new Error(`Error: unsupported AuthenticationProvider: ${eventBody.AuthenticationParams.AuthenticationProvider}.`);
             }
         }
         else {
             cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, process.env[USER_POOL_ID_ENV_VAR]!);
-
-            if (
-                process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR] &&
-                process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR].toLowerCase() === 'true' &&
-                process.env[CLIENT_ID_ENV_VAR]
-            ) {
-                cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, process.env[CLIENT_ID_ENV_VAR]);
-            }
 
             if (process.env[USER_POOL_ID_ENV_VAR]) {
                 if (process.env[COGNITO_DOMAIN_PREFIX_VAR]) {
