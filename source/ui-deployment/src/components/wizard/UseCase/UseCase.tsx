@@ -11,19 +11,19 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import React, { useContext } from 'react';
 import { Box, Container, Header, SpaceBetween } from '@cloudscape-design/components';
+import React, { useContext } from 'react';
 import UserEmail from './UserEmail';
 
-import { USE_CASE_OPTIONS } from '../steps-config';
 import { DEPLOYMENT_ACTIONS } from '../../../utils/constants';
+import { USE_CASE_OPTIONS } from '../steps-config';
 
 import HomeContext from '../../../contexts/home.context';
+import { StepContentProps } from '../interfaces/Steps';
+import DeployUI from './DeployUI';
 import UseCaseDescription from './UseCaseDescription';
 import UseCaseName from './UseCaseName';
 import UseCaseTypeSelection from './UseCaseTypeSelection';
-import { StepContentProps } from '../interfaces/Steps';
-import DeployUI from './DeployUI';
 import UserPool from './UserPool/UserPool';
 
 const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepContentProps) => {

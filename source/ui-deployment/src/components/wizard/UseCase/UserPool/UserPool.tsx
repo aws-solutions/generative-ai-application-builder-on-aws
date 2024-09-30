@@ -1,9 +1,9 @@
-import { Box, Header } from "@cloudscape-design/components";
+import { Alert, Box, Header } from "@cloudscape-design/components";
 import { BaseFormComponentProps } from "../../interfaces";
-import UseExistingUserPoolId from "./UseExistingUserPoolId";
+import ExistingUserPoolClientId from "./ExistingUserPoolClientId";
 import ExistingUserPoolId from "./ExistingUserPoolId";
 import UseExistingUserPoolClientId from "./UseExistingUserPoolClientId";
-import ExistingUserPoolClientId from "./ExistingUserPoolClientId";
+import UseExistingUserPoolId from "./UseExistingUserPoolId";
 
 export interface UserPoolFieldProps extends BaseFormComponentProps {
     useExistingUserPoolId: boolean;
@@ -49,6 +49,18 @@ export const UserPool = (props: UserPoolFieldProps) => {
     return (
         <Box margin={{ bottom: 'l' }}>
             <Header variant="h3">User Pool Configuration</Header>
+
+
+            {props.disabled && (
+                <Box variant="p" margin={{ 'bottom': 'l' }}>
+                    <Alert
+                        statusIconAriaLabel="warning"
+                        type="warning"
+                        data-testid="user-pool-locked-warning">
+                        User Pool Settings cannot be modified for the deployed Use Case.
+                    </Alert>
+                </Box>
+            )}
 
             <UseExistingUserPoolId {...props} />
 
