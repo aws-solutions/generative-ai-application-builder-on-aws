@@ -62,6 +62,6 @@
     "app_registry_name": "GAAB",
     "application_type": "AWS-Solutions",
     "application_trademark_name": "Generative AI Application Builder on AWS",
-    "cdk-asset-bucket": "cdk-hnb659fds-assets-160133771622-us-east-1"
+    "cdk-asset-bucket": "cdk-hnb659fds-assets-123456789012-us-east-1"
   }
 }
