@@ -13,6 +13,7 @@
 
 import { JsonSchema, JsonSchemaType, JsonSchemaVersion } from 'aws-cdk-lib/aws-apigateway';
 import {
+    AUTHENTICATION_PROVIDERS,
     CHAT_PROVIDERS,
     DEFAULT_CONVERSATION_MEMORY_TYPE,
     DEFAULT_ENABLE_RBAC,
@@ -242,21 +243,29 @@ export const updateUseCaseBodySchema: JsonSchema = {
                         ExistingUserPoolId: {
                             type: JsonSchemaType.STRING,
                             description: 'Existing Cognito User Pool Id.',
-                            pattern: '^[\w-]+_[0-9a-zA-Z]+$',
+                            pattern: '^[\\w-]+_[0-9a-zA-Z]+$',
                             minLength: 1,
                             maxLength: 55
                         },
                         ExistingUserPoolClientId: {
                             type: JsonSchemaType.STRING,
                             description: 'Existing Cognito User Pool Client Id.',
-                            pattern: '^[\w+]+$',
+                            pattern: '^[\\w+]+$',
                             minLength: 1,
                             maxLength: 128
                         }
                     },
                     required: ['ExistingUserPoolId']
-                }
+                },
             },
+            anyOf: [
+                {
+                    properties: {
+                        AuthenticationProvider: { enum: [AUTHENTICATION_PROVIDERS.COGNITO] }
+                    },
+                    required: ['CognitoParams']
+                },
+            ],
             required: ['AuthenticationProvider']
         },
         LlmParams: {
@@ -468,6 +477,9 @@ export const updateUseCaseBodySchema: JsonSchema = {
         },
         {
             required: ['LlmParams']
+        },
+        {
+            required: ['AuthenticationParams']
         }
     ],
     additionalProperties: false

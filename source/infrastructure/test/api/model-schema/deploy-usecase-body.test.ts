@@ -15,6 +15,7 @@ import { deployUseCaseBodySchema } from '../../../lib/api/model-schema/deploy-us
 import { checkValidationSucceeded, checkValidationFailed } from './utils';
 import { Validator } from 'jsonschema';
 import {
+    AUTHENTICATION_PROVIDERS,
     CHAT_PROVIDERS,
     CONVERSATION_MEMORY_TYPES,
     DEFAULT_KENDRA_EDITION,
@@ -45,6 +46,12 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelId: 'fakemodel'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -58,6 +65,12 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelId: 'fakemodel',
                             ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -74,6 +87,12 @@ describe('Testing API schema validation', () => {
                             GuardrailIdentifier: 'fakeid',
                             GuardrailVersion: 'DRAFT'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -87,6 +106,12 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -97,6 +122,12 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -108,6 +139,12 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         ModelArn: 'garbage'
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -122,6 +159,12 @@ describe('Testing API schema validation', () => {
                             ModelId: 'fakemodel',
                             GuardrailIdentifier: 'fakeid'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -135,6 +178,12 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelId: 'fakemodel',
                             GuardrailVersion: 'DRAFT'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -151,6 +200,12 @@ describe('Testing API schema validation', () => {
                             GuardrailIdentifier: 'fakeid',
                             GuardrailVersion: 'garbage'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -165,6 +220,12 @@ describe('Testing API schema validation', () => {
                             ModelId: 'fakemodel',
                             GuardrailIdentifier: '_garbage',
                             GuardrailVersion: 'DRAFT'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -183,6 +244,12 @@ describe('Testing API schema validation', () => {
                             ModelInputPayloadSchema: {},
                             ModelOutputJSONPath: '$[0].generated_text'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -196,6 +263,12 @@ describe('Testing API schema validation', () => {
                         SageMakerLlmParams: {
                             ModelInputPayloadSchema: {},
                             ModelOutputJSONPath: '$[0].generated_text'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -212,6 +285,12 @@ describe('Testing API schema validation', () => {
                             ModelInputPayloadSchema: {},
                             ModelOutputJSONPath: '$[0].generated_text'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -225,6 +304,12 @@ describe('Testing API schema validation', () => {
                         SageMakerLlmParams: {
                             EndpointName: 'fake-endpoint',
                             ModelOutputJSONPath: '$[0].generated_text'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -241,6 +326,12 @@ describe('Testing API schema validation', () => {
                             ModelInputPayloadSchema: 'garbage',
                             ModelOutputJSONPath: '$[0].generated_text'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -256,6 +347,12 @@ describe('Testing API schema validation', () => {
                             ModelInputPayloadSchema: 'garbage',
                             ModelOutputJSONPath: '{}'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -269,6 +366,12 @@ describe('Testing API schema validation', () => {
                         SageMakerLlmParams: {
                             EndpointName: 'fake-endpoint',
                             ModelInputPayloadSchema: {}
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -291,6 +394,12 @@ describe('Testing API schema validation', () => {
                             Param5: { Value: JSON.stringify(['hello', 'world']), Type: 'list' },
                             Param6: { Value: JSON.stringify({ 'hello': 'world' }), Type: 'dictionary' }
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -305,6 +414,12 @@ describe('Testing API schema validation', () => {
                         ModelParams: {
                             Param1: { Value: 'hello', Type: 'othertype' }
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -318,6 +433,12 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: { ModelId: 'fakemodel' },
                         ModelParams: {
                             Param1: { Value: 1.0, Type: 'float' }
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -341,6 +462,12 @@ describe('Testing API schema validation', () => {
                         KendraKnowledgeBaseParams: {
                             KendraIndexName: 'test'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -360,6 +487,12 @@ describe('Testing API schema validation', () => {
                             QueryCapacityUnits: 2,
                             StorageCapacityUnits: 1,
                             KendraIndexEdition: DEFAULT_KENDRA_EDITION
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -382,6 +515,12 @@ describe('Testing API schema validation', () => {
                             StorageCapacityUnits: 1,
                             KendraIndexEdition: DEFAULT_KENDRA_EDITION
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -399,6 +538,12 @@ describe('Testing API schema validation', () => {
                         KnowledgeBaseType: KNOWLEDGE_BASE_TYPES.KENDRA,
                         KendraKnowledgeBaseParams: {
                             ExistingKendraIndexId: testKendraIndexId
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -419,6 +564,12 @@ describe('Testing API schema validation', () => {
                             ExistingKendraIndexId: testKendraIndexId,
                             StorageCapacityUnits: 1
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -436,6 +587,12 @@ describe('Testing API schema validation', () => {
                         KnowledgeBaseType: KNOWLEDGE_BASE_TYPES.KENDRA,
                         KendraKnowledgeBaseParams: {
                             ExistingKendraIndexId: 'garbage'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -456,6 +613,12 @@ describe('Testing API schema validation', () => {
                             KendraIndexName: 'test',
                             ExistingKendraIndexId: testKendraIndexId
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -474,6 +637,12 @@ describe('Testing API schema validation', () => {
                         KendraKnowledgeBaseParams: {
                             KendraIndexName: 'test',
                             RoleBasedAccessControlEnabled: true
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -494,6 +663,12 @@ describe('Testing API schema validation', () => {
                         KendraKnowledgeBaseParams: {
                             KendraIndexName: 'test'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -513,6 +688,12 @@ describe('Testing API schema validation', () => {
                             KendraIndexName: 'test'
                         },
                         NoDocsFoundResponse: 'test message'
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -532,6 +713,12 @@ describe('Testing API schema validation', () => {
                         KnowledgeBaseType: KNOWLEDGE_BASE_TYPES.BEDROCK,
                         BedrockKnowledgeBaseParams: {
                             BedrockKnowledgeBaseId: 'testid'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -553,6 +740,12 @@ describe('Testing API schema validation', () => {
                             RetrievalFilter: {},
                             OverrideSearchType: 'SEMANTIC'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -569,6 +762,12 @@ describe('Testing API schema validation', () => {
                     KnowledgeBaseParams: {
                         KnowledgeBaseType: KNOWLEDGE_BASE_TYPES.BEDROCK,
                         BedrockKnowledgeBaseParams: {}
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -586,6 +785,12 @@ describe('Testing API schema validation', () => {
                         KnowledgeBaseType: KNOWLEDGE_BASE_TYPES.BEDROCK,
                         BedrockKnowledgeBaseParams: {
                             BedrockKnowledgeBaseId: '?!'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -606,6 +811,12 @@ describe('Testing API schema validation', () => {
                             BedrockKnowledgeBaseId: 'testid',
                             RetrievalFilter: 'garbage'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -624,6 +835,12 @@ describe('Testing API schema validation', () => {
                         BedrockKnowledgeBaseParams: {
                             BedrockKnowledgeBaseId: 'testid',
                             OverrideSearchType: 'garbage'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
                         }
                     }
                 };
@@ -644,6 +861,12 @@ describe('Testing API schema validation', () => {
                         BedrockKnowledgeBaseParams: {
                             BedrockKnowledgeBaseId: 'testid'
                         }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -663,6 +886,12 @@ describe('Testing API schema validation', () => {
                             BedrockKnowledgeBaseId: 'testid'
                         },
                         NoDocsFoundResponse: 'test message'
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -686,6 +915,12 @@ describe('Testing API schema validation', () => {
                         NumberOfDocs: 3,
                         ScoreThreshold: 0.5,
                         ReturnSourceDocs: true
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
@@ -705,6 +940,12 @@ describe('Testing API schema validation', () => {
                             BedrockKnowledgeBaseId: 'testid'
                         },
                         NumberOfDocs: MIN_KENDRA_NUMBER_OF_DOCS - 1
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -724,6 +965,12 @@ describe('Testing API schema validation', () => {
                             BedrockKnowledgeBaseId: 'testid'
                         },
                         NumberOfDocs: MAX_KENDRA_NUMBER_OF_DOCS + 1
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -743,6 +990,12 @@ describe('Testing API schema validation', () => {
                             BedrockKnowledgeBaseId: 'testid'
                         },
                         ScoreThreshold: MIN_SCORE_THRESHOLD - 1
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -762,6 +1015,12 @@ describe('Testing API schema validation', () => {
                             BedrockKnowledgeBaseId: 'testid'
                         },
                         ScoreThreshold: MAX_SCORE_THRESHOLD + 1
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
@@ -780,6 +1039,12 @@ describe('Testing API schema validation', () => {
                     KnowledgeBaseType: KNOWLEDGE_BASE_TYPES.KENDRA,
                     KendraKnowledgeBaseParams: {
                         ExistingKendraIndexId: testKendraIndexId
+                    }
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
                     }
                 }
             };
@@ -802,6 +1067,12 @@ describe('Testing API schema validation', () => {
                     BedrockKnowledgeBaseParams: {
                         BedrockKnowledgeBaseId: 'testid'
                     }
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -823,6 +1094,12 @@ describe('Testing API schema validation', () => {
                     BedrockKnowledgeBaseParams: {
                         BedrockKnowledgeBaseId: 'testid'
                     }
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -838,6 +1115,12 @@ describe('Testing API schema validation', () => {
                 },
                 KnowledgeBaseParams: {
                     KnowledgeBaseType: 'garbage'
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -858,6 +1141,12 @@ describe('Testing API schema validation', () => {
                 },
                 VpcParams: {
                     VpcEnabled: false
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationSucceeded(validator.validate(payload, schema));
@@ -873,6 +1162,12 @@ describe('Testing API schema validation', () => {
                 VpcParams: {
                     VpcEnabled: false,
                     CreateNewVpc: true
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -888,6 +1183,12 @@ describe('Testing API schema validation', () => {
                 VpcParams: {
                     VpcEnabled: true,
                     CreateNewVpc: true
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationSucceeded(validator.validate(payload, schema));
@@ -904,6 +1205,12 @@ describe('Testing API schema validation', () => {
                     VpcEnabled: true,
                     CreateNewVpc: true,
                     ExistingVpcId: testVpcId
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -922,6 +1229,12 @@ describe('Testing API schema validation', () => {
                     ExistingVpcId: testVpcId,
                     ExistingPrivateSubnetIds: [testSubnetId],
                     ExistingSecurityGroupIds: [testSgId]
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationSucceeded(validator.validate(payload, schema));
@@ -939,6 +1252,12 @@ describe('Testing API schema validation', () => {
                     CreateNewVpc: false,
                     ExistingPrivateSubnetIds: [testSubnetId],
                     ExistingSecurityGroupIds: [testSgId]
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -957,6 +1276,12 @@ describe('Testing API schema validation', () => {
                     ExistingVpcId: 'garbage',
                     ExistingPrivateSubnetIds: [testSubnetId],
                     ExistingSecurityGroupIds: [testSgId]
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -974,6 +1299,12 @@ describe('Testing API schema validation', () => {
                     CreateNewVpc: false,
                     ExistingVpcId: testVpcId,
                     ExistingSecurityGroupIds: [testSgId]
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -992,6 +1323,12 @@ describe('Testing API schema validation', () => {
                     ExistingVpcId: testVpcId,
                     ExistingPrivateSubnetIds: ['garbage'],
                     ExistingSecurityGroupIds: [testSgId]
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -1009,6 +1346,12 @@ describe('Testing API schema validation', () => {
                     CreateNewVpc: false,
                     ExistingVpcId: testVpcId,
                     ExistingPrivateSubnetIds: [testSubnetId]
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -1027,6 +1370,12 @@ describe('Testing API schema validation', () => {
                     ExistingVpcId: testVpcId,
                     ExistingPrivateSubnetIds: [testSubnetId],
                     ExistingSecurityGroupIds: ['garbage']
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -1041,7 +1390,13 @@ describe('Testing API schema validation', () => {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
                     BedrockLlmParams: { ModelId: 'fakemodel' }
                 },
-                DefaultUserEmail: 'testuser@example.com'
+                DefaultUserEmail: 'testuser@example.com',
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
+                }
             };
             checkValidationSucceeded(validator.validate(payload, schema));
         });
@@ -1053,7 +1408,13 @@ describe('Testing API schema validation', () => {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
                     BedrockLlmParams: { ModelId: 'fakemodel' }
                 },
-                DefaultUserEmail: 'garbage'
+                DefaultUserEmail: 'garbage',
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
+                }
             };
             checkValidationFailed(validator.validate(payload, schema));
         });
@@ -1072,6 +1433,12 @@ describe('Testing API schema validation', () => {
                     HumanPrefix: 'human',
                     AiPrefix: 'ai',
                     ChatHistoryLength: 5
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationSucceeded(validator.validate(payload, schema));
@@ -1086,6 +1453,12 @@ describe('Testing API schema validation', () => {
                 },
                 ConversationMemoryParams: {
                     ConversationMemoryType: 'garbage'
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
@@ -1103,9 +1476,150 @@ describe('Testing API schema validation', () => {
                     HumanPrefix: 'human',
                     AiPrefix: 'ai',
                     ChatHistoryLength: -1
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
         });
     });
+
+
+    describe('AuthenticationParams Validation', () => {
+        describe('User Pool Id provided', () => {
+
+            it('Valid User Pool Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+            it('Valid Pool Client Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111',
+                            ExistingUserPoolClientId: '1111111111111111111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+
+        });
+
+        describe('Invalid Input provided', () => {
+
+            it('Empty Authentication Params', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+
+            it('Unsupported Authentication Provider', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: 'unsupported',
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Invalid User Pool Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'invalid user pool'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No CognitoParams provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No User Pool provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {}
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+        });
+    });
+    
 });

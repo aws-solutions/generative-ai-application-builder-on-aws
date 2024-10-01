@@ -11,10 +11,10 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-import { updateUseCaseBodySchema } from '../../../lib/api/model-schema/update-usecase-body';
-import { checkValidationSucceeded, checkValidationFailed } from './utils';
 import { Validator } from 'jsonschema';
+import { updateUseCaseBodySchema } from '../../../lib/api/model-schema/update-usecase-body';
 import {
+    AUTHENTICATION_PROVIDERS,
     CHAT_PROVIDERS,
     CONVERSATION_MEMORY_TYPES,
     KNOWLEDGE_BASE_TYPES,
@@ -23,6 +23,7 @@ import {
     MIN_KENDRA_NUMBER_OF_DOCS,
     MIN_SCORE_THRESHOLD
 } from '../../../lib/utils/constants';
+import { checkValidationFailed, checkValidationSucceeded } from './utils';
 
 describe('Testing API schema validation', () => {
     let schema: any;
@@ -724,4 +725,91 @@ describe('Testing API schema validation', () => {
             checkValidationFailed(validator.validate(payload, schema));
         });
     });
+
+    describe('AuthenticationParams Validation', () => {
+        describe('User Pool Id provided', () => {
+
+            it('Valid User Pool Id provided', () => {
+                const payload = {
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+            it('Valid Pool Client Id provided', () => {
+                const payload = {
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111',
+                            ExistingUserPoolClientId: '1111111111111111111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+
+        });
+
+        describe('Invalid Input provided', () => {
+
+            it('Empty Authentication Params', () => {
+                const payload = {
+                    AuthenticationParams: {
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+
+            it('Unsupported Authentication Provider', () => {
+                const payload = {
+                    AuthenticationParams: {
+                        AuthenticationProvider: 'unsupported',
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Invalid User Pool Id provided', () => {
+                const payload = {
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'invalid user pool'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No CognitoParams provided', () => {
+                const payload = {
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No User Pool provided', () => {
+                const payload = {
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {}
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+        });
+    });
+    
+
+
 });
