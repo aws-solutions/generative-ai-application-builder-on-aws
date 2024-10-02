@@ -392,15 +392,6 @@ export const deployUseCaseBodySchema: JsonSchema = {
                     required: ['ExistingUserPoolId']
                 },
             },
-            anyOf: [
-                {
-                    properties: {
-                        AuthenticationProvider: { enum: [AUTHENTICATION_PROVIDERS.COGNITO] }
-                    },
-                    required: ['CognitoParams']
-                },
-            ],
-            required: ['AuthenticationProvider']
         },
         LlmParams: {
             type: JsonSchemaType.OBJECT,
@@ -596,36 +587,50 @@ export const deployUseCaseBodySchema: JsonSchema = {
         }
     },
     // If RAG is enabled, ensure we provide the KnowledgeBaseParams
-    oneOf: [
+    allOf: [
         {
-            properties: {
-                LlmParams: {
+            oneOf: [
+                {
                     properties: {
-                        RAGEnabled: {
-                            type: JsonSchemaType.BOOLEAN,
-                            enum: [false]
+                        LlmParams: {
+                            properties: {
+                                RAGEnabled: {
+                                    type: JsonSchemaType.BOOLEAN,
+                                    enum: [false]
+                                }
+                            }
+                        },
+                        KnowledgeBaseParams: {
+                            'not': {}
                         }
                     }
                 },
-                KnowledgeBaseParams: {
-                    'not': {}
-                }
-            }
+                {
+                    properties: {
+                        LlmParams: {
+                            properties: {
+                                RAGEnabled: {
+                                    type: JsonSchemaType.BOOLEAN,
+                                    enum: [true]
+                                }
+                            }
+                        }
+                    },
+                    required: ['KnowledgeBaseParams']
+                },
+            ],
         },
         {
             properties: {
-                LlmParams: {
+                AuthenticationParams: {
                     properties: {
-                        RAGEnabled: {
-                            type: JsonSchemaType.BOOLEAN,
-                            enum: [true]
-                        }
-                    }
+                        AuthenticationProvider: { enum: [AUTHENTICATION_PROVIDERS.COGNITO] }
+                    },
+                    required: ['CognitoParams']
                 }
             },
-            required: ['KnowledgeBaseParams']
         },
     ],
-    required: ['UseCaseName', 'LlmParams', 'AuthenticationParams'],
+    required: ['UseCaseName', 'LlmParams'],
     additionalProperties: false
 };
