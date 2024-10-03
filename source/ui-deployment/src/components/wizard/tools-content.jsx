@@ -71,7 +71,6 @@ export const TOOLS_CONTENT = {
                     </Box>
                 </SpaceBetween>
             ),
-
             links: [
                 {
                     href: IG_DOCS.MANAGE_USERS,
