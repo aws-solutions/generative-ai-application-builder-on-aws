@@ -38,7 +38,7 @@ export const UseExistingUserPoolClientId = (props: UserPoolFieldProps) => {
             label="Do you want to use an existing user pool client?"
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.existingUserPoolClient)}
+                    onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.existingUserPoolClientId)}
                     ariaLabel={
                         'You can use an existing Cognito User Pool Client, or choose "No" to have it created for you automatically.'
                     }

@@ -26,7 +26,7 @@ export const TOOLS_CONTENT = {
                 }
             ]
         },
-        existingUserPoolClient: {
+        existingUserPool: {
             title: 'Default or Existing User Pool',
             content: (
                 <Box variant="p">
@@ -41,7 +41,7 @@ export const TOOLS_CONTENT = {
                 }
             ]
         },
-        existingUserPool: {
+        existingUserPoolId: {
             title: 'Bring Your Own User Pool',
             content: (
                 <SpaceBetween size="xs">
@@ -55,12 +55,27 @@ export const TOOLS_CONTENT = {
 
             links: [
                 {
-                    href: IG_DOCS.VPC,
-                    text: 'VPC'
-                },
+                    href: IG_DOCS.MANAGE_USERS,
+                    text: 'Manage Users'
+                }
+            ]
+        },
+        existingUserPoolClientId: {
+            title: 'Bring Your Own User Pool',
+            content: (
+                <SpaceBetween size="xs">
+                    <Box variant="p">
+                        Use this option to configure the Cognito User Pool Client Id to be used by the deployment. When deploying the solution,
+                        you have the option to use an existing Congito User Pool. If you choose otherwise, the solution will use the default Cognito User Pool
+                        which is used to login to use case deployment dashboard and will create a new Cognito User Pool Client.
+                    </Box>
+                </SpaceBetween>
+            ),
+
+            links: [
                 {
-                    href: IG_DOCS.VPC_CONSOLE,
-                    text: 'VPC Console'
+                    href: IG_DOCS.MANAGE_USERS,
+                    text: 'Manage Users'
                 }
             ]
         },

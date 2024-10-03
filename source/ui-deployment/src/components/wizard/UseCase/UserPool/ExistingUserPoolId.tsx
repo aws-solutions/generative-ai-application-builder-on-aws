@@ -51,7 +51,7 @@ export const ExistingUserPoolId = (props: UserPoolFieldProps) => {
             errorText={existingUserPoolIdError}
             data-testid="user-pool-id-field"
             description="The Id of the Cognito User Pool to be used for the use case."
-            info={<InfoLink onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.existingUserPool)} />}
+            info={<InfoLink onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.existingUserPoolId)} />}
         >
             <Input
                 placeholder="Cognito User Pool Id..."
