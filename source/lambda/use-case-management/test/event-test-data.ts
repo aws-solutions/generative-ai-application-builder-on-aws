@@ -11,7 +11,7 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-import { CHAT_PROVIDERS, KnowledgeBaseTypes } from '../utils/constants';
+import { AUTHENTICATION_PROVIDERS, CHAT_PROVIDERS, KnowledgeBaseTypes } from '../utils/constants';
 
 export const createUseCaseEvent = {
     body: {
@@ -161,6 +161,41 @@ export const createUseCaseEventNoPrompt = {
             Streaming: true,
             RAGEnabled: true,
             Temperature: 0.1
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+
+export const createUseCaseEventAuthenticationParams = {
+    body: {
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
+        KnowledgeBaseParams: {
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
+        },
+        LlmParams: {
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
+            ModelParams: { 'Param1': 'value1' },
+            Streaming: true,
+            RAGEnabled: true,
+            Temperature: 0.1
+        },
+        AuthenticationParams: {
+            AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+            CognitoParams: {
+                ExistingUserPoolId: 'us-east-1_11111111111111111111'
+            }
         }
     },
     requestContext: {
