@@ -32,11 +32,13 @@ This software includes third party software subject to the following copyrights:
 @aws-sdk/util-arn-parser                                    Apache-2.0
 @aws-sdk/util-dynamodb                                      Apache-2.0
 @aws-solutions-constructs/aws-apigateway-lambda             Apache-2.0
+@aws-solutions-constructs/aws-apigatewayv2websocket-sqs     Apache-2.0
 @aws-solutions-constructs/aws-cloudfront-s3                 Apache-2.0
 @aws-solutions-constructs/aws-dynamodbstreams-lambda        Apache-2.0
 @aws-solutions-constructs/aws-lambda-dynamodb               Apache-2.0
 @aws-solutions-constructs/aws-sqs-lambda                    Apache-2.0
 @aws-solutions-constructs/aws-wafwebacl-apigateway          Apache-2.0
+@aws-solutions-constructs/core                              Apache-2.0
 @babel/plugin-proposal-private-property-in-object           MIT
 @cloudscape-design/code-view                                Apache-2.0
 @cloudscape-design/components                               Apache-2.0
