@@ -13,6 +13,7 @@
 
 import { JsonSchema, JsonSchemaType, JsonSchemaVersion } from 'aws-cdk-lib/aws-apigateway';
 import {
+    AUTHENTICATION_PROVIDERS,
     CHAT_PROVIDERS,
     DEFAULT_CONVERSATION_MEMORY_TYPE,
     DEFAULT_ENABLE_RBAC,
@@ -31,6 +32,7 @@ import {
     MIN_KENDRA_NUMBER_OF_DOCS,
     MIN_SCORE_THRESHOLD,
     MODEL_PARAM_TYPES,
+    SUPPORTED_AUTHENTICATION_PROVIDERS,
     SUPPORTED_CHAT_PROVIDERS,
     SUPPORTED_CONVERSATION_MEMORY_TYPES,
     SUPPORTED_KNOWLEDGE_BASE_TYPES
@@ -358,6 +360,39 @@ export const deployUseCaseBodySchema: JsonSchema = {
             required: ['KnowledgeBaseType'],
             additionalProperties: false
         },
+
+        AuthenticationParams: {
+            type: JsonSchemaType.OBJECT,
+            description: 'Parameters related to the Authentication.',
+            properties: {
+                AuthenticationProvider: {
+                    type: JsonSchemaType.STRING,
+                    description: 'Supported authentication provider.',
+                    enum: SUPPORTED_AUTHENTICATION_PROVIDERS
+                },
+                CognitoParams: {
+                    type: JsonSchemaType.OBJECT,
+                    description: 'Cognito user pool related parameters.',
+                    properties: {
+                        ExistingUserPoolId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Id.',
+                            pattern: '^[\\w-]+_[0-9a-zA-Z]+$',
+                            minLength: 1,
+                            maxLength: 55
+                        },
+                        ExistingUserPoolClientId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Client Id.',
+                            pattern: '^[\\w+]+$',
+                            minLength: 1,
+                            maxLength: 128
+                        }
+                    },
+                    required: ['ExistingUserPoolId']
+                },
+            },
+        },
         LlmParams: {
             type: JsonSchemaType.OBJECT,
             description: 'Parameters related to the LLM performing inferences.',
@@ -552,35 +587,49 @@ export const deployUseCaseBodySchema: JsonSchema = {
         }
     },
     // If RAG is enabled, ensure we provide the KnowledgeBaseParams
-    oneOf: [
+    allOf: [
         {
-            properties: {
-                LlmParams: {
+            oneOf: [
+                {
                     properties: {
-                        RAGEnabled: {
-                            type: JsonSchemaType.BOOLEAN,
-                            enum: [false]
+                        LlmParams: {
+                            properties: {
+                                RAGEnabled: {
+                                    type: JsonSchemaType.BOOLEAN,
+                                    enum: [false]
+                                }
+                            }
+                        },
+                        KnowledgeBaseParams: {
+                            'not': {}
                         }
                     }
                 },
-                KnowledgeBaseParams: {
-                    'not': {}
-                }
-            }
+                {
+                    properties: {
+                        LlmParams: {
+                            properties: {
+                                RAGEnabled: {
+                                    type: JsonSchemaType.BOOLEAN,
+                                    enum: [true]
+                                }
+                            }
+                        }
+                    },
+                    required: ['KnowledgeBaseParams']
+                },
+            ],
         },
         {
             properties: {
-                LlmParams: {
+                AuthenticationParams: {
                     properties: {
-                        RAGEnabled: {
-                            type: JsonSchemaType.BOOLEAN,
-                            enum: [true]
-                        }
-                    }
+                        AuthenticationProvider: { enum: [AUTHENTICATION_PROVIDERS.COGNITO] }
+                    },
+                    required: ['CognitoParams']
                 }
             },
-            required: ['KnowledgeBaseParams']
-        }
+        },
     ],
     required: ['UseCaseName', 'LlmParams'],
     additionalProperties: false

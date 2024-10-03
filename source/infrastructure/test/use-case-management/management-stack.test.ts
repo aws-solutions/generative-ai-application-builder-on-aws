@@ -715,6 +715,32 @@ describe('When creating a use case management Stack', () => {
                     },
                     {
                         Action: [
+                            'cognito-idp:DescribeUserPool'
+                        ],
+                        Effect: 'Allow',
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        Ref: 'AWS::Partition'
+                                    },
+                                    ':cognito-idp:',
+                                    {
+                                        Ref: 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        Ref: 'AWS::AccountId'
+                                    },
+                                    ':userpool/*'
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        Action: [
                             'cloudfront:Create*',
                             'cloudfront:Delete*',
                             'cloudfront:DescribeFunction',

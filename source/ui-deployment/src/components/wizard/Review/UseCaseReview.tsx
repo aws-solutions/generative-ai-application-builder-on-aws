@@ -53,6 +53,18 @@ export const UseCaseReview = (props: UseCaseReviewProps) => {
                         </ValueWithLabel>
                     )}
 
+                    {props.useCaseData.existingUserPoolId !== '' && (
+                        <ValueWithLabel label="Cognito User Pool Id">
+                            {props.useCaseData.existingUserPoolId}
+                        </ValueWithLabel>
+                    )}
+
+                    {props.useCaseData.existingUserPoolClientId !== '' && (
+                        <ValueWithLabel label="Cognito User Pool Client Id">
+                            {props.useCaseData.existingUserPoolClientId}
+                        </ValueWithLabel>
+                    )}
+
                     <ValueWithLabel label="Deploy UI">{props.useCaseData.deployUI ? 'Yes' : 'No'}</ValueWithLabel>
                 </ColumnLayout>
             </Container>

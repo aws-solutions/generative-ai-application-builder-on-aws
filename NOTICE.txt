@@ -20,6 +20,7 @@ This software includes third party software subject to the following copyrights:
 @aws-lambda-powertools/logger                               MIT
 @aws-lambda-powertools/metrics                              MIT
 @aws-lambda-powertools/tracer                               MIT
+@aws-sdk/client-cognito-identity-provider                   Apache-2.0
 @aws-sdk/client-cloudformation                              Apache-2.0
 @aws-sdk/client-dynamodb                                    Apache-2.0
 @aws-sdk/client-kendra                                      Apache-2.0

@@ -11,19 +11,20 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import React, { useContext } from 'react';
 import { Box, Container, Header, SpaceBetween } from '@cloudscape-design/components';
+import React, { useContext } from 'react';
 import UserEmail from './UserEmail';
 
-import { USE_CASE_OPTIONS } from '../steps-config';
 import { DEPLOYMENT_ACTIONS } from '../../../utils/constants';
+import { USE_CASE_OPTIONS } from '../steps-config';
 
 import HomeContext from '../../../contexts/home.context';
+import { StepContentProps } from '../interfaces/Steps';
+import DeployUI from './DeployUI';
 import UseCaseDescription from './UseCaseDescription';
 import UseCaseName from './UseCaseName';
 import UseCaseTypeSelection from './UseCaseTypeSelection';
-import { StepContentProps } from '../interfaces/Steps';
-import DeployUI from './DeployUI';
+import UserPool from './UserPool/UserPool';
 
 const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepContentProps) => {
     const {
@@ -31,7 +32,18 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
     } = useContext(HomeContext);
 
     const [numFieldsInError, setNumFieldsInError] = React.useState(0);
-    const requiredFields = ['useCaseName'];
+
+    const initRequiredFieldsValue = () => {
+        const requiredFields = ['useCaseName'];
+
+        if (useCase.existingUserPool) {
+            requiredFields.push('userPoolId');
+        }
+        return requiredFields;
+    };
+
+    const [requiredFields, setRequiredFields] = React.useState(initRequiredFieldsValue);
+
 
     React.useEffect(() => {
         const isRequiredFieldsFilled = () => {
@@ -50,42 +62,75 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
             }
         };
         updateError();
-    }, [numFieldsInError, useCase.useCaseName, useCase.useCaseDescription, useCase.defaultUserEmail]);
+    }, [numFieldsInError, useCase.useCaseName, useCase.useCaseDescription, useCase.defaultUserEmail, useCase.existingUserPool, useCase.userPoolId]);
+
+
+    React.useEffect(() => {
+        if (useCase.existingUserPool) {
+            setRequiredFields(['useCaseName', 'userPoolId']);
+        } else {
+            setRequiredFields(['useCaseName']);
+        }
+
+        if ((useCase.existingUserPool && useCase.userPoolId || !useCase.existingUserPool) && useCase.useCaseName) {
+            setNumFieldsInError(0);
+            onChange({ inError: false });
+        }
+
+    }, [useCase.useCaseName, useCase.existingUserPool, useCase.userPoolId])
+
 
     return (
-        <Box margin={{ bottom: 'l' }}>
-            <Container header={<Header variant="h2">Use case options</Header>}>
-                <SpaceBetween size="s">
-                    <UseCaseTypeSelection
-                        onChangeFn={onChange}
-                        selectedOption={useCase.useCase}
-                        useCaseTypeOptions={USE_CASE_OPTIONS}
-                    />
-                    <UseCaseName
-                        name={useCase.useCaseName}
-                        disabled={deploymentAction === DEPLOYMENT_ACTIONS.EDIT}
-                        onChangeFn={onChange}
-                        setNumFieldsInError={setNumFieldsInError}
-                    />
+        <div>
+            <Box margin={{ bottom: 'l' }}>
+                <Container header={<Header variant="h2">Use case options</Header>}>
+                    <SpaceBetween size="s">
+                        <UseCaseTypeSelection
+                            onChangeFn={onChange}
+                            selectedOption={useCase.useCase}
+                            useCaseTypeOptions={USE_CASE_OPTIONS}
+                        />
+                        <UseCaseName
+                            name={useCase.useCaseName}
+                            disabled={deploymentAction === DEPLOYMENT_ACTIONS.EDIT}
+                            onChangeFn={onChange}
+                            setNumFieldsInError={setNumFieldsInError}
+                        />
+                        <UseCaseDescription
+                            descriptionValue={useCase.useCaseDescription}
+                            setNumFieldsInError={setNumFieldsInError}
+                            onChangeFn={onChange}
+                        />
+                        <DeployUI
+                            deployUI={useCase.deployUI}
+                            setHelpPanelContent={setHelpPanelContent}
+                            onChangeFn={onChange}
+                        />
+                    </SpaceBetween>
+                </Container>
+            </Box>
+            <Container header={<Header variant="h2">Manage user access</Header>}>
+                <SpaceBetween size="l">
                     <UserEmail
                         email={useCase.defaultUserEmail}
                         onChangeFn={onChange}
                         setHelpPanelContent={setHelpPanelContent}
                         setNumFieldsInError={setNumFieldsInError}
                     />
-                    <UseCaseDescription
-                        descriptionValue={useCase.useCaseDescription}
-                        setNumFieldsInError={setNumFieldsInError}
-                        onChangeFn={onChange}
-                    />
-                    <DeployUI
-                        deployUI={useCase.deployUI}
+
+                    <UserPool
+                        useExistingUserPoolId={useCase.useExistingUserPoolId}
+                        existingUserPoolId={useCase.existingUserPoolId}
+                        useExistingUserPoolClientId={useCase.useExistingUserPoolClientId}
+                        existingUserPoolClientId={useCase.existingUserPoolClientId}
                         setHelpPanelContent={setHelpPanelContent}
                         onChangeFn={onChange}
+                        setNumFieldsInError={setNumFieldsInError}
+                        disabled={deploymentAction === DEPLOYMENT_ACTIONS.EDIT}
                     />
                 </SpaceBetween>
             </Container>
-        </Box>
+        </div>
     );
 };
 

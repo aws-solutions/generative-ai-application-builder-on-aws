@@ -16,6 +16,7 @@ import * as crypto from 'crypto';
 import { MissingValueError } from '../exception/missing-value-error';
 import { logger } from '../power-tools-init';
 import {
+    AUTHENTICATION_PROVIDERS,
     CLIENT_ID_ENV_VAR,
     COGNITO_DOMAIN_PREFIX_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
@@ -296,25 +297,42 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
         );
         cfnParameters.set(CfnParameterKeys.UseCaseConfigTableName, process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]!);
 
-        cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, process.env[USER_POOL_ID_ENV_VAR]!);
-        if (
-            process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR] &&
-            process.env[USE_EXISTING_USER_POOL_CLIENT_ENV_VAR].toLowerCase() === 'true' &&
-            process.env[CLIENT_ID_ENV_VAR]
-        ) {
-            cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, process.env[CLIENT_ID_ENV_VAR]);
-        }
+        if (eventBody.AuthenticationParams) {
+            switch (eventBody.AuthenticationParams.AuthenticationProvider) {
+                case AUTHENTICATION_PROVIDERS.COGNITO:
+                    const existingUserPoolId = eventBody.AuthenticationParams.CognitoParams.ExistingUserPoolId;
+                    const existingUserPoolClientId = eventBody.AuthenticationParams.CognitoParams.ExistingUserPoolClientId;
 
-        if (process.env[USER_POOL_ID_ENV_VAR]) {
-            if (process.env[COGNITO_DOMAIN_PREFIX_VAR]) {
-                cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, process.env[COGNITO_DOMAIN_PREFIX_VAR]);
-            } else {
-                logger.error(
-                    'Lambda has an environment variable to use existing user pool, but could not find the environment variable for Cognito domain prefix. This use case setup will have an incorrect sign-in url.'
-                );
-                throw new Error(
-                    'Domain prefix not available for existing user pool. Without domain prefix, authenticating into a use case would fail.'
-                );
+                    if (!existingUserPoolId) {
+                        throw new Error(`Required field existingUserPoolId not provided for the "Cognito" AuthenticationProvider.`);
+                    }
+
+                    cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, existingUserPoolId);
+
+                    if (existingUserPoolClientId) {
+                        cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolClient, existingUserPoolClientId);
+                    }
+
+                    break;
+                default:
+                    console.log(`Error: unsupported AuthenticationProvider. AuthenticationParams provided: ${eventBody.AuthenticationParams}`);
+                    throw new Error(`Error: unsupported AuthenticationProvider: ${eventBody.AuthenticationParams.AuthenticationProvider}.`);
+            }
+        }
+        else {
+            cfnParameters.set(CfnParameterKeys.ExistingCognitoUserPoolId, process.env[USER_POOL_ID_ENV_VAR]!);
+
+            if (process.env[USER_POOL_ID_ENV_VAR]) {
+                if (process.env[COGNITO_DOMAIN_PREFIX_VAR]) {
+                    cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, process.env[COGNITO_DOMAIN_PREFIX_VAR]);
+                } else {
+                    logger.error(
+                        'Lambda has an environment variable to use existing user pool, but could not find the environment variable for Cognito domain prefix. This use case setup will have an incorrect sign-in url.'
+                    );
+                    throw new Error(
+                        'Domain prefix not available for existing user pool. Without domain prefix, authenticating into a use case would fail.'
+                    );
+                }
             }
         }
 
@@ -394,6 +412,7 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
     private static createConfiguration(eventBody: any): UseCaseConfiguration {
         let config = {
             UseCaseName: eventBody.UseCaseName,
+            ExistingCognitoUserPoolId: eventBody.ExistingCognitoUserPoolId,
             ConversationMemoryParams: eventBody.ConversationMemoryParams,
             KnowledgeBaseParams: {
                 KnowledgeBaseType: eventBody.KnowledgeBaseParams?.KnowledgeBaseType,
@@ -416,6 +435,7 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
                 Streaming: eventBody.LlmParams.Streaming,
                 Verbose: eventBody.LlmParams.Verbose
             },
+            AuthenticationParams: eventBody.AuthenticationParams,
             IsInternalUser: process.env[IS_INTERNAL_USER_ENV_VAR]! // env var value is set as 'true' or 'false' on deployment of management stack
         };
 

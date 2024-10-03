@@ -12,10 +12,13 @@
  **********************************************************************************************************************/
 
 import _ from 'lodash';
+import { CognitoIdentityProviderClient, DescribeUserPoolCommand } from "@aws-sdk/client-cognito-identity-provider";;
 import { StorageManagement } from '../ddb/storage-management';
 import { UseCaseConfigManagement } from '../ddb/use-case-config-management';
 import { tracer } from '../power-tools-init';
 import {
+    AUTHENTICATION_PROVIDERS,
+    CfnParameterKeys,
     ChatRequiredPlaceholders,
     DisambiguationRequiredPlaceholders,
     KnowledgeBaseTypes,
@@ -23,6 +26,7 @@ import {
 } from '../utils/constants';
 import RequestValidationError from '../utils/error';
 import { UseCase } from './use-case';
+import { customAwsConfig } from 'aws-node-user-agent-config';
 
 /**
  * Class responsible for validating that use cases can be used for creations and updates,
@@ -59,10 +63,53 @@ export class UseCaseValidator {
             useCase.configuration.LlmParams!.PromptParams.DisambiguationPromptTemplate = modelInfo.DisambiguationPrompt;
         }
 
+
+        if (useCase.configuration.AuthenticationParams) {
+            switch (useCase.configuration.AuthenticationParams.AuthenticationProvider) {
+                case AUTHENTICATION_PROVIDERS.COGNITO:
+                    // overriding the previously set CognitoDomainPrefix parameter 
+                    // by fetching it dynamically based on the set user pool
+
+                    const existingUserPoolId = useCase.cfnParameters?.get(CfnParameterKeys.ExistingCognitoUserPoolId);
+                    if (!existingUserPoolId) {
+                        throw new Error(`Undefined user pool provided for the cognito authentication provider.`)
+                    }
+
+                    const cognitoDomainPrefix = await this.getCognitoDomainPrefixByUserPool(existingUserPoolId);
+
+                    if (!useCase.cfnParameters) {
+                        throw new Error(`CFNParameters are not available yet for setting Cognito Domain Prefix.`)
+                    }
+
+                    useCase.cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, cognitoDomainPrefix);
+
+                    break;
+            }
+        }
+
         await UseCaseValidator.checkModelInputPayloadSchema(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
         await UseCaseValidator.checkPromptsAreCompatible(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
         await UseCaseValidator.checkKnowledgeBaseTypeMatchesParams(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
         return useCase;
+    }
+
+    private async getCognitoDomainPrefixByUserPool(userPoolId: string) {
+
+        const client = new CognitoIdentityProviderClient(customAwsConfig());
+
+        try {
+            const command = new DescribeUserPoolCommand({ UserPoolId: userPoolId });
+            const response = await client.send(command);
+
+            if (response.UserPool && response.UserPool.Domain) {
+                return response.UserPool.Domain;
+            } else {
+                throw new Error(`No domain found for this user pool.`);
+            }
+        } catch (error) {
+            console.log(`Error fetching user pool details. Error: ${error}`)
+            throw error;
+        }
     }
 
     /**

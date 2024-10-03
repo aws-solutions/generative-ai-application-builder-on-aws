@@ -77,6 +77,9 @@
       "@aws-sdk/util-arn-parser": [
         "../layers/aws-sdk-lib/node_modules/@aws-sdk/util-arn-parser"
       ],
+      "@aws-sdk/client-cognito-identity-provider": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-cognito-identity-provider"
+      ],
       "@smithy/types": [
         "../layers/aws-sdk-lib/node_modules/@smithy/types"
       ]

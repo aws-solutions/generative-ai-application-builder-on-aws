@@ -151,7 +151,10 @@ export const RetainedCfnParameterKeys = [
     CfnParameterKeys.CreateNewVpc,
     CfnParameterKeys.ExistingVpcId,
     CfnParameterKeys.ExistingPrivateSubnetIds,
-    CfnParameterKeys.ExistingSecurityGroupIds
+    CfnParameterKeys.ExistingSecurityGroupIds,
+    CfnParameterKeys.ExistingCognitoUserPoolClient,
+    CfnParameterKeys.ExistingCognitoUserPoolId,
+    CfnParameterKeys.CognitoDomainPrefix
 ];
 
 export const ChatRequiredPlaceholders = ['{input}', '{history}'];
@@ -168,3 +171,10 @@ export const USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME = 'key';
 export const USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME = 'config';
 
 export const DEFAULT_USE_CASES_PER_PAGE = 10;
+
+
+export const enum AUTHENTICATION_PROVIDERS {
+    COGNITO = 'Cognito'
+}
+
+export const SUPPORTED_AUTHENTICATION_PROVIDERS = [AUTHENTICATION_PROVIDERS.COGNITO];

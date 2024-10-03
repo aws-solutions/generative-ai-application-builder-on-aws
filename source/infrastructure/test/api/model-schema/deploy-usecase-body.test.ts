@@ -15,6 +15,7 @@ import { deployUseCaseBodySchema } from '../../../lib/api/model-schema/deploy-us
 import { checkValidationSucceeded, checkValidationFailed } from './utils';
 import { Validator } from 'jsonschema';
 import {
+    AUTHENTICATION_PROVIDERS,
     CHAT_PROVIDERS,
     CONVERSATION_MEMORY_TYPES,
     DEFAULT_KENDRA_EDITION,
@@ -45,7 +46,7 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelId: 'fakemodel'
                         }
-                    }
+                    }, 
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
             });
@@ -59,7 +60,7 @@ describe('Testing API schema validation', () => {
                             ModelId: 'fakemodel',
                             ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111'
                         }
-                    }
+                    },
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
             });
@@ -1103,9 +1104,150 @@ describe('Testing API schema validation', () => {
                     HumanPrefix: 'human',
                     AiPrefix: 'ai',
                     ChatHistoryLength: -1
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
         });
     });
+
+
+    describe('AuthenticationParams Validation', () => {
+        describe('User Pool Id provided', () => {
+
+            it('Valid User Pool Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+            it('Valid Pool Client Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111',
+                            ExistingUserPoolClientId: '1111111111111111111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+
+        });
+
+        describe('Invalid Input provided', () => {
+
+            it('Empty Authentication Params', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+
+            it('Unsupported Authentication Provider', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: 'unsupported',
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Invalid User Pool Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'invalid user pool'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No CognitoParams provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No User Pool provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {}
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+        });
+    });
+    
 });
