@@ -14,7 +14,7 @@
 import { API } from 'aws-amplify';
 import { API_NAME, DEFAULT_MODEL_ID } from '../utils/constants';
 import { generateToken } from '../utils';
-import { USE_CASE_OPTIONS } from 'components/wizard/steps-config';
+import { USE_CASE_OPTIONS } from '@/components/wizard/steps-config';
 
 interface ModelInfoRouteParams {
     useCaseType?: string;

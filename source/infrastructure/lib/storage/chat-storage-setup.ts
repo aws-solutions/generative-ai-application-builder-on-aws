@@ -12,13 +12,16 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
+import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import { Construct } from 'constructs';
+import { BaseStackProps } from '../framework/base-stack';
 import { DynamoDBChatStorage } from './chat-storage-stack';
 
-export interface ChatStorageProps {
+export interface ChatStorageProps extends BaseStackProps {
     /**
      * The 8-character UUID to add to resource names to ensure they are unique across deployments
      */
@@ -30,6 +33,11 @@ export interface ChatStorageProps {
     existingModelInfoTableName: string;
 
     /**
+     * Condition to determine if a new table should be created.
+     */
+    newModelInfoTableCondition: cdk.CfnCondition;
+
+    /**
      * Lambda function to use for custom resource implementation.
      */
     customResourceLambda: lambda.Function;
@@ -38,6 +46,11 @@ export interface ChatStorageProps {
      * The IAM role to use for custom resource implementation.
      */
     customResourceRole: iam.Role;
+
+    /**
+     * Access logging bucket for the S3 buckets created by the stack.
+     */
+    accessLoggingBucket: s3.Bucket;
 }
 
 /**
@@ -62,12 +75,16 @@ export class ChatStorageSetup extends Construct {
         this.chatStorage = new DynamoDBChatStorage(this, 'ChatStorage', {
             parameters: {
                 ConversationTableName: `ConversationTable-${props.useCaseUUID}`,
-                ExistingModelInfoTableName: props.existingModelInfoTableName,
-                NewModelInfoTableName: `ModelInfoTable-${props.useCaseUUID}`,
+                ExistingModelInfoTableName: cdk.Fn.conditionIf(
+                    props.newModelInfoTableCondition.logicalId,
+                    cdk.Aws.NO_VALUE,
+                    props.existingModelInfoTableName
+                ).toString(),
                 CustomResourceLambdaArn: props.customResourceLambda.functionArn,
-                CustomResourceRoleArn: props.customResourceRole.roleArn
+                CustomResourceRoleArn: props.customResourceRole.roleArn,
+                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn
             },
-            description: 'Nested Stack that creates the DynamoDB tables for the chat use case'
+            description: `Nested Stack that creates the DynamoDB tables for the chat use case - Version ${props.solutionVersion}`
         });
     }
 }

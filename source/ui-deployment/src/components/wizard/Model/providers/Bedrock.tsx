@@ -15,6 +15,8 @@ import { SpaceBetween } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 
 import { ModelNameDropdown } from '../common/ModelNameDropdown';
+import ProvisionedModelRadio from '../common/ProvisionedModelRadio';
+import ModelArnInput from '../common/ModelArnInput';
 
 export interface BedrockModelProps extends BaseFormComponentProps {
     modelData: any;
@@ -24,6 +26,24 @@ export const BedrockModel = (props: BedrockModelProps) => {
     return (
         <SpaceBetween size="l" data-testid="bedrock-model-components">
             <ModelNameDropdown {...props} />
+            {props.modelData.modelName !== '' && (
+                <>
+                    <ProvisionedModelRadio
+                        modelData={props.modelData}
+                        onChangeFn={props.onChangeFn}
+                        setHelpPanelContent={props.setHelpPanelContent}
+                        setNumFieldsInError={props.setNumFieldsInError}
+                    />
+                    {props.modelData.provisionedModel && (
+                        <ModelArnInput
+                            modelData={props.modelData}
+                            onChangeFn={props.onChangeFn}
+                            setHelpPanelContent={props.setHelpPanelContent}
+                            setNumFieldsInError={props.setNumFieldsInError}
+                        />
+                    )}
+                </>
+            )}
         </SpaceBetween>
     );
 };

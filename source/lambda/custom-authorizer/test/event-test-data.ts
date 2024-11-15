@@ -58,7 +58,7 @@ export const batchGetItemResponse = {
                             'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id2/*/*'],
                             'Effect': 'Allow',
                             'Action': 'execute-api:Invoke',
-                            'Sid': 'HuggingFaceChatStack-Users-policy-statement'
+                            'Sid': 'BedrockChatStack-Users-policy-statement'
                         }
                     ]
                 },
@@ -92,7 +92,7 @@ export const multiGroupBatchGetItemResponse = {
                             'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id2/*/*'],
                             'Effect': 'Allow',
                             'Action': 'execute-api:Invoke',
-                            'Sid': 'HuggingFaceChatStack-Users-policy-statement'
+                            'Sid': 'BedrockChatStack-Users-policy-statement'
                         }
                     ]
                 },
@@ -144,6 +144,22 @@ export const fakeIdToken: Partial<CognitoAccessTokenPayload> = {
 export const fakeMultiGroupIdToken: Partial<CognitoAccessTokenPayload> = {
     sub: 'fake-sub',
     'cognito:groups': ['admin', 'group1', 'group2'],
+    iss: 'https://cognito-idp.us-east-1.amazonaws.com/user-pool-id',
+    'cognito:username': 'fakeuser',
+    client_id: 'fake-client-id',
+    origin_jti: 'fake-origin-jti',
+    event_id: 'fake-event-id',
+    token_use: 'access',
+    scope: 'aws.cognito.signin.user.fake-sub',
+    auth_time: 0,
+    exp: 3600,
+    iat: 0,
+    jti: 'fake-jti',
+    username: 'fake-username'
+};
+
+export const fakeIdTokenNoGroups: Partial<CognitoAccessTokenPayload> = {
+    sub: 'fake-sub',
     iss: 'https://cognito-idp.us-east-1.amazonaws.com/user-pool-id',
     'cognito:username': 'fakeuser',
     client_id: 'fake-client-id',

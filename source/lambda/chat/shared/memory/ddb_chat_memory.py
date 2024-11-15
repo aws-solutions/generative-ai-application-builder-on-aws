@@ -15,8 +15,8 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 from aws_lambda_powertools import Logger
-from langchain.memory.chat_memory import BaseChatMemory
 from langchain.memory.utils import get_prompt_input_key
+from langchain.memory.chat_memory import BaseChatMemory
 from langchain_core.messages import get_buffer_string
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.enum_types import ConversationMemoryTypes
@@ -32,8 +32,8 @@ class DynamoDBChatMemory(BaseChatMemory):
     memory_key: str  #: :meta private:
     context_key: Optional[str] = None
     input_key: Optional[str] = None
-    human_prefix: str = "Human"
-    ai_prefix: Optional[str] = "AI"
+    human_prefix: Optional[str] = None
+    ai_prefix: Optional[str] = None
     output_key: Optional[str] = None
     return_messages: bool = False
 
@@ -67,8 +67,8 @@ class DynamoDBChatMemory(BaseChatMemory):
             memory_key=memory_key, input_key=input_key, output_key=output_key, return_messages=return_messages
         )
         self.context_key = context_key
-        self.human_prefix = human_prefix if human_prefix else self.human_prefix
-        self.ai_prefix = ai_prefix if ai_prefix else self.ai_prefix
+        self.human_prefix = human_prefix
+        self.ai_prefix = ai_prefix
         self.chat_memory = chat_message_history
         self.return_messages = return_messages
 

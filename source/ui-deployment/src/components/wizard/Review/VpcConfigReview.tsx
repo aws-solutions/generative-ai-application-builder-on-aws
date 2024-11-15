@@ -17,6 +17,7 @@ import { ReviewSectionProps } from '../interfaces/Steps';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
 import { HomeContext } from 'contexts';
 import { DEPLOYMENT_ACTIONS } from 'utils/constants';
+import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
 
 interface VpcConfigReviewProps extends ReviewSectionProps {
     vpcData: any;
@@ -57,36 +58,29 @@ export const VpcConfigReview = (props: VpcConfigReviewProps) => {
                 data-testid="vpc-config-details-container"
             >
                 <ColumnLayout columns={2} variant="text-grid" data-testid="vpc-config-details">
-                    <div>
-                        <Box variant="awsui-key-label">Do you want to deploy this use case with a VPC?</Box>
-                        <div>{props.vpcData.isVpcRequired ? 'Yes' : 'No'}</div>
-                    </div>
+                    <ValueWithLabel label="Do you want to deploy this use case with a VPC?">
+                        {props.vpcData.isVpcRequired ? 'Yes' : 'No'}
+                    </ValueWithLabel>
 
                     {props.vpcData.isVpcRequired && (
-                        <div>
-                            <Box variant="awsui-key-label">Would you like to use an existing VPC?</Box>
-                            <div>{props.vpcData.existingVpc ? 'Yes' : 'No'}</div>
-                        </div>
+                        <ValueWithLabel label="Would you like to use an existing VPC?">
+                            {props.vpcData.existingVpc ? 'Yes' : 'No'}
+                        </ValueWithLabel>
                     )}
 
                     {allowEditExistingVpcParams && (
-                        <div>
-                            <Box variant="awsui-key-label">VPC ID</Box>
-                            <div>{props.vpcData.vpcId}</div>
-                        </div>
+                        <ValueWithLabel label="VPC ID">{props.vpcData.vpcId}</ValueWithLabel>
                     )}
                     {allowEditExistingVpcParams && (
-                        <div>
-                            <Box variant="awsui-key-label">Subnet IDs</Box>
-                            <div>{formatAttributeEditorItems(props.vpcData.subnetIds)}</div>
-                        </div>
+                        <ValueWithLabel label="Subnet IDs">
+                            {formatAttributeEditorItems(props.vpcData.subnetIds)}
+                        </ValueWithLabel>
                     )}
 
                     {allowEditExistingVpcParams && (
-                        <div>
-                            <Box variant="awsui-key-label">Security Group IDs</Box>
-                            <div>{formatAttributeEditorItems(props.vpcData.securityGroupIds)}</div>
-                        </div>
+                        <ValueWithLabel label="Security Group IDs">
+                            {formatAttributeEditorItems(props.vpcData.securityGroupIds)}
+                        </ValueWithLabel>
                     )}
                 </ColumnLayout>
             </Container>

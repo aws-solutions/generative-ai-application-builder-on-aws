@@ -25,7 +25,7 @@ import {
 import { API, Auth } from 'aws-amplify';
 import { mockedAuthenticator } from '@/utils';
 
-jest.mock('@aws-amplify/api');
+vi.mock('@aws-amplify/api');
 
 describe('When setting default query params', () => {
     test('should set default query params for modelName', () => {
@@ -51,7 +51,7 @@ describe('When encoding query params', () => {
     test('should encode backslashes properly', () => {
         const encoded = encodeQueryParams({
             useCaseType: 'Chat\\',
-            providerName: 'HuggingFace',
+            providerName: 'Bedrock',
             modelId: 'google/flan-t5-base'
         });
         expect(encoded.useCaseType).toEqual('Chat%5C');
@@ -86,7 +86,7 @@ describe('When fetching model providers data using API', () => {
     };
 
     beforeEach(() => {
-        mockAPI.get.mockResolvedValue(['HuggingFace', 'Bedrock', 'Anthropic']);
+        mockAPI.get.mockResolvedValue(['Bedrock', 'SageMaker']);
 
         API.get = mockAPI.get;
         Auth.currentAuthenticatedUser = mockedAuthenticator();
@@ -105,8 +105,7 @@ describe('When fetching model providers data using API', () => {
             }
         });
 
-        console.log('data: ', data);
-        expect(data).toEqual(['HuggingFace', 'Bedrock', 'Anthropic']);
+        expect(data).toEqual(['Bedrock', 'SageMaker']);
     });
 
     test('should throw an error if useCaseType is undefined', async () => {
@@ -277,9 +276,9 @@ describe('When fetching model streaming default using API', () => {
         expect(data).toEqual(true);
     });
 
-    test('should return huggingface model data correctly', async () => {
+    test('should return bedrock model data correctly', async () => {
         mockAPI.get.mockResolvedValue({
-            'AllowsStreaming': false
+            'AllowsStreaming': true
         });
 
         API.get = mockAPI.get;
@@ -287,16 +286,16 @@ describe('When fetching model streaming default using API', () => {
 
         const data = await fetchModelStreamingDefault({
             useCaseType: 'Chat',
-            providerName: 'HuggingFace',
+            providerName: 'Bedrock',
             modelId: 'google/flan-t5-base'
         });
         expect(mockAPI.get).toHaveBeenCalledTimes(1);
-        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/HuggingFace/google%2Fflan-t5-base', {
+        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/Bedrock/google%2Fflan-t5-base', {
             headers: {
                 Authorization: 'fake-token'
             }
         });
-        expect(data).toEqual(false); // HuggingFace models do not support streaming by default.
+        expect(data).toEqual(true);
     });
 });
 

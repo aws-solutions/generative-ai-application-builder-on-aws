@@ -11,8 +11,5 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-export * from './Anthropic';
-export * from './HuggingFace';
 export * from './Bedrock';
-export * from './HuggingFaceInferenceEndpoint';
 export * from './Sagemaker';

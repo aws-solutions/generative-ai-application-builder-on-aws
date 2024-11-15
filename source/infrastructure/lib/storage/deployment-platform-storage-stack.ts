@@ -14,45 +14,14 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import * as lambda from 'aws-cdk-lib/aws-lambda';
 
-import { DynamoDBStreamsToLambda } from '@aws-solutions-constructs/aws-dynamodbstreams-lambda';
-import { DynamoEventSourceProps } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { NagSuppressions } from 'cdk-nag';
-import { Construct, IConstruct } from 'constructs';
-import { AppAssetBundler } from '../utils/asset-bundling';
-import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME, DynamoDBAttributes } from '../utils/constants';
+import { Construct } from 'constructs';
+import { BaseNestedStack } from '../framework/base-nested-stack';
+import * as cfn_nag from '../utils/cfn-guard-suppressions';
+import { DynamoDBAttributes } from '../utils/constants';
 import { DeploymentPlatformModelInfoStorage } from './deployment-platform-model-info-storage';
 
-export class DynamoDBDeploymentPlatformStorageParameters {
-    /**
-     * Arn of the Lambda function to use for custom resource implementation.
-     */
-    public readonly customResourceLambdaArn: string;
-
-    /**
-     * Arn of the IAM role to use for custom resource implementation.
-     */
-    public readonly customResourceRoleArn: string;
-
-    constructor(stack: IConstruct) {
-        this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
-            type: 'String',
-            maxLength: 255,
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):lambda:\\S+:\\d{12}:function:\\S+$',
-            description: 'Arn of the Lambda function to use for custom resource implementation.'
-        }).valueAsString;
-
-        this.customResourceRoleArn = new cdk.CfnParameter(stack, 'CustomResourceRoleArn', {
-            type: 'String',
-            allowedPattern: '^arn:(aws|aws-cn|aws-us-gov):iam::\\S+:role/\\S+$',
-            description: 'Arn of the IAM role to use for custom resource implementation.'
-        }).valueAsString;
-    }
-}
-
-export class DynamoDBDeploymentPlatformStorage extends cdk.NestedStack {
+export class DynamoDBDeploymentPlatformStorage extends BaseNestedStack {
     /**
      * The DynamoDB table which will store the deployed gen-ai use case records
      */
@@ -63,9 +32,13 @@ export class DynamoDBDeploymentPlatformStorage extends cdk.NestedStack {
      */
     public modelInfoTable: dynamodb.Table;
 
+    /**
+     * Table to store LLM configuration for a use case.
+     */
+    public useCaseConfigTable: dynamodb.Table;
+
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
-        const stackParameters = new DynamoDBDeploymentPlatformStorageParameters(cdk.Stack.of(this));
 
         this.useCasesTable = new dynamodb.Table(this, 'UseCasesTable', {
             encryption: dynamodb.TableEncryption.AWS_MANAGED,
@@ -76,90 +49,44 @@ export class DynamoDBDeploymentPlatformStorage extends cdk.NestedStack {
             },
             timeToLiveAttribute: DynamoDBAttributes.TIME_TO_LIVE,
             pointInTimeRecovery: true,
-            stream: dynamodb.StreamViewType.OLD_IMAGE,
             removalPolicy: cdk.RemovalPolicy.DESTROY
         });
 
-        const ddbStreamToLambda = new DynamoDBStreamsToLambda(this, 'ReconcileData', {
-            lambdaFunctionProps: {
-                code: lambda.Code.fromAsset(
-                    '../lambda/reconcile-data',
-                    AppAssetBundler.assetOptionsFactory
-                        .assetOptions(COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME)
-                        .options('../lambda/reconcile-data')
-                ),
-                handler: 'lambda_func.handler',
-                runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
-                description: 'Lambda function to reconcile data between data sources'
+        // the reason to separate use case management from LLM configuration of the lambda
+        // is because use cases should be deployable on their own. Going with a single table
+        // approach will cause additional issues with standalone deployment. Hence separate
+        // tables
+        this.useCaseConfigTable = new dynamodb.Table(this, 'LLMConfigTable', {
+            encryption: dynamodb.TableEncryption.AWS_MANAGED,
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            partitionKey: {
+                name: DynamoDBAttributes.USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
+                type: dynamodb.AttributeType.STRING
             },
-            existingTableInterface: this.useCasesTable,
-            dynamoEventSourceProps: {
-                batchSize: 10,
-                startingPosition: lambda.StartingPosition.LATEST,
-                bisectBatchOnError: true,
-                enabled: true,
-                filters: [
-                    // filter pattern based on documentation - https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/time-to-live-ttl-streams.html
-                    lambda.FilterCriteria.filter({
-                        userIdentity: {
-                            type: lambda.FilterRule.isEqual('Service'),
-                            principalId: lambda.FilterRule.isEqual('dynamodb.amazonaws.com')
-                        }
-                    })
-                ],
-                reportBatchItemFailures: true
-            } as DynamoEventSourceProps
+            timeToLiveAttribute: DynamoDBAttributes.TIME_TO_LIVE,
+            pointInTimeRecovery: true,
+            removalPolicy: cdk.RemovalPolicy.DESTROY
         });
-
-        const ssmPolicy = new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ['ssm:DeleteParameter'],
-            resources: [
-                `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter/gaab-ai/use-case-config/*`
-            ]
-        });
-        ddbStreamToLambda.lambdaFunction.addToRolePolicy(ssmPolicy);
 
         // a model defaults table must be created and populated with the deployment platform
         const modelInfoStorage = new DeploymentPlatformModelInfoStorage(this, 'ModelInfoStorage', {
-            customResourceLambdaArn: stackParameters.customResourceLambdaArn,
-            customResourceRoleArn: stackParameters.customResourceRoleArn
+            customResourceLambdaArn: this.customResourceLambdaArn,
+            customResourceRoleArn: this.customResourceLambdaRoleArn
         });
         this.modelInfoTable = modelInfoStorage.newModelInfoTable;
 
-        NagSuppressions.addResourceSuppressions(ddbStreamToLambda.lambdaFunction.role!, [
+        cfn_nag.addCfnSuppressRules(this.useCasesTable, [
             {
-                id: 'AwsSolutions-IAM5',
-                reason: 'Lambda function requires the permissions to write to CloudWatchLogs. This policy is more restrictive than the default policy',
-                appliesTo: [
-                    'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/*',
-                    'Resource::*'
-                ]
+                id: 'W74',
+                reason: 'The table is configured with AWS Managed key'
             }
         ]);
 
-        NagSuppressions.addResourceSuppressions(
-            ddbStreamToLambda.lambdaFunction.role!.node.tryFindChild('DefaultPolicy')?.node.tryFindChild('Resource')!,
-            [
-                {
-                    id: 'AwsSolutions-IAM5',
-                    reason: 'Lambda function requires the permissions to write to CloudWatchLogs, delete SSM Parameter Store and delete Secrets Manager. For Secrets Manager and Parameter Store, it does not know the key to be deleted. This policy is more restrictive than the default policy',
-                    appliesTo: [
-                        'Resource::*',
-                        'Resource::arn:<AWS::Partition>:ssm:<AWS::Region>:<AWS::AccountId>:parameter/gaab-ai/use-case-config/*'
-                    ]
-                }
-            ]
-        );
-
-        NagSuppressions.addResourceSuppressions(
-            ddbStreamToLambda.node.tryFindChild('SqsDlqQueue')!.node.tryFindChild('Resource')!,
-            [
-                {
-                    id: 'AwsSolutions-SQS3',
-                    reason: 'The Queue is a DLQ for DynamoDB Stream'
-                }
-            ]
-        );
+        cfn_nag.addCfnSuppressRules(this.useCaseConfigTable, [
+            {
+                id: 'W74',
+                reason: 'The table is configured with AWS Managed key'
+            }
+        ]);
     }
 }

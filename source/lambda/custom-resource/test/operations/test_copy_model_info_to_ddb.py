@@ -13,24 +13,19 @@
 ######################################################################################################################
 
 
-import io
-import json
-import os
-import zipfile
-from test.fixtures.copy_model_info_events import copy_to_ddb_event, setup_model_info
-
 import botocore
+import zipfile
+from test.fixtures.copy_model_info_events import copy_to_ddb_event, setup_model_info, ddb_table
+
 import mock
 import pytest
+from moto import mock_aws
 from lambda_func import handler
-from operations.copy_model_info_to_ddb import DDB_TABLE_NAME, create, execute, verify_env_setup
+from operations.copy_model_info_to_ddb import DDB_TABLE_NAME, create, execute, verify_env_setup, delete_all_entries
 from operations.operation_types import (
-    PHYSICAL_RESOURCE_ID,
-    RESOURCE,
     RESOURCE_PROPERTIES,
     SOURCE_BUCKET_NAME,
     SOURCE_PREFIX,
-    PHYSICAL_RESOURCE_ID,
 )
 
 
@@ -167,3 +162,32 @@ def test_lambda_handler(setup_model_info, mock_lambda_context, requestType):
             headers={"content-type": "", "content-length": "278"},
             body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
         )
+
+
+@mock_aws
+def test_delete_all_entries(ddb_table, ddb):
+    delete_all_entries(ddb_table.name)
+
+    # Check that the table is empty
+    response = ddb_table.scan()
+    assert response["Count"] == 0
+
+
+@mock_aws
+def test_delete_all_entries_empty_table(ddb_table, ddb):
+    # Delete all items first
+    delete_all_entries(ddb_table.name)
+
+    # Call the function again on an empty table
+    delete_all_entries(ddb_table.name)
+
+    # Check that the table is still empty
+    response = ddb_table.scan()
+    assert response["Count"] == 0
+
+
+@mock_aws
+def test_delete_all_entries_non_existent_table(ddb):
+    # Call the function with a non-existent table name
+    with pytest.raises(botocore.client.ClientError):
+        delete_all_entries("non-existent-table")

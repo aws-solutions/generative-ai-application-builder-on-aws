@@ -13,11 +13,8 @@
 ######################################################################################################################
 
 import json
-import os
 import uuid
 
-import boto3
-import botocore
 from aws_lambda_powertools import Logger, Tracer
 from cfn_response import send_response
 from helper import get_service_client

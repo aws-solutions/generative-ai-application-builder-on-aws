@@ -36,14 +36,15 @@ export const ToolsContent = () => (
             </Box>
 
             <Box variant="h4">Model</Box>
-            <Box variant="p">
-                This section shows information about the model that is being used by this deployment. It also shows the
-                current system prompt that is in use.
-            </Box>
+            <Box variant="p">This section shows information about the model that is being used by this deployment.</Box>
             <Box variant="h4">Knowledge Base</Box>
             <Box variant="p">
                 This section shows information about the knowledge base that is being used by this deployment (if
                 applicable).
+            </Box>
+            <Box variant="h4">Prompt</Box>
+            <Box variant="p">
+                This section shows information about the prompt related settings used by this deployment.
             </Box>
         </SpaceBetween>
     </HelpPanel>

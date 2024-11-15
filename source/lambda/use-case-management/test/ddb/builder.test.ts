@@ -28,8 +28,10 @@ import { ScanCaseTableCommandBuilder } from '../../ddb/storage-view-builder';
 import { ListUseCasesAdapter } from '../../model/list-use-cases';
 import { ChatUseCaseInfoAdapter, UseCase } from '../../model/use-case';
 import {
+    CfnParameterKeys,
     DDB_SCAN_RECORDS_LIMIT,
     DYNAMODB_TTL_ATTRIBUTE_NAME,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     USE_CASES_TABLE_NAME_ENV_VAR
 } from '../../utils/constants';
 import {
@@ -47,6 +49,7 @@ describe('When creating StackCommandBuilders', () => {
 
     beforeAll(() => {
         process.env[USE_CASES_TABLE_NAME_ENV_VAR] = 'UseCaseTable';
+        process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = 'UseCaseConfigTable';
 
         createEvent = createUseCaseEvent;
         createEvent.body = JSON.stringify(createUseCaseEvent.body);
@@ -63,10 +66,10 @@ describe('When creating StackCommandBuilders', () => {
 
         beforeAll(async () => {
             const cfnParameters = new Map<string, string>();
-            cfnParameters.set('LLMProviderName', 'HuggingFace');
-            cfnParameters.set('LLMProviderModelId', 'google/flan-t5-xxl');
+            cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
+            cfnParameters.set(CfnParameterKeys.UseCaseConfigRecordKey, 'fake-record-key');
             const useCase = new UseCase(
-                'fake-id',
+                '11111111-fake-id',
                 'fake-test',
                 'Create a stack for test',
                 cfnParameters,
@@ -90,6 +93,7 @@ describe('When creating StackCommandBuilders', () => {
             expect(putItemCommandBuilder.Item!.Name.S).toEqual('fake-test');
             expect(putItemCommandBuilder.Item!.Description.S).toEqual('Create a stack for test');
             expect(putItemCommandBuilder.Item!.CreatedBy.S).toEqual('test-user');
+            expect(putItemCommandBuilder.Item!.UseCaseConfigRecordKey.S).toEqual('fake-record-key');
         });
     });
 
@@ -97,8 +101,7 @@ describe('When creating StackCommandBuilders', () => {
         let updateItemCommandInput: UpdateItemCommandInput;
         beforeAll(async () => {
             const cfnParameters = new Map<string, string>();
-            cfnParameters.set('LLMProviderName', 'HuggingFace');
-            cfnParameters.set('LLMProviderModelId', 'google/flan-t5-xxl');
+            cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
             const useCase = new UseCase(
                 'fake-id',
                 'fake-test',
@@ -121,11 +124,11 @@ describe('When creating StackCommandBuilders', () => {
             expect(updateItemCommandInput.TableName).toEqual(process.env[USE_CASES_TABLE_NAME_ENV_VAR]);
             expect(updateItemCommandInput.Key).toEqual({ 'UseCaseId': { 'S': 'fake-id' } });
             expect(updateItemCommandInput.UpdateExpression).toEqual(
-                'SET #Description = :description, #UpdatedDate = :date, #UpdatedBy = :user, #SSMParameterKey = :ssm_parameter_key'
+                'SET #Description = :description, #UpdatedDate = :date, #UpdatedBy = :user, #UseCaseConfigRecordKey = :dynamo_db_record_key'
             );
             expect(updateItemCommandInput.ExpressionAttributeNames).toEqual({
                 '#Description': 'Description',
-                '#SSMParameterKey': 'SSMParameterKey',
+                '#UseCaseConfigRecordKey': 'UseCaseConfigRecordKey',
                 '#UpdatedDate': 'UpdatedDate',
                 '#UpdatedBy': 'UpdatedBy'
             });
@@ -182,8 +185,7 @@ describe('When creating StackCommandBuilders', () => {
         let updateItemCommandInput: UpdateItemCommandInput;
         beforeAll(async () => {
             const cfnParameters = new Map<string, string>();
-            cfnParameters.set('LLMProviderName', 'HuggingFace');
-            cfnParameters.set('LLMProviderModelId', 'google/flan-t5-xxl');
+            cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
             const useCase = new UseCase(
                 'fake-id',
                 'fake-test',
@@ -252,7 +254,7 @@ describe('When creating StackCommandBuilders', () => {
 
             const event = {
                 queryStringParameters: {
-                    pageSize: '10'
+                    pageNumber: '1'
                 }
             } as Partial<APIGatewayEvent>;
 

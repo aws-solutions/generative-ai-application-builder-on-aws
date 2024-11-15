@@ -29,7 +29,7 @@ tracer = Tracer()
 POLICY_TABLE_NAME = "POLICY_TABLE_NAME"
 API_ARN = "API_ARN"
 
-# other consts
+# other constants
 ADMIN_POLICY_SID = "use-case-management-api-admin-policy-statement"
 ADMIN_GROUP_NAME = "admin"
 

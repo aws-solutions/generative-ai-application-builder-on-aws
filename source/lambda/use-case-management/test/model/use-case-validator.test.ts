@@ -10,91 +10,858 @@
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
-import {
-    DeleteParameterCommand,
-    GetParameterCommand,
-    PutParameterCommand,
-    SSMClient,
-    ParameterTier
-} from '@aws-sdk/client-ssm';
-import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
+
+import { DynamoDBClient, GetItemCommand, InternalServerError } from '@aws-sdk/client-dynamodb';
+import { marshall } from '@aws-sdk/util-dynamodb';
+import { mockClient } from 'aws-sdk-client-mock';
+import { StorageManagement } from '../../ddb/storage-management';
+import { UseCaseConfigManagement } from '../../ddb/use-case-config-management';
 import { UseCase } from '../../model/use-case';
 import { UseCaseValidator } from '../../model/use-case-validator';
 import {
     CHAT_PROVIDERS,
     CfnParameterKeys,
+    KnowledgeBaseTypes,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
-    USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 } from '../../utils/constants';
-import { mockClient } from 'aws-sdk-client-mock';
-import { marshall } from '@aws-sdk/util-dynamodb';
-import { ConfigManagement } from '../../ssm/config-management';
-import { StorageManagement } from '../../ddb/storage-management';
 
 describe('Testing use case validation', () => {
     let config: any;
     let cfnParameters: Map<string, string>;
-    let ssmMockedClient: any;
     let ddbMockedClient: any;
     let validator: UseCaseValidator;
+    let modelInfoTableName = 'model-info-table';
 
     beforeAll(() => {
         config = {
-            ConversationMemoryType: 'DDBMemoryType',
-            ConversationMemoryParams: 'ConversationMemoryParams',
-            KnowledgeBaseType: 'Kendra',
+            ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
             KnowledgeBaseParams: {
-                NumberOfDocs: '5',
-                ReturnSourceDocs: '5'
+                KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                NumberOfDocs: 5,
+                ReturnSourceDocs: true,
+                KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
             },
             LlmParams: {
-                ModelId: 'google/flan-t5-xxl',
+                ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                BedrockLlmParams: {
+                    ModelId: 'fake-model'
+                },
                 ModelParams: {
                     param1: { Value: 'value1', Type: 'string' },
                     param2: { Value: 'value2', Type: 'string' }
                 },
-                PromptTemplate: '{input}{history}',
+                PromptParams: { PromptTemplate: '{input}{history}{context}' },
                 Streaming: true,
                 Temperature: 0.1,
-                RAGEnabled: false
+                RAGEnabled: true
             }
         };
         cfnParameters = new Map<string, string>();
-        cfnParameters.set('LLMProviderName', 'HuggingFace');
-        cfnParameters.set(CfnParameterKeys.ChatConfigSSMParameterName, '/config/fake-id');
+        cfnParameters.set(CfnParameterKeys.UseCaseConfigRecordKey, 'fake-id');
 
         process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
-        process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR] = '/config';
-        process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = 'model-info-table';
+        process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = modelInfoTableName;
+        process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = 'UseCaseConfigTable';
 
-        ssmMockedClient = mockClient(SSMClient);
-        ddbMockedClient = mockClient(DynamoDBClient);
-
-        const configManagement = new ConfigManagement();
+        cfnParameters = new Map<string, string>();
+        cfnParameters.set(CfnParameterKeys.UseCaseConfigRecordKey, 'fake-id');
         const storageMgmt = new StorageManagement();
+        const useCaseConfigManagement = new UseCaseConfigManagement();
 
-        validator = new UseCaseValidator(storageMgmt, configManagement);
+        validator = new UseCaseValidator(storageMgmt, useCaseConfigManagement);
+        ddbMockedClient = mockClient(DynamoDBClient);
     });
 
-    describe('When successfully invoking Commands', () => {
+    afterEach(() => {
+        ddbMockedClient.reset();
+    });
+
+    afterAll(() => {
+        delete process.env.AWS_SDK_USER_AGENT;
+        delete process.env[MODEL_INFO_TABLE_NAME_ENV_VAR];
+        delete process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR];
+
+        ddbMockedClient.restore();
+    });
+
+    describe('When successfully invoking Create/Update Commands', () => {
         beforeEach(() => {
-            ssmMockedClient.on(GetParameterCommand, { Name: '/config/old-fake-id' }).resolves({
-                Parameter: {
-                    Name: '/config/old-fake-id',
-                    Type: 'String',
-                    Value: JSON.stringify(config)
+            config = {
+                UseCaseName: 'fake-use-case',
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true,
+                    KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
+                },
+                LlmParams: {
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: {
+                        ModelId: 'fake-model'
+                    },
+                    ModelParams: {
+                        param1: { Value: 'value1', Type: 'string' },
+                        param2: { Value: 'value2', Type: 'string' }
+                    },
+                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
                 }
+            };
+
+            ddbMockedClient
+                .on(GetItemCommand, {
+                    'TableName': process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]
+                })
+                .resolves({
+                    Item: marshall({ config: config })
+                })
+                .on(GetItemCommand, {
+                    'TableName': `${process.env[MODEL_INFO_TABLE_NAME_ENV_VAR]}`
+                })
+                .resolves({
+                    Item: marshall({
+                        'UseCase': 'Chat',
+                        'SortKey': `${CHAT_PROVIDERS.BEDROCK}#fake-model`,
+                        'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
+                        'ModelName': 'fake-model',
+                        'AllowsStreaming': false,
+                        'Prompt': 'Prompt2 {input}{history}{context}',
+                        'MaxTemperature': '100',
+                        'DefaultTemperature': '0.1',
+                        'MinTemperature': '0',
+                        'DefaultStopSequences': [],
+                        'MemoryConfig': {
+                            'history': 'chat_history',
+                            'input': 'question',
+                            'context': 'context',
+                            'ai_prefix': 'AI',
+                            'human_prefix': 'Human',
+                            'output': 'answer'
+                        },
+                        'MaxPromptSize': 2000,
+                        'MaxChatMessageSize': 2500
+                    })
+                });
+        });
+
+        describe('When successfully invoking Create Commands', () => {
+            it('should validate a new use case', async () => {
+                config = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                        NumberOfDocs: 5,
+                        ReturnSourceDocs: true,
+                        KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model'
+                        },
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' }
+                        },
+                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        Streaming: true,
+                        Temperature: 0.1,
+                        RAGEnabled: true
+                    }
+                };
+                const useCase = new UseCase(
+                    'fake-id',
+                    'fake-test',
+                    'Create a stack for test',
+                    cfnParameters,
+                    config,
+                    'test-user',
+                    'FakeProviderName',
+                    'Chat'
+                );
+                const result = await validator.validateNewUseCase(useCase.clone());
+
+                let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
+                expect(getItemCalls.length).toEqual(1);
+                expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
+                expect(result).toEqual(useCase);
             });
-            ssmMockedClient.on(PutParameterCommand).resolves({ Version: 1, Tier: ParameterTier.INTELLIGENT_TIERING });
-            ssmMockedClient.on(DeleteParameterCommand).resolves({});
-            ddbMockedClient.on(GetItemCommand).resolves({
+
+            it('should validate a new use case with bedrock RAG', async () => {
+                let ragConfig = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        KnowledgeBaseType: KnowledgeBaseTypes.BEDROCK,
+                        NumberOfDocs: 5,
+                        ReturnSourceDocs: true,
+                        BedrockKnowledgeBaseParams: { BedrockKnowledgeBaseId: 'fakeid', RetrievalFilter: {} }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model'
+                        },
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' }
+                        },
+                        Streaming: true,
+                        Temperature: 0.1
+                    }
+                };
+                const useCase = new UseCase(
+                    'fake-id',
+                    'fake-test',
+                    'Create a stack for test',
+                    cfnParameters,
+                    ragConfig,
+                    'test-user',
+                    'FakeProviderName',
+                    'Chat'
+                );
+                const result = await validator.validateNewUseCase(useCase.clone());
+
+                let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
+                expect(getItemCalls.length).toEqual(1);
+                expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
+                expect(result).toEqual(useCase);
+            });
+
+            it('should validate a new use case with a custom model ARN in bedrock', async () => {
+                let config = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        KnowledgeBaseType: KnowledgeBaseTypes.BEDROCK,
+                        NumberOfDocs: 5,
+                        ReturnSourceDocs: true,
+                        BedrockKnowledgeBaseParams: { BedrockKnowledgeBaseId: 'fakeid' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model',
+                            ModelArn: 'fake-arn'
+                        },
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' }
+                        },
+                        Streaming: true,
+                        Temperature: 0.1
+                    }
+                };
+                const useCase = new UseCase(
+                    'fake-id',
+                    'fake-test',
+                    'Create a stack for test',
+                    cfnParameters,
+                    config,
+                    'test-user',
+                    'FakeProviderName',
+                    'Chat'
+                );
+                const result = await validator.validateNewUseCase(useCase.clone());
+
+                let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
+                expect(getItemCalls.length).toEqual(1);
+                expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
+                expect(result).toEqual(useCase);
+            });
+
+            it('should validate a new use case with no prompt provided', async () => {
+                let newConfig = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model'
+                        },
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' }
+                        },
+                        Streaming: true,
+                        Temperature: 0.1
+                    }
+                };
+                const result = await validator.validateNewUseCase(
+                    new UseCase(
+                        'fake-id',
+                        'fake-test',
+                        'Create a stack for test',
+                        cfnParameters,
+                        newConfig,
+                        'test-user',
+                        'FakeProviderName',
+                        'Chat'
+                    )
+                );
+
+                let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
+                expect(getItemCalls.length).toEqual(1);
+                expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
+                expect(result.configuration.LlmParams?.PromptParams?.PromptTemplate).toEqual(
+                    'Prompt2 {input}{history}{context}'
+                );
+            });
+
+            it('should validate a new use case with a model input payload schema', async () => {
+                config = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                        NumberOfDocs: 5,
+                        ReturnSourceDocs: true,
+                        KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model'
+                        },
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' }
+                        },
+                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        Streaming: true,
+                        Temperature: 0.1,
+                        RAGEnabled: true
+                    }
+                };
+                let modelParamConfig = { ...config };
+                modelParamConfig.LlmParams.ModelProvider = CHAT_PROVIDERS.SAGEMAKER;
+                modelParamConfig.LlmParams.SageMakerLlmParams = {
+                    ModelInputPayloadSchema: {
+                        'temperature': '<<temperature>>',
+                        'prompt': '<<prompt>>',
+                        'max_tokens': 10,
+                        'other_settings': [
+                            { 'setting1': '<<param1>>' },
+                            { 'setting2': '<<param2>>' },
+                            { 'setting3': 1 }
+                        ]
+                    }
+                };
+                delete modelParamConfig.LlmParams.BedrockLlmParams;
+
+                const useCase = new UseCase(
+                    'fake-id',
+                    'fake-test',
+                    'Create a stack for test',
+                    cfnParameters,
+                    modelParamConfig,
+                    'test-user',
+                    'FakeProviderName',
+                    'Chat'
+                );
+                const result = await validator.validateNewUseCase(useCase.clone());
+
+                let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
+                expect(getItemCalls.length).toEqual(1);
+                expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
+                expect(result).toEqual(useCase);
+            });
+        });
+
+        describe('When successfully invoking Update Commands', () => {
+            it('should validate an update', async () => {
+                const updateConfig = {
+                    KnowledgeBaseParams: {
+                        NumberOfDocs: 10
+                    },
+                    LlmParams: {
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' },
+                            param3: { Value: 'value3', Type: 'string' }
+                        },
+                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}{context}' }
+                    }
+                };
+
+                const expectedConfig = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        NumberOfDocs: 10,
+                        ReturnSourceDocs: true,
+                        KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                        KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model'
+                        },
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' },
+                            param3: { Value: 'value3', Type: 'string' }
+                        },
+                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}{context}' },
+                        Streaming: true,
+                        Temperature: 0.1,
+                        RAGEnabled: true
+                    }
+                };
+
+                const result = await validator.validateUpdateUseCase(
+                    new UseCase(
+                        'fake-id',
+                        'fake-test',
+                        'Create a stack for test',
+                        cfnParameters,
+                        updateConfig,
+                        'test-user',
+                        'FakeProviderName',
+                        'Chat'
+                    ),
+                    'old-key'
+                );
+
+                expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(2);
+                expect(result.configuration).toEqual(expectedConfig);
+            });
+
+            it('should overwrite modelparams from new config during an update validation', async () => {
+                const updateConfig = {
+                    LlmParams: {
+                        ModelParams: {
+                            param3: { Value: 'value3', Type: 'string' }
+                        }
+                    }
+                };
+                const expectedConfig = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                        NumberOfDocs: 5,
+                        ReturnSourceDocs: true,
+                        KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model'
+                        },
+                        ModelParams: {
+                            param3: { Value: 'value3', Type: 'string' }
+                        },
+                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        Streaming: true,
+                        Temperature: 0.1,
+                        RAGEnabled: true
+                    }
+                };
+
+                const result = await validator.validateUpdateUseCase(
+                    new UseCase(
+                        'fake-id',
+                        'fake-test',
+                        'Create a stack for test',
+                        cfnParameters,
+                        updateConfig,
+                        'test-user',
+                        'FakeProviderName',
+                        'Chat'
+                    ),
+                    'old-key'
+                );
+
+                expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(2);
+                expect(result.configuration).toEqual(expectedConfig);
+            });
+
+            it('should remove modelParams if new update config request has empty object', async () => {
+                const updateConfig = {
+                    LlmParams: {
+                        ModelParams: {}
+                    }
+                };
+                const expectedConfig = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                        NumberOfDocs: 5,
+                        ReturnSourceDocs: true,
+                        KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fake-model'
+                        },
+                        ModelParams: {},
+                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        RAGEnabled: true,
+                        Streaming: true,
+                        Temperature: 0.1
+                    }
+                };
+
+                const result = await validator.validateUpdateUseCase(
+                    new UseCase(
+                        'fake-id',
+                        'fake-test',
+                        'Create a stack for test',
+                        cfnParameters,
+                        updateConfig,
+                        'test-user',
+                        'FakeProviderName',
+                        'Chat'
+                    ),
+                    'old-key'
+                );
+
+                expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(2);
+                expect(result.configuration).toEqual(expectedConfig);
+            });
+
+            it('should validate an update with a model input payload schema', async () => {
+                let modelParamConfig = { ...config };
+                modelParamConfig.LlmParams.ModelProvider = CHAT_PROVIDERS.SAGEMAKER;
+                modelParamConfig.LlmParams.SageMakerLlmParams = {
+                    ModelInputPayloadSchema: {
+                        'temperature': '<<temperature>>',
+                        'prompt': '<<prompt>>',
+                        'max_tokens': 10,
+                        'other_settings': [
+                            { 'setting1': '<<param1>>' },
+                            { 'setting2': '<<param2>>' },
+                            { 'setting3': 1 }
+                        ]
+                    }
+                };
+                delete modelParamConfig.LlmParams.BedrockLlmParams;
+
+                ddbMockedClient.reset();
+                ddbMockedClient
+                    .on(GetItemCommand, {
+                        TableName: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR],
+                        Key: { key: { S: 'old-key' } }
+                    })
+                    .resolvesOnce({
+                        Item: marshall({ config: modelParamConfig })
+                    })
+                    .on(GetItemCommand, {
+                        'TableName': 'model-info-table',
+                        'Key': {
+                            'UseCase': {
+                                'S': 'RAGChat'
+                            },
+                            'SortKey': {
+                                'S': `${CHAT_PROVIDERS.SAGEMAKER}#default`
+                            }
+                        }
+                    })
+                    .resolves({
+                        Item: marshall({
+                            'UseCase': 'Chat',
+                            'SortKey': `${CHAT_PROVIDERS.SAGEMAKER}#fake-model`,
+                            'ModelProviderName': CHAT_PROVIDERS.SAGEMAKER,
+                            'ModelName': 'fake-model',
+                            'AllowsStreaming': false,
+                            'Prompt': 'Prompt2 {input}{history}{context}',
+                            'MaxTemperature': '100',
+                            'DefaultTemperature': '0.1',
+                            'MinTemperature': '0',
+                            'DefaultStopSequences': [],
+                            'MemoryConfig': {
+                                'history': 'chat_history',
+                                'input': 'question',
+                                'context': 'context',
+                                'ai_prefix': 'AI',
+                                'human_prefix': 'Human',
+                                'output': 'answer'
+                            },
+                            'MaxPromptSize': 2000,
+                            'MaxChatMessageSize': 2500
+                        })
+                    });
+
+                const updateConfig = {
+                    KnowledgeBaseParams: {
+                        NumberOfDocs: 10
+                    },
+                    LlmParams: {
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' },
+                            param3: { Value: 'value3', Type: 'string' }
+                        },
+                        SageMakerLlmParams: {
+                            ModelInputPayloadSchema: {
+                                temperature: '<<temperature>>',
+                                prompt: '<<prompt>>',
+                                max_tokens: 10,
+                                other_settings: [
+                                    { setting1: '<<param1>>' },
+                                    { setting2: '<<param2>>' },
+                                    { setting3: '<<param3>>' }
+                                ]
+                            }
+                        },
+                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}{context}' }
+                    }
+                };
+                const expectedConfig = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    KnowledgeBaseParams: {
+                        KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                        NumberOfDocs: 10,
+                        ReturnSourceDocs: true,
+                        KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' },
+                            param3: { Value: 'value3', Type: 'string' }
+                        },
+                        SageMakerLlmParams: {
+                            ModelInputPayloadSchema: {
+                                temperature: '<<temperature>>',
+                                prompt: '<<prompt>>',
+                                max_tokens: 10,
+                                other_settings: [
+                                    { setting1: '<<param1>>' },
+                                    { setting2: '<<param2>>' },
+                                    { setting3: '<<param3>>' }
+                                ]
+                            }
+                        },
+                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}{context}' },
+                        Streaming: true,
+                        Temperature: 0.1,
+                        RAGEnabled: true
+                    }
+                };
+
+                const result = await validator.validateUpdateUseCase(
+                    new UseCase(
+                        'fake-id',
+                        'fake-test',
+                        'Create a stack for test',
+                        cfnParameters,
+                        updateConfig,
+                        'test-user',
+                        'FakeProviderName',
+                        'Chat'
+                    ),
+                    'old-key'
+                );
+
+                expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(2);
+                expect(result.configuration).toEqual(expectedConfig);
+            });
+        });
+    });
+
+    describe('When validation fails for Create/Update Commands', () => {
+        let sagemakerConfig: any;
+
+        beforeEach(() => {
+            ddbMockedClient.on(GetItemCommand).resolvesOnce({
                 Item: marshall({
                     'UseCase': 'Chat',
-                    'SortKey': 'HuggingFace#google/flan-t5-xxl',
-                    'ModelProviderName': 'HuggingFace-InferenceEndpoint',
-                    'ModelName': 'google/flan-t5-xxl',
+                    'SortKey': `${CHAT_PROVIDERS.BEDROCK}#fake-model`,
+                    'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
+                    'ModelName': 'fake-model',
                     'AllowsStreaming': false,
-                    'Prompt': 'Prompt2 {input}{history}',
+                    'Prompt': 'Prompt2 {input}{history}{context}',
+                    'MaxTemperature': '100',
+                    'DefaultTemperature': '0.1',
+                    'MinTemperature': '0',
+                    'DefaultStopSequences': [],
+                    'MemoryConfig': {
+                        'history': 'chat_history',
+                        'input': 'question',
+                        'context': 'context',
+                        'ai_prefix': 'AI',
+                        'human_prefix': 'Human',
+                        'output': 'answer'
+                    },
+                    'MaxPromptSize': 2000,
+                    'MaxChatMessageSize': 2500
+                })
+            });
+
+            sagemakerConfig = { ...config };
+            sagemakerConfig.LlmParams.ModelProvider = CHAT_PROVIDERS.SAGEMAKER;
+            sagemakerConfig.LlmParams.SageMakerLlmParams = {
+                ModelInputPayloadSchema: {
+                    'temperature': '<<temperature>>',
+                    'prompt': '<<prompt>>',
+                    'max_tokens': 10,
+                    'other_settings': [{ 'setting1': '<<param1>>' }, { 'setting2': '<<param2>>' }, { 'setting3': 1 }]
+                }
+            };
+            delete sagemakerConfig.LlmParams.BedrockLlmParams;
+        });
+
+        describe('When validation fails for Create Commands', () => {
+            it('should fail create validation if model info is not available for the key', async () => {
+                ddbMockedClient.on(GetItemCommand).rejectsOnce(
+                    new InternalServerError({
+                        $metadata: {
+                            httpStatusCode: 404
+                        },
+                        message: 'Fake getItem error'
+                    })
+                );
+
+                expect(
+                    await validator
+                        .validateNewUseCase(
+                            new UseCase(
+                                'fake-id',
+                                'fake-test',
+                                'Create a stack for test',
+                                cfnParameters,
+                                sagemakerConfig,
+                                'test-user',
+                                'FakeProviderName',
+                                'Chat'
+                            )
+                        )
+                        .catch((error) => {
+                            expect(error).toBeInstanceOf(InternalServerError);
+                            expect(error.message).toEqual('Fake getItem error');
+                        })
+                );
+            });
+
+            it('should fail create validation if no model exists', async () => {
+                ddbMockedClient.on(GetItemCommand).resolvesOnce({});
+                expect(
+                    await validator
+                        .validateNewUseCase(
+                            new UseCase(
+                                'fake-id',
+                                'fake-test',
+                                'Create a stack for test',
+                                cfnParameters,
+                                config,
+                                'test-user',
+                                'FakeProviderName',
+                                'Chat'
+                            )
+                        )
+                        .catch((error) => {
+                            expect(error).toBeInstanceOf(Error);
+                            expect(error.message).toContain('No model info found for command');
+                        })
+                );
+            });
+        });
+
+        describe('When validation fails for Update Commands', () => {
+            it('should fail update validation if dynamodb get fails to get the old param during update', async () => {
+                ddbMockedClient.on(GetItemCommand).rejectsOnce(
+                    new InternalServerError({
+                        $metadata: {
+                            httpStatusCode: 404
+                        },
+                        message: 'Fake getItem error'
+                    })
+                );
+                expect(
+                    await validator
+                        .validateUpdateUseCase(
+                            new UseCase(
+                                'fake-id',
+                                'fake-test',
+                                'Create a stack for test',
+                                cfnParameters,
+                                config,
+                                'test-user',
+                                CHAT_PROVIDERS.BEDROCK,
+                                'Chat'
+                            ),
+                            'old-key'
+                        )
+                        .catch((error) => {
+                            expect(error).toBeInstanceOf(InternalServerError);
+                            expect(error.message).toEqual('Fake getItem error');
+                        })
+                );
+            });
+
+            it('should fail update validation if we fail to get model info', async () => {
+                ddbMockedClient.on(GetItemCommand).rejectsOnce(new Error('Fake getItem error'));
+                expect(
+                    await validator
+                        .validateUpdateUseCase(
+                            new UseCase(
+                                'fake-id',
+                                'fake-test',
+                                'Create a stack for test',
+                                cfnParameters,
+                                config,
+                                'test-user',
+                                'FakeProviderName',
+                                'Chat'
+                            ),
+                            'old-key'
+                        )
+                        .catch((error) => {
+                            expect(error).toBeInstanceOf(Error);
+                            expect(error.message).toEqual('Fake getItem error');
+                        })
+                );
+            });
+
+            it('should fail update validation if no model exists', async () => {
+                ddbMockedClient.on(GetItemCommand).resolvesOnce({});
+                cfnParameters.set(CfnParameterKeys.UseCaseConfigRecordKey, 'config-fake-id');
+                expect(
+                    await validator
+                        .validateUpdateUseCase(
+                            new UseCase(
+                                'fake-id',
+                                'fake-test',
+                                'Create a stack for test',
+                                cfnParameters,
+                                config,
+                                'test-user',
+                                'FakeProviderName',
+                                'Chat'
+                            ),
+                            'old-key'
+                        )
+                        .catch((error) => {
+                            expect(error).toBeInstanceOf(Error);
+                            expect(error.message).toContain('No use case config found for the specified key.');
+                        })
+                );
+            });
+        });
+    });
+
+    describe('Model input schema validation failures', () => {
+        beforeEach(() => {
+            ddbMockedClient.on(GetItemCommand).resolves({
+                Item: marshall({
+                    'UseCase': 'RAGChat',
+                    'SortKey': `${CHAT_PROVIDERS.BEDROCK}#fake-model`,
+                    'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
+                    'ModelName': 'fake-model',
+                    'AllowsStreaming': false,
+                    'Prompt': 'Prompt2 {input}{history}{context}',
                     'MaxTemperature': '100',
                     'DefaultTemperature': '0.1',
                     'MinTemperature': '0',
@@ -113,329 +880,87 @@ describe('Testing use case validation', () => {
             });
         });
 
-        it('should validate a new use case', async () => {
-            const useCase = new UseCase(
-                'fake-id',
-                'fake-test',
-                'Create a stack for test',
-                cfnParameters,
-                config,
-                'test-user',
-                'FakeProviderName',
-                'Chat'
-            );
-            const result = await validator.validateNewUseCase(useCase.clone());
+        it('should fail on a new use case with a model input payload schema, with model params missing', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
 
-            let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
-            expect(getItemCalls.length).toEqual(1);
-            expect(getItemCalls[0].args[0].input.TableName).toEqual('model-info-table');
-            expect(result).toEqual(useCase);
-        });
-
-        it('should validate a new use case with no prompt provided', async () => {
-            let newConfig = {
-                ConversationMemoryType: 'DDBMemoryType',
-                ConversationMemoryParams: 'ConversationMemoryParams',
-                KnowledgeBaseType: 'Kendra',
                 KnowledgeBaseParams: {
-                    NumberOfDocs: '5',
-                    ReturnSourceDocs: '5'
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
                 },
                 LlmParams: {
-                    ModelId: 'google/flan-t5-xxl',
+                    ModelId: 'fake-model',
+                    ModelInputPayloadSchema: {
+                        'temperature': '<<temperature>>',
+                        'prompt': '<<prompt>>',
+                        'max_tokens': 10,
+                        'other_settings': [
+                            { 'setting1': '<<param1>>' },
+                            { 'setting2': '<<param2>>' },
+                            { 'setting3': 1 }
+                        ]
+                    },
+                    PromptParams: { PromptTemplate: '{input}{history}' },
+                    Streaming: true,
+                    Temperature: 0.1
+                }
+            };
+
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            'No model parameters were provided in the useCase despite requiring parameters in the input payload schema.'
+                        );
+                    })
+            );
+        });
+
+        it('should fail on a new use case with a model input payload schema, having a placeholder with no param provided', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
                     ModelParams: {
                         param1: { Value: 'value1', Type: 'string' },
                         param2: { Value: 'value2', Type: 'string' }
                     },
-                    Streaming: true,
-                    Temperature: 0.1
-                }
-            };
-            const result = await validator.validateNewUseCase(
-                new UseCase(
-                    'fake-id',
-                    'fake-test',
-                    'Create a stack for test',
-                    cfnParameters,
-                    newConfig,
-                    'test-user',
-                    'FakeProviderName',
-                    'Chat'
-                )
-            );
-
-            let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
-            expect(getItemCalls.length).toEqual(1);
-            expect(getItemCalls[0].args[0].input.TableName).toEqual('model-info-table');
-            expect(result.configuration.LlmParams?.PromptTemplate).toEqual('Prompt2 {input}{history}');
-        });
-
-        it('should validate an update', async () => {
-            const updateConfig = {
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '10'
-                },
-                LlmParams: {
-                    ModelParams: {
-                        param1: { Value: 'value1', Type: 'string' },
-                        param2: { Value: 'value2', Type: 'string' },
-                        param3: { Value: 'value3', Type: 'string' }
+                    ModelInputPayloadSchema: {
+                        'temperature': '<<temperature>>',
+                        'prompt': '<<prompt>>',
+                        'max_tokens': '<<max_tokens>>',
+                        'other_settings': [
+                            { 'setting1': '<<param1>>' },
+                            { 'setting2': '<<param2>>' },
+                            { 'setting3': 1 }
+                        ]
                     },
-                    PromptTemplate: 'Prompt2 {input}{history}'
-                }
-            };
-            const expectedConfig = {
-                ConversationMemoryType: 'DDBMemoryType',
-                ConversationMemoryParams: 'ConversationMemoryParams',
-                KnowledgeBaseType: 'Kendra',
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '10',
-                    ReturnSourceDocs: '5'
-                },
-                LlmParams: {
-                    ModelId: 'google/flan-t5-xxl',
-                    ModelParams: {
-                        param1: { Value: 'value1', Type: 'string' },
-                        param2: { Value: 'value2', Type: 'string' },
-                        param3: { Value: 'value3', Type: 'string' }
-                    },
-                    PromptTemplate: 'Prompt2 {input}{history}',
-                    Streaming: true,
-                    Temperature: 0.1,
-                    RAGEnabled: false
-                }
-            };
-
-            const result = await validator.validateUpdateUseCase(
-                new UseCase(
-                    'fake-id',
-                    'fake-test',
-                    'Create a stack for test',
-                    cfnParameters,
-                    updateConfig,
-                    'test-user',
-                    'FakeProviderName',
-                    'Chat'
-                ),
-                '/config/old-fake-id'
-            );
-
-            expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(1);
-            expect(ssmMockedClient.commandCalls(GetParameterCommand).length).toEqual(1);
-            expect(result.configuration).toEqual(expectedConfig);
-        });
-
-        it('should overwrite modelparams from new config during an update validation', async () => {
-            const updateConfig = {
-                LlmParams: {
-                    ModelParams: {
-                        param3: { Value: 'value3', Type: 'string' }
-                    }
-                }
-            };
-            const expectedConfig = {
-                ConversationMemoryType: 'DDBMemoryType',
-                ConversationMemoryParams: 'ConversationMemoryParams',
-                KnowledgeBaseType: 'Kendra',
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '5',
-                    ReturnSourceDocs: '5'
-                },
-                LlmParams: {
-                    ModelId: 'google/flan-t5-xxl',
-                    ModelParams: {
-                        param3: { Value: 'value3', Type: 'string' }
-                    },
-                    PromptTemplate: '{input}{history}',
-                    Streaming: true,
-                    Temperature: 0.1,
-                    RAGEnabled: false
-                }
-            };
-
-            const result = await validator.validateUpdateUseCase(
-                new UseCase(
-                    'fake-id',
-                    'fake-test',
-                    'Create a stack for test',
-                    cfnParameters,
-                    updateConfig,
-                    'test-user',
-                    'FakeProviderName',
-                    'Chat'
-                ),
-                '/config/old-fake-id'
-            );
-
-            expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(1);
-            expect(ssmMockedClient.commandCalls(GetParameterCommand).length).toEqual(1);
-            expect(result.configuration).toEqual(expectedConfig);
-        });
-
-        it('should remove modelParams if new update config request has empty object', async () => {
-            const updateConfig = {
-                LlmParams: {
-                    ModelParams: {}
-                }
-            };
-            const expectedConfig = {
-                ConversationMemoryType: 'DDBMemoryType',
-                ConversationMemoryParams: 'ConversationMemoryParams',
-                KnowledgeBaseType: 'Kendra',
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '5',
-                    ReturnSourceDocs: '5'
-                },
-                LlmParams: {
-                    ModelId: 'google/flan-t5-xxl',
-                    ModelParams: {},
-                    PromptTemplate: '{input}{history}',
-                    RAGEnabled: false,
+                    PromptParams: { PromptTemplate: '{input}{history}' },
                     Streaming: true,
                     Temperature: 0.1
                 }
             };
 
-            const result = await validator.validateUpdateUseCase(
-                new UseCase(
-                    'fake-id',
-                    'fake-test',
-                    'Create a stack for test',
-                    cfnParameters,
-                    updateConfig,
-                    'test-user',
-                    'FakeProviderName',
-                    'Chat'
-                ),
-                '/config/old-fake-id'
-            );
-
-            expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(1);
-            expect(ssmMockedClient.commandCalls(GetParameterCommand).length).toEqual(1);
-            expect(result.configuration).toEqual(expectedConfig);
-        });
-
-        it('should validate a new use case with a model input payload schema', async () => {
-            let modelParamConfig = { ...config };
-            modelParamConfig.LlmParams.ModelInputPayloadSchema = {
-                'temperature': '<<temperature>>',
-                'prompt': '<<prompt>>',
-                'max_tokens': 10,
-                'other_settings': [{ 'setting1': '<<param1>>' }, { 'setting2': '<<param2>>' }, { 'setting3': 1 }]
-            };
-
-            const useCase = new UseCase(
-                'fake-id',
-                'fake-test',
-                'Create a stack for test',
-                cfnParameters,
-                modelParamConfig,
-                'test-user',
-                'FakeProviderName',
-                'Chat'
-            );
-            const result = await validator.validateNewUseCase(useCase.clone());
-
-            let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
-            expect(getItemCalls.length).toEqual(1);
-            expect(getItemCalls[0].args[0].input.TableName).toEqual('model-info-table');
-            expect(result).toEqual(useCase);
-        });
-
-        it('should validate an update with a model input payload schema', async () => {
-            const updateConfig = {
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '10'
-                },
-                LlmParams: {
-                    ModelParams: {
-                        param1: { Value: 'value1', Type: 'string' },
-                        param2: { Value: 'value2', Type: 'string' },
-                        param3: { Value: 'value3', Type: 'string' }
-                    },
-                    ModelInputPayloadSchema: {
-                        temperature: '<<temperature>>',
-                        prompt: '<<prompt>>',
-                        max_tokens: 10,
-                        other_settings: [
-                            { setting1: '<<param1>>' },
-                            { setting2: '<<param2>>' },
-                            { setting3: '<<param3>>' }
-                        ]
-                    },
-                    PromptTemplate: 'Prompt2 {input}{history}'
-                }
-            };
-            const expectedConfig = {
-                ConversationMemoryType: 'DDBMemoryType',
-                ConversationMemoryParams: 'ConversationMemoryParams',
-                KnowledgeBaseType: 'Kendra',
-                KnowledgeBaseParams: {
-                    NumberOfDocs: '10',
-                    ReturnSourceDocs: '5'
-                },
-                LlmParams: {
-                    ModelId: 'google/flan-t5-xxl',
-                    ModelParams: {
-                        param1: { Value: 'value1', Type: 'string' },
-                        param2: { Value: 'value2', Type: 'string' },
-                        param3: { Value: 'value3', Type: 'string' }
-                    },
-                    ModelInputPayloadSchema: {
-                        temperature: '<<temperature>>',
-                        prompt: '<<prompt>>',
-                        max_tokens: 10,
-                        other_settings: [
-                            { setting1: '<<param1>>' },
-                            { setting2: '<<param2>>' },
-                            { setting3: '<<param3>>' }
-                        ]
-                    },
-                    PromptTemplate: 'Prompt2 {input}{history}',
-                    Streaming: true,
-                    Temperature: 0.1,
-                    RAGEnabled: false
-                }
-            };
-
-            const result = await validator.validateUpdateUseCase(
-                new UseCase(
-                    'fake-id',
-                    'fake-test',
-                    'Create a stack for test',
-                    cfnParameters,
-                    updateConfig,
-                    'test-user',
-                    'FakeProviderName',
-                    'Chat'
-                ),
-                '/config/old-fake-id'
-            );
-
-            expect(ddbMockedClient.commandCalls(GetItemCommand).length).toEqual(1);
-            expect(ssmMockedClient.commandCalls(GetParameterCommand).length).toEqual(1);
-            expect(result.configuration).toEqual(expectedConfig);
-        });
-
-        afterEach(() => {
-            ssmMockedClient.reset();
-            ddbMockedClient.reset();
-        });
-    });
-
-    describe('When validation fails', () => {
-        beforeEach(() => {
-            ssmMockedClient.on(GetParameterCommand, { Name: '/config/old-fake-id' }).resolves({
-                Parameter: {
-                    Name: '/config/old-fake-id',
-                    Type: 'String',
-                    Value: JSON.stringify(config)
-                }
-            });
-        });
-
-        it('should fail create validation if we fail to get model info', async () => {
-            ddbMockedClient.on(GetItemCommand).rejectsOnce(new Error('Fake getitem error'));
             expect(
                 await validator
                     .validateNewUseCase(
@@ -444,7 +969,7 @@ describe('Testing use case validation', () => {
                             'fake-test',
                             'Create a stack for test',
                             cfnParameters,
-                            config,
+                            modelParamConfig,
                             'test-user',
                             'FakeProviderName',
                             'Chat'
@@ -452,13 +977,30 @@ describe('Testing use case validation', () => {
                     )
                     .catch((error) => {
                         expect(error).toBeInstanceOf(Error);
-                        expect(error.message).toEqual('Fake getitem error');
+                        expect(error.message).toEqual(
+                            'InvalidModelParameter: max_tokens is not a valid model parameter present in the Model Parameters'
+                        );
                     })
             );
         });
 
-        it('should fail create validation if no model exists', async () => {
-            ddbMockedClient.on(GetItemCommand).resolvesOnce({});
+        it('should fail on a new use case with a bad prompt template for rag', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: { PromptTemplate: '{input}{history}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
+                }
+            };
+
             expect(
                 await validator
                     .validateNewUseCase(
@@ -467,7 +1009,7 @@ describe('Testing use case validation', () => {
                             'fake-test',
                             'Create a stack for test',
                             cfnParameters,
-                            config,
+                            modelParamConfig,
                             'test-user',
                             'FakeProviderName',
                             'Chat'
@@ -475,310 +1017,329 @@ describe('Testing use case validation', () => {
                     )
                     .catch((error) => {
                         expect(error).toBeInstanceOf(Error);
-                        expect(error.message).toContain('No model info found for command');
+                        expect(error.message).toEqual(
+                            "Provided prompt template does not have the required placeholder '{context}'."
+                        );
                     })
             );
         });
 
-        it('should fail update validation if ssm get fails to get the old param', async () => {
-            ssmMockedClient
-                .on(GetParameterCommand, { Name: '/config/old-fake-id' })
-                .rejectsOnce(new Error('Fake get error'));
+        it('should fail on a new use case with a bad disambiguation prompt template for rag', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: {
+                        PromptTemplate: '{input}{history}{context}',
+                        DisambiguationEnabled: true,
+                        DisambiguationPromptTemplate: '{input}'
+                    },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
+                }
+            };
+
             expect(
                 await validator
-                    .validateUpdateUseCase(
+                    .validateNewUseCase(
                         new UseCase(
                             'fake-id',
                             'fake-test',
                             'Create a stack for test',
                             cfnParameters,
-                            config,
-                            'test-user',
-                            'HuggingFace',
-                            'Chat'
-                        ),
-                        '/config/old-fake-id'
-                    )
-                    .catch((error) => {
-                        expect(error).toBeInstanceOf(Error);
-                        expect(error.message).toEqual('Fake get error');
-                    })
-            );
-        });
-
-        it('should fail update validation if we fail to get model info', async () => {
-            ddbMockedClient.on(GetItemCommand).rejectsOnce(new Error('Fake getitem error'));
-            expect(
-                await validator
-                    .validateUpdateUseCase(
-                        new UseCase(
-                            'fake-id',
-                            'fake-test',
-                            'Create a stack for test',
-                            cfnParameters,
-                            config,
+                            modelParamConfig,
                             'test-user',
                             'FakeProviderName',
                             'Chat'
-                        ),
-                        '/config/old-fake-id'
+                        )
                     )
                     .catch((error) => {
                         expect(error).toBeInstanceOf(Error);
-                        expect(error.message).toEqual('Fake getitem error');
+                        expect(error.message).toEqual(
+                            "Provided disambiguation prompt template does not have the required placeholder '{history}'."
+                        );
                     })
             );
         });
 
-        it('should fail update validation if no model exists', async () => {
-            ddbMockedClient.on(GetItemCommand).resolvesOnce({});
+        it('should fail on a new use case with a bad prompt template for non rag', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: { PromptTemplate: '{input}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: false
+                }
+            };
+
             expect(
                 await validator
-                    .validateUpdateUseCase(
+                    .validateNewUseCase(
                         new UseCase(
                             'fake-id',
                             'fake-test',
                             'Create a stack for test',
                             cfnParameters,
-                            config,
+                            modelParamConfig,
                             'test-user',
                             'FakeProviderName',
                             'Chat'
-                        ),
-                        '/config/old-fake-id'
+                        )
                     )
                     .catch((error) => {
                         expect(error).toBeInstanceOf(Error);
-                        expect(error.message).toContain('No model info found for command');
+                        expect(error.message).toEqual(
+                            "Provided prompt template does not have the required placeholder '{history}'."
+                        );
                     })
             );
         });
 
-        describe('model input schema validation failures', () => {
-            beforeEach(() => {
-                ddbMockedClient.on(GetItemCommand).resolves({
-                    Item: marshall({
-                        'UseCase': 'RAGChat',
-                        'SortKey': 'HuggingFace#google/flan-t5-xxl',
-                        'ModelProviderName': 'HuggingFace-InferenceEndpoint',
-                        'ModelName': 'google/flan-t5-xxl',
-                        'AllowsStreaming': false,
-                        'Prompt': 'Prompt2 {input}{history}',
-                        'MaxTemperature': '100',
-                        'DefaultTemperature': '0.1',
-                        'MinTemperature': '0',
-                        'DefaultStopSequences': [],
-                        'MemoryConfig': {
-                            'history': 'chat_history',
-                            'input': 'question',
-                            'context': 'context',
-                            'ai_prefix': 'AI',
-                            'human_prefix': 'Human',
-                            'output': 'answer'
-                        },
-                        'MaxPromptSize': 2000,
-                        'MaxChatMessageSize': 2500
+        it('should fail on a new use case if prompt template contains a duplicate placeholder', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: { PromptTemplate: '{input}{history}{input}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: false
+                }
+            };
+
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            "Placeholder '{input}' should appear only once in the prompt template."
+                        );
                     })
-                });
-            });
-
-            it('should fail on a new use case with a model input payload schema, with model params missing', async () => {
-                let modelParamConfig = {
-                    ConversationMemoryType: 'DDBMemoryType',
-                    ConversationMemoryParams: 'ConversationMemoryParams',
-                    KnowledgeBaseType: 'Kendra',
-                    KnowledgeBaseParams: {
-                        NumberOfDocs: '5',
-                        ReturnSourceDocs: '5'
-                    },
-                    LlmParams: {
-                        ModelId: 'google/flan-t5-xxl',
-                        ModelInputPayloadSchema: {
-                            'temperature': '<<temperature>>',
-                            'prompt': '<<prompt>>',
-                            'max_tokens': 10,
-                            'other_settings': [
-                                { 'setting1': '<<param1>>' },
-                                { 'setting2': '<<param2>>' },
-                                { 'setting3': 1 }
-                            ]
-                        },
-                        PromptTemplate: '{input}{history}',
-                        Streaming: true,
-                        Temperature: 0.1
-                    }
-                };
-
-                expect(
-                    await validator
-                        .validateNewUseCase(
-                            new UseCase(
-                                'fake-id',
-                                'fake-test',
-                                'Create a stack for test',
-                                cfnParameters,
-                                modelParamConfig,
-                                'test-user',
-                                'FakeProviderName',
-                                'Chat'
-                            )
-                        )
-                        .catch((error) => {
-                            expect(error).toBeInstanceOf(Error);
-                            expect(error.message).toEqual(
-                                'No model parameters were provided in the useCase despite requiring parameters in the input payload schema.'
-                            );
-                        })
-                );
-            });
-
-            it('should fail on a new use case with a model input payload schema, having a placeholder with no param provided', async () => {
-                let modelParamConfig = {
-                    ConversationMemoryType: 'DDBMemoryType',
-                    ConversationMemoryParams: 'ConversationMemoryParams',
-                    KnowledgeBaseType: 'Kendra',
-                    KnowledgeBaseParams: {
-                        NumberOfDocs: '5',
-                        ReturnSourceDocs: '5'
-                    },
-                    LlmParams: {
-                        ModelId: 'google/flan-t5-xxl',
-                        ModelParams: {
-                            param1: { Value: 'value1', Type: 'string' },
-                            param2: { Value: 'value2', Type: 'string' }
-                        },
-                        ModelInputPayloadSchema: {
-                            'temperature': '<<temperature>>',
-                            'prompt': '<<prompt>>',
-                            'max_tokens': '<<max_tokens>>',
-                            'other_settings': [
-                                { 'setting1': '<<param1>>' },
-                                { 'setting2': '<<param2>>' },
-                                { 'setting3': 1 }
-                            ]
-                        },
-                        PromptTemplate: '{input}{history}',
-                        Streaming: true,
-                        Temperature: 0.1
-                    }
-                };
-
-                expect(
-                    await validator
-                        .validateNewUseCase(
-                            new UseCase(
-                                'fake-id',
-                                'fake-test',
-                                'Create a stack for test',
-                                cfnParameters,
-                                modelParamConfig,
-                                'test-user',
-                                'FakeProviderName',
-                                'Chat'
-                            )
-                        )
-                        .catch((error) => {
-                            expect(error).toBeInstanceOf(Error);
-                            expect(error.message).toEqual(
-                                'InvalidModelParameter: max_tokens is not a valid model parameter present in the Model Parameters'
-                            );
-                        })
-                );
-            });
-
-            it('should fail on a new use case with a bad prompt template for rag', async () => {
-                let modelParamConfig = {
-                    ConversationMemoryType: 'DDBMemoryType',
-                    ConversationMemoryParams: 'ConversationMemoryParams',
-                    KnowledgeBaseType: 'Kendra',
-                    KnowledgeBaseParams: {
-                        NumberOfDocs: '5',
-                        ReturnSourceDocs: '5'
-                    },
-                    LlmParams: {
-                        ModelId: 'google/flan-t5-xxl',
-                        PromptTemplate: '{input}{history}',
-                        Streaming: true,
-                        Temperature: 0.1,
-                        RAGEnabled: true
-                    }
-                };
-
-                expect(
-                    await validator
-                        .validateNewUseCase(
-                            new UseCase(
-                                'fake-id',
-                                'fake-test',
-                                'Create a stack for test',
-                                cfnParameters,
-                                modelParamConfig,
-                                'test-user',
-                                'FakeProviderName',
-                                'Chat'
-                            )
-                        )
-                        .catch((error) => {
-                            expect(error).toBeInstanceOf(Error);
-                            expect(error.message).toEqual(
-                                'Provided prompt does not have the required placeholders ({input},{context},{history}) for a use case with RAGEnabled=true'
-                            );
-                        })
-                );
-            });
-
-            it('should fail on a new use case with a bad prompt template for non rag', async () => {
-                let modelParamConfig = {
-                    ConversationMemoryType: 'DDBMemoryType',
-                    ConversationMemoryParams: 'ConversationMemoryParams',
-                    KnowledgeBaseType: 'Kendra',
-                    KnowledgeBaseParams: {
-                        NumberOfDocs: '5',
-                        ReturnSourceDocs: '5'
-                    },
-                    LlmParams: {
-                        ModelId: 'google/flan-t5-xxl',
-                        PromptTemplate: '{input}',
-                        Streaming: true,
-                        Temperature: 0.1,
-                        RAGEnabled: false
-                    }
-                };
-
-                expect(
-                    await validator
-                        .validateNewUseCase(
-                            new UseCase(
-                                'fake-id',
-                                'fake-test',
-                                'Create a stack for test',
-                                cfnParameters,
-                                modelParamConfig,
-                                'test-user',
-                                'FakeProviderName',
-                                'Chat'
-                            )
-                        )
-                        .catch((error) => {
-                            expect(error).toBeInstanceOf(Error);
-                            expect(error.message).toEqual(
-                                'Provided prompt does not have the required placeholders ({input},{history}) for a use case with RAGEnabled=false'
-                            );
-                        })
-                );
-            });
+            );
         });
 
-        afterEach(() => {
-            ssmMockedClient.reset();
-            ddbMockedClient.reset();
+        it('should fail on a new use case if disambiguation prompt template contains a duplicate placeholder', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: {
+                        PromptTemplate: '{input}{history}{context}',
+                        DisambiguationEnabled: true,
+                        DisambiguationPromptTemplate: '{input}{history}{history}'
+                    },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
+                }
+            };
+
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            "Placeholder '{history}' should appear only once in the disambiguation prompt template."
+                        );
+                    })
+            );
         });
-    });
 
-    afterAll(() => {
-        delete process.env.AWS_SDK_USER_AGENT;
-        delete process.env[USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR];
+        it('should fail on a new use case with missing knowledge base params', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
+                }
+            };
 
-        ssmMockedClient.restore();
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            'Provided knowledge base type Kendra requires KendraKnowledgeBaseParams to be present in KnowledgeBaseParams.'
+                        );
+                    })
+            );
+        });
+
+        it('should fail on a new use case with wrong rag params present, Bedrock', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.BEDROCK,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true,
+                    KendraKnowledgeBaseParams: {}
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
+                }
+            };
+
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            'Provided knowledge base type Bedrock requires BedrockKnowledgeBaseParams to be present in KnowledgeBaseParams.'
+                        );
+                    })
+            );
+        });
+
+        it('should fail on a new use case with wrong rag params present, Kendra', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true,
+                    BedrockKnowledgeBaseParams: {}
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
+                }
+            };
+
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            'Provided knowledge base type Kendra requires KendraKnowledgeBaseParams to be present in KnowledgeBaseParams.'
+                        );
+                    })
+            );
+        });
+
+        it('should fail on a new use case with invalid RAG provider', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: 'Garbage'
+                },
+                LlmParams: {
+                    ModelId: 'fake-model',
+                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    Streaming: true,
+                    Temperature: 0.1,
+                    RAGEnabled: true
+                }
+            };
+
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            'Provided knowledge base type Garbage is not supported. You should not get this error.'
+                        );
+                    })
+            );
+        });
     });
 });

@@ -6,13 +6,13 @@ export const sampleDeployUseCaseFormData = {
         },
         'useCaseName': 'test-use-case',
         'useCaseDescription': 'test use case description',
-        'includeUi': 'yes',
+        'deployUI': true,
         'inError': true
     },
     'knowledgeBase': {
         'isRagRequired': true,
         'knowledgeBaseType': {
-            'value': 'kendra',
+            'value': 'Kendra',
             'label': 'Kendra'
         },
         'existingKendraIndex': 'yes',
@@ -26,16 +26,15 @@ export const sampleDeployUseCaseFormData = {
         'maxNumDocs': '10',
         'identifier': '',
         'inError': false,
-        'returnDocumentSource': false
+        'returnDocumentSource': false,
+        'enableRoleBasedAccessControl': false
     },
     'model': {
         'modelProvider': {
-            'label': 'HuggingFace',
-            'value': 'HuggingFace'
+            'label': 'Bedrock',
+            'value': 'Bedrock'
         },
-        'apiKey': 'fake-api-key',
         'modelName': 'fake-model',
-        'promptTemplate': 'fake-prompt',
         'modelParameters': [
             {
                 'key': 'fake-param',
@@ -72,5 +71,18 @@ export const sampleDeployUseCaseFormData = {
         'subnetIds': [{ key: 'subnet-asdf' }, { key: 'subnet-asdf34r' }],
         'securityGroupIds': [{ key: 'sg-24234' }],
         'inError': false
+    },
+    'prompt': {
+        'maxPromptTemplateLength': 30000,
+        'maxInputTextLength': 30000,
+        'promptTemplate': '{history}\n\n{input}',
+        'inError': false,
+        'humanPrefix': 'Human',
+        'aiPrefix': 'AI',
+        'disambiguationEnabled': true,
+        'disambiguationPromptTemplate': 'fake-disambiguation-prompt',
+        'chatHistoryLength': 20,
+        'userPromptEditingEnabled': true,
+        'rephraseQuestion': true
     }
 };

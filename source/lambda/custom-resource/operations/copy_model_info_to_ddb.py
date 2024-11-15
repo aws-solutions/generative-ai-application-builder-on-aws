@@ -67,10 +67,48 @@ def verify_env_setup(event):
 
 
 @tracer.capture_method
-def create(source_bucket_name, source_prefix, ddb_table_name, retries=3, retry_interval=5):
-    """This method implements the operations to be executed on a 'Create' CloudFormation event. This method loads the json files and
-    inserts them into the dynamodb table. This operation supports only 1 JSON object (workflow configuration) per file. The zip archive
-    can contain multiple JSON files each with containing a unique 'ModelProviderName' and 'ModelName' across all the files.
+def delete_all_entries(table_name):
+    """
+    Deletes all entries from the specified DynamoDB table.
+
+    Args:
+        table_name (str): The name of the DynamoDB table.
+
+    Raises:
+        ClientError: If there's an error connecting to DynamoDB or deleting items.
+    """
+    ddb_resource = get_service_resource("dynamodb")
+    table = ddb_resource.Table(table_name)
+
+    try:
+        pagination_token = None
+        items = []
+
+        while True:
+            if pagination_token:
+                response = table.scan(ExclusiveStartKey=pagination_token)
+            else:
+                response = table.scan()
+
+            items.extend(response.get("Items"))
+            pagination_token = response.get("LastEvaluatedKey", None)
+
+            if not pagination_token:
+                break
+
+        with table.batch_writer() as batch:
+            for item in items:
+                batch.delete_item(Key={"UseCase": item["UseCase"], "SortKey": item["SortKey"]})
+
+    except botocore.client.ClientError as ex:
+        logger.error(f"Error deleting items from table '{table_name}': {ex}")
+        raise ex
+
+
+@tracer.capture_method
+def copy_records_into_table(source_bucket_name, source_prefix, ddb_table_name, retries, retry_interval):
+    """This method copies the contents of the zip archive to the dynamodb table. This method assumes that the zip archive contains
+    json files and each json file contains a unique 'ModelProviderName' and 'ModelName' combination.
 
     Args:
         source_bucket_name (str): Bucket name which contains the asset archive with workflow config files
@@ -89,23 +127,64 @@ def create(source_bucket_name, source_prefix, ddb_table_name, retries=3, retry_i
 
     zip_archive = get_zip_archive(s3_resource, source_bucket_name, source_prefix)
     for filename in zip_archive.namelist():
-        config_json = json.loads(zip_archive.open(filename).read())
-        config_json["SortKey"] = f'{config_json["ModelProviderName"]}#{config_json["ModelName"]}'
-        while retries > 0:
-            try:
-                config_table.put_item(Item=config_json)
-                break
-            except botocore.exceptions.ClientError as error:
-                logger.error(f"Error occurred when writing to dynamodb, error is {error}")
-                retries -= 1
-                if retries == 0:
-                    raise error
-                else:
-                    logger.info(
-                        f"Failed to put item in table {ddb_table_name}. Retrying in {retry_interval} seconds. Retrying {retries} more times"
-                    )
-                    time.sleep(retry_interval)
-    logger.debug("Copy to Dynamodb table complete")
+        with zip_archive.open(filename) as file_resource:
+            config_json = json.loads(file_resource.read())
+            config_json["SortKey"] = f'{config_json["ModelProviderName"]}#{config_json["ModelName"]}'
+            while retries > 0:
+                try:
+                    config_table.put_item(Item=config_json)
+                    break
+                except botocore.exceptions.ClientError as error:
+                    logger.error(f"Error occurred when writing to dynamodb, error is {error}")
+                    retries -= 1
+                    if retries == 0:
+                        raise error
+                    else:
+                        logger.info(
+                            f"Failed to put item in table {ddb_table_name}. Retrying in {retry_interval} seconds. Retrying {retries} more times"
+                        )
+                        time.sleep(retry_interval)
+    logger.info("Copy to Dynamodb table complete")
+
+
+@tracer.capture_method
+def update(source_bucket_name, source_prefix, ddb_table_name, retries=3, retry_interval=5):
+    """This method implements the operations to be executed on a 'Update' CloudFormation event. This method first deletes all the existing
+     entries in the dynamodb table and then loads the json files and inserts them into the dynamodb table. This operation supports
+     only 1 JSON object (workflow configuration) per file. The zip archive can contain multiple JSON files each with containing a
+     unique 'ModelProviderName' and 'ModelName' across all the files.
+
+    Args:
+        source_bucket_name (str): Bucket name which contains the asset archive with workflow config files
+        source_prefix (str): The prefix under the source bucket which corresponds to the archive for workflow config files
+        ddb_table_name (str): The dynamodb table where the config files should stored
+        retries (int): The number of times to retry. May be needed as sometimes IAM policy changes take time to propagate, which can mean we need to retry.
+        retry_interval (int): The number of seconds to wait between retries, in seconds.
+
+    Raises
+        botocore.exceptions.ClientError: Failures related to Dynamodb write operations
+    """
+    delete_all_entries(ddb_table_name)
+    copy_records_into_table(source_bucket_name, source_prefix, ddb_table_name, retries, retry_interval)
+
+
+@tracer.capture_method
+def create(source_bucket_name, source_prefix, ddb_table_name, retries=3, retry_interval=5):
+    """This method implements the operations to be executed on a 'Create' CloudFormation event. This method loads the json files and
+    inserts them into the dynamodb table. This operation supports only 1 JSON object (workflow configuration) per file. The zip archive
+    can contain multiple JSON files each with containing a unique 'ModelProviderName' and 'ModelName' across all the files.
+
+    Args:
+        source_bucket_name (str): Bucket name which contains the asset archive with workflow config files
+        source_prefix (str): The prefix under the source bucket which corresponds to the archive for workflow config files
+        ddb_table_name (str): The dynamodb table where the config files should stored
+        retries (int): The number of times to retry. May be needed as sometimes IAM policy changes take time to propagate, which can mean we need to retry.
+        retry_interval (int): The number of seconds to wait between retries, in seconds.
+
+    Raises
+        botocore.exceptions.ClientError: Failures related to Dynamodb write operations
+    """
+    copy_records_into_table(source_bucket_name, source_prefix, ddb_table_name, retries, retry_interval)
 
 
 @tracer.capture_method
@@ -125,13 +204,17 @@ def execute(event, context):
     try:
         physical_resource_id = event.get(PHYSICAL_RESOURCE_ID, uuid.uuid4().hex[:8])
 
-        if event["RequestType"] == "Create" or event["RequestType"] == "Update":
+        if event["RequestType"] in ["Create", "Update"]:
             verify_env_setup(event)
 
             source_bucket_name = event[RESOURCE_PROPERTIES][SOURCE_BUCKET_NAME]
             source_prefix = event[RESOURCE_PROPERTIES][SOURCE_PREFIX]
             ddb_table_name = event[RESOURCE_PROPERTIES][DDB_TABLE_NAME]
-            create(source_bucket_name, source_prefix, ddb_table_name)
+
+            if event["RequestType"] == "Create":
+                create(source_bucket_name, source_prefix, ddb_table_name)
+            elif event["RequestType"] == "Update":
+                update(source_bucket_name, source_prefix, ddb_table_name)
         elif event["RequestType"] == "Delete":
             logger.warning("The data in the dynamodb table will not be deleted when the stack is deleted")
 

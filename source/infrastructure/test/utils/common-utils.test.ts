@@ -232,7 +232,26 @@ describe('when calling resource properties in a builder pipeline', () => {
             serviceToken: customResource.functionArn,
             properties: util.getResourceProperties(stack, asset, customResource)
         });
+
+        const lambdaFunctionName = 'MyLambdaFunction';
+        util.createCustomResourceForLambdaLogRetention(
+            stack,
+            'MyLambdaFunctionLogRetention',
+            lambdaFunctionName,
+            customResource.functionArn
+        );
+
         template = Template.fromStack(stack);
+    });
+
+    it('should have a custom resource to update log retention', () => {
+        template.hasResourceProperties('Custom::CW_LOG_RETENTION', {
+            ServiceToken: {
+                'Fn::GetAtt': [Match.stringLikeRegexp('InfraCustomResource'), 'Arn']
+            },
+            FunctionName: 'MyLambdaFunction',
+            Resource: 'CW_LOG_RETENTION'
+        });
     });
 
     it('should generate resource properties when pipeline environment is set)', () => {
@@ -314,4 +333,37 @@ describe('when calling resource properties in a builder pipeline', () => {
 
 describe('When packaging lambda functions with Java runtime', () => {
     it('should execute local bundling', () => {});
+});
+
+describe('generateCfnTemplateUrl', () => {
+    let stack: cdk.Stack;
+    beforeEach(() => {
+        rawCdkJson.context['cdk-asset-bucket'] = 'asset-bucket';
+        const app = new cdk.App({ context: rawCdkJson.context });
+        stack = new cdk.Stack(app, 'TestStack', {});
+    });
+
+    afterEach(() => {
+        jest.resetAllMocks();
+        delete process.env.DIST_OUTPUT_BUCKET;
+    });
+
+    it('should return template URLs for DIST_OUTPUT_BUCKET', () => {
+        process.env.DIST_OUTPUT_BUCKET = 'fakebucket';
+        const result = util.generateCfnTemplateUrl(stack);
+
+        expect(result).toEqual([
+            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/SageMakerChat*.template',
+            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/BedrockChat*.template'
+        ]);
+    });
+
+    it('should return template URLs for cdk-asset-bucket', () => {
+        const result = util.generateCfnTemplateUrl(stack);
+
+        expect(result).toEqual([
+            'https://asset-bucket.s3.amazonaws.com/*.json',
+            'https://s3.*.amazonaws.com/asset-bucket/*.json'
+        ]);
+    });
 });

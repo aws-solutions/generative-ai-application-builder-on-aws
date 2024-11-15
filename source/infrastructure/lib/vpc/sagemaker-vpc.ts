@@ -18,14 +18,18 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 
 import { FirstPartyUseCaseVPC } from './first-party-use-case-vpc';
+import { CustomVPCProps } from './custom-vpc';
 
 /**
  * VPC for first party use cases (Bedrock/ Sagemaker) deployment
  */
 export class SagemakerUseCaseVPC extends FirstPartyUseCaseVPC {
-    constructor(scope: any, id: string, props: any) {
+    constructor(scope: any, id: string, props: CustomVPCProps) {
         super(scope, id, props);
+    }
 
+    protected createServiceEndpoints(): void {
+        super.createServiceEndpoints();
         const sageMakerEndpoint = new ec2.InterfaceVpcEndpoint(this, 'SagemakerEndpoint', {
             service: ec2.InterfaceVpcEndpointAwsService.SAGEMAKER_RUNTIME,
             vpc: this.vpc,

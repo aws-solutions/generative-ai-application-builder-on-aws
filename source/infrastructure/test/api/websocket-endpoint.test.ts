@@ -60,7 +60,7 @@ describe('When creating a WebSocketEndpoint', () => {
             AutoDeploy: true
         });
 
-        template.resourceCountIs('AWS::ApiGatewayV2::Route', 4);
+        template.resourceCountIs('AWS::ApiGatewayV2::Route', 3);
         template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
             ApiId: { Ref: apiIdCapture.asString() },
             RouteKey: '$connect',
@@ -77,13 +77,6 @@ describe('When creating a WebSocketEndpoint', () => {
 
         template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
             ApiId: { Ref: apiIdCapture.asString() },
-            RouteKey: '$default',
-            AuthorizationType: 'NONE',
-            Target: Match.anyValue()
-        });
-
-        template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
-            ApiId: { Ref: apiIdCapture.asString() },
             RouteKey: 'sendMessage',
             AuthorizationType: 'NONE',
             Target: Match.anyValue()
@@ -92,7 +85,7 @@ describe('When creating a WebSocketEndpoint', () => {
 
     it('Should have the correct lambda function integrations', () => {
         const apiIdCapture = new Capture();
-        template.resourceCountIs('AWS::ApiGatewayV2::Integration', 4);
+        template.resourceCountIs('AWS::ApiGatewayV2::Integration', 3);
 
         template.hasResourceProperties('AWS::ApiGatewayV2::Stage', {
             ApiId: { Ref: apiIdCapture },
@@ -135,6 +128,87 @@ describe('When creating a WebSocketEndpoint', () => {
                         ]
                     }
                 }
+            }
+        });
+    });
+
+    it('should have a sendMessage requestTemplate in this sendMessage route integration', () => {
+        template.hasResourceProperties('AWS::ApiGatewayV2::Integration', {
+            ApiId: {
+                'Ref': Match.anyValue()
+            },
+            CredentialsArn: {
+                'Fn::GetAtt': [Match.anyValue(), 'Arn']
+            },
+            IntegrationMethod: 'POST',
+            IntegrationType: 'AWS',
+            IntegrationUri: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'arn:',
+                        {
+                            Ref: 'AWS::Partition'
+                        },
+                        ':apigateway:',
+                        {
+                            Ref: 'AWS::Region'
+                        },
+                        ':sqs:path/',
+                        {
+                            Ref: 'AWS::AccountId'
+                        },
+                        '/',
+                        {
+                            'Fn::GetAtt': [Match.anyValue(), 'QueueName']
+                        }
+                    ]
+                ]
+            },
+            PassthroughBehavior: 'NEVER',
+            RequestParameters: {
+                'integration.request.header.Content-Type': "'application/x-www-form-urlencoded'"
+            },
+            RequestTemplates: {
+                sendMessage:
+                    'Action=SendMessage&MessageGroupId=$context.connectionId&MessageDeduplicationId=$context.requestId&MessageAttribute.1.Name=connectionId&MessageAttribute.1.Value.StringValue=$context.connectionId&MessageAttribute.1.Value.DataType=String&MessageAttribute.2.Name=requestId&MessageAttribute.2.Value.StringValue=$context.requestId&MessageAttribute.2.Value.DataType=String&MessageBody={"requestContext": {"authorizer": {"UserId": "$context.authorizer.UserId"}, "connectionId": "$context.connectionId"}, "message": $util.urlEncode($input.json($util.escapeJavaScript("$").replaceAll("\\\\\'","\'")))}'
+            },
+            TemplateSelectionExpression: 'sendMessage'
+        });
+    });
+
+    it('should have an SQS queue and a DLQ', () => {
+        template.resourceCountIs('AWS::SQS::Queue', 2);
+        template.hasResourceProperties('AWS::SQS::Queue', {
+            DeduplicationScope: 'messageGroup',
+            FifoQueue: true,
+            FifoThroughputLimit: 'perMessageGroupId',
+            RedriveAllowPolicy: {
+                redrivePermission: 'denyAll'
+            },
+            RedrivePolicy: {
+                deadLetterTargetArn: {
+                    'Fn::GetAtt': [Match.anyValue(), 'Arn']
+                },
+                maxReceiveCount: 3
+            },
+            VisibilityTimeout: 900
+        });
+
+        template.hasResourceProperties('AWS::SQS::Queue', {
+            FifoQueue: true,
+            RedrivePolicy: Match.absent(),
+            RedriveAllowPolicy: Match.absent()
+        });
+    });
+
+    it('should have an event source mapping', () => {
+        template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+            EventSourceArn: {
+                'Fn::GetAtt': [Match.anyValue(), 'Arn']
+            },
+            FunctionName: {
+                Ref: Match.anyValue()
             }
         });
     });

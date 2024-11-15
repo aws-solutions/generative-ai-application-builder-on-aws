@@ -1,10 +1,12 @@
+/* eslint-disable import/no-anonymous-default-export */
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
     content: [
+        './index.html',
         './src/components/*.{js,ts,jsx,tsx}',
         './src/home/*.{js,ts,jsx,tsx}',
-        './src/App.js',
-        './src/index.js',
+        './src/App.jsx',
+        './src/index.jsx',
         './components/**/*.{js,ts,jsx,tsx}'
     ],
     darkMode: 'class',

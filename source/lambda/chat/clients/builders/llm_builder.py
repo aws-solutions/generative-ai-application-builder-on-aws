@@ -18,17 +18,25 @@ from typing import Any, Dict, Optional
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
-from botocore.exceptions import ClientError
 from clients.factories.conversation_memory_factory import ConversationMemoryFactory
 from clients.factories.knowledge_base_factory import KnowledgeBaseFactory
-from helper import get_service_client
-from llms.models.llm import LLM
+from llms.models.model_provider_inputs import ModelProviderInputs
 from shared.callbacks.websocket_streaming_handler import WebsocketStreamingCallbackHandler
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import (
+    AI_PREFIX,
+    BEDROCK_GUARDRAIL_IDENTIFIER_KEY,
+    BEDROCK_GUARDRAIL_VERSION_KEY,
+    BEDROCK_GUARDRAILS_KEY,
+    CONTEXT_KEY,
+    DEFAULT_DISAMBIGUATION_ENABLED_MODE,
     DEFAULT_RAG_ENABLED_MODE,
+    DEFAULT_REPHRASE_RAG_QUESTION,
     DEFAULT_VERBOSE_MODE,
-    LLM_PROVIDER_API_KEY_ENV_VAR,
+    HISTORY_KEY,
+    HUMAN_PREFIX,
+    INPUT_KEY,
+    OUTPUT_KEY,
     PROMPT_EVENT_KEY,
     QUESTION_EVENT_KEY,
     TRACE_ID_ENV_VAR,
@@ -47,7 +55,7 @@ class LLMBuilder(ABC):
     that have a conversation memory, knowledge base and an LLM model.
 
     Attributes:
-        llm_config (Dict): Specifies the configuration that the admin sets on a use-case, stored in SSM Parameter store
+        use_case_config (Dict): Specifies the configuration that the admin sets on a use-case, stored in DynamoDB
         rag_enabled (Optional[bool]): Specifies whether the use-case is enabled for RAG. Defaults to DEFAULT_RAG_ENABLED_MODE.
         connection_id (str): The connection ID of the user's connection to the chat application through WebSockets
         conversation_id (str): The conversation ID which helps store and access user chat history
@@ -56,7 +64,6 @@ class LLMBuilder(ABC):
         knowledge_base (KnowledgeBase): Stores the user's knowledge base
         callbacks (Callbacks): Stores the callbacks that are set on the LLM model
         llm_model (LLMModel): Stores the LLM model that is used to generate content
-        api_key (str): Stores the API key that is used to access the LLM model
         memory_key (str): Stores the memory key for the conversation memory
         input_key (str): Stores the input key for the conversation memory
         output_key (str): Stores the output key for the conversation memory
@@ -72,39 +79,39 @@ class LLMBuilder(ABC):
         set_knowledge_base(): Sets the value for the knowledge base object that is used to supplement the LLM context using information from
             the user's knowledge base
         set_conversation_memory(): Sets the value for the conversation memory object that is used to store the user chat history
-        set_llm_model(): Sets the value of the lLM model in the builder based on the selected LLM Provider
-        set_api_key(): Sets the value of the API key for the LLM model
+        set_llm_model(model): Sets the value of the lLM model in the builder based on the selected LLM Provider
         set_streaming_callbacks(): Sets the value of callbacks for the LLM model
     """
 
     def __init__(
         self,
-        llm_config: Dict,
+        use_case_config: Dict,
         connection_id: str,
         conversation_id: str,
         rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
+        user_context_token: Optional[str] = None,
     ) -> None:
-        self._llm_config = llm_config
+        self._llm_config = use_case_config
         self._rag_enabled = rag_enabled
         self._connection_id = connection_id
         self._conversation_id = conversation_id
+        self._user_context_token = user_context_token
         self._model_defaults = None
         self._conversation_memory = None
         self._knowledge_base = None
         self._callbacks = None
         self._llm_model = None
-        self._api_key = None
         self._model_params = None
         self._is_streaming = None
         self._errors = []
 
     @property
-    def llm_config(self) -> str:
+    def use_case_config(self) -> str:
         return self._llm_config
 
-    @llm_config.setter
-    def llm_config(self, llm_config) -> None:
-        self._llm_config = llm_config
+    @use_case_config.setter
+    def use_case_config(self, use_case_config) -> None:
+        self._llm_config = use_case_config
 
     @property
     def is_streaming(self) -> str:
@@ -145,14 +152,6 @@ class LLMBuilder(ABC):
     @llm_model.setter
     def llm_model(self, llm_model) -> None:
         self._llm_model = llm_model
-
-    @property
-    def api_key(self) -> str:
-        return self._api_key
-
-    @api_key.setter
-    def api_key(self, api_key) -> None:
-        self._api_key = api_key
 
     @property
     def errors(self) -> str:
@@ -200,27 +199,37 @@ class LLMBuilder(ABC):
 
     @property
     def memory_key(self) -> str:
-        return self._model_defaults["history"]
+        return self._model_defaults[HISTORY_KEY]
 
     @property
     def input_key(self) -> str:
-        return self._model_defaults["input"]
+        return self._model_defaults[INPUT_KEY]
 
     @property
     def output_key(self) -> str:
-        return self._model_defaults["output"]
+        return self._model_defaults[OUTPUT_KEY]
 
     @property
     def context_key(self) -> str:
-        return self._model_defaults["context"]
+        return self._model_defaults[CONTEXT_KEY]
 
     @property
     def human_prefix(self) -> str:
-        return self._model_defaults["human_prefix"]
+        human_prefix = self.use_case_config.get("ConversationMemoryParams", {}).get("HumanPrefix")
+        return self._model_defaults[HUMAN_PREFIX] if not human_prefix else human_prefix
 
     @property
     def ai_prefix(self) -> str:
-        return self._model_defaults["ai_prefix"]
+        ai_prefix = self.use_case_config.get("ConversationMemoryParams", {}).get("AiPrefix")
+        return self._model_defaults[AI_PREFIX] if not ai_prefix else ai_prefix
+
+    @property
+    def user_context_token(self) -> str:
+        return self._user_context_token
+
+    @user_context_token.setter
+    def user_context_token(self, user_context_token: str) -> None:
+        self._user_context_token = user_context_token
 
     def set_model_defaults(self, model_provider: LLMProviderTypes, model_name: str) -> None:
         """
@@ -258,7 +267,11 @@ class LLMBuilder(ABC):
         Sets the knowledge base object that is used to supplement the LLM context using information from the user's knowledge base
         """
         if self.rag_enabled:
-            self.knowledge_base = KnowledgeBaseFactory().get_knowledge_base(self.llm_config, self.errors)
+            self.knowledge_base = KnowledgeBaseFactory().get_knowledge_base(
+                self.use_case_config,
+                self.errors,
+                self.user_context_token,
+            )
         else:
             self.knowledge_base = None
             logger.debug("Proceeding to build the LLM without the Knowledge Base as its not specified.")
@@ -268,34 +281,14 @@ class LLMBuilder(ABC):
         Sets the conversation memory object that is used to store the user chat history
         """
         self.conversation_memory = ConversationMemoryFactory().get_conversation_memory(
-            llm_config=self.llm_config,
+            use_case_config=self.use_case_config,
+            default_memory_config=self.model_defaults.memory_config,
             user_id=user_id,
             conversation_id=conversation_id,
             errors=self.errors,
-            memory_key=self.model_defaults.memory_config["history"],
-            input_key=self.model_defaults.memory_config["input"],
-            output_key=self.model_defaults.memory_config["output"],
-            context_key=self.model_defaults.memory_config["context"],
-            human_prefix=self.model_defaults.memory_config["human_prefix"],
-            ai_prefix=self.model_defaults.memory_config["ai_prefix"],
         )
 
-    @tracer.capture_method
-    def set_api_key(self) -> None:
-        """
-        Sets the API key that is used to call the 3rd party LLM provider
-        """
-        with tracer.provider.in_subsegment("## llm_api_key") as subsegment:
-            subsegment.put_annotation("service", "secretsmanager")
-            subsegment.put_annotation("operation", "get_secret_value")
-            try:
-                api_key_secret_name = os.getenv(LLM_PROVIDER_API_KEY_ENV_VAR)
-                secretsmanager = get_service_client("secretsmanager")
-                self.api_key = secretsmanager.get_secret_value(SecretId=api_key_secret_name)["SecretString"]
-            except ClientError as err:
-                self.errors.append(f"Error retrieving API key: {err}")
-
-    def set_streaming_callbacks(self):
+    def set_streaming_callbacks(self, response_if_no_docs_found_enabled):
         """
         Sets the value of callbacks for the LLM model
         """
@@ -306,19 +299,41 @@ class LLMBuilder(ABC):
                     conversation_id=self.conversation_id,
                     source_docs_formatter=self.knowledge_base.source_docs_formatter if self.knowledge_base else None,
                     is_streaming=self.is_streaming,
+                    rag_enabled=self.rag_enabled,
+                    response_if_no_docs_found_enabled=response_if_no_docs_found_enabled,
                 )
             ]
         else:
             self.callbacks = None
 
-    def set_llm_model(self) -> None:
+    def get_guardrails(self, model_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if BEDROCK_GUARDRAIL_IDENTIFIER_KEY in model_config and BEDROCK_GUARDRAIL_VERSION_KEY in model_config:
+            guardrails_config = {}
+            guardrails_config[BEDROCK_GUARDRAILS_KEY] = {
+                "guardrailIdentifier": model_config[BEDROCK_GUARDRAIL_IDENTIFIER_KEY],
+                "guardrailVersion": model_config[BEDROCK_GUARDRAIL_VERSION_KEY],
+            }
+            return guardrails_config[BEDROCK_GUARDRAILS_KEY]
+        else:
+            return None
+
+    def set_llm_model(self, model: str) -> None:
+        """Sets the value of the LLM model in the builder. Each subclass implements its own LLM model.
+
+        Args:
+            model (str): model to pass down to underlying LLM object.
+
+        Raises:
+            ValueError: If the configuration parameters have any errors
         """
-        Sets the value of the lLM model in the builder. Each subclass implements its own LLM model.
-        """
-        llm_params = self.llm_config.get("LlmParams")
+        llm_params = self.use_case_config.get("LlmParams", {})
+        knowledge_base_params = self.use_case_config.get("KnowledgeBaseParams", {})
+        response_if_no_docs_found = knowledge_base_params.get("NoDocsFoundResponse", None)
+        response_if_no_docs_found_enabled = True if response_if_no_docs_found is not None else False
+
         if llm_params:
             self.is_streaming = llm_params.get("Streaming", self.model_defaults.allows_streaming)
-            self.set_streaming_callbacks()
+            self.set_streaming_callbacks(response_if_no_docs_found_enabled)
         else:
             self.errors.append(
                 "Missing required field (LlmParams) containing LLM configuration in the config which is required to construct the LLM."
@@ -347,12 +362,6 @@ class LLMBuilder(ABC):
         finally:
             metrics.flush_metrics()
 
-        prompt_template = llm_params.get("PromptTemplate")
-        if prompt_template is None:
-            message = f"Prompt template not provided. Falling back to default prompt template"
-            logger.info(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            prompt_template = self.model_defaults.prompt
-
         prompt_placeholders = [
             self.model_defaults.memory_config["history"],
             self.model_defaults.memory_config["input"],
@@ -360,15 +369,24 @@ class LLMBuilder(ABC):
         if self.rag_enabled:
             prompt_placeholders.append(self.model_defaults.memory_config["context"])
 
-        self.model_params = LLM(
+        self.model_params = ModelProviderInputs(
             **{
-                "api_token": self.api_key,
                 "conversation_memory": self.conversation_memory,
                 "knowledge_base": self.knowledge_base,
-                "model": llm_params.get("ModelId"),
+                "model": model,
                 "model_params": llm_params.get("ModelParams"),
-                "prompt_template": prompt_template,
+                "prompt_template": llm_params.get("PromptParams", {}).get("PromptTemplate"),
                 "prompt_placeholders": prompt_placeholders,
+                "disambiguation_prompt_template": llm_params.get("PromptParams", {}).get(
+                    "DisambiguationPromptTemplate"
+                ),
+                "disambiguation_prompt_enabled": llm_params.get("PromptParams", {}).get(
+                    "DisambiguationEnabled", DEFAULT_DISAMBIGUATION_ENABLED_MODE
+                ),
+                "rephrase_question": llm_params.get("PromptParams", {}).get(
+                    "RephraseQuestion", DEFAULT_REPHRASE_RAG_QUESTION
+                ),
+                "response_if_no_docs_found": response_if_no_docs_found,
                 "streaming": self.is_streaming,
                 "verbose": llm_params.get("Verbose", DEFAULT_VERBOSE_MODE),
                 "temperature": llm_params.get("Temperature"),

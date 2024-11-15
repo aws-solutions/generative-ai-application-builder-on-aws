@@ -16,13 +16,13 @@
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 import * as path from 'path';
+import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
+import { PipInstallArguments } from '../framework/bundler/runtime/python';
 import {
-    PipInstallArguments,
-    getCommandsForPythonDockerBuildWithPlatform,
-    resolvePipOptions
-} from '../utils/asset-bundling';
-import { localBundling } from '../utils/common-utils';
-import { GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME, LANGCHAIN_LAMBDA_PYTHON_RUNTIME } from '../utils/constants';
+    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_LAYER_PYTHON_RUNTIME,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME
+} from '../utils/constants';
 
 export interface SharedLibLayerProps {
     /**
@@ -67,41 +67,14 @@ export class PythonLangchainLayer extends lambda.LayerVersion {
         }
 
         const entry = path.resolve(props.entry);
-        const pipOptions = resolvePipOptions(props.pipOptions);
 
         super(scope, id, {
-            code: lambda.Code.fromAsset(entry, {
-                bundling: {
-                    image: LANGCHAIN_LAMBDA_PYTHON_RUNTIME.bundlingImage,
-                    user: 'root',
-                    local: {
-                        tryBundle(outputDir: string) {
-                            const cliCommand = [
-                                `cd ${entry}`,
-                                'echo "Trying local bundling of python modules"',
-                                'rm -fr .venv*',
-                                'python3 -m venv .venv',
-                                '. .venv/bin/activate',
-                                'python3 -m pip install poetry --upgrade',
-                                'poetry build',
-                                'poetry install --only main',
-                                `poetry run pip install --platform ${pipOptions.platform} --implementation ${pipOptions.implementation} --python-version ${pipOptions.pythonVersion} --only-binary=${pipOptions.onlyBinary} --target ${outputDir}/python/ dist/*.whl`,
-                                `find ${outputDir}/python -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete  -o -type f -name '*.coverage' -delete -o -type d -name dist -delete`,
-                                'deactivate',
-                                'rm -fr dist',
-                                'rm -fr .venv*'
-                            ].join(' && ');
-                            const targetDirectory = `${outputDir}/python/`;
-                            return localBundling(cliCommand, `${entry}/`, targetDirectory);
-                        }
-                    },
-                    command: getCommandsForPythonDockerBuildWithPlatform(
-                        '/asset-output/python',
-                        'boto3 lambda layer',
-                        pipOptions
-                    )
-                }
-            }),
+            code: lambda.Code.fromAsset(
+                entry,
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(LANGCHAIN_LAMBDA_LAYER_PYTHON_RUNTIME)
+                    .options(scope, entry, props.pipOptions)
+            ),
             compatibleRuntimes,
             description: props.description
         } as lambda.LayerVersionProps);

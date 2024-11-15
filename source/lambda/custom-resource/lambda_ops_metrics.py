@@ -28,13 +28,13 @@ USE_CASE_UUID = os.getenv(USE_CASE_UUID_ENV_VAR)
 
 @metrics.log_metrics(capture_cold_start_metric=True)  # type: ignore
 @tracer.capture_lambda_handler
-@logger.inject_lambda_context(log_event=True)
+@logger.inject_lambda_context
 def handler(*_):
     try:
         verify_env_setup()
         metric_data = get_metrics_payload(PUBLISH_METRICS_DAYS)
         builder_metrics = BuilderMetrics(
-            os.environ["SOLUTION_ID"], os.environ["SOLUTION_VERSION"], metric_data, USE_CASE_UUID
+            USE_CASE_UUID, os.environ["SOLUTION_ID"], os.environ["SOLUTION_VERSION"], metric_data
         )
         push_builder_metrics(builder_metrics)
     except Exception as ex:

@@ -17,27 +17,27 @@ from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import CHAT_IDENTIFIER, RAG_CHAT_IDENTIFIER
 from utils.enum_types import LLMProviderTypes
 
-ANTHROPIC_PROMPT = """\n\n{history}\n\n{input}"""
-ANTHROPIC_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+PROMPT = """\n\n{history}\n\n{input}"""
+RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
 MEMORY_CONFIG = {
     CHAT_IDENTIFIER: {
         "history": "history",
         "input": "input",
         "context": None,
-        "ai_prefix": "A",
-        "human_prefix": "H",
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
         "output": None,
     },
     RAG_CHAT_IDENTIFIER: {
         "history": "chat_history",
         "input": "question",
         "context": "context",
-        "ai_prefix": "A",
-        "human_prefix": "H",
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
         "output": "answer",
     },
 }
-DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT = """\n\nHuman: Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.\n\nChat history:\n{chat_history}\n\nFollow up question: {question}\n\nAssistant: Standalone question:"""
+DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:"""
 
 
 @pytest.mark.parametrize(
@@ -46,9 +46,9 @@ DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT = """\n\nHuman: Given the following 
         (
             CHAT_IDENTIFIER,
             "claude-1",
-            LLMProviderTypes.ANTHROPIC,
-            ANTHROPIC_PROMPT,
-            DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT,
+            LLMProviderTypes.BEDROCK,
+            PROMPT,
+            DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT,
             False,
             False,
             0.5,
@@ -61,9 +61,9 @@ DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT = """\n\nHuman: Given the following 
         (
             RAG_CHAT_IDENTIFIER,
             "claude-1",
-            LLMProviderTypes.ANTHROPIC,
-            ANTHROPIC_RAG_PROMPT,
-            DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT,
+            LLMProviderTypes.BEDROCK,
+            RAG_PROMPT,
+            DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT,
             False,
             True,
             0.5,
@@ -76,9 +76,9 @@ DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT = """\n\nHuman: Given the following 
         (
             CHAT_IDENTIFIER,
             "claude-2",
-            LLMProviderTypes.ANTHROPIC,
-            ANTHROPIC_PROMPT,
-            DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT,
+            LLMProviderTypes.BEDROCK,
+            PROMPT,
+            DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT,
             True,
             False,
             0.5,
@@ -91,9 +91,9 @@ DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT = """\n\nHuman: Given the following 
         (
             RAG_CHAT_IDENTIFIER,
             "claude-2",
-            LLMProviderTypes.ANTHROPIC,
-            ANTHROPIC_RAG_PROMPT,
-            DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT,
+            LLMProviderTypes.BEDROCK,
+            RAG_PROMPT,
+            DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT,
             True,
             True,
             0.5,
@@ -120,7 +120,7 @@ def test_model_defaults_success(
     max_prompt_size,
     stop_sequences,
     setup_environment,
-    anthropic_dynamodb_defaults_table,
+    bedrock_dynamodb_defaults_table,
 ):
     model_defaults = ModelDefaults(model_provider, model_id, rag_enabled)
     assert model_defaults.model_provider == model_provider.value
@@ -145,7 +145,7 @@ def test_model_defaults_success(
             CHAT_IDENTIFIER,
             "some-new-model",
             "new_provider",
-            ANTHROPIC_PROMPT,
+            PROMPT,
             False,
             False,
             f"No records found for UseCase: '{CHAT_IDENTIFIER}' and SortKey: 'new_provider#some-new-model' in the DynamoDB defaults table.",
@@ -154,7 +154,7 @@ def test_model_defaults_success(
             CHAT_IDENTIFIER,
             "",
             "new_provider",
-            ANTHROPIC_PROMPT,
+            PROMPT,
             False,
             False,
             "model_provider and model_name cannot be null. Provided values for model_provider: 'new_provider' and model_name: ''",
@@ -170,7 +170,7 @@ def test_model_defaults_failure(
     model_provider,
     expected_error_message,
     setup_environment,
-    anthropic_dynamodb_defaults_table,
+    bedrock_dynamodb_defaults_table,
 ):
     with pytest.raises(ValueError) as error:
         ModelDefaults(model_provider, model_id, rag_enabled)
@@ -183,10 +183,10 @@ def test_model_defaults_failure(
     [
         (
             CHAT_IDENTIFIER,
-            LLMProviderTypes.ANTHROPIC,
+            LLMProviderTypes.BEDROCK,
             "claude-1",
             "",
-            DEFAULT_BEDROCK_ANTHROPIC_CONDENSING_PROMPT,
+            DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT,
             False,
             False,
             0.5,
@@ -213,12 +213,12 @@ def test_model_defaults_missing_values(
     max_prompt_size,
     stop_sequences,
     setup_environment,
-    anthropic_dynamodb_defaults_table,
+    bedrock_dynamodb_defaults_table,
 ):
     with pytest.raises(ValueError) as error:
         ModelDefaults(model_provider, model_id, rag_enabled)
 
     assert (
         error.value.args[0]
-        == f"DynamoDB defaults missing for UseCase: '{CHAT_IDENTIFIER}' and SortKey: 'Anthropic#claude-1'"
+        == f"DynamoDB defaults missing for UseCase: '{CHAT_IDENTIFIER}' and SortKey: 'Bedrock#claude-1'"
     )

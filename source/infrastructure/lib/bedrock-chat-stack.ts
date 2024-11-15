@@ -20,18 +20,21 @@ import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NagSuppressions } from 'cdk-nag';
 import { BaseStackProps } from './framework/base-stack';
-import { UseCaseChat } from './framework/use-case-stack';
-import { AppAssetBundler } from './utils/asset-bundling';
-import { createDefaultLambdaRole } from './utils/common-utils';
+import { ApplicationAssetBundler } from './framework/bundler/asset-options-factory';
 import {
-    ADDITIONAL_LLM_LIBRARIES,
-    CHAT_PROVIDERS,
-    LAMBDA_TIMEOUT_MINS,
-    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
-    LLM_LIBRARY_LAYER_TYPES,
     PYTHON_PIP_BUILD_PLATFORM,
     PYTHON_PIP_WHEEL_IMPLEMENTATION,
     PYTHON_VERSION
+} from './framework/bundler/constants';
+import { UseCaseChat } from './framework/use-case-stack';
+import { createDefaultLambdaRole } from './utils/common-utils';
+import {
+    ADDITIONAL_LLM_LIBRARIES,
+    CHAT_LAMBDA_PYTHON_RUNTIME,
+    CHAT_PROVIDERS,
+    LAMBDA_TIMEOUT_MINS,
+    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+    LLM_LIBRARY_LAYER_TYPES
 } from './utils/constants';
 import { VPCSetup } from './vpc/vpc-setup';
 
@@ -48,9 +51,12 @@ export class BedrockChat extends UseCaseChat {
             stackType: 'bedrock-use-case',
             deployVpcCondition: this.deployVpcCondition,
             ragEnabled: this.stackParameters.ragEnabled.valueAsString,
+            knowledgeBaseType: this.stackParameters.knowledgeBaseType.valueAsString,
             customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
             customResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
-            iPamPoolId: this.iPamPoolId.valueAsString
+            iPamPoolId: this.iPamPoolId.valueAsString,
+            accessLogBucket: this.applicationSetup.accessLoggingBucket,
+            ...this.baseStackProps
         });
     }
 
@@ -58,12 +64,13 @@ export class BedrockChat extends UseCaseChat {
      * Provisions the llm provider lambda, and sets it to member variable chatLlmProviderLambda
      */
     public llmProviderSetup(): void {
+        // the log retention custom resource is setup in the use-case-stack.ts
         this.chatLlmProviderLambda = new lambda.Function(this, 'ChatLlmProviderLambda', {
             code: lambda.Code.fromAsset(
                 '../lambda/chat',
-                AppAssetBundler.assetOptionsFactory
-                    .assetOptions('PythonPlatformSpecific')
-                    .options('../lambda/chat', undefined, {
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(CHAT_LAMBDA_PYTHON_RUNTIME)
+                    .options(this, '../lambda/chat', {
                         platform: PYTHON_PIP_BUILD_PLATFORM,
                         pythonVersion: PYTHON_VERSION,
                         implementation: PYTHON_PIP_WHEEL_IMPLEMENTATION
@@ -90,7 +97,10 @@ export class BedrockChat extends UseCaseChat {
         this.chatLlmProviderLambda.addToRolePolicy(
             new cdk.aws_iam.PolicyStatement({
                 actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-                resources: [`arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}::foundation-model/*`]
+                resources: [
+                    `arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}::foundation-model/*`,
+                    `arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:provisioned-model/*`
+                ]
             })
         );
 
@@ -110,6 +120,7 @@ export class BedrockChat extends UseCaseChat {
                     appliesTo: [
                         'Resource::arn:<AWS::Partition>:bedrock:<AWS::Region>::foundation-model/*',
                         'Resource::arn:<AWS::Partition>:bedrock:<AWS::Region>:<AWS::AccountId>:guardrail/*',
+                        'Resource::arn:<AWS::Partition>:bedrock:<AWS::Region>:<AWS::AccountId>:provisioned-model/*',
                         'Resource::*'
                     ]
                 }

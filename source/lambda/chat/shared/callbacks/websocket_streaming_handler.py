@@ -21,7 +21,13 @@ from aws_lambda_powertools import Logger
 from helper import get_service_client
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain_core.messages import BaseMessage
-from utils.constants import CONVERSATION_ID_EVENT_KEY, TRACE_ID_ENV_VAR, WEBSOCKET_CALLBACK_URL_ENV_VAR
+from utils.constants import (
+    CONVERSATION_ID_EVENT_KEY,
+    GENERATED_QUESTION_KEY,
+    SOURCE_DOCUMENTS_KEY,
+    TRACE_ID_ENV_VAR,
+    WEBSOCKET_CALLBACK_URL_ENV_VAR,
+)
 
 logger = Logger(utc=True)
 
@@ -62,6 +68,8 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         conversation_id: str,
         source_docs_formatter: Callable,
         is_streaming: bool = False,
+        rag_enabled: bool = False,
+        response_if_no_docs_found_enabled: bool = False,
     ) -> None:
         self._connection_url = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
         self._connection_id = connection_id
@@ -69,6 +77,9 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         self._is_streaming = is_streaming
         self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self.connection_url)
         self._source_documents_formatter = source_docs_formatter
+        self._response_if_no_docs_found_enabled = response_if_no_docs_found_enabled
+        self._rag_enabled = rag_enabled
+        self._has_streamed = False
         super().__init__()
 
     @property
@@ -90,6 +101,26 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
     @property
     def client(self) -> str:
         return self._client
+
+    @property
+    def has_streamed(self) -> str:
+        return self._has_streamed
+
+    @has_streamed.setter
+    def has_streamed(self, has_streamed) -> None:
+        self._has_streamed = has_streamed
+
+    @property
+    def rag_enabled(self) -> bool:
+        return self._rag_enabled
+
+    @rag_enabled.setter
+    def rag_enabled(self, rag_enabled) -> None:
+        self._rag_enabled = rag_enabled
+
+    @property
+    def response_if_no_docs_found_enabled(self) -> str:
+        return self._response_if_no_docs_found_enabled
 
     @property
     def source_documents_formatter(self) -> str:
@@ -135,6 +166,7 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         """
         if self.is_streaming:
             self.post_token_to_connection(token)
+        self.has_streamed = True
 
     def send_references(self, source_documents: List):
         payload = self.source_documents_formatter(source_documents)
@@ -152,8 +184,21 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Run when chain ends running."""
-        if "source_documents" in outputs and outputs["source_documents"]:
-            self.send_references(outputs["source_documents"])
+        if SOURCE_DOCUMENTS_KEY in outputs and outputs[SOURCE_DOCUMENTS_KEY]:
+            self.send_references(outputs[SOURCE_DOCUMENTS_KEY])
+
+        if GENERATED_QUESTION_KEY in outputs and outputs[GENERATED_QUESTION_KEY]:
+            self.post_token_to_connection(outputs[GENERATED_QUESTION_KEY], GENERATED_QUESTION_KEY)
+
+        # When response_if_no_docs_found is provided, the tokens are not streamed using on_llm_new_token
+        # and on_chain_end is called. In this case, we push this response to the websocket
+        if (
+            self.rag_enabled
+            and "answer" in outputs
+            and not self.has_streamed
+            and self.response_if_no_docs_found_enabled
+        ):
+            self.post_token_to_connection(outputs["answer"], "data")
 
         logger.debug(f"The LLM has finished sending tokens to the connection: {self.connection_id}")
 

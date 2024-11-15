@@ -18,7 +18,8 @@ from enum import Enum
 class KnowledgeBaseTypes(str, Enum):
     """Supported Knowledge Bases"""
 
-    Kendra = "Kendra"
+    KENDRA = "Kendra"
+    BEDROCK = "Bedrock"
 
 
 class ConversationMemoryTypes(str, Enum):
@@ -30,9 +31,6 @@ class ConversationMemoryTypes(str, Enum):
 class LLMProviderTypes(str, Enum):
     """Supported provider types that can be used to create an LLM model"""
 
-    HUGGINGFACE = "HuggingFace"
-    HUGGINGFACE_ENDPOINT = "HuggingFace-InferenceEndpoint"
-    ANTHROPIC = "Anthropic"
     BEDROCK = "Bedrock"
     SAGEMAKER = "SageMaker"
 
@@ -40,21 +38,23 @@ class LLMProviderTypes(str, Enum):
 class BedrockModelProviders(str, Enum):
     """Supported model families for Bedrock that can be used to create an LLM model"""
 
-    AI21 = "AI21"
-    ANTHROPIC = "ANTHROPIC"
-    AMAZON = "AMAZON_TITAN"
-    META = "META"
-    COHERE = "COHERE"
-    MISTRAL = "MISTRAL"
+    AI21 = "ai21"
+    ANTHROPIC = "anthropic"
+    AMAZON = "amazon"
+    META = "meta"
+    COHERE = "cohere"
+    MISTRAL = "mistral"
 
 
 class CloudWatchNamespaces(str, Enum):
     """Supported Cloudwatch Namespaces"""
 
     API_GATEWAY = "AWS/ApiGateway"
-    COGNITO = "AWS/Cognito"
+    AWS_COGNITO = "AWS/Cognito"
     AWS_KENDRA = "AWS/Kendra"
+    AWS_BEDROCK = "AWS/Bedrock"
     LANGCHAIN_LLM = "Langchain/LLM"
+    AWS_SAGEMAKER = "AWS/SageMaker"
     USE_CASE_DEPLOYMENTS = "Solution/UseCaseDeployments"
     COLD_STARTS = "Solution/ColdStarts"
 
@@ -83,6 +83,13 @@ class CloudWatchMetrics(str, Enum):
     KENDRA_QUERY_PROCESSING_TIME = "KendraProcessingTime"
     KENDRA_FAILURES = "KendraFailures"
     KENDRA_NO_HITS = "KendraNoHits"
+    BEDROCK_KNOWLEDGE_BASE_RETRIEVE = "BedrockKnowledgeBaseRetrieve"
+    BEDROCK_KNOWLEDGE_BASE_RETRIEVE_TIME = "BedrockKnowledgeBaseRetrieveTime"
+    BEDROCK_KNOWLEDGE_BASE_FETCHED_DOCUMENTS = "BedrockKnowledgeBaseFetchedDocuments"
+    BEDROCK_KNOWLEDGE_BASE_FAILURES = "BedrockKnowledgeBaseFailures"
+    BEDROCK_KNOWLEDGE_BASE_NO_HITS = "BedrockKnowledgeBaseRetrieveNoHits"
+    BEDROCK_MODEL_INVOCATION_FAILURE = "BedrockModelInvocationFailures"
+    SAGEMAKER_MODEL_INVOCATION_FAILURE = "SagemakerModelInvocationFailures"
     UC_INITIATION_SUCCESS = "UCInitiationSuccess"
     UC_INITIATION_FAILURE = "UCInitiationFailure"
     UC_UPDATE_SUCCESS = "UCUpdateSuccess"

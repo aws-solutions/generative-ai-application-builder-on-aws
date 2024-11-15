@@ -12,33 +12,32 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-export const USE_CASE_CONFIG_SSM_PARAMETER_PREFIX = '/gaab-ai/use-case-config';
 export const COGNITO_POLICY_TABLE_ENV_VAR = 'COGNITO_POLICY_TABLE_NAME';
 export const USER_POOL_ID_ENV_VAR = 'USER_POOL_ID';
+export const CLIENT_ID_ENV_VAR = 'CLIENT_ID';
+export const USE_EXISTING_USER_POOL_CLIENT_ENV_VAR = 'USE_EXISTING_USER_POOL_CLIENT';
+export const COGNITO_DOMAIN_PREFIX_VAR = 'COGNITO_DOMAIN_PREFIX';
 export const ARTIFACT_BUCKET_ENV_VAR = 'ARTIFACT_BUCKET_LOCATION';
 export const ARTIFACT_KEY_PREFIX_ENV_VAR = 'ARTIFACT_KEY_PREFIX';
-export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
 export const POWERTOOLS_METRICS_NAMESPACE_ENV_VAR = 'POWERTOOLS_METRICS_NAMESPACE';
-export const USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR = 'USE_CASE_CONFIG_SSM_PARAMETER_PREFIX';
 export const WEBCONFIG_SSM_KEY_ENV_VAR = 'WEBCONFIG_SSM_KEY';
 export const USE_CASES_TABLE_NAME_ENV_VAR = 'USE_CASES_TABLE_NAME';
 export const MODEL_INFO_TABLE_NAME_ENV_VAR = 'MODEL_INFO_TABLE_NAME';
 export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
-export const USE_CASE_API_KEY_SUFFIX_ENV_VAR = 'API_KEY_SUFFIX';
 export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
+export const USE_CASE_CONFIG_TABLE_NAME_ENV_VAR = 'USE_CASE_CONFIG_TABLE_NAME';
+export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
 
 export const REQUIRED_ENV_VARS = [
     COGNITO_POLICY_TABLE_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
     ARTIFACT_BUCKET_ENV_VAR,
-    CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
-    USE_CASE_CONFIG_SSM_PARAMETER_PREFIX_ENV_VAR,
     USE_CASES_TABLE_NAME_ENV_VAR,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
-    USE_CASE_API_KEY_SUFFIX_ENV_VAR,
-    IS_INTERNAL_USER_ENV_VAR
+    IS_INTERNAL_USER_ENV_VAR,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 ];
 
 export const DEFAULT_LIST_USE_CASES_PAGE_SIZE = 10;
@@ -89,13 +88,9 @@ export enum CloudWatchMetrics {
 }
 
 export const enum CHAT_PROVIDERS {
-    HUGGING_FACE = 'HuggingFace',
-    ANTHROPIC = 'Anthropic',
     BEDROCK = 'Bedrock',
     SAGEMAKER = 'SageMaker'
 }
-export const PROVIDERS_REQUIRING_API_KEY = [CHAT_PROVIDERS.HUGGING_FACE.valueOf(), CHAT_PROVIDERS.ANTHROPIC.valueOf()];
-export const EXTERNAL_PROVIDERS = [CHAT_PROVIDERS.HUGGING_FACE.valueOf(), CHAT_PROVIDERS.ANTHROPIC.valueOf()];
 
 export const enum ModelInfoTableKeys {
     MODEL_INFO_TABLE_PARTITION_KEY = 'UseCase',
@@ -109,7 +104,14 @@ export const enum UseCaseTypes {
     RAGChat = 'RAGChat'
 }
 
+export const enum KnowledgeBaseTypes {
+    KENDRA = 'Kendra',
+    BEDROCK = 'Bedrock'
+}
+
 export const enum CfnParameterKeys {
+    KnowledgeBaseType = 'KnowledgeBaseType',
+    BedrockKnowledgeBaseId = 'BedrockKnowledgeBaseId',
     ExistingKendraIndexId = 'ExistingKendraIndexId',
     NewKendraIndexName = 'NewKendraIndexName',
     NewKendraQueryCapacityUnits = 'NewKendraQueryCapacityUnits',
@@ -121,14 +123,26 @@ export const enum CfnParameterKeys {
     ExistingVpcId = 'ExistingVpcId',
     ExistingPrivateSubnetIds = 'ExistingPrivateSubnetIds',
     ExistingSecurityGroupIds = 'ExistingSecurityGroupIds',
-    ChatConfigSSMParameterName = 'ChatConfigSSMParameterName',
     ExistingCognitoUserPoolId = 'ExistingCognitoUserPoolId',
+    ExistingCognitoUserPoolClient = 'ExistingCognitoUserPoolClient',
+    CognitoDomainPrefix = 'CognitoDomainPrefix',
     ExistingCognitoGroupPolicyTableName = 'ExistingCognitoGroupPolicyTableName',
     ExistingModelInfoTableName = 'ExistingModelInfoTableName',
     UseCaseUUID = 'UseCaseUUID',
-    ProviderApiKeySecret = 'ProviderApiKeySecret',
-    ConsentToDataLeavingAWS = 'ConsentToDataLeavingAWS',
-    RAGEnabled = 'RAGEnabled'
+    RAGEnabled = 'RAGEnabled',
+    DeployUI = 'DeployUI',
+    UseCaseConfigTableName = 'UseCaseConfigTableName',
+    UseCaseConfigRecordKey = 'UseCaseConfigRecordKey'
+}
+
+export const enum CfnOutputKeys {
+    WebConfigKey = 'WebConfigKey',
+    KendraIndexId = 'KendraIndexId',
+    CloudFrontWebUrl = 'CloudFrontWebUrl',
+    CloudwatchDashboardUrl = 'CloudwatchDashboardUrl',
+    VpcId = 'VpcId',
+    PrivateSubnetIds = 'PrivateSubnetIds',
+    SecurityGroupIds = 'SecurityGroupIds'
 }
 
 // On update, these parameters should keep the previous values
@@ -142,3 +156,15 @@ export const RetainedCfnParameterKeys = [
 
 export const ChatRequiredPlaceholders = ['{input}', '{history}'];
 export const RAGChatRequiredPlaceholders = ['{input}', '{context}', '{history}'];
+export const DisambiguationRequiredPlaceholders = ['{input}', '{history}'];
+
+export const RETRY_CONFIG = {
+    maxRetries: 5,
+    backOffRate: 2,
+    initialDelayMs: 1000
+};
+
+export const USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME = 'key';
+export const USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME = 'config';
+
+export const DEFAULT_USE_CASES_PER_PAGE = 10;

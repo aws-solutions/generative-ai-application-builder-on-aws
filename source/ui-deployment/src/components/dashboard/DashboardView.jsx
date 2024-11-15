@@ -13,25 +13,12 @@
 
 import { useRef, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Link, Pagination, StatusIndicator, Table, TextFilter } from '@cloudscape-design/components';
+import { Button, Input, Link, Pagination, StatusIndicator, Table, SpaceBetween } from '@cloudscape-design/components';
 import { useCollection } from '@cloudscape-design/collection-hooks';
 import { FullPageHeader } from '../commons';
 import { Breadcrumbs, ToolsContent } from './common-components';
-import {
-    CustomAppLayout,
-    Navigation,
-    Notifications,
-    TableEmptyState,
-    TableNoMatchState
-} from '../commons/common-components';
-import {
-    paginationAriaLabels,
-    deploymentTableAriaLabels,
-    renderAriaLive,
-    getTextFilterCounterText,
-    getHeaderCounterText,
-    createTableSortLabelFn
-} from '../../i18n-strings';
+import { CustomAppLayout, Navigation, Notifications, TableNoMatchState } from '../commons/common-components';
+import { paginationAriaLabels, deploymentTableAriaLabels, renderAriaLive } from '../../i18n-strings';
 import { useColumnWidths } from '../commons/use-column-widths';
 import { useLocalStorage } from '../commons/use-local-storage';
 import HomeContext from '../../contexts/home.context';
@@ -43,8 +30,6 @@ import { CFN_STACK_STATUS_INDICATOR, ERROR_MESSAGES } from '../../utils/constant
 
 function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
     const [selectedItems, setSelectedItems] = useState([]);
-    const [, setFilteringText] = useState('');
-    const [, setDelayedFilteringText] = useState('');
     const [deployments, setDeployments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -54,17 +39,28 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
     const onDeleteDiscard = () => setShowDeleteModal(false);
 
     const {
-        state: { deploymentsData, reloadData },
+        state: { deploymentsData, reloadData, numUseCases, currentPageIndex, searchFilter, submittedSearchFilter },
         dispatch: homeDispatch
     } = useContext(HomeContext);
 
-    const fetchData = async (isReload = false) => {
+    const fetchData = async (isReload = false, currentPageIndex = 1, searchQuery = submittedSearchFilter) => {
         try {
             setLoading(true);
 
             if (deploymentsData.length === 0 || reloadData || isReload) {
-                const response = await listDeployedUseCases();
+                const response = await listDeployedUseCases(currentPageIndex, searchQuery);
                 setDeployments(response.deployments);
+                homeDispatch({
+                    field: 'numUseCases',
+                    value: response.numUseCases
+                });
+                if (response.nextPage) {
+                    homeDispatch({
+                        field: 'currentPageIndex',
+                        value: response.nextPage - 1
+                    });
+                }
+
                 homeDispatch({
                     field: 'deploymentsData',
                     value: response.deployments
@@ -93,27 +89,63 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
     };
 
     useEffect(() => {
-        fetchData();
+        fetchData(false, currentPageIndex);
     }, [reloadData]);
 
-    const dateCreatedColumn = columnDefinitions.find((column) => column.id === 'dateCreated');
+    const { items, collectionProps } = useCollection(deployments, {
+        pagination: { pageSize: DEFAULT_PREFERENCES.pageSize },
+        selection: {}
+    });
 
-    const { items, actions, filteredItemsCount, collectionProps, filterProps, paginationProps } = useCollection(
-        deployments,
-        {
-            filtering: {
-                empty: <TableEmptyState resourceName="Deployment" />,
-                noMatch: <TableNoMatchState onClearFilter={() => actions.setFiltering('')} />
-            },
-            pagination: { pageSize: preferences.pageSize },
-            sorting: { defaultState: { sortingColumn: dateCreatedColumn, isDescending: true } },
-            selection: {}
+    const submitNewSearch = async () => {
+        homeDispatch({
+            field: 'submittedSearchFilter',
+            value: searchFilter
+        });
+        homeDispatch({
+            field: 'currentPageIndex',
+            value: 1
+        });
+        fetchData(true, 1, searchFilter);
+    };
+
+    const handleSearchKeyDown = async (key) => {
+        if (key === 'Enter' && submittedSearchFilter !== searchFilter) {
+            submitNewSearch();
         }
-    );
+    };
 
-    const onClearFilter = () => {
-        setFilteringText('');
-        setDelayedFilteringText('');
+    const onSearchClick = async () => {
+        if (submittedSearchFilter !== searchFilter) {
+            submitNewSearch();
+        }
+    };
+
+    const onClearFilter = async () => {
+        homeDispatch({
+            field: 'searchFilter',
+            value: ''
+        });
+        homeDispatch({
+            field: 'submittedSearchFilter',
+            value: ''
+        });
+        fetchData(true, 1, '');
+    };
+
+    const onSearchFilterChange = (value) => {
+        homeDispatch({
+            field: 'searchFilter',
+            value: value
+        });
+    };
+
+    const onPageChange = ({ detail }) => {
+        homeDispatch({
+            field: 'currentPageIndex',
+            value: detail.currentPageIndex
+        });
+        fetchData(true, detail.currentPageIndex);
     };
 
     const onSelectionChange = ({ detail }) => {
@@ -147,7 +179,7 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
                 stickyColumns={preferences.stickyColumns}
                 header={
                     <FullPageHeader
-                        counter={!loading && getHeaderCounterText(deployments, collectionProps.selectedItems)}
+                        counter={!loading && `(${numUseCases})`}
                         onInfoLinkClick={loadHelpPanelContent}
                         selectedItems={selectedItems}
                         setSelectedItems={setSelectedItems}
@@ -158,16 +190,28 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
                 loadingText="Loading deployments"
                 empty={<TableNoMatchState onClearFilter={onClearFilter} />}
                 filter={
-                    <TextFilter
-                        {...filterProps}
-                        filteringAriaLabel="Filter deployments"
-                        filteringPlaceholder="Find deployments"
-                        filteringClearAriaLabel="Clear"
-                        countText={getTextFilterCounterText(filteredItemsCount)}
-                    />
+                    <SpaceBetween direction="horizontal" size="xs">
+                        <Input
+                            placeholder="Search"
+                            type="text"
+                            data-testid="dashboard-search"
+                            value={searchFilter}
+                            onChange={({ detail }) => onSearchFilterChange(detail.value)}
+                            onKeyDown={({ detail }) => handleSearchKeyDown(detail.key)}
+                        />
+                        <Button variant="icon" iconName="search" onClick={() => onSearchClick()}>
+                            Search
+                        </Button>
+                    </SpaceBetween>
                 }
                 pagination={
-                    <Pagination {...paginationProps} ariaLabels={paginationAriaLabels(filteredItemsCount.pagesCount)} />
+                    <Pagination
+                        currentPageIndex={currentPageIndex}
+                        pagesCount={Math.ceil(numUseCases / DEFAULT_PREFERENCES.pageSize)}
+                        onChange={onPageChange}
+                        ariaLabels={paginationAriaLabels(Math.ceil(numUseCases / DEFAULT_PREFERENCES.pageSize))}
+                        data-testid="dashboard-pagination"
+                    />
                 }
                 preferences={<Preferences preferences={preferences} setPreferences={setPreferences} />}
             />
@@ -231,7 +275,6 @@ export default function DashboardView() {
     const rawColumns = [
         {
             id: 'name',
-            sortingField: 'Name',
             cell: (item) => createDetailsPageLink(item),
             header: 'Use Case Name',
             minWidth: 160,
@@ -239,35 +282,30 @@ export default function DashboardView() {
         },
         {
             id: 'stackId',
-            sortingField: 'useCaseUUID',
             header: 'Deployment Stack ID',
             cell: (item) => item.useCaseUUID,
             minWidth: 100
         },
         {
             id: 'status',
-            sortingField: 'status',
             header: 'Application Status',
             cell: (item) => displayStackStatus(item),
             minWidth: 60
         },
         {
             id: 'dateCreated',
-            sortingField: 'CreatedDate',
             header: 'Date Created',
             cell: (item) => new Date(item.CreatedDate).toLocaleDateString('en-US', dateOptions),
             minWidth: 120
         },
         {
             id: 'modelProvider',
-            sortingField: 'ModelProvider',
             header: 'Model Provider',
             cell: (item) => item.LlmParams.ModelProvider ?? 'N/A',
             minWidth: 100
         },
         {
             id: 'webUrl',
-            sortingField: 'cloudFrontWebUrl',
             header: 'Application Access',
             cell: (item) => createCloudfrontUrlLinkComponent(item),
             minWidth: 120
@@ -275,8 +313,7 @@ export default function DashboardView() {
     ];
 
     const COLUMN_DEFINITIONS = rawColumns.map((column) => ({
-        ...column,
-        ariaLabel: createTableSortLabelFn(column)
+        ...column
     }));
 
     const [columnDefinitions, saveWidths] = useColumnWidths('DeploymentsDashboard-Widths', COLUMN_DEFINITIONS);

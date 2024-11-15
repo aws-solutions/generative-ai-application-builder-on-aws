@@ -13,14 +13,15 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
+import { BaseStackProps } from '../framework/base-stack';
 import { BedrockUseCaseVPC } from './bedrock-vpc';
 import { CustomVPC } from './custom-vpc';
 import { DeploymentPlatformVPC } from './deployment-platform-vpc';
-import { ExternalUseCaseVPC } from './external-use-case-vpc';
 import { SagemakerUseCaseVPC } from './sagemaker-vpc';
 
-export interface VPCSetupProps {
+export interface VPCSetupProps extends BaseStackProps {
     /**
      * Type of stack that the VPC is being made for
      */
@@ -37,6 +38,11 @@ export interface VPCSetupProps {
     ragEnabled?: string;
 
     /**
+     * The type of knowledge base to be used if RAG is enabled
+     */
+    knowledgeBaseType?: string;
+
+    /**
      * Arn of the Lambda function to use for custom resource implementation.
      */
     customResourceLambdaArn: string;
@@ -50,6 +56,11 @@ export interface VPCSetupProps {
      * VPC IPAM Id to use for the CIDR block
      */
     iPamPoolId: string;
+
+    /**
+     * access log bucket for s3 buckets created by this stack
+     */
+    accessLogBucket: s3.Bucket;
 }
 
 /**
@@ -68,40 +79,35 @@ export class VPCSetup extends Construct {
         const coreParameters = {
             CustomResourceLambdaArn: props.customResourceLambdaArn,
             CustomResourceRoleArn: props.customResourceRoleArn,
+            AccessLoggingBucketArn: props.accessLogBucket.bucketArn,
             IPAMPoolId: props.iPamPoolId
         };
 
         const useCaseParameters = {
             RAGEnabled: props.ragEnabled!,
+            KnowledgeBaseType: props.knowledgeBaseType!,
             ...coreParameters
         };
 
         switch (props.stackType) {
             case 'bedrock-use-case': {
                 this.nestedVPCStack = new BedrockUseCaseVPC(this, 'BedrockUseCaseVPC', {
-                    description: 'Nested stack that deploys a VPC for the use case stack',
+                    description: `Nested stack that deploys a VPC for the use case stack - Version ${props.solutionVersion}`,
                     parameters: useCaseParameters
                 });
                 break;
             }
             case 'sagemaker-use-case': {
                 this.nestedVPCStack = new SagemakerUseCaseVPC(this, 'SagemakerUseCaseVPC', {
-                    description: 'Nested stack that deploys a VPC for the use case stack',
+                    description: `Nested stack that deploys a VPC for the use case stack - Version ${props.solutionVersion}`,
                     parameters: useCaseParameters
                 });
                 break;
             }
             case 'deployment-platform': {
                 this.nestedVPCStack = new DeploymentPlatformVPC(this, 'DeploymentPlatformVPC', {
-                    description: 'Nested stack that deploys a VPC for the deployment platform stack',
+                    description: `Nested stack that deploys a VPC for the deployment platform stack - Version ${props.solutionVersion}`,
                     parameters: coreParameters
-                });
-                break;
-            }
-            case 'external-use-case': {
-                this.nestedVPCStack = new ExternalUseCaseVPC(this, 'ThirdPartyUseCaseVPC', {
-                    description: 'Nested stack that deploys a VPC for the third party use case stack',
-                    parameters: useCaseParameters
                 });
                 break;
             }

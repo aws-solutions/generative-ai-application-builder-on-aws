@@ -21,6 +21,7 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as log from 'npmlog';
 import * as path from 'path';
+import * as cfn_guard from './cfn-guard-suppressions';
 
 import { ILocalBundling } from 'aws-cdk-lib';
 import { NagSuppressions } from 'cdk-nag';
@@ -268,6 +269,31 @@ export function getResourceProperties(
 
     return resourcePropertiesJson;
 }
+/**
+ * Generates the CFN template URL to add it to the IAM policy condition. The intent is to restrict the policy to only
+ * allow deployments from a specific s3 bucket location.
+ *
+ * @param construct
+ * @returns
+ */
+export function generateCfnTemplateUrl(construct: Construct): string[] {
+    const templateUrls: string[] = [];
+    if (process.env.DIST_OUTPUT_BUCKET) {
+        templateUrls.push(
+            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/SageMakerChat*.template'
+        );
+        templateUrls.push(
+            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/BedrockChat*.template'
+        );
+    } else {
+        const cdkAssetBucketName = construct.node.tryGetContext('cdk-asset-bucket');
+        // this is most likely a `cdk deploy`.
+        templateUrls.push(`https://${cdkAssetBucketName}.s3.amazonaws.com/*.json`);
+        templateUrls.push(`https://s3.*.amazonaws.com/${cdkAssetBucketName}/*.json`);
+    }
+
+    return templateUrls;
+}
 
 /**
  * Method to generate a CDK mapping for the source code location.
@@ -420,6 +446,21 @@ export function createDefaultLambdaRole(scope: Construct, id: string, deployVpcC
         ]);
     }
 
+    cfn_guard.addCfnSuppressRules(role, [
+        {
+            id: 'W11',
+            reason: 'The exact resource arn is unknown at this time. Hence wildcard. The arns are have been restricted to the account and region where possible, except for "ec2:Describe" calls which require the arn to be a wildcard'
+        },
+        {
+            id: 'W12',
+            reason: 'The exact resource arn is unknown at this time. Hence wildcard. The arns are have been restricted to the account and region where possible, except for "ec2:Describe" calls which require the arn to be a wildcard'
+        },
+        {
+            id: 'W13',
+            reason: 'The exact resource arn is unknown at this time. Hence wildcard. The arns are have been restricted to the account and region where possible, except for "ec2:Describe" calls which require the arn to be a wildcard'
+        }
+    ]);
+
     return role;
 }
 
@@ -430,4 +471,29 @@ export function hashValues(...values: string[]): string {
     const sha256 = crypto.createHash('sha256');
     values.forEach((val) => sha256.update(val));
     return sha256.digest('hex').slice(0, 12);
+}
+
+/**
+ * Adds a custom resource that updates log group's log retention policy
+ *
+ * @param scope
+ * @param id
+ * @param lambdaFunctionName
+ * @param customResourceLambdaFuncArn
+ * @returns
+ */
+export function createCustomResourceForLambdaLogRetention(
+    scope: Construct,
+    id: string,
+    lambdaFunctionName: string,
+    customResourceLambdaFuncArn: string
+): cdk.CustomResource {
+    return new cdk.CustomResource(scope, id, {
+        resourceType: 'Custom::CW_LOG_RETENTION',
+        serviceToken: customResourceLambdaFuncArn,
+        properties: {
+            FunctionName: lambdaFunctionName,
+            Resource: 'CW_LOG_RETENTION'
+        }
+    });
 }

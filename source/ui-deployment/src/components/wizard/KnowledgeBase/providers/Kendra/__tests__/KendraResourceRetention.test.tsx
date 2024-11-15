@@ -16,7 +16,7 @@ import { cloudscapeRender } from '@/utils';
 import { KENDRA_WARNING } from '@/utils/constants';
 import { screen } from '@testing-library/react';
 
-describe('ThirdPartyLegalDisclaimer', () => {
+describe('KendraResourceRetention', () => {
     afterEach(() => {
         jest.clearAllMocks();
     });

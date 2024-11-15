@@ -22,7 +22,7 @@ import {
 } from './helpers';
 import InputControl from '../Model/AdvancedModelSettings/InputControl';
 import { MAX_NUM_SECURITY_GROUPS } from '../steps-config';
-import { InfoLink } from 'components/commons';
+import { InfoLink } from '@/components/commons';
 
 type SecurityGroupItem = AttributeEditorItem;
 type SecurityGroupItemsArray = SecurityGroupItem[] | {}[];

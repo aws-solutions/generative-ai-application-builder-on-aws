@@ -28,9 +28,99 @@ describe('When deployment platform stack is created', () => {
         [template, jsonTemplate, stack] = buildStack();
     });
 
+    afterAll(() => {
+        delete process.env.VERSION;
+    });
+
+    it('base stack should have outputs', () => {
+        template.hasOutput('CloudFrontWebUrl', {
+            'Value': {
+                'Fn::Join': [
+                    '',
+                    [
+                        'https://',
+                        {
+                            'Fn::GetAtt': [
+                                Match.stringLikeRegexp('^WebAppNestedStackWebAppNestedStackResource(\\S+)$'),
+                                Match.stringLikeRegexp(
+                                    '^Outputs.DeploymentPlatformStackWebAppWebsiteUICloudFrontDistribution(\\S+)DomainName$'
+                                )
+                            ]
+                        }
+                    ]
+                ]
+            },
+            'Condition': 'DeployWebApp'
+        });
+        template.hasOutput('CognitoClientId', {
+            'Value': {
+                'Fn::GetAtt': [
+                    'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
+                    'Outputs.DeploymentPlatformStackUseCaseManagementSetupUseCaseManagementRequestProcessorDeploymentPlatformCognitoSetupCfnAppClient67E32B70ClientId'
+                ]
+            }
+        });
+        template.hasOutput('RestEndpointUrl', {
+            'Value': {
+                'Fn::Join': [
+                    '',
+                    [
+                        'https://',
+                        {
+                            'Fn::GetAtt': [
+                                'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
+                                'Outputs.DeploymentPlatformStackUseCaseManagementSetupUseCaseManagementRequestProcessorRestEndpointEndPointLambdaRestApiDB0E95B9Ref'
+                            ]
+                        },
+                        '.execute-api.',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        '.',
+                        {
+                            'Ref': 'AWS::URLSuffix'
+                        },
+                        '/',
+                        {
+                            'Fn::GetAtt': [
+                                'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
+                                'Outputs.DeploymentPlatformStackUseCaseManagementSetupUseCaseManagementRequestProcessorRestEndpointEndPointLambdaRestApiDeploymentStageprodFA7420DFRef'
+                            ]
+                        },
+                        '/'
+                    ]
+                ]
+            }
+        });
+
+        template.hasOutput('LLMConfigTableName', {
+            'Value': {
+                'Fn::GetAtt': [
+                    Match.stringLikeRegexp(
+                        'DeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource'
+                    ),
+                    Match.stringLikeRegexp(
+                        'Outputs.DeploymentPlatformStackDeploymentPlatformStorageLLMConfigTable9EB214F1Ref'
+                    )
+                ]
+            }
+        });
+
+        template.hasOutput('UseCasesTableName', {
+            'Value': {
+                'Fn::GetAtt': [
+                    Match.stringLikeRegexp(
+                        'DeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource'
+                    ),
+                    'Outputs.DeploymentPlatformStackDeploymentPlatformStorageUseCasesTable8AE1DCF5Ref'
+                ]
+            }
+        });
+    });
+
     describe('when nested stacks are created', () => {
         it('should create nested stack for ddb storage, and UI', () => {
-            template.resourceCountIs('AWS::CloudFormation::Stack', 4);
+            template.resourceCountIs('AWS::CloudFormation::Stack', 5);
 
             template.hasResource('AWS::CloudFormation::Stack', {
                 Type: 'AWS::CloudFormation::Stack',
@@ -57,7 +147,7 @@ describe('When deployment platform stack is created', () => {
                         CustomResourceRoleArn: {
                             'Fn::GetAtt': [Match.anyValue(), 'Arn']
                         },
-                        referencetoDeploymentPlatformStackDeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource0080A447OutputsDeploymentPlatformStackDeploymentPlatformStorageUseCasesTable8AE1DCF5Arn:
+                        'referencetoDeploymentPlatformStackDeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource0080A447OutputsDeploymentPlatformStackDeploymentPlatformStorageUseCasesTable8AE1DCF5Ref':
                             {
                                 'Fn::GetAtt': [
                                     Match.stringLikeRegexp(
@@ -68,14 +158,25 @@ describe('When deployment platform stack is created', () => {
                                     )
                                 ]
                             },
-                        referencetoDeploymentPlatformStackDeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource0080A447OutputsDeploymentPlatformStackDeploymentPlatformStorageUseCasesTable8AE1DCF5Ref:
+                        'referencetoDeploymentPlatformStackDeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource0080A447OutputsDeploymentPlatformStackDeploymentPlatformStorageModelInfoStorageModelInfoStore6E739C0DRef':
                             {
                                 'Fn::GetAtt': [
                                     Match.stringLikeRegexp(
                                         'DeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
                                     ),
                                     Match.stringLikeRegexp(
-                                        'Outputs.DeploymentPlatformStackDeploymentPlatformStorageUseCasesTable*'
+                                        'Outputs.DeploymentPlatformStackDeploymentPlatformStorageModelInfoStorageModelInfoStore*'
+                                    )
+                                ]
+                            },
+                        'referencetoDeploymentPlatformStackDeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource0080A447OutputsDeploymentPlatformStackDeploymentPlatformStorageModelInfoStorageModelInfoStore6E739C0DArn':
+                            {
+                                'Fn::GetAtt': [
+                                    Match.stringLikeRegexp(
+                                        'DeploymentPlatformStorageDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                                    ),
+                                    Match.stringLikeRegexp(
+                                        'Outputs.DeploymentPlatformStackDeploymentPlatformStorageModelInfoStorageModelInfoStore*'
                                     )
                                 ]
                             }
@@ -109,10 +210,11 @@ describe('When deployment platform stack is created', () => {
         it('should have a description in the nested stacks', () => {
             const deploymentPlatformStack = stack as DeploymentPlatformStack;
 
-            expect(
-                Template.fromStack(deploymentPlatformStack.uiInfrastructure.nestedUIStack).toJSON()['Description']
-            ).toEqual(
-                'Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution'
+            expect(Template.fromStack(deploymentPlatformStack.uiDistribution).toJSON()['Description']).toEqual(
+                `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${process.env.VERSION}`
+            );
+            expect(Template.fromStack(deploymentPlatformStack.copyAssetsStack).toJSON()['Description']).toEqual(
+                `Custom resource that copies UI assets to S3 bucket - Version ${process.env.VERSION}`
             );
 
             expect(
@@ -120,17 +222,19 @@ describe('When deployment platform stack is created', () => {
                     'Description'
                 ]
             ).toEqual(
-                'Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.)'
+                `Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${process.env.VERSION}`
             );
 
             expect(
                 Template.fromStack(
                     deploymentPlatformStack.deploymentPlatformStorageSetup.deploymentPlatformStorage
                 ).toJSON()['Description']
-            ).toEqual('Nested Stack that creates the DynamoDB table to manage use cases');
+            ).toEqual(
+                `Nested Stack that creates the DynamoDB table to manage use cases - Version ${process.env.VERSION}`
+            );
         });
 
-        it('should have condition for nested templates', () => {
+        it('should have condition for nested template for copying UI assets', () => {
             template.hasResource('AWS::CloudFormation::Stack', {
                 Type: 'AWS::CloudFormation::Stack',
                 Properties: {
@@ -142,8 +246,44 @@ describe('When deployment platform stack is created', () => {
                         CustomResourceRoleArn: {
                             'Fn::GetAtt': [Match.anyValue(), 'Arn']
                         },
+                        WebS3BucketArn: {
+                            'Fn::GetAtt': [
+                                Match.stringLikeRegexp('^WebAppNestedStackWebAppNestedStackResource(\\S+)$'),
+                                Match.stringLikeRegexp('^Outputs.DeploymentPlatformStackWebAppWebsiteBucket(\\S+)Arn')
+                            ]
+                        }
+                    },
+                    TemplateURL: Match.anyValue()
+                },
+                DependsOn: Match.anyValue(),
+                UpdateReplacePolicy: 'Delete',
+                DeletionPolicy: 'Delete',
+                Condition: 'DeployWebApp'
+            });
+        });
+
+        it('should have condition for nested templates for cloudfront distribution', () => {
+            template.hasResource('AWS::CloudFormation::Stack', {
+                Type: 'AWS::CloudFormation::Stack',
+                Properties: {
+                    Parameters: {
+                        CustomResourceLambdaArn: {
+                            'Fn::GetAtt': [
+                                Match.stringLikeRegexp('^DeploymentPlatformSetupInfraSetupCustomResource(\\S+)'),
+                                'Arn'
+                            ]
+                        },
+                        CustomResourceRoleArn: {
+                            'Fn::GetAtt': [
+                                Match.stringLikeRegexp('DeploymentPlatformSetupCustomResourceLambdaRole(\\S+)'),
+                                'Arn'
+                            ]
+                        },
                         AccessLoggingBucketArn: {
-                            'Fn::GetAtt': [Match.anyValue(), 'Arn']
+                            'Fn::GetAtt': [Match.stringLikeRegexp('^DeploymentPlatformSetupAccessLog(\\S+)'), 'Arn']
+                        },
+                        UseCaseUUID: {
+                            'Fn::GetAtt': [Match.stringLikeRegexp('^DeploymentPlatformSetupGenUUID(\\S+)'), 'UUID']
                         }
                     },
                     TemplateURL: Match.anyValue()
@@ -159,7 +299,7 @@ describe('When deployment platform stack is created', () => {
             template.hasCondition('DeployWebApp', {
                 'Fn::Equals': [
                     {
-                        'Fn::FindInMap': ['FeaturesToDeploy', 'Deploy', 'WebApp']
+                        Ref: 'DeployUI'
                     },
                     'Yes'
                 ]
@@ -253,7 +393,6 @@ describe('With all environment variables and context.json available', () => {
         });
 
         it('has mapping for features to be deployed', () => {
-            expect(jsonTemplate['Mappings']['FeaturesToDeploy']['Deploy']['WebApp']).toEqual('Yes');
             expect(jsonTemplate['Mappings']['FeaturesToDeploy']['Deploy']['CustomDashboard']).toEqual('Yes');
         });
     });
@@ -270,6 +409,7 @@ function buildStack(): [Template, { [key: string]: any }, cdk.Stack] {
     const solutionID = process.env.SOLUTION_ID ?? app.node.tryGetContext('solution_id');
     const version = process.env.VERSION ?? app.node.tryGetContext('solution_version');
     const solutionName = process.env.SOLUTION_NAME ?? app.node.tryGetContext('solution_name');
+    process.env.VERSION = version;
 
     const stack = new DeploymentPlatformStack(app, 'DeploymentPlatformStack', {
         solutionID: solutionID,

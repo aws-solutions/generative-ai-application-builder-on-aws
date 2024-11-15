@@ -14,10 +14,12 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
+import { BaseStackProps } from '../framework/base-stack';
 import { KendraKnowledgeBase } from './kendra-knowledge-base';
 
-export interface KnowledgeBaseProps {
+export interface KnowledgeBaseProps extends BaseStackProps {
     /**
      * UUID to identify this deployed use case within an application.
      * Will be added to the Kendra index name if one is deployed.
@@ -58,6 +60,11 @@ export interface KnowledgeBaseProps {
      * Custom lambda function to be passed as service token  for the custom infra setup
      */
     customInfra: lambda.Function;
+
+    /**
+     * Bucket to setup access logging across all S3 buckets
+     */
+    accessLoggingBucket: s3.Bucket;
 }
 
 /**
@@ -85,9 +92,10 @@ export class KnowledgeBaseSetup extends Construct {
                 StorageCapacityUnits: props.newKendraStorageCapacityUnits.toString(),
                 KendraIndexEdition: props.newKendraIndexEdition,
                 CustomResourceLambdaArn: props.customInfra.functionArn,
-                CustomResourceRoleArn: props.customInfra.role!.roleArn
+                CustomResourceRoleArn: props.customInfra.role!.roleArn,
+                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn
             },
-            description: 'Nested Stack that creates the Kendra Index'
+            description: `Nested Stack that creates the Kendra Index - Version ${props.solutionVersion}`
         });
         (this.kendraKnowledgeBase.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
             props.deployKendraIndexCondition;

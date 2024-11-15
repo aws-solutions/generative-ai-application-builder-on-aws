@@ -23,3 +23,7 @@ export const INTERNAL_USER_GENAI_POLICY_URL = 'https://policy.a2z.com/docs/56868
 
 // for handling source documents
 export const SOURCE_DOCS_RESPONSE_PAYLOAD_KEY = 'sourceDocument';
+
+// for socket connection
+export const SOCKET_CONNECTION_RETRIES = 15;
+export const DEFAULT_DELAY_MS = 1000;

@@ -18,22 +18,16 @@ from typing import Any, Dict, Optional, Union
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
-from langchain_aws.chat_models.bedrock import BedrockChat
+from langchain_aws.chat_models.bedrock import ChatBedrock
 from langchain_aws.llms.bedrock import BedrockLLM as Bedrock
 from llms.base_langchain import BaseLangChainModel
 from llms.factories.bedrock_adapter_factory import BedrockAdapterFactory
-from llms.models.llm import LLM
+from llms.models.model_provider_inputs import BedrockInputs
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import (
-    BEDROCK_GUARDRAILS_KEY,
-    DEFAULT_BEDROCK_MODEL_FAMILY,
-    DEFAULT_BEDROCK_MODELS_MAP,
-    DEFAULT_RAG_ENABLED_MODE,
-    TRACE_ID_ENV_VAR,
-)
+from utils.constants import DEFAULT_RAG_ENABLED_MODE, TRACE_ID_ENV_VAR
 from utils.custom_exceptions import LLMBuildError, LLMInvocationError
 from utils.enum_types import BedrockModelProviders, CloudWatchMetrics, CloudWatchNamespaces
-from utils.helpers import get_metrics_client, type_cast
+from utils.helpers import get_metrics_client
 
 tracer = Tracer()
 logger = Logger(utc=True)
@@ -46,7 +40,6 @@ class BedrockLLM(BaseLangChainModel):
 
     Attributes:
         - llm_params: LLM dataclass object which has the following:
-            api_token (str): Set to None for Bedrock models. Not required for Bedrock as a Bedrock client is used to invoke the Bedrock models.
             conversation_memory (BaseMemory): A BaseMemory object which helps store and access user chat history
             knowledge_base (KnowledgeBase): A KnowledgeBase object which retrieves information from the user's knowledge base for LLM context. This
                field is only used when the child class BedrockRetrievalLLM passes this value, else for regular non-RAG chat this is set to None.
@@ -78,7 +71,7 @@ class BedrockLLM(BaseLangChainModel):
 
     def __init__(
         self,
-        llm_params: LLM,
+        llm_params: BedrockInputs,
         model_defaults: ModelDefaults,
         model_family: BedrockModelProviders = None,
         rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
@@ -105,18 +98,12 @@ class BedrockLLM(BaseLangChainModel):
             self.model = llm_params.model
             self.model_family = model_family
         else:
-            self.model = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
-            self.model_family = DEFAULT_BEDROCK_MODEL_FAMILY
-
-        if llm_params.model_params is not None and BEDROCK_GUARDRAILS_KEY in llm_params.model_params:
-            self.guardrails = type_cast(
-                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Value"),
-                llm_params.model_params[BEDROCK_GUARDRAILS_KEY].get("Type"),
+            raise ValueError(
+                f"Model Name and Model Family are required to initialize BedrockLLM. Received model family as '{model_family}' and model name as '{llm_params.model}'"
             )
-            llm_params.model_params.pop(BEDROCK_GUARDRAILS_KEY)
-        else:
-            self.guardrails = None
 
+        self.model_arn = llm_params.model_arn
+        self.guardrails = llm_params.guardrails
         self.model_params = self.get_clean_model_params(llm_params.model_params)
 
         self.llm = self.get_llm()
@@ -130,13 +117,13 @@ class BedrockLLM(BaseLangChainModel):
     def model_family(self, model_family) -> None:
         self._model_family = model_family
 
-    def get_llm(self, condense_prompt_model: bool = False) -> Union[Bedrock, BedrockChat]:
+    def get_llm(self, condense_prompt_model: bool = False) -> Union[Bedrock, ChatBedrock]:
         """
         Creates a LangChain `LLM` object which is used to generate chat responses.
 
         Args:
             condense_prompt_model (bool): Flag that indicates whether to create a model for regular chat or
-                for condensing the prompt for RAG use-cases.
+                for disambiguating/condensing of the prompt for RAG use-cases.
                 callbacks and streaming are disabled when this flag is set to True
 
         Returns:
@@ -149,9 +136,15 @@ class BedrockLLM(BaseLangChainModel):
         streaming = False if condense_prompt_model else self.streaming
         callbacks = None if condense_prompt_model else self.callbacks
 
+        if self.model_arn is not None:
+            model = self.model_arn
+        else:
+            model = self.model
+
         request_options = {
             "client": bedrock_client,
-            "model_id": self.model,
+            "model_id": model,
+            "provider": self.model_family,
             "model_kwargs": self.model_params,
             "streaming": streaming,
             "callbacks": callbacks,
@@ -162,7 +155,7 @@ class BedrockLLM(BaseLangChainModel):
 
         if self.model_family == BedrockModelProviders.ANTHROPIC:
             request_options["verbose"] = self.verbose
-            return BedrockChat(**request_options)
+            return ChatBedrock(**request_options)
         else:
             return Bedrock(**request_options)
 
@@ -177,7 +170,9 @@ class BedrockLLM(BaseLangChainModel):
         Returns:
             (Dict): The LLM chat response message as a dictionary with the key `answer`
         """
-        error_message = f"Error occurred while invoking {self.model_family} {self.model} model. "
+        error_message = (
+            f"Error occurred while invoking Bedrock model family '{self.model_family}' model '{self.model}'. "
+        )
         try:
             return super().generate(question)
         except Exception as ex:
@@ -213,7 +208,7 @@ class BedrockLLM(BaseLangChainModel):
             ).get_params_as_dict()
         except TypeError as error:
             error_message = (
-                f"Error occurred while building Bedrock {self.model_family} {self.model} Model. "
+                f"Error occurred while building Bedrock family '{self.model_family}' model '{self.model}'. "
                 "Ensure that the model params provided are correct and they match the model specification. "
                 f"Received params: {sanitized_model_params}. Error: {error}"
             )

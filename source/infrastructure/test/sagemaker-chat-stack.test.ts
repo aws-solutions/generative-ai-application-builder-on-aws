@@ -16,8 +16,8 @@ import * as rawCdkJson from '../cdk.json';
 
 import { Match, Template } from 'aws-cdk-lib/assertions';
 
-import { LANGCHAIN_LAMBDA_PYTHON_RUNTIME } from '../lib/utils/constants';
 import { SageMakerChat } from '../lib/sagemaker-chat-stack';
+import { LANGCHAIN_LAMBDA_PYTHON_RUNTIME } from '../lib/utils/constants';
 
 describe('When Chat use case is created', () => {
     let template: Template;
@@ -65,7 +65,9 @@ describe('When Chat use case is created', () => {
                             [
                                 'https://',
                                 {
-                                    'Ref': Match.stringLikeRegexp('RequestProcessorWebSocketEndpointChatAPI*')
+                                    'Ref': Match.stringLikeRegexp(
+                                        'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApi*'
+                                    )
                                 },
                                 '.execute-api.',
                                 {
@@ -134,6 +136,7 @@ describe('When Chat use case is created', () => {
                             }
                         ]
                     },
+                    Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue(),
                     Match.anyValue(),

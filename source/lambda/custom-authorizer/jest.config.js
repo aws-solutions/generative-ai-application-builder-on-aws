@@ -15,10 +15,10 @@ module.exports = {
     modulePaths: [
         '<rootDir>/../layers/',
         '<rootDir>/../layers/aws-sdk-lib/node_modules/',
-        '<rootDir>/../layers/common-node-lib/'
     ],
-    testMatch: ['test/**/*.[t]s?(x)', '**/?(*.)+(spec|test).[t]s?(x)'],
+    testMatch: ['**/*.test.ts'],
     setupFiles: ['./test/jest-environment-variables.ts'],
+    modulePathIgnorePatterns: ['<rootDir>/dist/'],
     collectCoverage: true,
     collectCoverageFrom: ['**/*.ts', '!**/test/*.ts', '!dist/'],
     coverageReporters: ['text', ['lcov', { projectRoot: '../../../' }]],

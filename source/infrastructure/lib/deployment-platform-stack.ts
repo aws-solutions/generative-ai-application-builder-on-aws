@@ -19,16 +19,18 @@ import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 import { ApplicationSetup } from './framework/application-setup';
 import { BaseStack, BaseStackProps } from './framework/base-stack';
-import { UIAssets } from './framework/ui-asset';
 import { DashboardType } from './metrics/custom-dashboard';
+import { CopyUIAssets } from './s3web/copy-ui-assets-nested-stack';
+import { UIDistribution } from './s3web/ui-distribution-nested-stack';
 import { DeploymentPlatformStorageSetup } from './storage/deployment-platform-storage-setup';
-import { UIInfrastructure } from './ui/ui-infrastructure';
+import { UIInfrastructureBuilder } from './ui/ui-infrastructure-builder';
 import { UseCaseManagementSetup } from './use-case-management/setup';
 import { generateSourceCodeMapping } from './utils/common-utils';
 import {
     EMAIL_REGEX_PATTERN,
     INTERNAL_EMAIL_DOMAIN,
     REST_API_NAME_ENV_VAR,
+    UIAssetFolders,
     USE_CASE_UUID_ENV_VAR,
     WEB_CONFIG_PREFIX,
     additionalDeploymentPlatformConfigValues
@@ -40,9 +42,14 @@ import { VPCSetup } from './vpc/vpc-setup';
  */
 export class DeploymentPlatformStack extends BaseStack {
     /**
-     * Construct managing the optional deployment of the UI in a nested stack.
+     * Construct creating the cloudfront distribution assets in a nested stack.
      */
-    public readonly uiInfrastructure: UIInfrastructure;
+    public readonly uiDistribution: UIDistribution;
+
+    /**
+     * Construct creating the custom resource to copy assets in a nested stack.
+     */
+    public readonly copyAssetsStack: CopyUIAssets;
 
     /**
      * Construct managing the deployment of a nested stack with resources related to use case management.
@@ -72,7 +79,6 @@ export class DeploymentPlatformStack extends BaseStack {
         new cdk.CfnMapping(this, 'FeaturesToDeploy', {
             mapping: {
                 Deploy: {
-                    WebApp: 'Yes',
                     CustomDashboard: 'Yes'
                 }
             }
@@ -86,9 +92,9 @@ export class DeploymentPlatformStack extends BaseStack {
         });
 
         const stack = cdk.Stack.of(this);
-        let existingParameterGroups =
+        const existingParameterGroups =
             stack.templateOptions.metadata !== undefined &&
-            stack.templateOptions.metadata.hasOwnProperty('AWS::CloudFormation::Interface') &&
+            Object.hasOwn(stack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
             stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
                 ? stack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
                 : [];
@@ -96,6 +102,17 @@ export class DeploymentPlatformStack extends BaseStack {
         existingParameterGroups.unshift({
             Label: { default: 'Please provide admin user email' },
             Parameters: [adminUserEmail.logicalId]
+        });
+
+        /**
+         * this CfnParameter is defined in the base stack. The deployment stack only adds it to a parameter group
+         */
+        existingParameterGroups.push({
+            Label: {
+                default:
+                    'Optional: If you would like to provide a sub domain for the UserPoolClient configuration. If not provided, a hashed value using the AWS Account number, current region, and stack name, will be used as sub-domain name'
+            },
+            Parameters: [this.cognitoUserPoolClientDomain.logicalId]
         });
 
         // internal users are identified by being of the form "X@amazon.Y"
@@ -106,28 +123,58 @@ export class DeploymentPlatformStack extends BaseStack {
             )
         });
 
+        const uuid: string = this.applicationSetup.addUUIDGeneratorCustomResource().getAttString('UUID');
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(USE_CASE_UUID_ENV_VAR, uuid);
+
+        const uiInfrastructureBuilder = new UIInfrastructureBuilder({
+            uiAssetFolder: UIAssetFolders.DEPLOYMENT_PLATFORM,
+            deployWebApp: this.deployWebApp.valueAsString
+        });
+
+        this.uiDistribution = uiInfrastructureBuilder.createDistribution(this, 'WebApp', {
+            parameters: {
+                CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn,
+                UseCaseUUID: uuid
+            },
+            description: `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${props.solutionVersion}`
+        });
+
         const webConfigSsmKey: string = `${WEB_CONFIG_PREFIX}/${cdk.Aws.STACK_NAME}`;
         this.useCaseManagementSetup = new UseCaseManagementSetup(this, 'UseCaseManagementSetup', {
             defaultUserEmail: adminUserEmail.valueAsString,
-            applicationTrademarkName: props.applicationTrademarkName,
             webConfigSSMKey: webConfigSsmKey,
             customInfra: this.applicationSetup.customResourceLambda,
             securityGroupIds: this.transpiredSecurityGroupIds,
-            privateSubnetIds: this.transpiredPrivateSubnetIds
+            privateSubnetIds: this.transpiredPrivateSubnetIds,
+            cognitoDomainPrefix: this.cognitoDomainPrefixParam,
+            cloudFrontUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
+            deployWebApp: this.deployWebApp.valueAsString,
+            deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
+            ...this.baseStackProps
         });
 
         this.deploymentPlatformStorageSetup = new DeploymentPlatformStorageSetup(this, 'DeploymentPlatformStorage', {
             deploymentApiLambda: this.useCaseManagementSetup.useCaseManagement.useCaseManagementApiLambda,
             modelInfoApiLambda: this.useCaseManagementSetup.useCaseManagement.modelInfoApiLambda,
             customResourceLambda: this.applicationSetup.customResourceLambda,
-            customResourceRole: this.applicationSetup.customResourceRole
+            customResourceRole: this.applicationSetup.customResourceRole,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
+            ...this.baseStackProps
         });
+
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
+            REST_API_NAME_ENV_VAR,
+            `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`
+        );
 
         this.applicationSetup.addCustomDashboard(
             {
                 apiName: `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`,
                 userPoolId: this.useCaseManagementSetup.useCaseManagement.userPool.userPoolId,
-                userPoolClientId: this.useCaseManagementSetup.useCaseManagement.userPoolClient.ref
+                userPoolClientId: this.useCaseManagementSetup.useCaseManagement.userPoolClient.userPoolClientId
             },
             DashboardType.DeploymentPlatform
         );
@@ -136,32 +183,35 @@ export class DeploymentPlatformStack extends BaseStack {
             {
                 apiEndpoint: this.useCaseManagementSetup.useCaseManagement.restApi.url,
                 userPoolId: this.useCaseManagementSetup.useCaseManagement.userPool.userPoolId,
-                userPoolClientId: this.useCaseManagementSetup.useCaseManagement.userPoolClient.ref,
+                userPoolClientId: this.useCaseManagementSetup.useCaseManagement.userPoolClient.userPoolClientId,
+                cognitoDomainPrefix: this.useCaseManagementSetup.useCaseManagement.cognitoUserPoolDomainName,
+                cognitoRedirectUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
                 isInternalUserCondition: isInternalUserCondition,
-                additionalProperties: additionalDeploymentPlatformConfigValues
+                additionalProperties: additionalDeploymentPlatformConfigValues,
+                deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition
             },
             webConfigSsmKey
         );
 
-        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
-            REST_API_NAME_ENV_VAR,
-            `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`
-        );
-
-        const uuid: string = this.applicationSetup.addUUIDGeneratorCustomResource().getAttString('UUID');
-        this.applicationSetup.scheduledMetricsLambda.addEnvironment(USE_CASE_UUID_ENV_VAR, uuid);
-
-        this.uiInfrastructure = new UIInfrastructure(this, 'WebApp', {
-            webRuntimeConfigKey: webConfigSsmKey,
-            customInfra: this.applicationSetup.customResourceLambda,
-            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
-            uiAssetFolder: 'ui-deployment',
-            useCaseUUID: uuid
+        this.copyAssetsStack = uiInfrastructureBuilder.createUIAssetsCustomResource(this, 'CopyUICustomResource', {
+            parameters: {
+                CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+                CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                WebConfigKey: webConfigSsmKey,
+                WebS3BucketArn: this.uiDistribution.websiteBucket.bucketArn,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn
+            },
+            description: `Custom resource that copies UI assets to S3 bucket - Version ${props.solutionVersion}`
         });
-        this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
-            this.applicationSetup.webConfigCustomResource
+
+        this.uiDistribution.node.defaultChild?.node.addDependency(
+            this.applicationSetup.accessLoggingBucket.node
+                .tryFindChild('Policy')
+                ?.node.tryFindChild('Resource') as cdk.CfnResource
         );
-        this.uiInfrastructure.nestedUIStack.node.defaultChild?.node.addDependency(
+
+        this.copyAssetsStack.node.defaultChild?.node.addDependency(this.applicationSetup.webConfigCustomResource);
+        this.copyAssetsStack.node.defaultChild?.node.addDependency(
             this.applicationSetup.accessLoggingBucket.node
                 .tryFindChild('Policy')
                 ?.node.tryFindChild('Resource') as cdk.CfnResource
@@ -169,7 +219,8 @@ export class DeploymentPlatformStack extends BaseStack {
 
         if (process.env.DIST_OUTPUT_BUCKET) {
             generateSourceCodeMapping(this, props.solutionName, props.solutionVersion);
-            generateSourceCodeMapping(this.uiInfrastructure.nestedUIStack, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(this.uiDistribution, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(this.copyAssetsStack, props.solutionName, props.solutionVersion);
             generateSourceCodeMapping(
                 this.deploymentPlatformStorageSetup.deploymentPlatformStorage,
                 props.solutionName,
@@ -178,9 +229,25 @@ export class DeploymentPlatformStack extends BaseStack {
         }
 
         const cloudfrontUrlOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'CloudFrontWebUrl', {
-            value: `https://${(this.uiInfrastructure.nestedUIStack as UIAssets).cloudFrontDistribution.domainName}`
+            value: `https://${this.uiDistribution.cloudFrontDistribution.domainName}`
         });
-        cloudfrontUrlOutput.condition = this.uiInfrastructure.deployWebApp;
+        cloudfrontUrlOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
+
+        new cdk.CfnOutput(cdk.Stack.of(this), 'CognitoClientId', {
+            value: this.useCaseManagementSetup.useCaseManagement.userPoolClient.userPoolClientId
+        });
+
+        new cdk.CfnOutput(cdk.Stack.of(this), 'RestEndpointUrl', {
+            value: this.useCaseManagementSetup.useCaseManagement.restApi.url
+        });
+
+        new cdk.CfnOutput(cdk.Stack.of(this), 'LLMConfigTableName', {
+            value: this.deploymentPlatformStorageSetup.deploymentPlatformStorage.useCaseConfigTable.tableName
+        });
+
+        new cdk.CfnOutput(cdk.Stack.of(this), 'UseCasesTableName', {
+            value: this.deploymentPlatformStorageSetup.deploymentPlatformStorage.useCasesTable.tableName
+        });
 
         this.applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
             UUID: uuid,
@@ -209,7 +276,9 @@ export class DeploymentPlatformStack extends BaseStack {
             deployVpcCondition: this.deployVpcCondition,
             customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
             customResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
-            iPamPoolId: this.iPamPoolId.valueAsString
+            iPamPoolId: this.iPamPoolId.valueAsString,
+            accessLogBucket: this.applicationSetup.accessLoggingBucket,
+            ...this.baseStackProps
         });
     }
 

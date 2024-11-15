@@ -18,8 +18,9 @@ import { ReviewProps } from '../interfaces/Steps';
 import { KnowledgeBaseReview } from './KnowledgeBaseReview';
 import { ModelReview } from './ModelReview';
 import VpcConfigReview from './VpcConfigReview';
+import PromptReview from './PromptReview';
 
-export const Review = ({ info: { useCase, knowledgeBase, model, vpc }, setActiveStepIndex }: ReviewProps) => {
+export const Review = ({ info: { useCase, knowledgeBase, model, vpc, prompt }, setActiveStepIndex }: ReviewProps) => {
     return (
         <Box margin={{ bottom: 'l' }} data-testid="review-deployment-component">
             <SpaceBetween size="xxl">
@@ -46,6 +47,15 @@ export const Review = ({ info: { useCase, knowledgeBase, model, vpc }, setActive
                     header="Step 4: Knowledge base"
                     knowledgeBaseData={knowledgeBase}
                     setActiveStepIndex={setActiveStepIndex}
+                />
+
+                <PromptReview
+                    header="Step 5: Prompt"
+                    modelData={model}
+                    promptData={prompt}
+                    isRag={knowledgeBase.isRagRequired}
+                    setActiveStepIndex={setActiveStepIndex}
+                    data-testid="review-prompt-container"
                 />
             </SpaceBetween>
         </Box>

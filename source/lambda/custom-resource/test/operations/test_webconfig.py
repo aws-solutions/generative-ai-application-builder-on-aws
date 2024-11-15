@@ -13,26 +13,20 @@
 ######################################################################################################################
 
 import json
-from test.fixtures.webconfig_events import (
-    lambda_event,
-    lambda_event_with_additional_config,
-    lambda_event_with_additional_config_internal_user,
-    lambda_event_with_additional_config_external_user,
-    setup_ssm,
-)
+from test.fixtures.webconfig_events import lambda_event, setup_ssm
 
 import mock
 import pytest
 from helper import get_service_client
 from lambda_func import handler
-from moto import mock_ssm
+from moto import mock_aws
 from operations.webconfig import (
     API_ENDPOINT,
     RESOURCE_PROPERTIES,
+    PHYSICAL_RESOURCE_ID,
     SSM_KEY,
     USER_POOL_CLIENT_ID,
     USER_POOL_ID,
-    IS_INTERNAL_USER,
     create,
     delete,
     execute,
@@ -76,7 +70,7 @@ def test_env_setup_with_no_usr_pool_client_id(monkeypatch, lambda_event, request
         verify_env_setup(lambda_event)
 
 
-@mock_ssm
+@mock_aws
 def test_create_success(lambda_event, mock_lambda_context):
     create(lambda_event, mock_lambda_context)
     ssm = get_service_client("ssm")
@@ -96,188 +90,25 @@ def test_create_success(lambda_event, mock_lambda_context):
     }
 
 
-@mock_ssm
-def test_create_success_with_additional_config(lambda_event_with_additional_config, mock_lambda_context):
-    ssm = get_service_client("ssm")
-    additional_config = {"key1": "value1", "key2": "value2"}
-    ssm.put_parameter(
-        Name="additional-ssm-param-name",
-        Value=json.dumps(additional_config),
-        Type="SecureString",
-        Overwrite=True,
-        Tier="Intelligent-Tiering",
-    )
-
-    create(lambda_event_with_additional_config, mock_lambda_context)
-    # fmt: off
-    web_config_value = ssm.get_parameter(
-        Name=lambda_event_with_additional_config[RESOURCE_PROPERTIES][SSM_KEY], 
-        WithDecryption=True)["Parameter"]["Value"]
-    # fmt: on
-
-    assert json.loads(web_config_value) == {
-        "ApiEndpoint": "https://non-existent/url/fakeapi",
-        "UserPoolId": "fakepoolid",
-        "UserPoolClientId": "fakeclientid",
-        "AwsRegion": "us-east-1",
-        "SomeOtherParam": "someOtherValue",
-        "IsInternalUser": "false",
-        "UseCaseConfig": {"key1": "value1", "key2": "value2"},
-    }
-
-
-@mock_ssm
-def test_create_success_with_additional_config_marking_internal_user(
-    lambda_event_with_additional_config, mock_lambda_context
-):
-    ssm = get_service_client("ssm")
-    additional_config = {"IsInternalUser": "true", "key1": "value1", "key2": "value2"}
-    ssm.put_parameter(
-        Name="additional-ssm-param-name",
-        Value=json.dumps(additional_config),
-        Type="SecureString",
-        Overwrite=True,
-        Tier="Intelligent-Tiering",
-    )
-
-    create(lambda_event_with_additional_config, mock_lambda_context)
-    # fmt: off
-    web_config_value = ssm.get_parameter(
-        Name=lambda_event_with_additional_config[RESOURCE_PROPERTIES][SSM_KEY], 
-        WithDecryption=True)["Parameter"]["Value"]
-    # fmt: on
-
-    assert json.loads(web_config_value) == {
-        "ApiEndpoint": "https://non-existent/url/fakeapi",
-        "UserPoolId": "fakepoolid",
-        "UserPoolClientId": "fakeclientid",
-        "AwsRegion": "us-east-1",
-        "SomeOtherParam": "someOtherValue",
-        "IsInternalUser": "true",
-        "UseCaseConfig": {"key1": "value1", "key2": "value2"},
-    }
-
-
-@mock_ssm
-def test_create_success_with_additional_config_marking_external_user(
-    lambda_event_with_additional_config_external_user, mock_lambda_context
-):
-    ssm = get_service_client("ssm")
-    additional_config = {"IsInternalUser": "false", "key1": "value1", "key2": "value2"}
-    ssm.put_parameter(
-        Name="additional-ssm-param-name",
-        Value=json.dumps(additional_config),
-        Type="SecureString",
-        Overwrite=True,
-        Tier="Intelligent-Tiering",
-    )
-
-    create(lambda_event_with_additional_config_external_user, mock_lambda_context)
-    # fmt: off
-    web_config_value = ssm.get_parameter(
-        Name=lambda_event_with_additional_config_external_user[RESOURCE_PROPERTIES][SSM_KEY], 
-        WithDecryption=True)["Parameter"]["Value"]
-    # fmt: on
-
-    assert json.loads(web_config_value) == {
-        "ApiEndpoint": "https://non-existent/url/fakeapi",
-        "UserPoolId": "fakepoolid",
-        "UserPoolClientId": "fakeclientid",
-        "AwsRegion": "us-east-1",
-        "SomeOtherParam": "someOtherValue",
-        "IsInternalUser": "false",
-        "UseCaseConfig": {"key1": "value1", "key2": "value2"},
-    }
-
-
-@mock_ssm
-def test_create_success_with_additional_config_empty(lambda_event_with_additional_config, mock_lambda_context):
-    ssm = get_service_client("ssm")
-
-    create(lambda_event_with_additional_config, mock_lambda_context)
-    # fmt: off
-    web_config_value = ssm.get_parameter(
-        Name=lambda_event_with_additional_config[RESOURCE_PROPERTIES][SSM_KEY], 
-        WithDecryption=True)["Parameter"]["Value"]
-    # fmt: on
-
-    assert json.loads(web_config_value) == {
-        "ApiEndpoint": "https://non-existent/url/fakeapi",
-        "UserPoolId": "fakepoolid",
-        "UserPoolClientId": "fakeclientid",
-        "AwsRegion": "us-east-1",
-        "IsInternalUser": "false",
-        "SomeOtherParam": "someOtherValue",
-        "UseCaseConfig": {},
-    }
-
-
-@mock_ssm
-def test_create_success_with_additional_config_empty_marking_internal_user(
-    lambda_event_with_additional_config_internal_user, mock_lambda_context
-):
-    ssm = get_service_client("ssm")
-    create(lambda_event_with_additional_config_internal_user, mock_lambda_context)
-    # fmt: off
-    web_config_value = ssm.get_parameter(
-        Name=lambda_event_with_additional_config_internal_user[RESOURCE_PROPERTIES][SSM_KEY], 
-        WithDecryption=True)["Parameter"]["Value"]
-    # fmt: on
-
-    assert json.loads(web_config_value) == {
-        "ApiEndpoint": "https://non-existent/url/fakeapi",
-        "UserPoolId": "fakepoolid",
-        "UserPoolClientId": "fakeclientid",
-        "AwsRegion": "us-east-1",
-        "IsInternalUser": "true",
-        "SomeOtherParam": "someOtherValue",
-        "UseCaseConfig": {},
-    }
-
-
-@mock_ssm
-def test_create_success_with_additional_config_empty_marking_external_user(
-    lambda_event_with_additional_config_external_user, mock_lambda_context
-):
-    ssm = get_service_client("ssm")
-    create(lambda_event_with_additional_config_external_user, mock_lambda_context)
-    # fmt: off
-    web_config_value = ssm.get_parameter(
-        Name=lambda_event_with_additional_config_external_user[RESOURCE_PROPERTIES][SSM_KEY], 
-        WithDecryption=True)["Parameter"]["Value"]
-    # fmt: on
-
-    assert json.loads(web_config_value) == {
-        "ApiEndpoint": "https://non-existent/url/fakeapi",
-        "UserPoolId": "fakepoolid",
-        "UserPoolClientId": "fakeclientid",
-        "AwsRegion": "us-east-1",
-        "IsInternalUser": "false",
-        "SomeOtherParam": "someOtherValue",
-        "UseCaseConfig": {},
-    }
-
-
-@mock_ssm
+@mock_aws
 def test_delete_failure(monkeypatch, setup_ssm, mock_lambda_context):
-    lambda_event, ssm = setup_ssm
+    lambda_event, _ = setup_ssm
     monkeypatch.setitem(lambda_event[RESOURCE_PROPERTIES], SSM_KEY, "/non-existent/key")
     assert None == delete(lambda_event, mock_lambda_context)
 
 
-@mock_ssm
-def test_delete_success(setup_ssm, mock_lambda_context):
+@mock_aws
+def test_delete_success(monkeypatch, setup_ssm, mock_lambda_context):
     lambda_event, ssm = setup_ssm
-    delete(lambda_event, lambda_event)
-
+    monkeypatch.setitem(lambda_event, PHYSICAL_RESOURCE_ID, "/gaab/new/keypath")
+    delete(lambda_event, mock_lambda_context)
     parameter_list = ssm.describe_parameters(
         ParameterFilters=[{"Key": "Name", "Values": [lambda_event[RESOURCE_PROPERTIES][SSM_KEY]]}]
     )
-
     assert len(parameter_list["Parameters"]) == 0
 
 
-@mock_ssm
+@mock_aws
 @pytest.mark.parametrize("requestType", ["Create", "Update"])
 def test_execute_create_and_update(lambda_event, mock_lambda_context, requestType):
     lambda_event["RequestType"] = requestType
@@ -294,7 +125,7 @@ def test_execute_create_and_update(lambda_event, mock_lambda_context, requestTyp
             )
 
 
-@mock_ssm()
+@mock_aws()
 def test_execute_delete(setup_ssm, mock_lambda_context):
     lambda_event, ssm = setup_ssm
     lambda_event["RequestType"] = "Delete"

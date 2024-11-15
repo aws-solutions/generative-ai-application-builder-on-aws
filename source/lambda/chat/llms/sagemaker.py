@@ -17,10 +17,11 @@ from typing import Any, Dict, Optional, Tuple
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
+from botocore.exceptions import ClientError, EndpointConnectionError
 from helper import get_service_client
 from langchain_aws.llms.sagemaker_endpoint import SagemakerEndpoint
 from llms.base_langchain import BaseLangChainModel
-from llms.models.llm import LLM
+from llms.models.model_provider_inputs import ModelProviderInputs
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
 from pydantic_core import ValidationError
 from shared.defaults.model_defaults import ModelDefaults
@@ -30,13 +31,14 @@ from utils.constants import (
     TEMPERATURE_PLACEHOLDER_STR,
     TRACE_ID_ENV_VAR,
 )
-from utils.custom_exceptions import LLMBuildError, LLMInvocationError
+from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client
 
 tracer = Tracer()
 logger = Logger(utc=True)
-metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
+sagemaker_metrics = get_metrics_client(CloudWatchNamespaces.AWS_SAGEMAKER)
+langchain_metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
 
 
 class SageMakerLLM(BaseLangChainModel):
@@ -45,7 +47,6 @@ class SageMakerLLM(BaseLangChainModel):
 
     Attributes:
         - llm_params: LLM dataclass object which has the following:
-            api_token (str): Set to None for SageMaker models. Not required for SageMaker as a SageMaker client is used to invoke the SageMaker models.
             conversation_memory (BaseMemory): A BaseMemory object which helps store and access user chat history
             knowledge_base (KnowledgeBase): A KnowledgeBase object which retrieves information from the user's knowledge base for LLM context. This
                field is only used when the child class SageMakerRetrievalLLM passes this value, else for regular non-RAG chat this is set to None.
@@ -83,7 +84,7 @@ class SageMakerLLM(BaseLangChainModel):
 
     def __init__(
         self,
-        llm_params: LLM,
+        llm_params: ModelProviderInputs,
         model_defaults: ModelDefaults,
         sagemaker_endpoint_name: Optional[str],
         input_schema=Dict[str, Any],
@@ -118,18 +119,7 @@ class SageMakerLLM(BaseLangChainModel):
         self._input_schema = input_schema
         self._response_jsonpath = response_jsonpath
         self.model_params, self._endpoint_params = self.get_clean_params(llm_params.model_params)
-
-        try:
-            self._llm = self.get_llm()
-        except Exception as ex:
-            logger.error(
-                ex,
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-            )
-            raise LLMBuildError(f"SageMaker model construction failed. Error: {ex}")
-        finally:
-            metrics.flush_metrics()
-
+        self._llm = self.get_llm()
         self._conversation_chain = self.get_conversation_chain()
 
     @property
@@ -199,15 +189,42 @@ class SageMakerLLM(BaseLangChainModel):
                 + f"Ensure that the input schema and output path expressions are correct for your SageMaker model. Error: {ve}"
             )
             logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1)
+            langchain_metrics.add_metric(
+                name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1
+            )
             raise LLMInvocationError(error_message)
+
+        except ClientError as ce:
+            if ce.response["Error"]["Code"] == "ValidationException":
+                error_message = error_message + "Please ensure that the endpoint you provided exists."
+
+            else:
+                error_message = error_message + str(ce)
+
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            sagemaker_metrics.add_metric(
+                name=CloudWatchMetrics.SAGEMAKER_MODEL_INVOCATION_FAILURE.value, unit=MetricUnit.Count, value=1
+            )
+            raise LLMInvocationError(error_message)
+
+        except EndpointConnectionError as ex:
+            error_message = error_message + "Please ensure that the endpoint you provided exists."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            sagemaker_metrics.add_metric(
+                name=CloudWatchMetrics.SAGEMAKER_MODEL_INVOCATION_FAILURE.value, unit=MetricUnit.Count, value=1
+            )
+            raise LLMInvocationError(error_message)
+
         except Exception as ex:
             error_message = error_message + str(ex)
             logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1)
+            langchain_metrics.add_metric(
+                name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1
+            )
             raise LLMInvocationError(error_message)
         finally:
-            metrics.flush_metrics()
+            sagemaker_metrics.flush_metrics()
+            langchain_metrics.flush_metrics()
 
     @tracer.capture_method(capture_response=True)
     def get_clean_params(self, model_params: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:

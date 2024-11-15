@@ -25,7 +25,6 @@ def test_lambda_handler_success(mock_lambda_context, monkeypatch):
     envs = {
         "UNIT_TEST_ENV": "yes",
         "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
-        "LOG_LEVEL": "DEBUG",
         "SOLUTION_ID": "SO0999",
         "SOLUTION_VERSION": "v99.99.99",
     }

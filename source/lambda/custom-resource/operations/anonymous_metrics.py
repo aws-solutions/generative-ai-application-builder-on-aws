@@ -11,27 +11,30 @@
 #  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
+
 import json
-import uuid
 import time
+import uuid
 from copy import copy
 
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
 from cfn_response import send_response
-from helper import get_service_client
+from helper import get_service_client, get_service_resource
 from operations import operation_types
 from operations.operation_types import FAILED, PHYSICAL_RESOURCE_ID, RESOURCE, RESOURCE_PROPERTIES, SUCCESS
 from utils.constants import (
+    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
+    DISAMBIGUATION_PROMPT_TEMPLATE,
     KENDRA_EDITION,
     LLM_PARAMS,
-    MODEL_PROVIDER_NAME,
     NEW_KENDRA_INDEX_CREATED,
+    PROMPT_PARAMS,
     PROMPT_TEMPLATE,
     RAG_ENABLED,
-    SSM_CONFIG_KEY,
     PROMPT_TEMPLATE,
-    MODEL_PROVIDER,
+    USE_CASE_CONFIG_RECORD_KEY,
+    USE_CASE_CONFIG_TABLE_NAME,
     UUID,
 )
 from utils.data import BuilderMetrics
@@ -92,43 +95,60 @@ def sanitize_data(data):
     data.pop(UUID, None)
     data.pop(VERSION, None)
 
-    # Removing the prompt template to not expose proprietary data in the logs
-    if data.get(LLM_PARAMS, None) is not None:
-        data[LLM_PARAMS].pop(PROMPT_TEMPLATE, None)
+    # Removing the prompt templates to not expose proprietary data in the logs
+    prompt_params = data.get(LLM_PARAMS, {}).get(PROMPT_PARAMS)
+    if prompt_params is not None:
+        prompt_params.pop(PROMPT_TEMPLATE, None)
+        prompt_params.pop(DISAMBIGUATION_PROMPT_TEMPLATE, None)
 
     # config key is not needed in metrics
-    data.pop(SSM_CONFIG_KEY, None)
+    data.pop(USE_CASE_CONFIG_TABLE_NAME, None)
+    data.pop(USE_CASE_CONFIG_RECORD_KEY, None)
 
     return data
 
 
 @tracer.capture_method
-def get_additional_config_ssm_parameter(ssm_key, retries=3, retry_interval=5):
-    """This method retrieves the additional configuration from SSM Parameter Store
+def get_use_case_config(table_name: str, key: str, retries=3, retry_interval=5):
+    """This method retrieves the use case configuration from Dyanamo DB
 
     Args:
-        ssm_key (str): SSM Parameter Store key
+        table_name (str): The name of the DynamoDB table to retrieve the use case configuration from
+        key (str): The key to retrieve the use case configuration from the table
         retries (int): The number of times to retry. May be needed as sometimes IAM policy changes take time to propagate, which can mean we need to retry.
         retry_interval (int): The number of seconds to wait between retries, in seconds.
 
     Returns:
-        dict: Additional configuration (e.g. the use case config retrieved from SSM). Empty if not retrievable.
+        dict: Additional configuration (e.g. the use case config retrieved from DDB). Empty if not retrievable.
     """
-    logger.debug(f"Retrieving additional config from SSM Parameter Store with key {ssm_key}")
-    ssm = get_service_client("ssm")
+    logger.info(f"Retrieving use case config from DynamoDB table {table_name} for the key {key}")
+    ddb_resource = get_service_resource("dynamodb")
+    config_table = ddb_resource.Table(table_name)
+
     while retries > 0:
         try:
-            response = ssm.get_parameter(Name=ssm_key, WithDecryption=True)
-            return json.loads(response["Parameter"]["Value"])
+
+            usecase_config = (
+                config_table.get_item(
+                    Key={USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME: key},
+                )
+                .get("Item", {})
+                .get("config")
+            )
+
+            if usecase_config is None:
+                raise ValueError(f"No compatible record found in the table {table_name} for the key {key}")
+
+            return usecase_config
         except ClientError as error:
-            logger.error(f"Error occurred when retrieving additional config SSM param, error is {error}")
+            logger.error(f"Error occurred when retrieving use case config from DDB, error is {error}")
             logger.info(
-                f"Additional config with key {ssm_key} failed to be retrieved. Retrying in {retry_interval} seconds. Retrying {retries} more times"
+                f"Additional config with key {key} failed to be retrieved from table {table_name}. Retrying in {retry_interval} seconds. Retrying {retries} more times"
             )
             retries -= 1
             time.sleep(retry_interval)
         except ValueError as error:
-            logger.error(f"Error occurred when attempting to parse additional config SSM param, error is {error}")
+            logger.error(f"Error occurred when attempting to read the use case config, error is {error}")
             break
     return {}
 
@@ -162,21 +182,23 @@ def execute(event, context):
             metrics_data.pop(NEW_KENDRA_INDEX_CREATED, None)
             metrics_data.pop(KENDRA_EDITION, None)
             metrics_data.pop(RAG_ENABLED, None)
-            metrics_data.pop(SSM_CONFIG_KEY, None)
 
-        if event["RequestType"] != "Delete" and event[RESOURCE_PROPERTIES].get(SSM_CONFIG_KEY, None):
-            chat_model_config = get_additional_config_ssm_parameter(event[RESOURCE_PROPERTIES][SSM_CONFIG_KEY])
+        config_table = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_TABLE_NAME)
+        config_key = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_RECORD_KEY)
+        if event["RequestType"] != "Delete" and config_table and config_key:
+            chat_model_config = get_use_case_config(
+                config_table,
+                config_key,
+            )
             metrics_data[LLM_PARAMS] = chat_model_config.get(LLM_PARAMS, {})
-            if metrics_data[LLM_PARAMS].get(PROMPT_TEMPLATE, None):
-                metrics_data[LLM_PARAMS].pop(PROMPT_TEMPLATE)
 
         metrics_data = sanitize_data(metrics_data)
 
         builder_metrics = BuilderMetrics(
+            event[RESOURCE_PROPERTIES][UUID],
             event[RESOURCE_PROPERTIES][SOLUTION_ID],
             event[RESOURCE_PROPERTIES][VERSION],
             metrics_data,
-            event[RESOURCE_PROPERTIES][UUID],
         )
         push_builder_metrics(builder_metrics)
         send_response(event, context, SUCCESS, {}, physical_resource_id)

@@ -13,11 +13,15 @@
 
 import KnowledgeBaseType from '../KnowledgeBaseType';
 import { mockFormComponentCallbacks, cloudscapeRender } from '@/utils';
-import { screen } from '@testing-library/react';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 
 describe('KnowledgeBaseType', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        cleanup();
     });
 
     test('renders', () => {
@@ -32,7 +36,8 @@ describe('KnowledgeBaseType', () => {
         expect(screen.getByTestId('select-knowledgebase-type-container')).toBeDefined();
         const select = cloudscapeWrapper.findSelect();
         select?.openDropdown();
-        expect(select?.findDropdown().findOptions().length).toBe(1);
+        expect(select?.findDropdown().findOptions().length).toBe(2);
         expect(select?.findDropdown().findOptionByValue('Kendra')).toBeTruthy();
+        expect(select?.findDropdown().findOptionByValue('Bedrock')).toBeTruthy();
     });
 });

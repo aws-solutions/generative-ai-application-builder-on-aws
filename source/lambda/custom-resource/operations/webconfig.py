@@ -14,7 +14,6 @@
 
 import json
 import os
-import time
 
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
@@ -32,13 +31,12 @@ API_ENDPOINT = "ApiEndpoint"
 USER_POOL_ID = "UserPoolId"
 USER_POOL_CLIENT_ID = "UserPoolClientId"
 SERVICE_TOKEN = "ServiceToken"
-EXISTING_CONFIG_SSM_PARAMETER = "AdditionalConfigurationSSMParameterName"
 IS_INTERNAL_USER = "IsInternalUser"
 USE_CASE_CONFIG = "UseCaseConfig"
 GAAB_SSM_CONFIG_PREFIX = "/gaab"
 
 # keys in the incoming event object which will not be saved to the web config
-CONFIG_EXCLUDE_KEYS = [RESOURCE, SSM_KEY, SERVICE_TOKEN, EXISTING_CONFIG_SSM_PARAMETER]
+CONFIG_EXCLUDE_KEYS = [RESOURCE, SSM_KEY, SERVICE_TOKEN]
 
 
 @tracer.capture_method
@@ -78,37 +76,6 @@ def verify_env_setup(event):
 
 
 @tracer.capture_method
-def get_additional_config_ssm_parameter(ssm_key, retries=3, retry_interval=5):
-    """This method retrieves the additional configuration from SSM Parameter Store
-
-    Args:
-        ssm_key (str): SSM Parameter Store key
-        retries (int): The number of times to retry. May be needed as sometimes IAM policy changes take time to propagate, which can mean we need to retry.
-        retry_interval (int): The number of seconds to wait between retries, in seconds.
-
-    Returns:
-        dict: Additional configuration (e.g. the use case config retrieved from SSM). Empty if not retrievable.
-    """
-    logger.debug(f"Retrieving additional config from SSM Parameter Store with key {ssm_key}")
-    ssm = get_service_client("ssm")
-    while retries > 0:
-        try:
-            response = ssm.get_parameter(Name=ssm_key, WithDecryption=True)
-            return json.loads(response["Parameter"]["Value"])
-        except ClientError as error:
-            logger.error(f"Error occurred when retrieving additional config SSM param, error is {error}")
-            logger.info(
-                f"Additional config with key {ssm_key} failed to be retrieved. Retrying in {retry_interval} seconds. Retrying {retries} more times"
-            )
-            retries -= 1
-            time.sleep(retry_interval)
-        except ValueError as error:
-            logger.error(f"Error occurred when attempting to parse additional config SSM param, error is {error}")
-            break
-    return {}
-
-
-@tracer.capture_method
 def create(event, context):
     """This method creates a JSON string from all incoming resource properties and writes to SSM Parameter store.
 
@@ -131,23 +98,6 @@ def create(event, context):
         }
         config_dict["AwsRegion"] = os.environ["AWS_REGION"]
 
-        # for use cases, the full config is copied into the webconfig as well
-        if event[RESOURCE_PROPERTIES].get(EXISTING_CONFIG_SSM_PARAMETER, False):
-            additional_config = get_additional_config_ssm_parameter(
-                event[RESOURCE_PROPERTIES][EXISTING_CONFIG_SSM_PARAMETER]
-            )
-            # use cases will have the IS_INTERNAL_USER parameter set in the config by the deployment platform,
-            # but could also have it be provided via the event triggering this custom resource based on the email
-            # being used.
-            config_dict[IS_INTERNAL_USER] = (
-                "true"
-                if config_dict.get(IS_INTERNAL_USER, None) == "true"
-                or additional_config.get(IS_INTERNAL_USER, None) == "true"
-                else "false"
-            )
-            additional_config.pop(IS_INTERNAL_USER, None)  # removing the duplicate value to avoid confusion
-            config_dict[USE_CASE_CONFIG] = additional_config
-
         json_config_string = json.dumps(config_dict)
 
         ssm.put_parameter(
@@ -158,7 +108,7 @@ def create(event, context):
             Overwrite=True,
             Tier="Intelligent-Tiering",
         )
-        logger.debug("Writing to SSM Parameter store complete")
+        logger.info("Writing to SSM Parameter store complete")
     except ClientError as error:
         logger.error((f"Error occurred when inserting/retrieving parameter in SSM parameter store, error is {error}"))
         raise error

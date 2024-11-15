@@ -17,9 +17,9 @@ import { screen } from '@testing-library/react';
 let SagemakerModel: any;
 
 describe('Sagemaker', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         mockReactMarkdown();
-        SagemakerModel = require('../Sagemaker').default;
+        SagemakerModel = (await import('../Sagemaker')).default;
     });
     it('renders', () => {
         const mockModelData = { sagemakerInputSchema: '', modelParameters: [], temperature: 0.1 };

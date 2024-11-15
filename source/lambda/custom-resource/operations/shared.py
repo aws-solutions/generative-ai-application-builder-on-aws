@@ -40,7 +40,7 @@ def get_zip_archive(s3_resource, source_bucket_name, source_prefix):
     Returns:
         zipfile.ZipFile: A reference to the zip archive from which files can be de-compressed
     """
-    logger.debug(f"Reading asset zip file {source_prefix} in bucket {source_bucket_name}")
+    logger.info(f"Reading asset zip file {source_prefix} in bucket {source_bucket_name}")
     buffer = None
     try:
         asset_zip_object = s3_resource.Object(bucket_name=source_bucket_name, key=f"{source_prefix}")
@@ -54,5 +54,7 @@ def get_zip_archive(s3_resource, source_bucket_name, source_prefix):
         zip_archive = zipfile.ZipFile(buffer)
     except zipfile.error as error:
         logger.error(f"Error occurred when opening zip archive, error is {str(error)}")
+        buffer.close()
         raise error
+
     return zip_archive

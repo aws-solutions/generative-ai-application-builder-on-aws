@@ -47,18 +47,8 @@ export const ddbGetUseCaseTypesResponseMultiPart = {
 };
 
 export const ddbGetProvidersResponse = {
-    Count: 4,
+    Count: 2,
     Items: [
-        {
-            ModelProviderName: {
-                'S': 'Anthropic'
-            }
-        },
-        {
-            ModelProviderName: {
-                'S': 'Anthropic'
-            }
-        },
         {
             ModelProviderName: {
                 'S': 'Bedrock'
@@ -66,7 +56,7 @@ export const ddbGetProvidersResponse = {
         },
         {
             ModelProviderName: {
-                'S': 'HuggingFace'
+                'S': 'SageMaker'
             }
         }
     ],
@@ -160,12 +150,12 @@ export const ddbGetProvidersMultiPartResponse1 = {
     Items: [
         {
             ModelProviderName: {
-                'S': 'Anthropic'
+                'S': 'Bedrock'
             }
         },
         {
             ModelProviderName: {
-                'S': 'Anthropic'
+                'S': 'Bedrock'
             }
         }
     ],
@@ -183,7 +173,7 @@ export const ddbGetProvidersMultiPartResponse2 = {
         },
         {
             ModelProviderName: {
-                'S': 'HuggingFace'
+                'S': 'SageMaker'
             }
         }
     ],

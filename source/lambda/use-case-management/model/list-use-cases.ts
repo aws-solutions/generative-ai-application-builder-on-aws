@@ -12,6 +12,7 @@
  **********************************************************************************************************************/
 
 import { APIGatewayEvent } from 'aws-lambda';
+import RequestValidationError from '../utils/error';
 
 /**
  * Interface to describe a stack that is stored in the dynamoDb table.
@@ -32,7 +33,8 @@ export interface UseCaseRecord {
     UseCaseId: string;
     StackId: string;
     Name: string;
-    SSMParameterKey: string;
+    UseCaseConfigRecordKey: string;
+    UseCaseConfigTableName: string;
     CreatedBy: string;
     CreatedDate: string;
     UpdatedBy?: string;
@@ -48,8 +50,28 @@ export interface UseCaseRecord {
  */
 export class ListUseCasesAdapter {
     event: APIGatewayEvent;
+    pageNumber: number;
+    searchFilter?: string;
 
     constructor(event: APIGatewayEvent) {
         this.event = event;
+
+        if (event.queryStringParameters?.pageNumber !== undefined) {
+            try {
+                this.pageNumber = parseInt(event.queryStringParameters.pageNumber, 10);
+                if (isNaN(this.pageNumber)) throw new Error();
+            } catch (error) {
+                throw new RequestValidationError(
+                    'Could not parse pageNumber as an int from the query string parameter in the request'
+                );
+            }
+        } else {
+            throw new RequestValidationError('pageNumber was not found in the query string parameters of the request');
+        }
+
+        this.searchFilter =
+            event.queryStringParameters?.searchFilter !== undefined
+                ? event.queryStringParameters.searchFilter
+                : undefined;
     }
 }

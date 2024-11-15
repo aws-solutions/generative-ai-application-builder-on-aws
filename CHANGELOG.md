@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.4] - 2024-09-26
+
+### Security
+
+-   Updated node library versions to address security vulnerabilities
+
+## [2.0.3] - 2024-09-17
+
+### Fixed
+
+-   Resolved an issue where use case deployments would fail when manually disabling anonymous metrics via the provided CloudFormation mapping
+
+### Security
+
+-   Updated library versions to address security vulnerabilities
+
+## [2.0.2] - 2024-08-23
+
+### Fixed
+
+-   Issue [#135](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/135), added a new IAM permission for the cognito-idp:GetGroup action to the CloudFormation deployment role (used when deploying use cases). This was required due to a service change.
+
+## [2.0.1] - 2024-08-19
+
+### Changed
+
+-   With the release of [AWS-Solutions-Constructs v2.65.0](https://github.com/awslabs/aws-solutions-constructs/tree/main/source/patterns/%40aws-solutions-constructs/aws-apigatewayv2websocket-sqs), the AWS ApiGateway websocket integration with Amazon SQS Queue is available in the library. Hence the
+    implementation has been updated to use this construct.
+
+### Fixed
+
+-   Issue [#131](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/131) which caused an issue with rendering non-S3 source URLs from vector store for a RAG based use case.
+-   Issue [#132](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/132) where configured Guardrails for Amazon Bedrock to have no effect on a use case's text input validations and output responses.
+-   Wizard validation failure for SageMaker model selection type, that allowed user to navigate ahead even when the page had failed validations.
+-   An AWS WAF rule that blocked larger payloads for HTTP POST request to the `/deployments` endpoint. This restricted configuring large system prompts (over 8 KB) for use case cases.
+
+## [2.0.0] - 2024-08-08
+
+### Added
+
+-   Support for Knowledge Bases for Amazon Bedrock as an option for Retrieval Augmented Generation (RAG) based workflows.
+-   Support for Identity Federation (OpenID Connect or SAML 2.0) through Amazon Cognito.
+-   Ability to add role-based access control for Amazon Kendra for controlling access over documents that can be retrieved while using RAG based workflows.
+-   Provisioned Throughput support for Amazon Bedrock models, allowing custom and provisioned base models to be added as the backing LLMs for the text use case.
+-   Enhanced prompt interface, allowing fine-grained control over prompts (including disambiguation prompts for RAG), message history and input lengths.
+-   Streamlined upgrade scripts for upgrading from v1.4.x to v2.0.0. For detailed steps, refer to the following [section](https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/update-the-solution.html)
+-   Model support for Amazon Titan Text G1 - Premier
+
+### Changed
+
+-   Deprecated direct Anthropic and Hugging Face LLMs in favour of integrating them through Amazon Bedrock and Amazon SageMaker.
+-   Switch login screens from amplify-ui to Cognito Hosted UI to support Identity Federation.
+-   Switch from `webpack` to `vite` for building and packaging UI projects.
+-   Updates to Node and Python package versions.
+
 ## [1.4.5] - 2024-07-22
 
 ### Security

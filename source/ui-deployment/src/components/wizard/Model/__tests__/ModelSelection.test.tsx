@@ -11,27 +11,22 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { mockFormComponentCallbacks, mockReactMarkdown, renderWithProvider } from '@/utils';
+import { mockFormComponentCallbacks, mockReactMarkdown, renderWithProvider, mockModelNamesQuery } from '@/utils';
 import { screen } from '@testing-library/react';
-import {
-    ANTHROPIC_MODEL_OPTION_IDX,
-    BEDROCK_MODEL_OPTION_IDX,
-    HF_INF_ENDPOINT_OPTION_IDX,
-    HF_MODEL_OPTION_IDX,
-    MODEL_FAMILY_PROVIDER_OPTIONS
-} from '../../steps-config';
+import { BEDROCK_MODEL_OPTION_IDX, MODEL_FAMILY_PROVIDER_OPTIONS } from '../../steps-config';
 import { ModelProviderOption } from '../../interfaces';
 
 let ModelSelection: any;
 
 describe('ModelSelection', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         mockReactMarkdown();
-        ModelSelection = require('../ModelSelection').default;
+        ModelSelection = (await import('../ModelSelection')).default;
+        mockModelNamesQuery();
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test('renders bedrock model components', () => {
@@ -44,45 +39,5 @@ describe('ModelSelection', () => {
         });
 
         expect(screen.getByTestId('bedrock-model-components')).toBeDefined();
-    });
-
-    test('renders huggingface model components', () => {
-        const mockModelSelectionProps = {
-            modelData: { modelProvider: MODEL_FAMILY_PROVIDER_OPTIONS[HF_MODEL_OPTION_IDX] as ModelProviderOption }
-        };
-
-        renderWithProvider(<ModelSelection {...mockModelSelectionProps} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
-        });
-
-        expect(screen.getByTestId('huggingface-model-components')).toBeDefined();
-    });
-
-    test('renders anthropic model components', () => {
-        const mockModelSelectionProps = {
-            modelData: {
-                modelProvider: MODEL_FAMILY_PROVIDER_OPTIONS[ANTHROPIC_MODEL_OPTION_IDX] as ModelProviderOption
-            }
-        };
-
-        renderWithProvider(<ModelSelection {...mockModelSelectionProps} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
-        });
-
-        expect(screen.getByTestId('anthropic-model-components')).toBeDefined();
-    });
-
-    test('renders huggingface inference model components', () => {
-        const mockModelSelectionProps = {
-            modelData: {
-                modelProvider: MODEL_FAMILY_PROVIDER_OPTIONS[HF_INF_ENDPOINT_OPTION_IDX] as ModelProviderOption
-            }
-        };
-
-        renderWithProvider(<ModelSelection {...mockModelSelectionProps} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
-        });
-
-        expect(screen.getByTestId('hf-inf-endpoint-components')).toBeDefined();
     });
 });

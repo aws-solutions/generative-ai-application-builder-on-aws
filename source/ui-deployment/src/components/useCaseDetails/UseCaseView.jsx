@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppLayout, Button, Container, ContentLayout, Header, SpaceBetween, Tabs } from '@cloudscape-design/components';
 
 import { Breadcrumbs, GeneralConfig, PageHeader, ModelDetails, KnowledgeBaseDetails } from './common-components';
+import { PromptDetails } from './PromptDetails';
 import { Navigation, InfoLink, Notifications } from '../commons/common-components';
 import { appLayoutAriaLabels } from '../../i18n-strings';
 import { ToolsContent } from './tools-content';
@@ -66,6 +67,26 @@ const KnowledgeBase = ({ loadHelpPanelContent }) => (
     </Container>
 );
 
+const Prompt = ({ loadHelpPanelContent, selectedDeployment }) => (
+    <Container
+        header={
+            <Header
+                variant="h2"
+                info={
+                    <InfoLink
+                        onFollow={() => loadHelpPanelContent(1)}
+                        ariaLabel={'Information about deployment prompt.'}
+                    />
+                }
+            >
+                Prompt
+            </Header>
+        }
+    >
+        <PromptDetails selectedDeployment={selectedDeployment} />
+    </Container>
+);
+
 export default function UseCaseView() {
     const {
         state: { selectedDeployment },
@@ -99,9 +120,15 @@ export default function UseCaseView() {
             id: 'knowledgeBase',
             content: <KnowledgeBase loadHelpPanelContent={loadHelpPanelContent} />,
             key: 'knowledgeBase'
+        },
+        {
+            label: 'Prompt',
+            id: 'prompt',
+            content: <Prompt loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />,
+            key: 'prompt'
         }
     ];
-  
+
     const onEditClickAction = () => {
         homeDispatch({
             field: 'selectedDeployment',
@@ -124,7 +151,7 @@ export default function UseCaseView() {
             value: DEPLOYMENT_ACTIONS.CLONE
         });
         navigate(`/wizardView`);
-    }
+    };
 
     const onFollowNavigationHandler = (event) => {
         navigate(event.detail.href);

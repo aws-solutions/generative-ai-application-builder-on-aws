@@ -22,7 +22,7 @@ class LLMParams(ABC):
     """
     LLMParams provides provides a means to define a common interface and functionalities across all LLM parameters.
 
-    Child classes represent a model provider, like Amazon Bedrock, Anthropic, etc. Each model provider may have their
+    Child classes represent a model provider, like Amazon Bedrock, SageMaker, etc. Each model provider may have their
     own child classes if they support variations in model parameters within its provided models.
 
     Validations and cleansing of the model parameters is provided for each implementation.

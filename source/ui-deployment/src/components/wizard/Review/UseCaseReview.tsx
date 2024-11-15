@@ -14,6 +14,7 @@
 import { Box, ColumnLayout, Container, Header, SpaceBetween, Button } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
+import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
 
 interface UseCaseReviewProps extends ReviewSectionProps {
     useCaseData: any;
@@ -38,29 +39,21 @@ export const UseCaseReview = (props: UseCaseReviewProps) => {
                 data-testid="review-use-case-details-container"
             >
                 <ColumnLayout columns={2} variant="text-grid" data-testid="review-use-case-details">
-                    <div key={'use-case-review-option'}>
-                        <Box variant="awsui-key-label">Use case</Box>
-                        <div>{props.useCaseData.useCase.label}</div>
-                    </div>
+                    <ValueWithLabel label="Use case">{props.useCaseData.useCase.label}</ValueWithLabel>
 
-                    <div key={'use-case-name-review-option'}>
-                        <Box variant="awsui-key-label">Use case name</Box>
-                        <div>{props.useCaseData.useCaseName}</div>
-                    </div>
+                    <ValueWithLabel label="Use case name">{props.useCaseData.useCaseName}</ValueWithLabel>
 
                     {props.useCaseData.defaultUserEmail !== '' && (
-                        <div key={'use-case-email-option'}>
-                            <Box variant="awsui-key-label">Use case email</Box>
-                            <div>{props.useCaseData.defaultUserEmail}</div>
-                        </div>
+                        <ValueWithLabel label="Use case email">{props.useCaseData.defaultUserEmail}</ValueWithLabel>
                     )}
 
                     {props.useCaseData.useCaseDescription !== '' && (
-                        <div key={'use-case-description review-option'}>
-                            <Box variant="awsui-key-label">Use case description</Box>
-                            <div>{props.useCaseData.useCaseDescription}</div>
-                        </div>
+                        <ValueWithLabel label="Use case description">
+                            {props.useCaseData.useCaseDescription}
+                        </ValueWithLabel>
                     )}
+
+                    <ValueWithLabel label="Deploy UI">{props.useCaseData.deployUI ? 'Yes' : 'No'}</ValueWithLabel>
                 </ColumnLayout>
             </Container>
         </SpaceBetween>

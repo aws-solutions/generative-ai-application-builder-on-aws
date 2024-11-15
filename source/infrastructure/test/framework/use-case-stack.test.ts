@@ -16,17 +16,19 @@ import * as rawCdkJson from '../../cdk.json';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 
-import { HuggingFaceChat } from '../../lib/hugging-face-chat-stack';
+import { BedrockChat } from '../../lib/bedrock-chat-stack';
 import {
     CLIENT_ID_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+    DEFAULT_KNOWLEDGE_BASE_TYPE,
     DEFAULT_NEW_KENDRA_INDEX_NAME,
+    DEFAULT_RAG_ENABLED_STATUS,
     EMAIL_REGEX_PATTERN,
     INTERNAL_EMAIL_DOMAIN,
     LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
     PLACEHOLDER_EMAIL,
-    THIRD_PARTY_LEGAL_DISCLAIMER,
+    SUPPORTED_KNOWLEDGE_BASE_TYPES,
     USER_POOL_ID_ENV_VAR
 } from '../../lib/utils/constants';
 
@@ -40,13 +42,6 @@ describe('When Chat use case is created', () => {
     });
 
     it('has suitable cloudformation parameters', () => {
-        template.hasParameter('ConsentToDataLeavingAWS', {
-            Type: 'String',
-            AllowedValues: ['Yes', 'No'],
-            Description: `${THIRD_PARTY_LEGAL_DISCLAIMER}. By setting this to Yes, a user agrees to their data leaving AWS in order to be sent to 3rd party LLM providers`,
-            Default: 'No'
-        });
-
         template.hasParameter('UseCaseUUID', {
             Type: 'String',
             AllowedPattern: '^[0-9a-fA-F]{8}$',
@@ -56,19 +51,26 @@ describe('When Chat use case is created', () => {
                 'UUID to identify this deployed use case within an application. Please provide an 8 character long UUID. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones'
         });
 
-        template.hasParameter('ProviderApiKeySecret', {
+        template.hasParameter('RAGEnabled', {
             Type: 'String',
-            AllowedPattern: '^[0-9a-fA-F]{8}\\/api-key$',
-            MaxLength: 16,
+            AllowedValues: ['true', 'false'],
+            Default: DEFAULT_RAG_ENABLED_STATUS,
             Description:
-                'Name of secret in Secrets Manager holding the API key used by langchain to call the third party LLM provider'
+                'If set to "true", the deployed use case stack will use the specified knowledge base to provide RAG functionality. If set to false, the user interacts directly with the LLM.'
+        });
+
+        template.hasParameter('KnowledgeBaseType', {
+            Type: 'String',
+            AllowedValues: SUPPORTED_KNOWLEDGE_BASE_TYPES,
+            Description: 'Knowledge base type to be used for RAG. Should only be set if RAGEnabled is true',
+            Default: DEFAULT_KNOWLEDGE_BASE_TYPE
         });
 
         template.hasParameter('ExistingKendraIndexId', {
             Type: 'String',
             AllowedPattern: '^$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
             Description:
-                'Index ID of an existing Kendra index to be used for the use case. If none is provided, a new index will be created for you.',
+                'Index ID of an existing Kendra index to be used for the use case. If none is provided and KnowledgeBaseType is Kendra, a new index will be created for you.',
             Default: ''
         });
 
@@ -77,21 +79,21 @@ describe('When Chat use case is created', () => {
             AllowedPattern: '^$|^[0-9a-zA-Z-]{1,64}$',
             MaxLength: 64,
             Description:
-                'Name for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied.',
+                'Name for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied.',
             Default: DEFAULT_NEW_KENDRA_INDEX_NAME
         });
 
         template.hasParameter('NewKendraQueryCapacityUnits', {
             Type: 'Number',
             Description:
-                'Additional query capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
+                'Additional query capacity units for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
             Default: 0
         });
 
         template.hasParameter('NewKendraStorageCapacityUnits', {
             Type: 'Number',
             Description:
-                'Additional storage capacity units for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
+                'Additional storage capacity units for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/APIReference/API_CapacityUnitsConfiguration.html',
             Default: 0
         });
 
@@ -99,16 +101,32 @@ describe('When Chat use case is created', () => {
             Type: 'String',
             AllowedValues: ['DEVELOPER_EDITION', 'ENTERPRISE_EDITION'],
             Description:
-                'The edition of Kendra to use for the new Kendra index to be created for this use case. Only applies if existingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/dg/kendra-editions.html',
+                'The edition of Kendra to use for the new Kendra index to be created for this use case. Only applies if ExistingKendraIndexId is not supplied. See: https://docs.aws.amazon.com/kendra/latest/dg/kendra-editions.html',
             Default: 'DEVELOPER_EDITION'
         });
 
-        template.hasParameter('ChatConfigSSMParameterName', {
+        template.hasParameter('BedrockKnowledgeBaseId', {
             Type: 'String',
-            AllowedPattern: '^(\\/[^\\/ ]*)+\\/?$',
-            MaxLength: 63,
+            AllowedPattern: '^[0-9a-zA-Z]{0,10}$',
             Description:
-                'Name of the SSM parameter containing configurations required by the chat provider lambda at runtime. Parameter value is expected to be a JSON string. The SSM parameter will be populated by the deployment platform if in use. For standalone deployments of this use-case, manual configuration is required.'
+                'ID of the bedrock knowledge base to use in a RAG use case. Cannot be provided if ExistingKendraIndexId or NewKendraIndexName are provided.',
+            Default: ''
+        });
+
+        template.hasParameter('UseCaseConfigTableName', {
+            Type: 'String',
+            AllowedPattern: '^[a-zA-Z0-9_.-]{3,255}$',
+            MaxLength: 255,
+            Description: 'DynamoDB table name for the table which contains the configuration for this use case.',
+            ConstraintDescription:
+                'This parameter is required. The stack will read the configuration from this table to configure the resources during deployment'
+        });
+
+        template.hasParameter('UseCaseConfigRecordKey', {
+            Type: 'String',
+            MaxLength: 2048,
+            Description:
+                'Key corresponding of the record containing configurations required by the chat provider lambda at runtime. The record in the table should have a "key" attribute matching this value, and a "config" attribute containing the desired config. This record will be populated by the deployment platform if in use. For standalone deployments of this use-case, a manually created entry in the table defined in `UseCaseConfigTableName` is required. Consult the implementation guide for more details.'
         });
 
         template.hasParameter('DefaultUserEmail', {
@@ -150,7 +168,8 @@ describe('When Chat use case is created', () => {
             Type: 'String',
             AllowedValues: ['Yes', 'No'],
             Default: 'Yes',
-            Description: 'Please select the option to deploy the front end UI for this deployment'
+            Description:
+                'Please select the option to deploy the front end UI for this deployment. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing'
         });
 
         template.hasParameter('ExistingVpcId', {
@@ -175,30 +194,63 @@ describe('When Chat use case is created', () => {
             Description:
                 'Comma separated list of security groups of the existing vpc to be used for configuring lambda functions'
         });
+
+        template.hasParameter('ExistingCognitoUserPoolClient', {
+            Type: 'String',
+            AllowedPattern: '^$|^[a-z0-9]{3,128}$',
+            Default: '',
+            Description:
+                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
+            MaxLength: 128
+        });
+
+        template.hasOutput('WebsockEndpoint', {
+            Description: 'Websocket API endpoint',
+            Value: {
+                'Fn::GetAtt': [
+                    Match.stringLikeRegexp(
+                        'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApiApiGatewayV2WebSocketToSqs'
+                    ),
+                    'ApiEndpoint'
+                ]
+            }
+        });
     });
 
     describe('When nested stacks are created', () => {
+        let version: string;
+        beforeAll(() => {
+            if (process.env.VERSION) {
+                version = process.env.VERSION;
+            } else {
+                version = rawCdkJson.context.solution_version;
+            }
+        });
+
         it('should create nested stacks for chat provider and ddb storage', () => {
-            template.resourceCountIs('AWS::CloudFormation::Stack', 4);
+            template.resourceCountIs('AWS::CloudFormation::Stack', 5);
         });
 
         it('should have a description in the nested stacks', () => {
-            const chatStack = stack as HuggingFaceChat;
+            const chatStack = stack as BedrockChat;
 
             expect(Template.fromStack(chatStack.chatStorageSetup.chatStorage).toJSON()['Description']).toEqual(
-                'Nested Stack that creates the DynamoDB tables for the chat use case'
+                `Nested Stack that creates the DynamoDB tables for the chat use case - Version ${version}`
             );
 
             expect(
                 Template.fromStack(chatStack.knowledgeBaseSetup.kendraKnowledgeBase).toJSON()['Description']
-            ).toEqual('Nested Stack that creates the Kendra Index');
+            ).toEqual(`Nested Stack that creates the Kendra Index - Version ${version}`);
 
-            expect(Template.fromStack(chatStack.uiInfrastructure.nestedUIStack).toJSON()['Description']).toEqual(
-                'Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution'
+            expect(Template.fromStack(chatStack.uiDistribution).toJSON()['Description']).toEqual(
+                `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${version}`
+            );
+            expect(Template.fromStack(chatStack.copyAssetsStack).toJSON()['Description']).toEqual(
+                `Custom resource that copies UI assets to S3 bucket - Version ${version}`
             );
 
             expect(Template.fromStack(chatStack.vpcSetup.nestedVPCStack).toJSON()['Description']).toEqual(
-                'Nested stack that deploys a VPC for the third party use case stack'
+                `Nested stack that deploys a VPC for the use case stack - Version ${version}`
             );
         });
 
@@ -227,31 +279,56 @@ describe('When Chat use case is created', () => {
                 Type: 'AWS::CloudFormation::Stack',
                 Properties: {
                     Parameters: {
-                        WebConfigKey: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    '/gaab-webconfig',
-                                    {
-                                        'Ref': 'ChatConfigSSMParameterName'
-                                    }
-                                ]
-                            ]
-                        },
                         CustomResourceLambdaArn: {
                             'Fn::GetAtt': [Match.anyValue(), 'Arn']
                         },
                         CustomResourceRoleArn: {
                             'Fn::GetAtt': [Match.anyValue(), 'Arn']
                         },
-                        AccessLoggingBucketArn: {
-                            'Fn::GetAtt': [Match.anyValue(), 'Arn']
-                        },
                         UseCaseUUID: {
                             Ref: Match.anyValue()
+                        },
+                        AccessLoggingBucketArn: {
+                            'Fn::GetAtt': ['UseCaseSetupAccessLog473E9BB9', 'Arn']
                         }
                     },
-                    'TemplateURL': Match.anyValue()
+                    TemplateURL: Match.anyValue()
+                },
+                DependsOn: Match.anyValue(),
+                UpdateReplacePolicy: 'Delete',
+                DeletionPolicy: 'Delete',
+                Condition: 'DeployWebApp'
+            });
+
+            template.hasResource('AWS::CloudFormation::Stack', {
+                Type: 'AWS::CloudFormation::Stack',
+                Properties: {
+                    Parameters: {
+                        CustomResourceLambdaArn: {
+                            'Fn::GetAtt': [Match.anyValue(), 'Arn']
+                        },
+                        CustomResourceRoleArn: {
+                            'Fn::GetAtt': [Match.anyValue(), 'Arn']
+                        },
+                        WebConfigKey: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    '/gaab-webconfig/',
+                                    {
+                                        'Ref': 'UseCaseUUID'
+                                    }
+                                ]
+                            ]
+                        },
+                        WebS3BucketArn: {
+                            'Fn::GetAtt': [
+                                'WebAppNestedStackWebAppNestedStackResource4E994CA7',
+                                'Outputs.ChatStackWebAppWebsiteBucket5BAB8C33Arn'
+                            ]
+                        }
+                    },
+                    TemplateURL: Match.anyValue()
                 },
                 DependsOn: Match.anyValue(),
                 UpdateReplacePolicy: 'Delete',
@@ -299,7 +376,7 @@ describe('When Chat use case is created', () => {
 
         it('should create chat provider lambda function with correct env vars set', () => {
             template.hasResourceProperties('AWS::Lambda::Function', {
-                'Handler': 'huggingface_handler.lambda_handler',
+                'Handler': 'bedrock_handler.lambda_handler',
                 'MemorySize': 256,
                 'Runtime': LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
                 'Timeout': 900,
@@ -321,18 +398,13 @@ describe('When Chat use case is created', () => {
                                         Match.stringLikeRegexp(
                                             'ChatStorageSetupChatStorageNestedStackChatStorageNestedStackResource*'
                                         ),
-                                        Match.stringLikeRegexp(
-                                            'Outputs.ChatStackChatStorageSetupChatStorageNewModelInfoTableName*'
-                                        )
+                                        Match.stringLikeRegexp('Outputs.ModelInfoTableName')
                                     ]
                                 },
                                 {
                                     'Ref': 'ExistingModelInfoTableName'
                                 }
                             ]
-                        },
-                        'LLM_API_KEY_NAME': {
-                            'Ref': 'ProviderApiKeySecret'
                         },
                         'KENDRA_INDEX_ID': {
                             'Fn::If': [
@@ -352,13 +424,18 @@ describe('When Chat use case is created', () => {
                                 }
                             ]
                         },
+                        'BEDROCK_KNOWLEDGE_BASE_ID': {
+                            'Ref': 'BedrockKnowledgeBaseId'
+                        },
                         'WEBSOCKET_CALLBACK_URL': {
                             'Fn::Join': [
                                 '',
                                 [
                                     'https://',
                                     {
-                                        'Ref': Match.stringLikeRegexp('RequestProcessorWebSocketEndpointChatAPI*')
+                                        'Ref': Match.stringLikeRegexp(
+                                            'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApi*'
+                                        )
                                     },
                                     '.execute-api.',
                                     {
@@ -370,6 +447,35 @@ describe('When Chat use case is created', () => {
                                     },
                                     '/prod'
                                 ]
+                            ]
+                        },
+                        [USER_POOL_ID_ENV_VAR]: {
+                            'Fn::If': [
+                                Match.anyValue(),
+                                {
+                                    Ref: Match.stringLikeRegexp(
+                                        'WebsocketRequestProcessorUseCaseCognitoSetupNewUserPool*'
+                                    )
+                                },
+                                {
+                                    Ref: 'ExistingCognitoUserPoolId'
+                                }
+                            ]
+                        },
+                        [CLIENT_ID_ENV_VAR]: {
+                            'Fn::If': [
+                                Match.anyValue(),
+                                {
+                                    'Fn::GetAtt': [
+                                        Match.stringLikeRegexp(
+                                            'WebsocketRequestProcessorUseCaseCognitoSetupCfnAppClient*'
+                                        ),
+                                        'ClientId'
+                                    ]
+                                },
+                                {
+                                    Ref: 'ExistingCognitoUserPoolClient'
+                                }
                             ]
                         }
                     }
@@ -415,18 +521,31 @@ describe('When Chat use case is created', () => {
                             ]
                         },
                         [CLIENT_ID_ENV_VAR]: {
-                            'Ref': Match.stringLikeRegexp('WebsocketRequestProcessorUseCaseCognitoSetupAppClient*')
+                            'Fn::If': [
+                                Match.anyValue(),
+                                {
+                                    'Fn::GetAtt': [
+                                        Match.stringLikeRegexp(
+                                            'WebsocketRequestProcessorUseCaseCognitoSetupCfnAppClient*'
+                                        ),
+                                        'ClientId'
+                                    ]
+                                },
+                                {
+                                    Ref: 'ExistingCognitoUserPoolClient'
+                                }
+                            ]
                         },
                         [COGNITO_POLICY_TABLE_ENV_VAR]: {
                             'Fn::If': [
                                 userpoolConditionCapture,
                                 {
-                                    'Ref': Match.stringLikeRegexp(
+                                    Ref: Match.stringLikeRegexp(
                                         'WebsocketRequestProcessorUseCaseCognitoSetupCognitoGroupPolicyStore*'
                                     )
                                 },
                                 {
-                                    'Ref': 'ExistingCognitoGroupPolicyTableName'
+                                    Ref: 'ExistingCognitoGroupPolicyTableName'
                                 }
                             ]
                         }
@@ -437,192 +556,6 @@ describe('When Chat use case is created', () => {
     });
 
     describe('sets proper permissions', () => {
-        it('chat provider lambda default role is properly configured to access dynamodb/secretsmanager/ssm/websocket', () => {
-            template.hasResourceProperties('AWS::IAM::Policy', {
-                'PolicyDocument': {
-                    'Statement': [
-                        {
-                            'Action': [
-                                'dynamodb:BatchGetItem',
-                                'dynamodb:BatchWriteItem',
-                                'dynamodb:ConditionCheckItem',
-                                'dynamodb:DeleteItem',
-                                'dynamodb:DescribeTable',
-                                'dynamodb:GetItem',
-                                'dynamodb:GetRecords',
-                                'dynamodb:GetShardIterator',
-                                'dynamodb:PutItem',
-                                'dynamodb:Query',
-                                'dynamodb:Scan',
-                                'dynamodb:UpdateItem'
-                            ],
-                            'Effect': 'Allow',
-                            'Resource': [
-                                {
-                                    'Fn::GetAtt': [
-                                        Match.stringLikeRegexp(
-                                            'ChatStorageSetupChatStorageNestedStackChatStorageNestedStackResource*'
-                                        ),
-                                        Match.stringLikeRegexp(
-                                            'Outputs.ChatStackChatStorageSetupChatStorageConversationTable*'
-                                        )
-                                    ]
-                                },
-                                {
-                                    'Ref': 'AWS::NoValue'
-                                }
-                            ]
-                        },
-                        {
-                            'Action': [
-                                'dynamodb:BatchGetItem',
-                                'dynamodb:ConditionCheckItem',
-                                'dynamodb:DescribeTable',
-                                'dynamodb:GetItem',
-                                'dynamodb:GetRecords',
-                                'dynamodb:GetShardIterator',
-                                'dynamodb:Query',
-                                'dynamodb:Scan'
-                            ],
-                            'Effect': 'Allow',
-                            'Resource': [
-                                {
-                                    'Fn::Join': [
-                                        '',
-                                        [
-                                            'arn:',
-                                            {
-                                                'Ref': 'AWS::Partition'
-                                            },
-                                            ':dynamodb:',
-                                            {
-                                                'Ref': 'AWS::Region'
-                                            },
-                                            ':',
-                                            {
-                                                'Ref': 'AWS::AccountId'
-                                            },
-                                            ':table/',
-                                            {
-                                                'Fn::If': [
-                                                    'NewModelInfoTableCondition',
-                                                    {
-                                                        'Fn::GetAtt': [
-                                                            Match.stringLikeRegexp(
-                                                                'ChatStorageSetupChatStorageNestedStackChatStorageNestedStackResource*'
-                                                            ),
-                                                            Match.stringLikeRegexp(
-                                                                'Outputs.ChatStackChatStorageSetupChatStorageNewModelInfoTableName*'
-                                                            )
-                                                        ]
-                                                    },
-                                                    {
-                                                        'Ref': 'ExistingModelInfoTableName'
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    ]
-                                },
-                                {
-                                    'Ref': 'AWS::NoValue'
-                                }
-                            ]
-                        },
-                        {
-                            'Action': [
-                                'ssm:DescribeParameters',
-                                'ssm:GetParameter',
-                                'ssm:GetParameterHistory',
-                                'ssm:GetParameters'
-                            ],
-                            'Effect': 'Allow',
-                            'Resource': {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            'Ref': 'AWS::Partition'
-                                        },
-                                        ':ssm:',
-                                        {
-                                            'Ref': 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            'Ref': 'AWS::AccountId'
-                                        },
-                                        ':parameter',
-                                        {
-                                            'Ref': 'ChatConfigSSMParameterName'
-                                        }
-                                    ]
-                                ]
-                            }
-                        },
-                        {
-                            'Action': 'execute-api:ManageConnections',
-                            'Effect': 'Allow',
-                            'Resource': {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            'Ref': 'AWS::Partition'
-                                        },
-                                        ':execute-api:',
-                                        {
-                                            'Ref': 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            'Ref': 'AWS::AccountId'
-                                        },
-                                        ':',
-                                        {
-                                            'Ref': Match.stringLikeRegexp('RequestProcessorWebSocketEndpointChatAPI*')
-                                        },
-                                        '/*/*/@connections/*'
-                                    ]
-                                ]
-                            }
-                        },
-                        {
-                            'Action': 'secretsmanager:GetSecretValue',
-                            'Effect': 'Allow',
-                            'Resource': {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            'Ref': 'AWS::Partition'
-                                        },
-                                        ':secretsmanager:',
-                                        {
-                                            'Ref': 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            'Ref': 'AWS::AccountId'
-                                        },
-                                        ':secret:',
-                                        {
-                                            'Ref': 'ProviderApiKeySecret'
-                                        },
-                                        '-*'
-                                    ]
-                                ]
-                            }
-                        }
-                    ],
-                    'Version': '2012-10-17'
-                }
-            });
-        });
-
         it('chat provider lambda is properly configured to access kendra', () => {
             template.hasResourceProperties('AWS::IAM::Policy', {
                 'PolicyDocument': {
@@ -673,6 +606,41 @@ describe('When Chat use case is created', () => {
                     'Version': '2012-10-17'
                 },
                 'PolicyName': Match.stringLikeRegexp('LambdaQueryKendraIndexPolicy*'),
+                'Roles': [
+                    {
+                        'Ref': Match.stringLikeRegexp('ChatLlmProviderLambdaRole*')
+                    }
+                ]
+            });
+        });
+
+        it('chat provider lambda is properly configured to access bedrock knowledge bases', () => {
+            template.hasResourceProperties('AWS::IAM::Policy', {
+                'PolicyDocument': {
+                    'Statement': [
+                        {
+                            'Action': 'bedrock:Retrieve',
+                            'Effect': 'Allow',
+                            'Resource': {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        { 'Ref': 'AWS::Partition' },
+                                        ':bedrock:',
+                                        { 'Ref': 'AWS::Region' },
+                                        ':',
+                                        { 'Ref': 'AWS::AccountId' },
+                                        ':knowledge-base/',
+                                        { 'Ref': 'BedrockKnowledgeBaseId' }
+                                    ]
+                                ]
+                            }
+                        }
+                    ],
+                    'Version': '2012-10-17'
+                },
+                'PolicyName': Match.stringLikeRegexp('LambdaQueryBedrockKnowledgeBasePolicy*'),
                 'Roles': [
                     {
                         'Ref': Match.stringLikeRegexp('ChatLlmProviderLambdaRole*')
@@ -731,7 +699,7 @@ function buildStack(): [Template, { [key: string]: any }, cdk.Stack] {
     const solutionName = process.env.SOLUTION_NAME ?? app.node.tryGetContext('solution_name');
 
     // since the UseCaseChatStack is abstract, pick one implementation to test
-    const stack = new HuggingFaceChat(app, 'ChatStack', {
+    const stack = new BedrockChat(app, 'ChatStack', {
         solutionID: solutionID,
         solutionVersion: version,
         solutionName: solutionName,
