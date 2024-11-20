@@ -18,10 +18,10 @@ from aws_lambda_powertools import Logger
 from llms.models.bedrock_params.ai21 import BedrockAI21LLMParams
 from llms.models.bedrock_params.amazon import BedrockAmazonLLMParams
 from llms.models.bedrock_params.anthropic import BedrockAnthropicV1LLMParams, BedrockAnthropicV3LLMParams
-from llms.models.bedrock_params.cohere import BedrockCohereLLMParams
+from llms.models.bedrock_params.cohere import BedrockCohereCommandLLMParams, BedrockCohereTextLLMParams
 from llms.models.bedrock_params.llm import BedrockLLMParams
 from llms.models.bedrock_params.meta import BedrockMetaLLMParams
-from llms.models.bedrock_params.mistral import BedrockMistralLLMParams
+from llms.models.bedrock_params.mistral import BedrockMistralLLMParams, BedrockMistralTextLLMParams
 from utils.enum_types import BedrockModelProviders
 
 logger = Logger(utc=True)
@@ -36,15 +36,25 @@ class BedrockAdapterFactory:
     def __init__(self):
         self._model_map = {
             BedrockModelProviders.ANTHROPIC.value: {
-                "anthropic.claude-3-haiku-20240307-v1:0": BedrockAnthropicV3LLMParams,
-                "anthropic.claude-3-sonnet-20240229-v1:0": BedrockAnthropicV3LLMParams,
-                "default": BedrockAnthropicV1LLMParams,
+                "anthropic.claude-instant-v1": BedrockAnthropicV1LLMParams,
+                "anthropic.claude-v2": BedrockAnthropicV1LLMParams,
+                "anthropic.claude-v2:1": BedrockAnthropicV1LLMParams,
+                "default": BedrockAnthropicV3LLMParams,
             },
-            BedrockModelProviders.AI21.value: {"default": BedrockAI21LLMParams},
+            BedrockModelProviders.AI21.value: {
+                "default": BedrockAI21LLMParams,
+            },
             BedrockModelProviders.AMAZON.value: {"default": BedrockAmazonLLMParams},
             BedrockModelProviders.META.value: {"default": BedrockMetaLLMParams},
-            BedrockModelProviders.COHERE.value: {"default": BedrockCohereLLMParams},
-            BedrockModelProviders.MISTRAL.value: {"default": BedrockMistralLLMParams},
+            BedrockModelProviders.COHERE.value: {
+                "cohere.command-r-plus-v1:0": BedrockCohereCommandLLMParams,
+                "cohere.command-r-v1:0": BedrockCohereCommandLLMParams,
+                "default": BedrockCohereTextLLMParams,
+            },
+            BedrockModelProviders.MISTRAL.value: {
+                "mistral.mistral-large-2407-v1:0": BedrockMistralLLMParams,
+                "default": BedrockMistralTextLLMParams,
+            },
         }
 
     @property

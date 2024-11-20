@@ -27,6 +27,7 @@ export class DeploymentPlatformVPC extends CustomVPC {
     constructor(scope: Construct, id: string, props: CustomVPCProps) {
         super(scope, id, props);
         const stack = cdk.Stack.of(this);
+
         const subnetCidrMask = 24;
         this.createVpc(subnetCidrMask);
         this.createSecurityGroups();

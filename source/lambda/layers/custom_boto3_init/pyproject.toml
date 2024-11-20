@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom_boto3_init"
-version = "2.0.4"
+version = "2.1.0"
 authors = [ "Amazon Web Services" ]
 description = "Initialize boto config for AWS Python SDK with custom configuration"
 packages = [
@@ -16,14 +16,12 @@ license = "Apache-2.0"
 aws-lambda-powertools = "2.38.1"
 aws-xray-sdk = "2.13.1"
 python = "^3.11"
-cryptography = [
-    { version = "^43.0.1", platform = "manylinux2014_x86_64" }
-]
-
+pyjwt = "^2.8.0"
+cryptography = { version = "^43.0.1", markers = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
 
 [tool.poetry.group.test.dependencies]
-coverage = "7.5.1"
-pytest = "8.2.1"
+coverage = "7.6.4"
+pytest = "8.3.3"
 pytest-cov = "5.0.0"
 mock = "5.1.0"
 boto3-layer =  { path = "../aws_boto3/", develop = true }

@@ -25,6 +25,7 @@ export interface ModelInfoRecord {
 export interface BedrockLlmParams {
     ModelId?: string;
     ModelArn?: string;
+    InferenceProfileId?: string;
 }
 
 export interface SageMakerLlmParams {
@@ -72,10 +73,40 @@ export interface ConversationMemoryParams {
     ChatHistoryLength?: number;
 }
 
+export interface CognitoParams {
+    ExistingUserPoolId: string;
+    ExistingUserPoolClientId: string;
+}
+
+export interface AuthenticationParams {
+    AuthenticationProvider: string;
+    CognitoParams?: CognitoParams;
+}
+
 export interface UseCaseConfiguration {
+    UseCaseType?: string;
     UseCaseName?: string;
     ConversationMemoryParams?: ConversationMemoryParams;
     KnowledgeBaseParams?: KnowledgeBaseParams;
     LlmParams?: LlmParams;
+    AuthenticationParams?: AuthenticationParams;
+    IsInternalUser?: string;
+}
+
+export interface BedrockAgentParams {
+    AgentId?: string;
+    AgentAliasId?: string;
+    EnableTrace?: boolean;
+}
+
+export interface AgentParams {
+    BedrockAgentParams: BedrockAgentParams;
+}
+
+export interface AgentUseCaseConfiguration {
+    UseCaseType?: string;
+    UseCaseName?: string;
+    AgentParams?: AgentParams;
+    AuthenticationParams?: AuthenticationParams;
     IsInternalUser?: string;
 }

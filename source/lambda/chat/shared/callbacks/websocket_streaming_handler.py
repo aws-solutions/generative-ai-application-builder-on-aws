@@ -22,9 +22,13 @@ from helper import get_service_client
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain_core.messages import BaseMessage
 from utils.constants import (
+    CONTEXT_KEY,
     CONVERSATION_ID_EVENT_KEY,
-    GENERATED_QUESTION_KEY,
-    SOURCE_DOCUMENTS_KEY,
+    OUTPUT_KEY,
+    PAYLOAD_DATA_KEY,
+    PAYLOAD_SOURCE_DOCUMENT_KEY,
+    REPHRASED_QUERY_KEY,
+    SOURCE_DOCUMENTS_RECEIVED_KEY,
     TRACE_ID_ENV_VAR,
     WEBSOCKET_CALLBACK_URL_ENV_VAR,
 )
@@ -69,7 +73,8 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         source_docs_formatter: Callable,
         is_streaming: bool = False,
         rag_enabled: bool = False,
-        response_if_no_docs_found_enabled: bool = False,
+        response_if_no_docs_found: str = None,
+        return_source_docs: bool = True,
     ) -> None:
         self._connection_url = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
         self._connection_id = connection_id
@@ -77,9 +82,12 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         self._is_streaming = is_streaming
         self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self.connection_url)
         self._source_documents_formatter = source_docs_formatter
-        self._response_if_no_docs_found_enabled = response_if_no_docs_found_enabled
+        self._response_if_no_docs_found = response_if_no_docs_found
         self._rag_enabled = rag_enabled
-        self._has_streamed = False
+        self.has_streamed = False
+        self.has_streamed_references = False
+        self.streamed_rephrase_query = False
+        self.return_source_docs = return_source_docs
         super().__init__()
 
     @property
@@ -111,16 +119,20 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         self._has_streamed = has_streamed
 
     @property
+    def has_streamed_references(self) -> str:
+        return self._has_streamed_references
+
+    @has_streamed_references.setter
+    def has_streamed_references(self, has_streamed_references) -> None:
+        self._has_streamed_references = has_streamed_references
+
+    @property
     def rag_enabled(self) -> bool:
         return self._rag_enabled
 
-    @rag_enabled.setter
-    def rag_enabled(self, rag_enabled) -> None:
-        self._rag_enabled = rag_enabled
-
     @property
-    def response_if_no_docs_found_enabled(self) -> str:
-        return self._response_if_no_docs_found_enabled
+    def response_if_no_docs_found(self) -> str:
+        return self._response_if_no_docs_found
 
     @property
     def source_documents_formatter(self) -> str:
@@ -135,7 +147,7 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         """Run when LLM starts running."""
         logger.debug("Streaming chat model started.")
 
-    def post_token_to_connection(self, payload: str, payload_key: str = "data") -> None:
+    def post_token_to_connection(self, payload: str, payload_key: str = PAYLOAD_DATA_KEY) -> None:
         """
         Sends a payload to the client that is connected to a websocket.
 
@@ -164,19 +176,19 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         Args:
             token (str): Token to send to the client.
         """
-        if self.is_streaming:
-            self.post_token_to_connection(token)
+        self.post_token_to_connection(token)
         self.has_streamed = True
 
     def send_references(self, source_documents: List):
+        if self.has_streamed_references:
+            return
         payload = self.source_documents_formatter(source_documents)
-
         for document in payload:
-            self.post_token_to_connection(document, "sourceDocument")
+            self.post_token_to_connection(document, PAYLOAD_SOURCE_DOCUMENT_KEY)
 
     def on_chain_end(
         self,
-        outputs: Dict[str, Any],
+        outputs: Any,
         *,
         run_id: UUID,
         parent_run_id: Optional[UUID] = None,
@@ -184,23 +196,32 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         **kwargs: Any,
     ) -> None:
         """Run when chain ends running."""
-        if SOURCE_DOCUMENTS_KEY in outputs and outputs[SOURCE_DOCUMENTS_KEY]:
-            self.send_references(outputs[SOURCE_DOCUMENTS_KEY])
 
-        if GENERATED_QUESTION_KEY in outputs and outputs[GENERATED_QUESTION_KEY]:
-            self.post_token_to_connection(outputs[GENERATED_QUESTION_KEY], GENERATED_QUESTION_KEY)
+        if isinstance(outputs, dict):
+            if (
+                not self.has_streamed
+                and OUTPUT_KEY in outputs
+                and CONTEXT_KEY in outputs
+                and self.response_if_no_docs_found is not None
+            ):
+                if not outputs[CONTEXT_KEY]:
+                    self.post_token_to_connection(self.response_if_no_docs_found, PAYLOAD_DATA_KEY)
+                else:
+                    self.post_token_to_connection(outputs[OUTPUT_KEY], PAYLOAD_DATA_KEY)
+                self.has_streamed = True
 
-        # When response_if_no_docs_found is provided, the tokens are not streamed using on_llm_new_token
-        # and on_chain_end is called. In this case, we push this response to the websocket
-        if (
-            self.rag_enabled
-            and "answer" in outputs
-            and not self.has_streamed
-            and self.response_if_no_docs_found_enabled
-        ):
-            self.post_token_to_connection(outputs["answer"], "data")
+            if (
+                not self.has_streamed_references
+                and self.return_source_docs
+                and CONTEXT_KEY in outputs
+                and len(outputs[CONTEXT_KEY])
+            ):
+                self.send_references(outputs[SOURCE_DOCUMENTS_RECEIVED_KEY])
+                self.has_streamed_references = True
 
-        logger.debug(f"The LLM has finished sending tokens to the connection: {self.connection_id}")
+            if not self.streamed_rephrase_query and REPHRASED_QUERY_KEY in outputs:
+                self.post_token_to_connection(outputs[REPHRASED_QUERY_KEY], REPHRASED_QUERY_KEY)
+                self.streamed_rephrase_query = True
 
     def on_llm_error(self, error: Exception, **kwargs: any) -> None:
         """
@@ -212,11 +233,11 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         tracer_id = os.environ[TRACE_ID_ENV_VAR]
         logger.error(f"LLM Error: {error}", xray_trace_id=tracer_id)
 
-    def format_response(self, payload: str, payload_key: str = "data") -> str:
+    def format_response(self, payload: str, payload_key: str = PAYLOAD_DATA_KEY) -> str:
         """
         Formats the payload of in a format that the websocket accepts
 
         Args:
-            payload (str): The value of the "data" key in the websocket payload
+            payload (str): The value of the PAYLOAD_KEY key in the websocket payload
         """
         return json.dumps({payload_key: payload, CONVERSATION_ID_EVENT_KEY: self.conversation_id})

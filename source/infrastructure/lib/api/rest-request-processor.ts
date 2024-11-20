@@ -18,22 +18,21 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 import { Construct } from 'constructs';
-import { DeploymentPlatformCognitoSetup } from '../auth/deployment-platform-cognito-setup';
+import { CognitoSetup } from '../auth/cognito-setup';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import * as cfn_nag from '../utils/cfn-guard-suppressions';
 import { createCustomResourceForLambdaLogRetention, createDefaultLambdaRole } from '../utils/common-utils';
 import {
     CLIENT_ID_ENV_VAR,
-    COGNITO_DOMAIN_PREFIX_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
     LAMBDA_TIMEOUT_MINS,
     USER_POOL_ID_ENV_VAR
 } from '../utils/constants';
 import { DeploymentPlatformRestEndpoint } from './deployment-platform-rest-endpoint';
-import { RequestProcessor } from './request-processor';
+import { RequestProcessor, RequestProcessorProps } from './request-processor';
 
-export interface RestRequestProcessorProps {
+export interface RestRequestProcessorProps extends RequestProcessorProps {
     /**
      * The function to back the use case management API
      */
@@ -45,16 +44,6 @@ export interface RestRequestProcessorProps {
     modelInfoAPILambda: lambda.Function;
 
     /**
-     * Default user email address used to create a cognito user in the user pool.
-     */
-    defaultUserEmail: string;
-
-    /**
-     * The trademark name of the solution
-     */
-    applicationTrademarkName: string;
-
-    /**
      * The ARN of the Lambda function to use for custom resource implementation.
      */
     customResourceLambdaArn: string;
@@ -63,21 +52,6 @@ export interface RestRequestProcessorProps {
      * The ARN of the IAM role to use for custom resource implementation.
      */
     customResourceRoleArn: string;
-
-    /**
-     * Domain for the Cognito User Pool Client
-     */
-    cognitoDomainPrefix: string;
-
-    /**
-     * CloudFront url of the UI application
-     */
-    cloudFrontUrl: string;
-
-    /**
-     * condition if webapp will be deployed
-     */
-    deployWebApp: string;
 }
 
 export class RestRequestProcessor extends RequestProcessor {
@@ -95,20 +69,23 @@ export class RestRequestProcessor extends RequestProcessor {
         super(scope, id);
 
         // create the cognito user pool and group for admin
-        this.cognitoSetup = new DeploymentPlatformCognitoSetup(this, 'DeploymentPlatformCognitoSetup', {
+        this.cognitoSetup = new CognitoSetup(this, 'DeploymentPlatformCognitoSetup', {
             userPoolProps: {
                 defaultUserEmail: props.defaultUserEmail,
                 applicationTrademarkName: props.applicationTrademarkName,
                 userGroupName: 'admin',
                 usernameSuffix: 'admin',
                 customResourceLambdaArn: props.customResourceLambdaArn,
-                cognitoDomainPrefix: props.cognitoDomainPrefix
+                cognitoDomainPrefix: props.cognitoDomainPrefix,
+                existingCognitoUserPoolId: props.existingCognitoUserPoolId,
+                existingCognitoGroupPolicyTableName: ''
             },
             userPoolClientProps: {
                 logoutUrl: props.cloudFrontUrl,
                 callbackUrl: props.cloudFrontUrl,
-                deployWebApp: props.deployWebApp
-            }
+                existingCognitoUserPoolClientId: props.existingCognitoUserPoolClientId
+            },
+            deployWebApp: props.deployWebApp
         });
         this.userPool = this.cognitoSetup.userPool;
         this.userPoolClient = this.cognitoSetup.userPoolClient;
@@ -161,7 +138,6 @@ export class RestRequestProcessor extends RequestProcessor {
         );
         props.useCaseManagementAPILambda.addEnvironment(USER_POOL_ID_ENV_VAR, this.userPool.userPoolId);
         props.useCaseManagementAPILambda.addEnvironment(CLIENT_ID_ENV_VAR, this.userPoolClient.userPoolClientId);
-        props.useCaseManagementAPILambda.addEnvironment(COGNITO_DOMAIN_PREFIX_VAR, this.getCognitoDomainName());
 
         const authorizer = new api.RequestAuthorizer(this, 'CustomRequestAuthorizers', {
             handler: this.authorizerLambda,

@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import pytest
-from llms.models.bedrock_params.cohere import BedrockCohereLLMParams
+from llms.models.bedrock_params.cohere import BedrockCohereTextLLMParams
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import CHAT_IDENTIFIER
 
@@ -35,7 +35,6 @@ model_id = "cohere.model-x"
             {
                 "num_generations": 10,  # all values provided
                 "logit_bias": {"token_id": 0.2},
-                "stream": True,
                 "return_likelihoods": "ALL",
                 "p": 0.2,
                 "k": 250,
@@ -47,7 +46,6 @@ model_id = "cohere.model-x"
             {
                 "num_generations": 10,
                 "logit_bias": {"token_id": 0.2},
-                "stream": True,
                 "return_likelihoods": "ALL",
                 "p": 0.2,
                 "k": 250,
@@ -65,7 +63,6 @@ model_id = "cohere.model-x"
             {
                 "num_generations": 10,  # missing temperature
                 "logit_bias": {"token_id": 0.2},
-                "stream": True,
                 "return_likelihoods": "ALL",
                 "p": 0.2,
                 "k": 250,
@@ -75,7 +72,6 @@ model_id = "cohere.model-x"
             {
                 "num_generations": 10,
                 "logit_bias": {"token_id": 0.2},
-                "stream": True,
                 "return_likelihoods": "ALL",
                 "p": 0.2,
                 "k": 250,
@@ -107,10 +103,9 @@ def test_cohere_params_dataclass_success(
     bedrock_dynamodb_defaults_table,
 ):
     model_defaults = ModelDefaults("Bedrock", model_id, RAG_ENABLED)
-    bedrock_params = BedrockCohereLLMParams(**params, model_defaults=model_defaults)
+    bedrock_params = BedrockCohereTextLLMParams(**params, model_defaults=model_defaults)
     assert bedrock_params.num_generations == expected_response.get("num_generations")
     assert bedrock_params.logit_bias == expected_response.get("logit_bias")
-    assert bedrock_params.stream == expected_response.get("stream")
     assert bedrock_params.return_likelihoods == expected_response.get("return_likelihoods")
     assert bedrock_params.p == expected_response.get("p")
     assert bedrock_params.k == expected_response.get("k")
@@ -163,7 +158,6 @@ def test_cohere_params_dataclass_success(
                 "p": None,
                 "return_likelihoods": None,
                 "stop_sequences": [],
-                "stream": None,
                 "temperature": 0.75,
                 "truncate": None,
                 "temperature": DEFAULT_TEMPERATURE,
@@ -184,7 +178,6 @@ def test_cohere_params_dataclass_success(
                 "num_generations": None,
                 "return_likelihoods": None,
                 "stop_sequences": [],
-                "stream": None,
                 "temperature": 0.75,
                 "truncate": None,
                 "temperature": DEFAULT_TEMPERATURE,
@@ -204,17 +197,16 @@ def test_cohere_get_params_as_dict(
     bedrock_dynamodb_defaults_table,
 ):
     model_defaults = ModelDefaults("Bedrock", model_id, RAG_ENABLED)
-    bedrock_params = BedrockCohereLLMParams(**params, model_defaults=model_defaults)
+    bedrock_params = BedrockCohereTextLLMParams(**params, model_defaults=model_defaults)
     assert bedrock_params.get_params_as_dict(pop_null=pop_null) == expected_response
 
 
 def test_cohere_incorrect_params():
     with pytest.raises(TypeError) as error:
-        BedrockCohereLLMParams(
+        BedrockCohereTextLLMParams(
             **{
                 "num_generations": 10,
                 "logit_bias": {"token_id": 0.2},
-                "stream": True,
                 "return_likelihoods": "ALL",
                 "p": 0.2,
                 "k": 250,
@@ -226,5 +218,6 @@ def test_cohere_incorrect_params():
         )
 
     assert (
-        error.value.args[0] == "BedrockCohereLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
+        error.value.args[0]
+        == "BedrockCohereTextLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
     )

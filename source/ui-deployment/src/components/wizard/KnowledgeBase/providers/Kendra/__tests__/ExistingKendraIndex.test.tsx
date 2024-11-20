@@ -17,7 +17,7 @@ import { screen } from '@testing-library/react';
 describe('ExistingKendraIndexOption', () => {
     test('renders', () => {
         const mockKnowledgeBaseData = {
-            existingKendraIndex: 'yes'
+            existingKendraIndex: 'Yes'
         };
         const callbacks = mockFormComponentCallbacks();
 
@@ -28,11 +28,11 @@ describe('ExistingKendraIndexOption', () => {
         expect(screen.getByTestId('existing-kendra-index-radio-group')).toBeDefined();
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="existing-kendra-index-radio-group"]');
         expect(radioGroup?.getElement()).toBeDefined();
-        expect(radioGroup?.findInputByValue('yes')?.getElement().checked).toBeTruthy();
+        expect(radioGroup?.findInputByValue('Yes')?.getElement().checked).toBeTruthy();
 
-        radioGroup?.findInputByValue('no')?.getElement().click();
+        radioGroup?.findInputByValue('No')?.getElement().click();
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
-            existingKendraIndex: 'no'
+            existingKendraIndex: 'No'
         });
     });
 });

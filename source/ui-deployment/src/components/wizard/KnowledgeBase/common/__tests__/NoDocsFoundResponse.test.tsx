@@ -52,7 +52,7 @@ describe('NoDocsFoundResponse', () => {
 
             //let's now select yes, which should make the formfield visible
             //the default state of the formfield should be in error as we await user input
-            radioGroupWrapper.findInputByValue('yes')?.click();
+            radioGroupWrapper.findInputByValue('Yes')?.click();
             expect(screen.getByTestId('mock-id-input-form-field')).toBeInTheDocument();
             expect(formFieldWrapper.findError()).toBeDefined();
         });
@@ -97,7 +97,7 @@ describe('NoDocsFoundResponse', () => {
 
             //let's now select no, which should make the formfield disappear
             //and any existing errors should be cleared
-            radioGroupWrapper.findInputByValue('no')?.click();
+            radioGroupWrapper.findInputByValue('No')?.click();
             expect(screen.queryByTestId('mock-id-input-form-field')).not.toBeInTheDocument();
         });
     });

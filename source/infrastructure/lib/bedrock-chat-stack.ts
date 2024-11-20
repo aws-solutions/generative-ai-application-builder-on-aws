@@ -26,7 +26,7 @@ import {
     PYTHON_PIP_WHEEL_IMPLEMENTATION,
     PYTHON_VERSION
 } from './framework/bundler/constants';
-import { UseCaseChat } from './framework/use-case-stack';
+import { TextUseCase } from './framework/text-use-case-stack';
 import { createDefaultLambdaRole } from './utils/common-utils';
 import {
     ADDITIONAL_LLM_LIBRARIES,
@@ -34,16 +34,25 @@ import {
     CHAT_PROVIDERS,
     LAMBDA_TIMEOUT_MINS,
     LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
-    LLM_LIBRARY_LAYER_TYPES
+    LLM_LIBRARY_LAYER_TYPES,
+    USE_CASE_CONFIG_RECORD_KEY_ENV_VAR,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 } from './utils/constants';
 import { VPCSetup } from './vpc/vpc-setup';
 
 /**
  * The main stack creating the chat use case infrastructure
  */
-export class BedrockChat extends UseCaseChat {
+export class BedrockChat extends TextUseCase {
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
+        this.withAdditionalResourceSetup(props);
+        this.withAnonymousMetrics(props);
+    }
+
+    protected withAdditionalResourceSetup(props: BaseStackProps): void {
+        super.withAdditionalResourceSetup(props);
+        this.setLlmProviderPermissions();
     }
 
     protected setupVPC(): VPCSetup {
@@ -65,6 +74,7 @@ export class BedrockChat extends UseCaseChat {
      */
     public llmProviderSetup(): void {
         // the log retention custom resource is setup in the use-case-stack.ts
+        const lambdaRole = createDefaultLambdaRole(this, 'ChatLlmProviderLambdaRole', this.deployVpcCondition);
         this.chatLlmProviderLambda = new lambda.Function(this, 'ChatLlmProviderLambda', {
             code: lambda.Code.fromAsset(
                 '../lambda/chat',
@@ -76,7 +86,7 @@ export class BedrockChat extends UseCaseChat {
                         implementation: PYTHON_PIP_WHEEL_IMPLEMENTATION
                     })
             ),
-            role: createDefaultLambdaRole(this, 'ChatLlmProviderLambdaRole', this.deployVpcCondition),
+            role: lambdaRole,
             runtime: LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
             handler: 'bedrock_handler.lambda_handler',
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
@@ -94,8 +104,10 @@ export class BedrockChat extends UseCaseChat {
             [LLM_LIBRARY_LAYER_TYPES.LANGCHAIN_LIB_LAYER, LLM_LIBRARY_LAYER_TYPES.BOTO3_LIB_LAYER].join(',')
         );
 
+        this.withInferenceProfileSetup();
         this.chatLlmProviderLambda.addToRolePolicy(
-            new cdk.aws_iam.PolicyStatement({
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
                 actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
                 resources: [
                     `arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}::foundation-model/*`,
@@ -106,6 +118,7 @@ export class BedrockChat extends UseCaseChat {
 
         this.chatLlmProviderLambda.addToRolePolicy(
             new cdk.aws_iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
                 actions: ['bedrock:ApplyGuardrail'],
                 resources: [`arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:guardrail/*`]
             })
@@ -126,6 +139,98 @@ export class BedrockChat extends UseCaseChat {
                 }
             ]
         );
+    }
+
+    protected withInferenceProfileSetup(): cdk.CustomResource {
+        const useInferenceProfile = new cdk.CfnParameter(cdk.Stack.of(this), 'UseInferenceProfile', {
+            type: 'String',
+            allowedValues: ['Yes', 'No'],
+            default: 'No',
+            description:
+                'If the model configured is Bedrock, you can indicate if you are using Bedrock Inference Profile. This will ensure that the required IAM policies will be configured during stack deployment. For more details refer the following https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html'
+        });
+
+        const existingParameterGroups =
+            this.templateOptions.metadata !== undefined &&
+            Object.hasOwn(this.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
+            this.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
+                ? this.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
+                : [];
+
+        existingParameterGroups.unshift({
+            Label: { default: 'Inference Profile' },
+            Parameters: [useInferenceProfile.logicalId]
+        });
+
+        const inferenceProfileProvidedCondition = new cdk.CfnCondition(this, 'InferenceProfileProvidedCondition', {
+            expression: cdk.Fn.conditionEquals(useInferenceProfile.valueAsString, 'Yes')
+        });
+
+        const customResourceUseCaseTablePolicy = new iam.PolicyStatement({
+            actions: ['dynamodb:GetItem'],
+            resources: [
+                `arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${this.stackParameters.useCaseConfigTableName.valueAsString}`
+            ],
+            conditions: {
+                'ForAllValues:StringEquals': {
+                    'dynamodb:LeadingKeys': [this.stackParameters.useCaseConfigRecordKey.valueAsString]
+                }
+            },
+            effect: iam.Effect.ALLOW
+        });
+
+        const getInferenceProfilePolicy = new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ['bedrock:GetInferenceProfile'],
+            resources: [`arn:${cdk.Aws.PARTITION}:bedrock:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:inference-profile/*`]
+        });
+
+        this.applicationSetup.customResourceRole.addToPolicy(getInferenceProfilePolicy);
+        this.applicationSetup.customResourceRole.addToPolicy(customResourceUseCaseTablePolicy);
+
+        const inferenceProfileArnsForPolicy = new cdk.CustomResource(this, 'GetModelResourceArns', {
+            resourceType: 'Custom::GetModelResourceArns',
+            serviceToken: this.applicationSetup.customResourceLambda.functionArn,
+            properties: {
+                Resource: 'GET_MODEL_RESOURCE_ARNS',
+                [USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]: this.stackParameters.useCaseConfigTableName.valueAsString,
+                [USE_CASE_CONFIG_RECORD_KEY_ENV_VAR]: this.stackParameters.useCaseConfigRecordKey.valueAsString
+            }
+        });
+
+        const bedrockUseInferenceProfilePolicy = new iam.Policy(this, 'BedrockInferenceProfilePolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['bedrock:InvokeModelWithResponseStream', 'bedrock:InvokeModel'],
+                    resources: cdk.Fn.split(',', inferenceProfileArnsForPolicy.getAttString('Arns'))
+                })
+            ]
+        });
+
+        const lambdaRole = this.chatLlmProviderLambda.role!;
+
+        lambdaRole.attachInlinePolicy(bedrockUseInferenceProfilePolicy);
+        (bedrockUseInferenceProfilePolicy.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            inferenceProfileProvidedCondition;
+        (inferenceProfileArnsForPolicy.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            inferenceProfileProvidedCondition;
+        inferenceProfileArnsForPolicy.node.addDependency(lambdaRole);
+
+        NagSuppressions.addResourceSuppressions(
+            this.applicationSetup.customResourceRole.node.tryFindChild('DefaultPolicy') as iam.Policy,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'The inference profile is based on region and model. Hence it cannot be narrowed further',
+                    appliesTo: [
+                        'Resource::arn:<AWS::Partition>:bedrock:<AWS::Region>:<AWS::AccountId>:inference-profile/*'
+                    ]
+                }
+            ]
+        );
+
+        return inferenceProfileArnsForPolicy;
     }
 
     public getLlmProviderName(): CHAT_PROVIDERS {

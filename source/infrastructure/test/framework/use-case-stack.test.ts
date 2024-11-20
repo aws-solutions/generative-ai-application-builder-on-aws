@@ -24,9 +24,9 @@ import {
     DEFAULT_KNOWLEDGE_BASE_TYPE,
     DEFAULT_NEW_KENDRA_INDEX_NAME,
     DEFAULT_RAG_ENABLED_STATUS,
-    EMAIL_REGEX_PATTERN,
     INTERNAL_EMAIL_DOMAIN,
     LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+    OPTIONAL_EMAIL_REGEX_PATTERN,
     PLACEHOLDER_EMAIL,
     SUPPORTED_KNOWLEDGE_BASE_TYPES,
     USER_POOL_ID_ENV_VAR
@@ -134,7 +134,7 @@ describe('When Chat use case is created', () => {
             Description:
                 'Email of the default user for this use case. A cognito user for this email will be created to access the use case.',
             Default: PLACEHOLDER_EMAIL,
-            AllowedPattern: EMAIL_REGEX_PATTERN,
+            AllowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             ConstraintDescription: 'Please provide a valid email'
         });
 
@@ -143,7 +143,7 @@ describe('When Chat use case is created', () => {
             AllowedPattern: '^$|^[0-9a-zA-Z_-]{9,24}$',
             MaxLength: 24,
             Description:
-                'UserPoolId of an existing cognito user pool which this use case will be authenticated with. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
+                'Optional - UserPoolId of an existing cognito user pool which this use case will be authenticated with. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
             Default: ''
         });
 
@@ -264,7 +264,7 @@ describe('When Chat use case is created', () => {
                 ]
             });
 
-            template.hasCondition('DeployWebApp', {
+            template.hasCondition('DeployWebAppUIInfrastructureCondition', {
                 'Fn::Equals': [
                     {
                         'Ref': 'DeployUI'
@@ -297,7 +297,7 @@ describe('When Chat use case is created', () => {
                 DependsOn: Match.anyValue(),
                 UpdateReplacePolicy: 'Delete',
                 DeletionPolicy: 'Delete',
-                Condition: 'DeployWebApp'
+                Condition: 'DeployWebAppUIInfrastructureCondition'
             });
 
             template.hasResource('AWS::CloudFormation::Stack', {
@@ -333,7 +333,7 @@ describe('When Chat use case is created', () => {
                 DependsOn: Match.anyValue(),
                 UpdateReplacePolicy: 'Delete',
                 DeletionPolicy: 'Delete',
-                Condition: 'DeployWebApp'
+                Condition: 'DeployWebAppUIInfrastructureCondition'
             });
         });
 
@@ -517,22 +517,6 @@ describe('When Chat use case is created', () => {
                                 },
                                 {
                                     'Ref': 'ExistingCognitoUserPoolId'
-                                }
-                            ]
-                        },
-                        [CLIENT_ID_ENV_VAR]: {
-                            'Fn::If': [
-                                Match.anyValue(),
-                                {
-                                    'Fn::GetAtt': [
-                                        Match.stringLikeRegexp(
-                                            'WebsocketRequestProcessorUseCaseCognitoSetupCfnAppClient*'
-                                        ),
-                                        'ClientId'
-                                    ]
-                                },
-                                {
-                                    Ref: 'ExistingCognitoUserPoolClient'
                                 }
                             ]
                         },

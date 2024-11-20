@@ -10,8 +10,8 @@
     "MinTemperature": "0",
     "DefaultStopSequences": [],
     "MemoryConfig": {
-        "history": "chat_history",
-        "input": "question",
+        "history": "history",
+        "input": "input",
         "context": "context",
         "ai_prefix": "AI",
         "human_prefix": "Human",

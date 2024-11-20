@@ -17,9 +17,10 @@ from typing import Dict, Optional
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from clients.builders.llm_builder import LLMBuilder
+from llms.models.model_provider_inputs import SageMakerInputs
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from llms.sagemaker import SageMakerLLM
-from utils.constants import DEFAULT_MODEL_ID, DEFAULT_RAG_ENABLED_MODE, DEFAULT_RETURN_SOURCE_DOCS
+from utils.constants import DEFAULT_RAG_ENABLED_MODE, DEFAULT_SAGEMAKER_MODEL_ID
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client
 
@@ -31,22 +32,33 @@ metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
 class SageMakerBuilder(LLMBuilder):
     """
     Class that implements the LLMBuilder interface to create objects that have a conversation memory, knowledge base
-    and an LLM model.
+    and an LLM.
     SageMakerBuilder has access to the following through its interface:
 
     Attributes:
-        use_case_config (Dict): Specifies the configuration that the admin sets on a use-case, stored in DynamoDB
-        connection_id (str): The connection ID of the user's connection to the chat application through WebSockets
-        conversation_id (str): The conversation ID which helps store and access user chat history
-        rag_enabled (bool): Specifies if RAG is enabled for the use-case or not
-        user_context_token (str): The token that is used to retrieve the context from the knowledge base using role based access control
+        - use_case_config (Dict): Specifies the configuration that the admin sets on a use-case, stored in DynamoDB
+        - rag_enabled (Optional[bool]): Specifies whether the use-case is enabled for RAG. Defaults to - DEFAULT_RAG_ENABLED_MODE.
+        - connection_id (str): The connection ID of the user's connection to the chat application through WebSockets
+        - conversation_id (str): The conversation ID which helps store and access user chat history
+        - user_context_token (str): Sets the user context token
+        - model_inputs (ModelProviderInputs): Stores the model inputs provided by the user
+        - model_defaults (ModelDefaults): Stores the model defaults
+        - conversation_history_cls (BaseChatMessageHistory): Stores the user conversation history
+        - conversation_history_params (Dict): Stores the parameters for the conversation history
+        - knowledge_base (KnowledgeBase): Stores the user's knowledge base
+        - callbacks (Callbacks): Stores the callbacks that are set on the LLM model
+        - llm (BaseLangChainModel): Stores the LLM model that is used to generate content
+        - model_params (Dict): Stores the model parameters for the LLM model
+        - errors (List[str]): Stores the errors that occur during the use-case execution
 
     Methods:
-        set_knowledge_base(): Sets the value for the knowledge base object that is used to supplement the LLM context using information from
-            the user's knowledge base
-        set_conversation_memory(): Sets the value for the conversation memory object that is used to store the user chat history
-        set_llm_model(): Sets the value of the LLM model in the builder as a SageMakerLLM or SageMakerRetrievalLLM object
-        set_streaming_callbacks(): Sets the value of callbacks for the LLM model
+        - set_model_defaults(model_provider, model_name): Sets the value for the model defaults object that is used to - store default values for the LLM model
+        - validate_event_input_sizes(event_body): Validates the input sizes of prompt and user query using the defaults retrieved from ModelInfoStorage DynamoDB table
+        - set_knowledge_base(): Sets the value for the knowledge base object that is used to supplement the LLM context using information from the user's knowledge base
+        - set_conversation_memory(user_id, conversation_id): Sets the value for the conversation memory object that is used to store the user chat history
+        - set_streaming_callbacks(response_if_no_docs_found, return_source_docs): Sets the value of callbacks for the LLM
+        - get_guardrails(model_config): Returns the guardrails configuration object for the model.
+        - set_llm(model): Sets the value of the LLM model as a SageMakerLLM or SageMakerRetrievalLLM
     """
 
     def __init__(
@@ -65,40 +77,28 @@ class SageMakerBuilder(LLMBuilder):
             user_context_token=user_context_token,
         )
 
-    def set_llm_model(self) -> None:
+    def set_llm(self, *args, **kwargs) -> None:
         """
-        Sets the value of the lLM model in the builder. Each subclass implements its own LLM model.
+        Sets the value of the LLM in the builder. Each subclass implements its own LLM.
         """
-        super().set_llm_model(DEFAULT_MODEL_ID)
-        llm_params = self.use_case_config.get("LlmParams")
+        super().set_llm(DEFAULT_SAGEMAKER_MODEL_ID)
+        sagemaker_config = self.use_case_config.get("LlmParams", {}).get("SageMakerLlmParams", {})
 
-        try:
-            if self.rag_enabled and not self.knowledge_base:
-                error_message = "KnowledgeBase is required for RAG-enabled SageMaker chat model."
-                metrics.add_metric(
-                    name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
-                )
-                logger.error(error_message)
-                raise ValueError(error_message)
-            elif self.rag_enabled and self.knowledge_base:
-                self.llm_model = SageMakerRetrievalLLM(
-                    llm_params=self.model_params,
-                    model_defaults=self.model_defaults,
-                    sagemaker_endpoint_name=llm_params.get("SageMakerLlmParams").get("EndpointName"),
-                    input_schema=llm_params.get("SageMakerLlmParams").get("ModelInputPayloadSchema"),
-                    response_jsonpath=llm_params.get("SageMakerLlmParams").get("ModelOutputJSONPath"),
-                    return_source_docs=self.use_case_config.get("KnowledgeBaseParams", {}).get(
-                        "ReturnSourceDocs", DEFAULT_RETURN_SOURCE_DOCS
-                    ),
-                )
-            else:
-                self.llm_model = SageMakerLLM(
-                    llm_params=self.model_params,
-                    model_defaults=self.model_defaults,
-                    sagemaker_endpoint_name=llm_params.get("SageMakerLlmParams").get("EndpointName"),
-                    input_schema=llm_params.get("SageMakerLlmParams").get("ModelInputPayloadSchema"),
-                    response_jsonpath=llm_params.get("SageMakerLlmParams").get("ModelOutputJSONPath"),
-                    rag_enabled=False,
-                )
-        finally:
-            metrics.flush_metrics()
+        # Cast parent ModelProviderInputs to child SageMakerInputs and add additional SageMaker parameters
+        sagemaker_specific_inputs = {
+            "sagemaker_endpoint_name": sagemaker_config.get("EndpointName"),
+            "input_schema": sagemaker_config.get("ModelInputPayloadSchema"),
+            "response_jsonpath": sagemaker_config.get("ModelOutputJSONPath"),
+        }
+        self.model_inputs = SageMakerInputs(**vars(self.model_inputs), **sagemaker_specific_inputs)
+
+        if self.rag_enabled and not self.knowledge_base:
+            metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
+            logger.error("KnowledgeBase is required for RAG-enabled SageMaker chat model.")
+            raise ValueError("KnowledgeBase is required for RAG-enabled SageMaker chat model.")
+        elif self.rag_enabled and self.knowledge_base:
+            self.llm = SageMakerRetrievalLLM(model_inputs=self.model_inputs, model_defaults=self.model_defaults)
+        else:
+            self.llm = SageMakerLLM(model_inputs=self.model_inputs, model_defaults=self.model_defaults)
+
+        metrics.flush_metrics()

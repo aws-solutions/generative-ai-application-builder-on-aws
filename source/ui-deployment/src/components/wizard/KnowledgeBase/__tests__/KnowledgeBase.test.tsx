@@ -14,6 +14,7 @@
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { screen } from '@testing-library/react';
 import KnowledgeBase from '../KnowledgeBase';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('KnowledgeBase', () => {
     test('renders with rag not enabled', () => {
@@ -21,7 +22,7 @@ describe('KnowledgeBase', () => {
             knowledgeBase: { knowledgeBaseType: { value: 'Kendra', label: 'Kendra' }, isRagRequired: false }
         };
         renderWithProvider(<KnowledgeBase info={mockKnowledgeBaseData} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
+            route: USECASE_TYPE_ROUTE.TEXT
         });
         expect(screen.getByTestId('rag-required-dropdown')).toBeDefined();
         expect(() => {
@@ -34,7 +35,7 @@ describe('KnowledgeBase', () => {
             knowledgeBase: {
                 knowledgeBaseType: { value: 'Kendra', label: 'Kendra' },
                 isRagRequired: true,
-                existingKendraIndex: 'yes',
+                existingKendraIndex: 'Yes',
                 kendraIndexId: 'fake-id',
                 kendraAdditionalQueryCapacity: 0,
                 kendraAdditionalStorageCapacity: 0,
@@ -46,7 +47,7 @@ describe('KnowledgeBase', () => {
             }
         };
         renderWithProvider(<KnowledgeBase info={mockKnowledgeBaseData} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
+            route: USECASE_TYPE_ROUTE.TEXT
         });
         expect(screen.getByTestId('rag-required-dropdown')).toBeDefined();
         expect(screen.getByTestId('kendra-container')).toBeDefined();

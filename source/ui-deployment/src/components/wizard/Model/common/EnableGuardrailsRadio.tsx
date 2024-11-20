@@ -14,6 +14,7 @@
 import { Box, FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '@/components/wizard/interfaces/';
 import { InfoLink } from '@/components/commons';
+import { getBooleanString } from '../../utils';
 
 interface EnableGuardrailsRadioProps extends BaseFormComponentProps {
     modelData: any;
@@ -21,7 +22,7 @@ interface EnableGuardrailsRadioProps extends BaseFormComponentProps {
 
 export const EnableGuardrailsRadio = (props: EnableGuardrailsRadioProps) => {
     const onEnableGuardrailsChange = (detail: RadioGroupProps.ChangeDetail) => {
-        const enableGuardrails = detail.value === 'yes';
+        const enableGuardrails = detail.value === 'Yes';
         props.onChangeFn({ 'enableGuardrails': enableGuardrails, 'guardrailIdentifier': '', 'guardrailVersion': '' });
     };
 
@@ -40,15 +41,15 @@ export const EnableGuardrailsRadio = (props: EnableGuardrailsRadioProps) => {
                 onChange={({ detail }) => onEnableGuardrailsChange(detail)}
                 items={[
                     {
-                        value: 'yes',
+                        value: 'Yes',
                         label: 'Yes'
                     },
                     {
-                        value: 'no',
+                        value: 'No',
                         label: 'No'
                     }
                 ]}
-                value={props.modelData.enableGuardrails ? 'yes' : 'no'}
+                value={getBooleanString(props.modelData.enableGuardrails)}
                 data-testid="enable-guardrails-radio-group"
             />
         </FormField>
@@ -62,7 +63,8 @@ const enableGuardrailsRadioInfoPanel = {
             <Box variant="p">
                 Guardrails for Amazon Bedrock evaluates user inputs and Large Language Model (LLM) responses based on
                 use case specific policies, and provides an additional layer of safeguards regardless of the underlying
-                Foundation Model (FM). Guardrails can be applied across all LLMs on Amazon Bedrock, including fine-tuned models.
+                Foundation Model (FM). Guardrails can be applied across all LLMs on Amazon Bedrock, including fine-tuned
+                models.
             </Box>
         </div>
     ),

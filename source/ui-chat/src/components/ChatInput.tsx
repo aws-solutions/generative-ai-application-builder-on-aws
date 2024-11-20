@@ -11,12 +11,11 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
+import { Button, Container, PromptInput, StatusIndicator, StatusIndicatorProps } from '@cloudscape-design/components';
 import { MutableRefObject, useContext, useState } from 'react';
-import { Button, Container, StatusIndicator, StatusIndicatorProps, Textarea } from '@cloudscape-design/components';
 import HomeContext from '../home/home.context';
 import { Message } from '../types/chat';
 import './ChatInput.css';
-
 interface Props {
     onSend: (message: Message) => void;
     stopConversationRef: MutableRefObject<boolean>;
@@ -72,16 +71,17 @@ export const ChatInput = ({ onSend, stopConversationRef, socketStatusType, socke
             <StatusIndicator type={socketStatusType}> {socketStatusMessage} </StatusIndicator>{' '}
             <div className="chatinput-textarea">
                 <div style={{ width: '92%', display: 'inline-block' }} data-testid="chat-input-textarea-div">
-                    <Textarea
+                    <PromptInput
                         data-class-name="chat-input-textarea"
                         data-testid="chat-input-textarea"
                         data-columns="3"
                         placeholder={'Type a message...' || ''}
                         value={content}
-                        rows={1}
+                        maxRows={10}
                         onChange={({ detail }) => handleChange(detail.value)}
                         onKeyDown={({ detail }) => handleKeyDown(detail.key, detail.shiftKey)}
                         autoFocus
+                        minRows={4}
                     />
                 </div>
                 <div
@@ -91,7 +91,7 @@ export const ChatInput = ({ onSend, stopConversationRef, socketStatusType, socke
                     }}
                 >
                     <Button
-                        iconName={messageIsStreaming || loading ? 'status-in-progress' : 'check'}
+                        iconName={messageIsStreaming || loading ? 'status-in-progress' : 'send'}
                         loading={messageIsStreaming || loading}
                         variant="icon"
                         onClick={handleSend}

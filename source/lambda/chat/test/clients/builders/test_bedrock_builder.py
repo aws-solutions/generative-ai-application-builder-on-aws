@@ -20,12 +20,14 @@ from unittest.mock import patch
 import pytest
 from clients.builders.bedrock_builder import BedrockBuilder
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+from langchain_core.prompts import ChatPromptTemplate
 from llms.bedrock import BedrockLLM
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
+from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
+    CONVERSATION_TABLE_NAME_ENV_VAR,
     DEFAULT_BEDROCK_MODEL_FAMILY,
     DEFAULT_BEDROCK_MODELS_MAP,
     DEFAULT_PROMPT_PLACEHOLDERS,
@@ -35,10 +37,11 @@ from utils.constants import (
     RAG_CHAT_IDENTIFIER,
     USER_ID_EVENT_KEY,
 )
-from utils.enum_types import ConversationMemoryTypes, KnowledgeBaseTypes, LLMProviderTypes
+from utils.enum_types import KnowledgeBaseTypes, LLMProviderTypes
+from llms.models.model_provider_inputs import BedrockInputs
 
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 MEMORY_CONFIG = {
     CHAT_IDENTIFIER: {
         "history": "history",
@@ -47,8 +50,8 @@ MEMORY_CONFIG = {
         "output": None,
     },
     RAG_CHAT_IDENTIFIER: {
-        "history": "chat_history",
-        "input": "question",
+        "history": "history",
+        "input": "input",
         "context": "context",
         "output": "answer",
     },
@@ -129,7 +132,7 @@ model_id = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
         ),
     ],
 )
-def test_set_llm_model(
+def test_set_llm(
     use_case,
     model_id,
     prompt,
@@ -167,32 +170,32 @@ def test_set_llm_model(
             "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
             return_value=AsyncIteratorCallbackHandler(),
         ):
-            builder.set_llm_model()
+            builder.set_llm()
     else:
         with patch(
             "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
             return_value=AsyncIteratorCallbackHandler(),
         ):
-            builder.set_llm_model()
+            builder.set_llm()
 
-    assert type(builder.llm_model) == llm_type
-    assert builder.llm_model.model == model_id
-    assert builder.llm_model.prompt_template.template == prompt
-    assert set(builder.llm_model.prompt_template.input_variables) == set(placeholders)
-    assert builder.llm_model.model_params["temperature"] == 0.2
-    assert builder.llm_model.streaming == config["LlmParams"]["Streaming"]
-    assert builder.llm_model.verbose == config["LlmParams"]["Verbose"]
+    assert type(builder.llm) == llm_type
+    assert builder.llm.model == model_id
+    assert builder.llm.prompt_template == ChatPromptTemplate.from_template(prompt)
+    assert builder.llm.model_params["temperature"] == 0.2
+    assert builder.llm.streaming == config["LlmParams"]["Streaming"]
+    assert builder.llm.verbose == config["LlmParams"]["Verbose"]
     if rag_enabled:
-        assert builder.llm_model.knowledge_base.kendra_index_id == os.getenv(KENDRA_INDEX_ID_ENV_VAR)
-    else:
-        assert builder.llm_model.knowledge_base == None
-    assert builder.llm_model.conversation_memory.memory_type == ConversationMemoryTypes.DynamoDB.value
-    assert type(builder.llm_model.conversation_memory) == DynamoDBChatMemory
-    assert builder.llm_model.conversation_memory.memory_key == MEMORY_CONFIG[use_case]["history"]
-    assert builder.llm_model.conversation_memory.input_key == MEMORY_CONFIG[use_case]["input"]
-    assert builder.llm_model.conversation_memory.output_key == MEMORY_CONFIG[use_case]["output"]
-    assert builder.llm_model.conversation_memory.human_prefix == test_human
-    assert builder.llm_model.conversation_memory.ai_prefix == test_ai
+        assert builder.llm.knowledge_base.kendra_index_id == os.getenv(KENDRA_INDEX_ID_ENV_VAR)
+    assert builder.conversation_history_cls == DynamoDBChatMessageHistory
+    assert builder.conversation_history_params == {
+        "conversation_id": "fake-conversation-id",
+        "max_history_length": 10,
+        "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
+        "user_id": "fake-user-id",
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
+    }
+    assert type(builder.model_inputs) == BedrockInputs
 
     if is_streaming:
         assert builder.callbacks
@@ -211,7 +214,7 @@ def test_set_llm_model(
         (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
-def test_set_llm_model_throws_error_missing_memory(
+def test_set_llm_throws_error_missing_memory(
     use_case,
     model_id,
     prompt,
@@ -239,9 +242,9 @@ def test_set_llm_model_throws_error_missing_memory(
         return_value=AsyncIteratorCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
-            builder.set_llm_model()
+            builder.set_llm()
 
-        assert error.value.args[0] == "Conversation Memory was set to null."
+        assert error.value.args[0] == "Conversation History not set."
 
 
 @pytest.mark.parametrize(
@@ -255,7 +258,7 @@ def test_set_llm_model_throws_error_missing_memory(
         (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
-def test_set_llm_model_with_errors(
+def test_set_llm_with_errors(
     use_case,
     model_id,
     prompt,
@@ -281,7 +284,7 @@ def test_set_llm_model_with_errors(
         return_value=AsyncIteratorCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
-            builder.set_llm_model()
+            builder.set_llm()
 
     assert (
         error.value.args[0] == "There are errors in the following configuration parameters:\nsome-error-1\nsome-error-2"
@@ -299,7 +302,7 @@ def test_set_llm_model_with_errors(
         (BEDROCK_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
-def test_set_llm_model_with_missing_config_fields(bedrock_llm_config, model_id, return_source_docs, setup_environment):
+def test_set_llm_with_missing_config_fields(bedrock_llm_config, model_id, return_source_docs, setup_environment):
     parsed_config = deepcopy(bedrock_llm_config)
     del parsed_config["LlmParams"]
     builder = BedrockBuilder(
@@ -310,11 +313,11 @@ def test_set_llm_model_with_missing_config_fields(bedrock_llm_config, model_id, 
     )
 
     with pytest.raises(ValueError) as error:
-        builder.set_llm_model()
+        builder.set_llm()
 
     assert (
         error.value.args[0]
-        == "There are errors in the following configuration parameters:\nMissing required field (LlmParams) containing LLM configuration in the config which is required to construct the LLM."
+        == "There are errors in the following configuration parameters:\nMissing required field (LlmParams) that contains configuration required to construct the LLM."
     )
 
 
@@ -394,8 +397,8 @@ def test_returned_bedrock_model(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
     ):
-        builder.set_llm_model()
-        assert type(builder.llm_model) == model
+        builder.set_llm()
+        assert type(builder.llm) == model
 
 
 @pytest.mark.parametrize(
@@ -475,7 +478,78 @@ def test_returned_bedrock_provisioned_model(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
     ):
-        builder.set_llm_model()
-        assert type(builder.llm_model) == model
-        assert builder.llm_model.model == model_id
-        assert builder.llm_model.model_arn == test_provisioned_arn
+        builder.set_llm()
+        assert type(builder.llm) == model
+        assert builder.llm.model == model_id
+        assert builder.llm.model_arn == test_provisioned_arn
+
+
+@pytest.mark.parametrize(
+    "use_case, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, llm_type, prompt, placeholders, model_id",
+    [
+        (
+            CHAT_IDENTIFIER,
+            False,
+            False,
+            None,
+            False,
+            BedrockLLM,
+            BEDROCK_PROMPT,
+            DEFAULT_PROMPT_PLACEHOLDERS,
+            "eu.anthropic.fake-claude-model",
+        )
+    ],
+)
+def test_inference_profile_id(
+    use_case,
+    model_id,
+    prompt,
+    is_streaming,
+    rag_enabled,
+    llm_type,
+    placeholders,
+    chat_event,
+    bedrock_llm_config,
+    test_ai,
+    test_human,
+    return_source_docs,
+    setup_environment,
+    bedrock_stubber,
+    bedrock_dynamodb_defaults_table,
+):
+    config = deepcopy(bedrock_llm_config)
+    config["LlmParams"]["BedrockLlmParams"] = {"InferenceProfileId": model_id}
+    chat_event_body = json.loads(chat_event["Records"][0]["body"])
+    builder = BedrockBuilder(
+        use_case_config=config,
+        rag_enabled=rag_enabled,
+        connection_id="fake-connection-id",
+        conversation_id="fake-conversation-id",
+    )
+    user_id = chat_event_body.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
+
+    # Assign all the values to the builder attributes required to construct the LLMChat object
+    builder.set_model_defaults(LLMProviderTypes.BEDROCK, model_id)
+    builder.validate_event_input_sizes(chat_event_body[MESSAGE_KEY])
+    builder.set_knowledge_base()
+    builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
+    builder.set_llm()
+
+    assert type(builder.llm) == llm_type
+    assert builder.llm.model == model_id
+    assert builder.llm.prompt_template == ChatPromptTemplate.from_template(prompt)
+    assert builder.llm.model_params["temperature"] == 0.2
+    assert builder.llm.streaming == config["LlmParams"]["Streaming"]
+    assert builder.llm.verbose == config["LlmParams"]["Verbose"]
+    if rag_enabled:
+        assert builder.llm.knowledge_base.kendra_index_id == os.getenv(KENDRA_INDEX_ID_ENV_VAR)
+    assert builder.conversation_history_cls == DynamoDBChatMessageHistory
+    assert builder.conversation_history_params == {
+        "conversation_id": "fake-conversation-id",
+        "max_history_length": 10,
+        "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
+        "user_id": "fake-user-id",
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
+    }
+    assert type(builder.model_inputs) == BedrockInputs

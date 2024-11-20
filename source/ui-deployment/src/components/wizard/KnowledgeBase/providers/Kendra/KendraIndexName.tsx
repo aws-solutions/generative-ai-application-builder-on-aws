@@ -17,9 +17,7 @@ import { BaseFormComponentProps } from '../../../interfaces';
 import { updateNumFieldsInError } from '../../../utils';
 import React from 'react';
 import { InfoLink } from '../../../../commons';
-import { TOOLS_CONTENT } from '../../../tools-content';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { knowledgeBaseInfoPanel } from '../../helpers';
 
 interface KendraIndexNameProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -64,7 +62,7 @@ export const KendraIndexName = (props: KendraIndexNameProps) => {
             }
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.kendraIndex)}
+                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseInfoPanel.kendraIndex)}
                     ariaLabel={'Information about the Kendra Index.'}
                 />
             }

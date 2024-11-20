@@ -14,10 +14,11 @@
 import { FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 import { VpcFormFieldProps, vpcToolsContent } from './helpers';
 import { InfoLink } from '@/components/commons';
+import { getBooleanString } from '../utils';
 
 export const UseExistingVpc = (props: VpcFormFieldProps) => {
     const onUseExistingVpcChange = (detail: RadioGroupProps.ChangeDetail) => {
-        const isVpcExisting = detail.value === 'yes';
+        const isVpcExisting = detail.value === 'Yes';
         if (isVpcExisting) {
             props.onChangeFn({ existingVpc: isVpcExisting });
         } else {
@@ -44,15 +45,15 @@ export const UseExistingVpc = (props: VpcFormFieldProps) => {
                 onChange={({ detail }) => onUseExistingVpcChange(detail)}
                 items={[
                     {
-                        value: 'yes',
+                        value: 'Yes',
                         label: 'Yes'
                     },
                     {
-                        value: 'no',
+                        value: 'No',
                         label: 'No'
                     }
                 ]}
-                value={props.vpcData.existingVpc === true ? 'yes' : 'no'}
+                value={getBooleanString(props.vpcData.existingVpc)}
                 data-testid="use-existing-vpc-radio-group"
             />
         </FormField>

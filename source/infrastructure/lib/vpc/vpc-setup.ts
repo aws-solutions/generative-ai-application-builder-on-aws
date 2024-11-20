@@ -16,6 +16,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { BaseStackProps } from '../framework/base-stack';
+import { BedrockAgentVPC } from './bedrock-agent-vpc';
 import { BedrockUseCaseVPC } from './bedrock-vpc';
 import { CustomVPC } from './custom-vpc';
 import { DeploymentPlatformVPC } from './deployment-platform-vpc';
@@ -31,16 +32,6 @@ export interface VPCSetupProps extends BaseStackProps {
      * Whether or not to deploy the VPC conditionally
      */
     deployVpcCondition: cdk.CfnCondition;
-
-    /**
-     * If RAG based architecture should be deployed
-     */
-    ragEnabled?: string;
-
-    /**
-     * The type of knowledge base to be used if RAG is enabled
-     */
-    knowledgeBaseType?: string;
 
     /**
      * Arn of the Lambda function to use for custom resource implementation.
@@ -61,6 +52,26 @@ export interface VPCSetupProps extends BaseStackProps {
      * access log bucket for s3 buckets created by this stack
      */
     accessLogBucket: s3.Bucket;
+
+    /**
+     * If RAG based architecture should be deployed
+     */
+    ragEnabled?: string;
+
+    /**
+     * The type of knowledge base to be used if RAG is enabled
+     */
+    knowledgeBaseType?: string;
+
+    /**
+     * Agent Id of the bedrock agent configuration
+     */
+    bedrockAgentId?: string;
+
+    /**
+     * Agent alias of the bedrock configuration
+     */
+    bedrockAgentAliasId?: string;
 }
 
 /**
@@ -89,6 +100,12 @@ export class VPCSetup extends Construct {
             ...coreParameters
         };
 
+        const agentUseCaseParameters = {
+            BedrockAgentId: props.bedrockAgentId!,
+            BedrockAgentAliasId: props.bedrockAgentAliasId!,
+            ...coreParameters
+        };
+
         switch (props.stackType) {
             case 'bedrock-use-case': {
                 this.nestedVPCStack = new BedrockUseCaseVPC(this, 'BedrockUseCaseVPC', {
@@ -108,6 +125,13 @@ export class VPCSetup extends Construct {
                 this.nestedVPCStack = new DeploymentPlatformVPC(this, 'DeploymentPlatformVPC', {
                     description: `Nested stack that deploys a VPC for the deployment platform stack - Version ${props.solutionVersion}`,
                     parameters: coreParameters
+                });
+                break;
+            }
+            case 'bedrock-agents': {
+                this.nestedVPCStack = new BedrockAgentVPC(this, 'BedrockAgentVPC', {
+                    description: `Nested stack that deploys a VPC for the agent stack - Version ${props.solutionVersion}`,
+                    parameters: agentUseCaseParameters
                 });
                 break;
             }

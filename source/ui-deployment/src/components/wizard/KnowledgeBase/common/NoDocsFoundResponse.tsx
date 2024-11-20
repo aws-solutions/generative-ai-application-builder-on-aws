@@ -16,7 +16,7 @@ import { Box, FormField, Input, RadioGroup, SpaceBetween } from '@cloudscape-des
 import { IG_DOCS } from '@/utils/constants';
 import { InfoLink } from '@/components/commons';
 import { BaseFormComponentProps } from '../../interfaces';
-import { updateNumFieldsInError } from '../../utils';
+import { getBooleanString, updateNumFieldsInError } from '../../utils';
 
 export interface NoDocsFoundResponseProps extends BaseFormComponentProps {
     noDocsFoundResponse: string;
@@ -41,7 +41,7 @@ export const NoDocsFoundResponse = (props: NoDocsFoundResponseProps) => {
     };
 
     const handleEnableNoDocFoundResponseChange = (enabledString: string) => {
-        const enabled = enabledString === 'yes';
+        const enabled = enabledString === 'Yes';
         setEnableNoDocsFoundResponse(enabled);
 
         const currentError = validateNoDocsFoundResponse(enabled, '');
@@ -66,15 +66,15 @@ export const NoDocsFoundResponse = (props: NoDocsFoundResponseProps) => {
                     onChange={({ detail }) => handleEnableNoDocFoundResponseChange(detail.value)}
                     items={[
                         {
-                            value: 'yes',
+                            value: 'Yes',
                             label: 'Yes'
                         },
                         {
-                            value: 'no',
+                            value: 'No',
                             label: 'No'
                         }
                     ]}
-                    value={enableNoDocsFoundResponse ? 'yes' : 'no'}
+                    value={getBooleanString(enableNoDocsFoundResponse)}
                 />
             </FormField>
             {enableNoDocsFoundResponse && (

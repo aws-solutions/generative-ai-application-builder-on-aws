@@ -11,13 +11,15 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
+import { CROSS_REGION_INFERENCE, INFERENCE_PROFILE, MODEL_PROVIDER_NAME_MAP } from '../../steps-config';
 import {
     isValidInteger,
     isValidFloat,
     isValidBoolean,
     validateList,
     validateDictionary,
-    isModelParametersValid
+    isModelParametersValid,
+    formatModelNamesList
 } from '../helpers';
 
 describe('When validating model parameters', () => {
@@ -159,5 +161,64 @@ describe('When validating model parameters', () => {
                 ])
             ).toBeFalsy();
         });
+    });
+});
+
+describe('formatModelNamesList', () => {
+    test('should format Bedrock model names with cross-region inference at the beginning', () => {
+        const modelNames = ['ai21.j2-ultra', 'anthropic.claude-v2', INFERENCE_PROFILE, 'amazon.titan-text-express-v1'];
+
+        const result = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.Bedrock);
+
+        expect(result[0]).toEqual({
+            label: CROSS_REGION_INFERENCE,
+            options: [
+                {
+                    label: 'select inference profile...',
+                    value: INFERENCE_PROFILE
+                }
+            ]
+        });
+
+        expect(result).toHaveLength(4);
+        expect(result[1]).toMatchObject({
+            label: expect.any(String),
+            options: expect.arrayContaining([
+                expect.objectContaining({
+                    label: expect.any(String),
+                    value: expect.any(String)
+                })
+            ])
+        });
+    });
+
+    test('should handle Bedrock model names without inference profile', () => {
+        const modelNames = ['ai21.j2-ultra', 'anthropic.claude-v2'];
+
+        const result = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.Bedrock);
+
+        expect(result.some((group) => group.label === CROSS_REGION_INFERENCE)).toBeFalsy();
+        expect(result).toHaveLength(2);
+    });
+
+    test('should handle non-Bedrock model names', () => {
+        const modelNames = ['model1', 'model2', 'model3'];
+        const result = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.SageMaker);
+
+        expect(result).toEqual([
+            { label: 'model1', value: 'model1' },
+            { label: 'model2', value: 'model2' },
+            { label: 'model3', value: 'model3' }
+        ]);
+    });
+
+    test('should handle empty model names array', () => {
+        const modelNames: string[] = [];
+
+        const bedrockResult = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.Bedrock);
+        expect(bedrockResult).toEqual([]);
+
+        const nonBedrockResult = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.SageMaker);
+        expect(nonBedrockResult).toEqual([]);
     });
 });

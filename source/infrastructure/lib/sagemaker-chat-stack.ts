@@ -26,7 +26,7 @@ import {
     PYTHON_PIP_WHEEL_IMPLEMENTATION,
     PYTHON_VERSION
 } from './framework/bundler/constants';
-import { UseCaseChat } from './framework/use-case-stack';
+import { TextUseCase } from './framework/text-use-case-stack';
 import { createDefaultLambdaRole } from './utils/common-utils';
 import {
     ADDITIONAL_LLM_LIBRARIES,
@@ -41,9 +41,16 @@ import { VPCSetup } from './vpc/vpc-setup';
 /**
  * The main stack creating the chat use case infrastructure
  */
-export class SageMakerChat extends UseCaseChat {
+export class SageMakerChat extends TextUseCase {
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
+        this.withAdditionalResourceSetup(props);
+        this.withAnonymousMetrics(props);
+    }
+
+    protected withAdditionalResourceSetup(props: BaseStackProps): void {
+        super.withAdditionalResourceSetup(props);
+        this.setLlmProviderPermissions();
     }
 
     protected setupVPC(): VPCSetup {

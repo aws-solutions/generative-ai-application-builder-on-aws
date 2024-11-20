@@ -16,8 +16,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as rawCdkJson from '../../cdk.json';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
-import { UserPoolClientProps, UserPoolProps } from '../../lib/auth/cognito-setup';
-import { DeploymentPlatformCognitoSetup } from '../../lib/auth/deployment-platform-cognito-setup';
+import { CognitoSetup, UserPoolClientProps, UserPoolProps } from '../../lib/auth/cognito-setup';
 
 describe('When cognito resources are created', () => {
     it('should set the security policies for the user pool, user pool users, pool domain and custom resource to generate domain prefix', () => {
@@ -100,12 +99,17 @@ describe('When cognito resources are created', () => {
 
         template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
             UserPoolId: {
-                Ref: userPoolCapture
+                'Fn::If': [
+                    Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolCapture
+                    }
+                ]
             },
             AccessTokenValidity: 5,
             AllowedOAuthFlows: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     ['code'],
                     {
                         Ref: 'AWS::NoValue'
@@ -114,7 +118,7 @@ describe('When cognito resources are created', () => {
             },
             AllowedOAuthFlowsUserPoolClient: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     true,
                     {
                         Ref: 'AWS::NoValue'
@@ -123,15 +127,17 @@ describe('When cognito resources are created', () => {
             },
             AllowedOAuthScopes: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     ['email', 'aws.cognito.signin.user.admin', 'openid'],
                     { Ref: 'AWS::NoValue' }
                 ]
             },
-            CallbackURLs: [{ 'Fn::If': ['DeployWebApp', { Ref: 'CloudFrontUrl' }, { Ref: 'AWS::NoValue' }] }],
+            CallbackURLs: [
+                { 'Fn::If': ['DeployWebAppCognitoCondition', { Ref: 'CloudFrontUrl' }, { Ref: 'AWS::NoValue' }] }
+            ],
             ExplicitAuthFlows: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     [
                         'ALLOW_USER_PASSWORD_AUTH',
                         'ALLOW_ADMIN_USER_PASSWORD_AUTH',
@@ -145,17 +151,26 @@ describe('When cognito resources are created', () => {
                 ]
             },
             IdTokenValidity: 5,
-            LogoutURLs: [{ 'Fn::If': ['DeployWebApp', { Ref: 'CloudFrontUrl' }, { Ref: 'AWS::NoValue' }] }],
+            RefreshTokenValidity: 1,
+            LogoutURLs: [
+                { 'Fn::If': ['DeployWebAppCognitoCondition', { Ref: 'CloudFrontUrl' }, { Ref: 'AWS::NoValue' }] }
+            ],
             SupportedIdentityProviders: ['COGNITO'],
             TokenValidityUnits: {
                 AccessToken: 'minutes',
-                IdToken: 'minutes'
+                IdToken: 'minutes',
+                RefreshToken: 'days'
             }
         });
 
         template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
             UserPoolId: {
-                Ref: userPoolCapture.asString()
+                'Fn::If': [
+                    Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolCapture.asString()
+                    }
+                ]
             },
             GroupName: userGroupCapture,
             Precedence: 1
@@ -165,7 +180,12 @@ describe('When cognito resources are created', () => {
             GroupName: userGroupCapture.asString(),
             Username: 'fake-user',
             UserPoolId: {
-                Ref: userPoolCapture.asString()
+                'Fn::If': [
+                    Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolCapture.asString()
+                    }
+                ]
             }
         });
 
@@ -182,7 +202,12 @@ describe('When cognito resources are created', () => {
                 ]
             },
             UserPoolId: {
-                Ref: userPoolCapture.asString()
+                'Fn::If': [
+                    Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolCapture.asString()
+                    }
+                ]
             }
         });
 
@@ -203,7 +228,12 @@ describe('When cognito resources are created', () => {
 
         template.hasResourceProperties('AWS::Cognito::UserPoolUser', {
             UserPoolId: {
-                Ref: userPoolCapture
+                'Fn::If': [
+                    Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolCapture
+                    }
+                ]
             },
             DesiredDeliveryMediums: ['EMAIL'],
             ForceAliasCreation: false,
@@ -236,7 +266,12 @@ describe('When cognito resources are created', () => {
         expect(jsonTemplate['Resources'][userPoolCapture.asString()]['Type']).toEqual('AWS::Cognito::UserPool');
         template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
             UserPoolId: {
-                Ref: userPoolCapture.asString()
+                'Fn::If': [
+                    Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolCapture.asString()
+                    }
+                ]
             }
         });
     });
@@ -281,7 +316,7 @@ describe('When cognito resources are created', () => {
             allowedValues: ['Yes', 'No'],
             default: 'Yes'
         });
-        const cognitoSetup = new DeploymentPlatformCognitoSetup(stack, 'TestCognitoSetup', {
+        const cognitoSetup = new CognitoSetup(stack, 'TestCognitoSetup', {
             userPoolProps: {
                 ...props,
                 cognitoDomainPrefix: new cdk.CfnParameter(stack, 'CognitoDomainPrefix', {
@@ -297,9 +332,9 @@ describe('When cognito resources are created', () => {
             } as UserPoolProps,
             userPoolClientProps: {
                 logoutUrl: cloudFrontUrl.valueAsString,
-                callbackUrl: cloudFrontUrl.valueAsString,
-                deployWebApp: deployWebApp.valueAsString
-            } as UserPoolClientProps
+                callbackUrl: cloudFrontUrl.valueAsString
+            } as UserPoolClientProps,
+            deployWebApp: deployWebApp.valueAsString
         });
         const template = Template.fromStack(stack);
         return [template, template.toJSON()];

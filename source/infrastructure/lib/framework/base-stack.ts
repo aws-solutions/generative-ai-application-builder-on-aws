@@ -14,9 +14,39 @@
 
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import * as log from 'npmlog';
 import { ExistingVPCParameters } from '../vpc/exisiting-vpc-params';
 import { VPCSetup } from '../vpc/vpc-setup';
 import { ApplicationSetup } from './application-setup';
+
+export class BaseParameters {
+    /**
+     * Optional parameter to specify domain when deploying the template. If not provided the template will generate
+     * a random domain prefix using a hashing strategy using AWS account number, region, and stack name.
+     */
+    protected cognitoUserPoolClientDomain: cdk.CfnParameter;
+
+    protected cfnStack: cdk.Stack;
+
+    constructor(stack: BaseStack) {
+        this.cfnStack = cdk.Stack.of(stack);
+
+        this.cognitoUserPoolClientDomain = new cdk.CfnParameter(stack, 'CognitoDomainPrefix', {
+            type: 'String',
+            description:
+                'If you would like to provide a domain for the Cognito User Pool Client, please enter a value. If a value is not provided, the deployment will generate one',
+            default: '',
+            allowedPattern: '^$|^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$',
+            constraintDescription:
+                'The provided domain prefix is not a valid format. The domain prefix should be be of the following format "^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$"',
+            maxLength: 63
+        });
+    }
+
+    protected withAdditionalCfnParameters(stack: BaseStack): any {
+        logWarningForEmptyImplementation();
+    }
+}
 
 /**
  * Base stack properties that all stacks should supply as part of stack creation
@@ -64,12 +94,6 @@ export class BaseStack extends cdk.Stack {
      * AWS VPC IPAM Id to use for the VPC CIDR block
      */
     public readonly iPamPoolId: cdk.CfnParameter;
-
-    /**
-     * Optional parameter to specify domain when deploying the template. If not provided the template will generate
-     * a random domain prefix using a hashing strategy using AWS account number, region, and stack name.
-     */
-    protected cognitoUserPoolClientDomain: cdk.CfnParameter;
 
     /**
      * ID of an existing VPC to be used for the use case. If none is provided, a new VPC will be created.
@@ -146,6 +170,8 @@ export class BaseStack extends cdk.Stack {
      */
     public applicationSetup: ApplicationSetup;
 
+    protected stackParameters: any;
+
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
 
@@ -216,13 +242,13 @@ export class BaseStack extends cdk.Stack {
             }
         };
 
+        this.initializeCfnParameters();
+
         const captureExistingVPCParamerters = new ExistingVPCParameters(this);
         this.existingVpcId = captureExistingVPCParamerters.existingVpcId;
         this.existingPrivateSubnetIds = captureExistingVPCParamerters.existingPrivateSubnetIds;
         this.existingSecurityGroupIds = captureExistingVPCParamerters.securityGroupIds;
         this.vpcAzs = captureExistingVPCParamerters.vpcAzs;
-
-        this.initializeCfnParameters();
 
         // enabling or disabling VPC
         this.vpcEnabledCondition = new cdk.CfnCondition(this, 'VPCEnabledCondition', {
@@ -401,20 +427,21 @@ export class BaseStack extends cdk.Stack {
         );
     }
 
-    protected initializeCfnParameters(): void {
-        this.cognitoUserPoolClientDomain = new cdk.CfnParameter(this, 'CognitoDomainPrefix', {
-            type: 'String',
-            description:
-                'If you would like to provide a domain for the Cognito User Pool Client, please enter a value. If a value is not provided, the deployment will generate one',
-            default: '',
-            allowedPattern: '^$|^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$',
-            constraintDescription:
-                'The provided domain prefix is not a valid format. The domain prefix should be be of the following format "^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$"',
-            maxLength: 63
-        });
+    /**
+     * Any sub-class stacks can add resources required for their case
+     */
+    protected withAdditionalResourceSetup(props: BaseStackProps): any {
+        logWarningForEmptyImplementation();
     }
 
-    public get cognitoDomainPrefixParam(): cdk.CfnParameter {
-        return this.cognitoUserPoolClientDomain;
+    protected initializeCfnParameters(): void {
+        this.stackParameters = new BaseParameters(this);
     }
+}
+function logWarningForEmptyImplementation() {
+    log.prefixStyle.bold = true;
+    log.prefixStyle.fg = 'blue';
+    log.enableColor();
+
+    log.log('WARN', 'This is the base stack', 'No implementation in this method');
 }

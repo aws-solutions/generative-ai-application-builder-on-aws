@@ -19,7 +19,6 @@ import pytest
 from langchain_core.documents import Document
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
-from utils.cognito_jwt_verifier import CognitoJWTVerifier
 from utils.constants import KENDRA_INDEX_ID_ENV_VAR
 
 knowledge_base_params = {

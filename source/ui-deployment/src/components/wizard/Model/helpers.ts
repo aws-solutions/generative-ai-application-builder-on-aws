@@ -12,8 +12,12 @@
  **********************************************************************************************************************/
 
 import { SelectProps } from '@cloudscape-design/components';
-import { MODEL_ADVANCED_PARAMETERS_TYPE, MODEL_PROVIDER_NAME_MAP } from '../steps-config';
-import { TOOLS_CONTENT } from '../tools-content';
+import {
+    CROSS_REGION_INFERENCE,
+    INFERENCE_PROFILE,
+    MODEL_ADVANCED_PARAMETERS_TYPE,
+    MODEL_PROVIDER_NAME_MAP
+} from '../steps-config';
 
 export interface FormattedModelParamsAttribute {
     key: string;
@@ -141,13 +145,26 @@ export const formatModelNamesList = (modelNames: string[], modelProvider: string
     if (modelProvider === MODEL_PROVIDER_NAME_MAP.Bedrock) {
         const supportedModelOptions: SupportedModelOptions = {};
         modelNames.forEach((model: string) => {
+            if (model === INFERENCE_PROFILE) {
+                supportedModelOptions[CROSS_REGION_INFERENCE] = {
+                    label: CROSS_REGION_INFERENCE,
+                    options: [{ label: 'select inference profile...', value: model }]
+                };
+                return;
+            }
             const provider = model.split('.')[0];
             if (!supportedModelOptions[provider]) {
                 supportedModelOptions[provider] = { label: provider, options: [] };
             }
             supportedModelOptions[provider].options.push({ label: model, value: model });
         });
-        return Object.values(supportedModelOptions);
+
+        // sorting to place inference profile at the beginning of model dropdown list
+        return Object.values(supportedModelOptions).sort((a, b) => {
+            if (a.label === CROSS_REGION_INFERENCE) return -1;
+            if (b.label === CROSS_REGION_INFERENCE) return 1;
+            return a.label.localeCompare(b.label);
+        });
     }
     return modelNames.map((modelName: string): SelectProps.Option => {
         return {
@@ -179,17 +196,33 @@ export const initModelRequiredFields = (modelProvider: string) => {
  *
  * @param modelProvider Value of model provider selected in the dropdown
  * @param provisionedModel Whether the model is provisioned or not
+ */
+const getRequiredFields = (modelName: string, provisionedModel: boolean): string[] => {
+    if (modelName === INFERENCE_PROFILE) {
+        return ['modelName', 'inferenceProfileId'];
+    }
+    if (provisionedModel) {
+        return ['modelName', 'modelArn'];
+    }
+    return ['modelName'];
+};
+
+/**
+ *
+ * @param modelProvider Value of model provider selected in the dropdown
+ * @param provisionedModel Whether the model is provisioned or not
  * @param setRequiredFieldsFn Function to update react state
  */
 export const updateRequiredFields = (
     modelProvider: string,
     provisionedModel: boolean,
     enableGuardrails: boolean,
+    modelName: string,
     setRequiredFieldsFn: React.Dispatch<React.SetStateAction<string[]>>
 ) => {
     switch (modelProvider) {
         case MODEL_PROVIDER_NAME_MAP.Bedrock:
-            const baseRequiredFields = provisionedModel ? ['modelName', 'modelArn'] : ['modelName'];
+            const baseRequiredFields = getRequiredFields(modelName, provisionedModel);
             if (enableGuardrails) {
                 setRequiredFieldsFn([...baseRequiredFields, 'guardrailIdentifier', 'guardrailVersion']);
             } else {
@@ -206,5 +239,3 @@ export const updateRequiredFields = (
             break;
     }
 };
-
-export const { model: modelToolsContent } = TOOLS_CONTENT;

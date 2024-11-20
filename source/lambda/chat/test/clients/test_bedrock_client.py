@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 import pytest
 from clients.bedrock_client import BedrockClient
+from langchain_core.prompts import ChatPromptTemplate
 from llms.bedrock import BedrockLLM
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from utils.constants import (
@@ -33,7 +34,7 @@ from utils.constants import (
 from utils.enum_types import KnowledgeBaseTypes
 
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 model_id = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
 
 table_name = "fake-table"
@@ -161,13 +162,14 @@ def test_construct_chat_model(
     llm_client = BedrockClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
     llm_client.get_model(chat_event_body[MESSAGE_KEY], "fake-user-id")
 
-    assert type(llm_client.builder.llm_model) == llm_type
-    assert llm_client.builder.llm_model.model == parsed_bedrock_config["LlmParams"]["BedrockLlmParams"]["ModelId"]
-    assert llm_client.builder.llm_model.model_params == {"maxTokenCount": 100, "topP": 0.3, "temperature": 0.2}
-    assert (
-        llm_client.builder.llm_model.prompt_template.template
-        == parsed_bedrock_config["LlmParams"]["PromptParams"]["PromptTemplate"]
+    assert type(llm_client.builder.llm) == llm_type
+    assert llm_client.builder.llm.model == parsed_bedrock_config["LlmParams"]["BedrockLlmParams"]["ModelId"]
+    assert llm_client.builder.llm.model_params == {"maxTokenCount": 100, "topP": 0.3, "temperature": 0.2}
+    from langchain_core.prompts import ChatPromptTemplate
+
+    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(
+        parsed_bedrock_config["LlmParams"]["PromptParams"]["PromptTemplate"]
     )
-    assert set(llm_client.builder.llm_model.prompt_template.input_variables) == set(placeholders)
-    assert llm_client.builder.llm_model.streaming == parsed_bedrock_config["LlmParams"]["Streaming"]
-    assert llm_client.builder.llm_model.verbose == parsed_bedrock_config["LlmParams"]["Verbose"]
+    assert set(llm_client.builder.llm.prompt_template.input_variables) == set(placeholders)
+    assert llm_client.builder.llm.streaming == parsed_bedrock_config["LlmParams"]["Streaming"]
+    assert llm_client.builder.llm.verbose == parsed_bedrock_config["LlmParams"]["Verbose"]

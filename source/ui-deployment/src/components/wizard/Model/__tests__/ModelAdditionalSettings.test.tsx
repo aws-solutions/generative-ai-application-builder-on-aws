@@ -15,6 +15,7 @@ import * as QueryHooks from 'hooks/useQueries';
 import ModelAdditionalSettings from '../ModelAdditionalSettings';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { cleanup, screen } from '@testing-library/react';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('ModelAdditionalSettings', () => {
     afterEach(() => {
@@ -49,7 +50,7 @@ describe('ModelAdditionalSettings', () => {
         };
         renderWithProvider(
             <ModelAdditionalSettings {...mockAdditionalSettingsProps} {...mockFormComponentCallbacks()} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
         expect(screen.getByTestId('model-additional-settings')).toBeDefined();
         expect(screen.getByTestId('model-streaming-field')).toBeDefined();

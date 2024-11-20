@@ -38,6 +38,7 @@ export const MIN_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 0;
 export const MAX_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 5;
 
 export const DELAY_AFTER_DELETE_MS = 2000; // 2 seconds
+export const DELAY_AFTER_SUCCESS_DEPLOYMENT = 2000; // 2 seconds
 
 export const DEFAULT_KENDRA_NUMBER_OF_DOCS = 2;
 export const DEFAULT_ADDITIONAL_KENDRA_QUERY_CAPACITY = 0;
@@ -78,6 +79,11 @@ export const DEPLOYMENT_ACTIONS = {
     EDIT: 'EDIT',
     CLONE: 'CLONE'
 };
+
+export enum USECASE_TYPES {
+    TEXT = 'Text',
+    AGENT = 'Agent'
+}
 
 export const deploymentActionText = {
     [DEPLOYMENT_ACTIONS.CREATE]: 'Deploy',
@@ -129,6 +135,7 @@ export const ERROR_MESSAGES = {
 
 const IG_ROOT = 'https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws';
 export const IG_DOCS = {
+    AGENT_USE_CASE: `${IG_ROOT}/agent-use-case-1.html`,
     BEDROCK_SECURITY: `https://docs.aws.amazon.com/bedrock/latest/userguide/security.html`,
     FOUNDATION_MODELS: `${IG_ROOT}/security-1.html#using-third-party-models-on-amazon-bedrock`,
     CHOOSING_LLMS: `${IG_ROOT}/use-the-solution.html#choosing-the-right-llm-for-your-use-case`,
@@ -150,6 +157,7 @@ export const IG_DOCS = {
     SAGEMAKER_CREATE_ENDPOINT: `https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html`,
     SAGEMAKER_USE: `${IG_ROOT}/configuring-an-llm#using-amazon-sagemaker-as-an-llm-provider`,
     TEXT_USE_CASE_API_SPEC: `${IG_ROOT}/api-reference.html#chat-use-case-2`,
+    AGENT_USE_CASE_API_SPEC: `${IG_ROOT}/api-reference.html#agent-use-case-2`,
     USING_UI: `${IG_ROOT}/use-the-solution.html#accessing-the-ui`,
     KENDRA_ATTRIBUTE_FILTER: `${IG_ROOT}/advanced-knowledge-base-settings.html`,
     BEDROCK_RETRIEVAL_FILTER: `${IG_ROOT}/advanced-knowledge-base-settings.html`,
@@ -161,3 +169,8 @@ export const LANDING_PAGE_URL =
 
 // used in api get requests to retrieve model defaults for providers such as sagemaker that doesn't require a model-id
 export const DEFAULT_MODEL_ID = 'default';
+
+export const USECASE_TYPE_ROUTE = {
+    TEXT: '/textUseCase',
+    AGENT: '/agentUseCase'
+};

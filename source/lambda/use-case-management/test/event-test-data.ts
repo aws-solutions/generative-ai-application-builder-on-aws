@@ -11,10 +11,115 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-import { CHAT_PROVIDERS, KnowledgeBaseTypes } from '../utils/constants';
+import { AUTHENTICATION_PROVIDERS, CHAT_PROVIDERS, KnowledgeBaseTypes } from '../utils/constants';
+
+export const createAgentUseCaseEvent = {
+    body: {
+        UseCaseType: 'Agent',
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        DeployUI: false,
+        AgentParams: {
+            BedrockAgentParams: {
+                AgentId: 'fake-agent-id',
+                AgentAliasId: 'fake-alias-id',
+                EnableTrace: true
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentUseCaseWithNewVpcEvent = {
+    body: {
+        UseCaseType: 'Agent',
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        AgentParams: {
+            BedrockAgentParams: {
+                AgentId: 'fake-agent-id',
+                AgentAliasId: 'fake-alias-id',
+                EnableTrace: true
+            }
+        },
+        VpcParams: {
+            VpcEnabled: true,
+            CreateNewVpc: true
+        },
+        requestContext: {
+            authorizer: {
+                UserId: 'fake-user-id'
+            }
+        }
+    }
+};
+
+export const createAgentUseCaseWithExistingVpcEvent = {
+    body: {
+        UseCaseType: 'Agent',
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        AgentParams: {
+            BedrockAgentParams: {
+                AgentId: 'fake-agent-id',
+                AgentAliasId: 'fake-alias-id',
+                EnableTrace: true
+            }
+        },
+        VpcParams: {
+            VpcEnabled: true,
+            CreateNewVpc: false,
+            ExistingVpcId: 'vpc-id',
+            ExistingPrivateSubnetIds: ['subnet-id-1', 'subnet-id-2'],
+            ExistingSecurityGroupIds: ['sg-id-1']
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentWithCognitoConfig = {
+    body: {
+        UseCaseType: 'Agent',
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        DeployUI: true,
+        AgentParams: {
+            BedrockAgentParams: {
+                AgentId: 'fake-agent-id',
+                AgentAliasId: 'fake-alias-id',
+                EnableTrace: false
+            }
+        },
+        AuthenticationParams: {
+            AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+            CognitoParams: {
+                ExistingUserPoolId: 'fake-user-pool-id',
+                ExistingUserPoolClientId: 'fake-user-pool-client-id'
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
 
 export const createUseCaseEvent = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
@@ -47,8 +152,44 @@ export const createUseCaseEvent = {
     }
 };
 
+export const createUseCaseEventInferenceProfile = {
+    body: {
+        UseCaseType: 'Text',
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        DeployUI: true,
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
+        KnowledgeBaseParams: {
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            NoDocsFoundResponse: 'No references were found',
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
+        },
+        LlmParams: {
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'InferenceProfileId': 'fakeprofile' },
+            ModelParams: { 'Param1': 'value1' },
+            Streaming: true,
+            RAGEnabled: true,
+            Temperature: 0.1,
+            PromptParams: {
+                PromptTemplate: 'Prompt1 {history} {context} {input}',
+                DisambiguationPromptTemplate: 'Prompt1 {history} {context} {input}'
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
 export const createUseCaseEventNonRag = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
@@ -74,6 +215,7 @@ export const createUseCaseEventNonRag = {
 
 export const createUseCaseEventBedrockKnowledgeBase = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
@@ -109,6 +251,7 @@ export const createUseCaseEventBedrockKnowledgeBase = {
 
 export const createUseCaseEventBedrockKnowledgeBaseNoOverride = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
@@ -144,6 +287,7 @@ export const createUseCaseEventBedrockKnowledgeBaseNoOverride = {
 
 export const createUseCaseEventNoPrompt = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
@@ -170,8 +314,44 @@ export const createUseCaseEventNoPrompt = {
     }
 };
 
+export const createUseCaseEventAuthenticationParams = {
+    body: {
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
+        KnowledgeBaseParams: {
+            KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+            NumberOfDocs: 5,
+            ReturnSourceDocs: false,
+            KendraKnowledgeBaseParams: { KendraIndexName: 'fake-index-name' }
+        },
+        LlmParams: {
+            ModelProvider: CHAT_PROVIDERS.BEDROCK,
+            BedrockLlmParams: { 'ModelId': 'fake-model' },
+            ModelParams: { 'Param1': 'value1' },
+            Streaming: true,
+            RAGEnabled: true,
+            Temperature: 0.1
+        },
+        AuthenticationParams: {
+            AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+            CognitoParams: {
+                ExistingUserPoolId: 'us-east-1_11111111111111111111',
+                ExistingUserPoolClientId: 'fake-client-id'
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
 export const createUseCaseEventVPC = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
@@ -201,6 +381,50 @@ export const createUseCaseEventVPC = {
             }
         }
     },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentUseCaseApiEvent = {
+    body: JSON.stringify(createAgentUseCaseEvent.body),
+    resource: '/deployments',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentUseCaseApiEventWithCognitoConfigEvent = {
+    body: JSON.stringify(createAgentWithCognitoConfig.body),
+    resource: '/deployments',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentUseCaseWithVpcApiEvent = {
+    body: JSON.stringify(createAgentUseCaseWithNewVpcEvent.body),
+    resource: '/deployments',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentUseCaseWithExistingVpcApiEvent = {
+    body: JSON.stringify(createAgentUseCaseWithExistingVpcEvent.body),
+    resource: '/deployments',
+    httpMethod: 'POST',
     requestContext: {
         authorizer: {
             UserId: 'fake-user-id'
@@ -265,6 +489,7 @@ export const createUseCaseApiEventVPC = {
 
 export const updateUseCaseEvent = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
@@ -300,6 +525,7 @@ export const updateUseCaseEvent = {
 
 export const updateUseCaseVPCEvent = {
     body: {
+        UseCaseType: 'Text',
         UseCaseName: 'fake-name',
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',

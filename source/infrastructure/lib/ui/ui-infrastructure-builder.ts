@@ -131,9 +131,13 @@ export class UIInfrastructureBuilder {
             return this.deployWebAppCondition;
         }
 
-        this.deployWebAppCondition = new cdk.CfnCondition(cdk.Stack.of(scope), 'DeployWebApp', {
-            expression: cdk.Fn.conditionEquals(this.deployWebApp, 'Yes')
-        });
+        this.deployWebAppCondition = new cdk.CfnCondition(
+            cdk.Stack.of(scope),
+            'DeployWebAppUIInfrastructureCondition',
+            {
+                expression: cdk.Fn.conditionEquals(this.deployWebApp, 'Yes')
+            }
+        );
         return this.deployWebAppCondition;
     }
 

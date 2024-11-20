@@ -105,9 +105,7 @@ const guardrailIdentifierInfoPanel = {
             <Box variant="p">
                 Pattern:{' '}
                 <code>
-                    {
-                        '^(([a-z0-9]+)|(arn:aws(-[^:]+)?:bedrock:[a-z0-9-]<span>{</span>1,20}:[0-9]<span>{</span>12}:guardrail/[a-z0-9]+))$'
-                    }
+                    {'^(([a-z0-9]+)|(arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}:[0-9]{12}:guardrail/[a-z0-9]+))$'}
                 </code>
             </Box>
         </div>

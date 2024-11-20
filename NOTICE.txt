@@ -21,6 +21,7 @@ This software includes third party software subject to the following copyrights:
 @aws-lambda-powertools/metrics                              MIT
 @aws-lambda-powertools/tracer                               MIT
 @aws-sdk/client-cloudformation                              Apache-2.0
+@aws-sdk/client-cognito-identity-provider                   Apache-2.0
 @aws-sdk/client-dynamodb                                    Apache-2.0
 @aws-sdk/client-kendra                                      Apache-2.0
 @aws-sdk/client-s3                                          Apache-2.0
@@ -39,18 +40,38 @@ This software includes third party software subject to the following copyrights:
 @aws-solutions-constructs/aws-wafwebacl-apigateway          Apache-2.0
 @aws-solutions-constructs/core                              Apache-2.0
 @babel/plugin-proposal-private-property-in-object           MIT
+@balena/dockerignore                                        Apache-2.0
 @cloudscape-design/code-view                                Apache-2.0
 @cloudscape-design/components                               Apache-2.0
 @cloudscape-design/global-styles                            Apache-2.0
 @middy/core                                                 MIT
+@rollup/rollup-android-arm-eabi                             MIT
+@rollup/rollup-android-arm64                                MIT
+@rollup/rollup-darwin-arm64                                 MIT
+@rollup/rollup-darwin-x64                                   MIT
+@rollup/rollup-linux-arm-gnueabihf                          MIT
+@rollup/rollup-linux-arm-musleabihf                         MIT
+@rollup/rollup-linux-arm64-gnu                              MIT
+@rollup/rollup-linux-arm64-musl                             MIT
+@rollup/rollup-linux-powerpc64le-gnu                        MIT
+@rollup/rollup-linux-riscv64-gnu                            MIT
+@rollup/rollup-linux-s390x-gnu                              MIT
+@rollup/rollup-linux-x64-gnu                                MIT
+@rollup/rollup-linux-x64-musl                               MIT
+@rollup/rollup-win32-arm64-msvc                             MIT
+@rollup/rollup-win32-ia32-msvc                              MIT
+@rollup/rollup-win32-x64-msvc                               MIT
 @smithy/types                                               Apache-2.0
 @tabler/icons-react                                         MIT
 @tailwindcss/typography                                     MIT
+@tanstack/react-query-devtools                              MIT
 @tanstack/react-query                                       MIT
 @tanstack/react-query-devtools                              MIT
 @testing-library/jest-dom                                   MIT
 @testing-library/react                                      MIT
 @testing-library/user-event                                 MIT
+@typescript-eslint/eslint-plugin                            MIT
+@typescript-eslint/parser                                   BSD-2-Clause
 @types/aws-lambda                                           MIT
 @types/jest                                                 MIT
 @types/lodash                                               MIT
@@ -73,9 +94,11 @@ aiohttp                                                     Apache-2.0
 aiosignal                                                   Apache-2.0
 annotated-types                                             MIT
 anyio                                                       MIT
+aproba                                                      ISC
+are-we-there-yet                                            ISC
+astral-regex                                                MIT
 async-timeout                                               Apache-2.0
 attrs                                                       MIT
-awscli                                                      Apache-2.0
 aws-amplify                                                 Apache-2.0
 aws-cdk-lib                                                 Apache-2.0
 aws-jwt-verify                                              Apache-2.0
@@ -83,34 +106,43 @@ aws-lambda-powertools==2.20.0                               MIT
 aws-sdk-client-mock                                         MIT
 aws-sdk-mock                                                Apache-2.0
 aws-xray-sdk==2.12.0                                        Apache-2.0
+awscli                                                      Apache-2.0
 axios                                                       MIT
 black                                                       MIT
 boolean.py                                                  BSD-2-Clause
 bootstrap                                                   MIT
 boto3                                                       Apache-2.0
 botocore                                                    Apache-2.0
-cdk                                                         Apache-2.0
+case                                                        MIT
 cdk-nag                                                     Apache-2.0
+cdk                                                         Apache-2.0
 certifi                                                     MPL 2.0
 cffi                                                        MIT
 charset-normalizer                                          MIT
 click                                                       BSD License (BSD-3-Clause)
+color-support                                               ISC
 colorama                                                    BSD License
+console-control-strings                                     ISC
 constructs                                                  Apache-2.0
 coverage                                                    Apache-2.0
 cryptography                                                Apache-2.0 OR BSD-3-Clause
-dataclasses                                                 Apache-2.0
 dataclasses-json                                            MIT
-docutils                                                    BSD License
+dataclasses                                                 Apache-2.0
+deep-diff                                                   MIT
 distro                                                      Apache-2.0
+docutils                                                    BSD License
 eslint                                                      MIT
 exceptiongroup                                              MIT
+fast-uri                                                    MIT
 filelock                                                    Unlicense
 freezegun                                                   Apache-2.0
 frozenlist                                                  Apache-2.0
+fs-extra                                                    MIT
 fsspec                                                      BSD
+gauge                                                       ISC
 greenlet                                                    MIT
 h11                                                         MIT
+has-unicode                                                 ISC
 httpcore                                                    BSD License (BSD)
 httpx                                                       BSD License
 identity-obj-proxy                                          MIT
@@ -119,23 +151,29 @@ importlib-metadata                                          Apache-2.0
 iniconfig                                                   MIT
 isort                                                       MIT
 jest                                                        MIT
+Jinja2                                                      BSD-3-Clause
 jmespath                                                    MIT
+json-schema-traverse                                        MIT
 jsonpatch                                                   BSD License
 jsonpath-ng                                                 Apache2.0
 jsonpointer                                                 BSD License
-langchain                                                   MIT
+jsonschema                                                  MIT
 langchain-aws                                               MIT
 langchain-core                                              MIT
 langchain-text-splitters                                    MIT
+langchain                                                   MIT
 langsmith                                                   MIT
 license-expression                                          Apache-2.0
+lodash.truncate                                             MIT
 lodash                                                      MIT
+MarkupSafe                                                  BSD-3-Clause
 marshmallow                                                 MIT
-mock                                                        BSD
 mock-fs                                                     MIT
+mock                                                        BSD
 moto                                                        Apache-2.0
 multidict                                                   Apache-2.0
 mypy-extensions                                             MIT
+nanoid                                                      MIT
 npmlog                                                      ISC
 numexpr                                                     MIT
 numpy                                                       BSD-3-Clause
@@ -148,32 +186,42 @@ pluggy                                                      MIT
 ply                                                         BSD
 portfinder                                                  MIT
 prettier                                                    MIT
+propcache                                                   Apache-2.0
 pyasn1                                                      BSD License (BSD-2-Clause)
 pycparser                                                   BSD
 pydantic                                                    MIT
 pydantic_core                                               MIT
-pytest                                                      MIT
 pytest-cov                                                  MIT
 pytest-env                                                  MIT
 pytest-mock                                                 MIT
+pytest                                                      MIT
 python-dateutil                                             Apache 2.0, BSD License
+PyYAML                                                      MIT
+react                                                       MIT
 react-bootstrap                                             MIT
 react-markdown                                              MIT
 react-router-dom                                            MIT
 react-scripts                                               MIT
 react-syntax-highlighter                                    MIT
 react-test-renderer                                         MIT
+rehype-external-links                                       MIT
 remark-gfm                                                  MIT
 remark-math                                                 MIT
 rehype-external-links                                       MIT
+requests-toolbelt                                           Apache-2.0
 requests                                                    Apache-2.0
+require-from-string                                         MIT
 responses                                                   Apache-2.0
+rollup                                                      MIT
 rsa                                                         Apache-2.0
 s3transfer                                                  Apache-2.0
 setuptools                                                  MIT
 six                                                         MIT
+slice-ansi                                                  MIT
 sniffio                                                     MIT OR Apache-2.0
 source-map-support                                          MIT
+SQLAlchemy                                                  MIT
+table                                                       BSD-3-Clause
 tailwindcss                                                 MIT
 tenacity                                                    Apache-2.0
 tokenizers                                                  Apache-2.0
@@ -187,7 +235,24 @@ typing-inspect                                              MIT
 typing_extensions                                           Python 2.0
 urllib3                                                     MIT
 uuid                                                        MIT
+Werkzeug                                                    BSD-3-Clause
+wide-align                                                  ISC
 wrapt                                                       BSD License
 xmltodict                                                   MIT
+PyYAML                                                      ISC
 yarl                                                        Apache-2.0
 zipp                                                        MIT
+
+
+********************
+OPEN SOURCE LICENSES
+********************
+
+Apache-2.0 - https://spdx.org/licenses/Apache-2.0.html
+BSD-2-Clause - https://spdx.org/licenses/BSD-2-Clause.html
+BSD-3-Clause - https://spdx.org/licenses/BSD-3-Clause.html
+ISC - https://spdx.org/licenses/ISC.html
+MIT - https://spdx.org/licenses/MIT.html
+MPL-2.0 - https://spdx.org/licenses/MPL-2.0.html
+Python-2.0 - https://spdx.org/licenses/Python-2.0.html
+Unlicense - https://spdx.org/licenses/Unlicense.html

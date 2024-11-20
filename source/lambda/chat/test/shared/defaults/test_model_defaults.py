@@ -18,7 +18,7 @@ from utils.constants import CHAT_IDENTIFIER, RAG_CHAT_IDENTIFIER
 from utils.enum_types import LLMProviderTypes
 
 PROMPT = """\n\n{history}\n\n{input}"""
-RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 MEMORY_CONFIG = {
     CHAT_IDENTIFIER: {
         "history": "history",
@@ -26,18 +26,18 @@ MEMORY_CONFIG = {
         "context": None,
         "ai_prefix": "Bot",
         "human_prefix": "User",
-        "output": None,
+        "output": "answer",
     },
     RAG_CHAT_IDENTIFIER: {
-        "history": "chat_history",
-        "input": "question",
+        "history": "history",
+        "input": "input",
         "context": "context",
         "ai_prefix": "Bot",
         "human_prefix": "User",
         "output": "answer",
     },
 }
-DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:"""
+DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
 
 
 @pytest.mark.parametrize(

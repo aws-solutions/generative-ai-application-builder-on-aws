@@ -12,13 +12,12 @@
 #  and limitations under the License.                                                                                #
 ######################################################################################################################
 
-import json
 import os
 from copy import deepcopy
 
 import pytest
 from clients.factories.conversation_memory_factory import ConversationMemoryFactory
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
+from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR
 
 TEST_PROMPT = """\n\n{history}\n\n{input}"""
@@ -44,14 +43,18 @@ def test_get_ddb_memory_success(bedrock_llm_config, model_id, dynamodb_resource,
     config = bedrock_llm_config
     if history_length is None:
         del config["ConversationMemoryParams"]["ChatHistoryLength"]
-    response = ConversationMemoryFactory().get_conversation_memory(
+    memory_type, memory_inputs = ConversationMemoryFactory().get_conversation_memory(
         config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", []
     )
-    assert type(response) == DynamoDBChatMemory
-    assert response.chat_memory.user_id == "fake-user-id"
-    assert response.chat_memory.conversation_id == "fake-conversation-id"
-    assert response.chat_memory.table == dynamodb_resource.Table(os.environ[CONVERSATION_TABLE_NAME_ENV_VAR])
-    assert response.chat_memory.max_history_length == history_length
+    assert memory_type == DynamoDBChatMessageHistory
+    assert memory_inputs == {
+        "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
+        "user_id": "fake-user-id",
+        "conversation_id": "fake-conversation-id",
+        "max_history_length": history_length,
+        "ai_prefix": "A",
+        "human_prefix": "H",
+    }
 
 
 @pytest.mark.parametrize(

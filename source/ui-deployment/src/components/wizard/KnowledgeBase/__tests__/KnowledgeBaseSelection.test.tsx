@@ -15,6 +15,7 @@ import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { screen } from '@testing-library/react';
 import KnowledgeBaseSelection from '../KnowledgeBaseSelection';
 import { KNOWLEDGE_BASE_TYPES } from '../../steps-config';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('KnowledgeBaseSelection', () => {
     afterEach(() => {
@@ -27,7 +28,7 @@ describe('KnowledgeBaseSelection', () => {
         };
         renderWithProvider(
             <KnowledgeBaseSelection {...mockFormComponentCallbacks()} knowledgeBaseData={mockKnowledgeBaseData} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
         expect(screen.getByTestId('kendra-container')).toBeDefined();
     });
@@ -38,7 +39,7 @@ describe('KnowledgeBaseSelection', () => {
         };
         renderWithProvider(
             <KnowledgeBaseSelection {...mockFormComponentCallbacks()} knowledgeBaseData={mockKnowledgeBaseData} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
         expect(screen.getByTestId('bedrock-knowledgebase-container')).toBeDefined();
     });

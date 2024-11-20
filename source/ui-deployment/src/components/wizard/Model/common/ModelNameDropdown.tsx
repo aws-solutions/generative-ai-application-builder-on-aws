@@ -12,14 +12,14 @@
  **********************************************************************************************************************/
 
 import React from 'react';
-import { FormField, Select, SelectProps } from '@cloudscape-design/components';
-import { TOOLS_CONTENT } from '../../tools-content';
+import { Alert, Box, FormField, Link, Select, SelectProps, SpaceBetween } from '@cloudscape-design/components';
 import { InfoLink } from '../../../commons/common-components';
 
 import { ModelNameOption } from '../../interfaces';
 import { formatModelNamesList } from '../helpers';
 import { DropdownStatusProps } from '@cloudscape-design/components/internal/components/dropdown-status';
 import { useModelNameQuery } from 'hooks/useQueries';
+import { IG_DOCS } from '@/utils/constants';
 
 export interface ModelNameDropdownProps {
     modelData: any;
@@ -28,8 +28,6 @@ export interface ModelNameDropdownProps {
     onChangeFn: (e: any) => void;
     setHelpPanelContent?: (e: any) => void;
 }
-
-const { model: modelToolsContent } = TOOLS_CONTENT;
 
 export const ModelNameDropdown = (props: ModelNameDropdownProps) => {
     const [options, setOptions] = React.useState<SelectProps.Option[]>([]);
@@ -92,7 +90,7 @@ export const ModelNameDropdown = (props: ModelNameDropdownProps) => {
             label={props.modelNameFormLabel ?? 'Model name*'}
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(modelToolsContent.modelName)}
+                    onFollow={() => props.setHelpPanelContent!(modelNameInfoPanel)}
                     ariaLabel={'Information about model name.'}
                 />
             }
@@ -102,19 +100,84 @@ export const ModelNameDropdown = (props: ModelNameDropdownProps) => {
             }
             data-testid="model-name-dropdown"
         >
-            <Select
-                selectedAriaLabel="Selected"
-                placeholder="select model..."
-                options={options}
-                onChange={({ detail }) => onModelNameChange(detail)}
-                selectedOption={modelNameSelectedOption}
-                disabled={isDisabled}
-                data-testid="model-name-dropdown-select"
-                loadingText="fetching models name..."
-                onLoadItems={handleLoadItems}
-                statusType={status}
-                errorText="Error fetching model names"
-            />
+            <SpaceBetween size="xs">
+                <Select
+                    selectedAriaLabel="Selected"
+                    placeholder="select model..."
+                    options={options}
+                    onChange={({ detail }) => onModelNameChange(detail)}
+                    selectedOption={modelNameSelectedOption}
+                    disabled={isDisabled}
+                    data-testid="model-name-dropdown-select"
+                    loadingText="fetching models name..."
+                    onLoadItems={handleLoadItems}
+                    statusType={status}
+                    errorText="Error fetching model names"
+                />
+                <Alert>
+                    For the selected model, please review the below information
+                    <ul>
+                        <li>
+                            <Box variant="p">
+                                You have enabled "Model Access" in the{' '}
+                                <Link
+                                    external={false}
+                                    href={`https://console.aws.amazon.com/bedrock/home`}
+                                    target="_blank"
+                                    data-testid="bedrock-console-link"
+                                >
+                                    Amazon Bedrock console
+                                </Link>
+                                .
+                            </Box>
+                        </li>
+                        <li>
+                            <Box variant="p">
+                                The model is available in the AWS region where the use case is being deployed.
+                            </Box>
+                        </li>
+                        <li>
+                            <Box variant="p">
+                                If Amazon Bedrock mandates the use of Amazon Bedrock inference profiles for model
+                                invocation.
+                            </Box>
+                        </li>
+                    </ul>
+                </Alert>
+            </SpaceBetween>
         </FormField>
     );
+};
+
+//INFO PANELS CONTENT
+const modelNameInfoPanel = {
+    title: 'Model name',
+    content: (
+        <div>
+            <Box variant="p">Select the name of the model from the model provider to use for this deployment.</Box>
+
+            <Box variant="p">
+                If using Amazon Bedrock, work with your DevOps administrator to ensure model access has been configured
+                in the AWS account before attempting to deploy a model from this list.
+            </Box>
+        </div>
+    ),
+    links: [
+        {
+            href: IG_DOCS.SUPPORTED_LLMS,
+            text: 'Supported Models'
+        },
+        {
+            href: IG_DOCS.CHOOSING_LLMS,
+            text: 'Choosing the right LLM'
+        },
+        {
+            href: 'https://docs.aws.amazon.com/bedrock/latest/userguide/model-access.html',
+            text: 'Amazon Bedrock - How to enable model access'
+        },
+        {
+            href: IG_DOCS.CONCEPTS,
+            text: 'Concepts and Definitions - DevOps user'
+        }
+    ]
 };

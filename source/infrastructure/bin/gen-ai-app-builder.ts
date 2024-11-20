@@ -15,6 +15,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import * as crypto from 'crypto';
+import { BedrockAgent } from '../lib/bedrock-agent-stack';
 import { BedrockChat } from '../lib/bedrock-chat-stack';
 import { DeploymentPlatformStack } from '../lib/deployment-platform-stack';
 import { BaseStack, BaseStackProps } from '../lib/framework/base-stack';
@@ -31,7 +32,7 @@ const applicationType = app.node.tryGetContext('application_type');
 const applicationName = app.node.tryGetContext('app_registry_name');
 const applicationTrademarkName = app.node.tryGetContext('application_trademark_name');
 
-const stackList: (typeof BaseStack)[] = [BedrockChat, SageMakerChat];
+const stackList: (typeof BaseStack)[] = [BedrockChat, SageMakerChat, BedrockAgent];
 
 for (const stack of stackList) {
     createStack(stack, undefined, true);

@@ -24,6 +24,7 @@ import { DEFAULT_STEP_INFO, KNOWLEDGE_BASE_PROVIDERS, WIZARD_PAGE_INDEX } from '
 import JsonCodeView from '@/components/commons/json-code-view';
 import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
 import { scoreToKendraMapping } from '../KnowledgeBase/helpers';
+import { getBooleanString } from '../utils';
 
 interface KnowledgeBaseReviewProps extends ReviewSectionProps {
     knowledgeBaseData: any;
@@ -60,7 +61,7 @@ export const KnowledgeBaseReview = (props: KnowledgeBaseReviewProps) => {
                             <Box variant="awsui-key-label">
                                 Do you want to enable Retrieval Augmented Generation (RAG) for this use case?
                             </Box>
-                            <div>{props.knowledgeBaseData.isRagRequired ? 'Yes' : 'No'}</div>
+                            <div>{getBooleanString(props.knowledgeBaseData.isRagRequired)}</div>
                         </div>
                     </ColumnLayout>
                 </Container>
@@ -72,7 +73,7 @@ export const KnowledgeBaseReview = (props: KnowledgeBaseReviewProps) => {
                             </Header>
                         }
                         footer={
-                            props.knowledgeBaseData.existingKendraIndex === 'no' && (
+                            props.knowledgeBaseData.existingKendraIndex === 'No' && (
                                 <Box>
                                     {
                                         <ExpandableSection headerText="Additional options" variant="footer">
@@ -107,13 +108,13 @@ export const KnowledgeBaseReview = (props: KnowledgeBaseReviewProps) => {
                                         {props.knowledgeBaseData.existingKendraIndex}
                                     </ValueWithLabel>
 
-                                    {props.knowledgeBaseData.existingKendraIndex === 'yes' && (
+                                    {props.knowledgeBaseData.existingKendraIndex === 'Yes' && (
                                         <ValueWithLabel label="Kendra index ID">
                                             {props.knowledgeBaseData.kendraIndexId}
                                         </ValueWithLabel>
                                     )}
 
-                                    {props.knowledgeBaseData.existingKendraIndex === 'no' && (
+                                    {props.knowledgeBaseData.existingKendraIndex === 'No' && (
                                         <ValueWithLabel label="New Kendra index name">
                                             {props.knowledgeBaseData.kendraIndexName}
                                         </ValueWithLabel>
@@ -159,11 +160,11 @@ export const KnowledgeBaseReview = (props: KnowledgeBaseReviewProps) => {
                             </ValueWithLabel>
 
                             <ValueWithLabel label="Display document source">
-                                {props.knowledgeBaseData.returnDocumentSource ? 'Yes' : 'No'}
+                                {getBooleanString(props.knowledgeBaseData.returnDocumentSource)}
                             </ValueWithLabel>
 
                             <ValueWithLabel label="Role based access control enabled?">
-                                {props.knowledgeBaseData.enableRoleBasedAccessControl ? 'Yes' : 'No'}
+                                {getBooleanString(props.knowledgeBaseData.enableRoleBasedAccessControl)}
                             </ValueWithLabel>
 
                             {props.knowledgeBaseData.bedrockOverrideSearchType && (

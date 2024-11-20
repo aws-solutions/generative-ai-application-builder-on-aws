@@ -1,6 +1,20 @@
+/**********************************************************************************************************************
+ *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                *
+ *                                                                                                                    *
+ *  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    *
+ *  with the License. A copy of the License is located at                                                             *
+ *                                                                                                                    *
+ *      http://www.apache.org/licenses/LICENSE-2.0                                                                    *
+ *                                                                                                                    *
+ *  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES *
+ *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
+ *  and limitations under the License.                                                                                *
+ *********************************************************************************************************************/
+
 import { Box, ColumnLayout, SpaceBetween } from '@cloudscape-design/components';
 import { ValueWithLabel, escapedNewLineToLineBreakTag } from './common-components';
 import { useComponentId } from '../commons/use-component-id';
+import { getBooleanString } from '../wizard/utils';
 
 export interface PromptDetailsProps {
     selectedDeployment: any;
@@ -48,7 +62,7 @@ const generatePromptExperienceContent = (selectedDeployment: any) => {
                 {selectedDeployment.LlmParams.PromptParams.MaxInputTextLength}
             </ValueWithLabel>
             <ValueWithLabel label="Prompt editable on Chat UI">
-                {selectedDeployment.LlmParams.PromptParams.UserPromptEditingEnabled ? 'Yes' : 'No'}
+                {getBooleanString(selectedDeployment.LlmParams.PromptParams.UserPromptEditingEnabled)}
             </ValueWithLabel>
             <ValueWithLabel label="Prompt template">
                 <Box variant="code">
@@ -61,7 +75,7 @@ const generatePromptExperienceContent = (selectedDeployment: any) => {
             {selectedDeployment.LlmParams.RAGEnabled &&
                 selectedDeployment.LlmParams.PromptParams.DisambiguationEnabled && (
                     <ValueWithLabel label="Rephrase Question?">
-                        {selectedDeployment.LlmParams.PromptParams.RephraseQuestion ? 'Yes' : 'No'}
+                        {getBooleanString(selectedDeployment.LlmParams.PromptParams.RephraseQuestion)}
                     </ValueWithLabel>
                 )}
         </SpaceBetween>
@@ -92,7 +106,7 @@ const generateDisambiguationPromptContent = (selectedDeployment: any) => {
                 Disambiguation Prompt
             </Box>
             <ValueWithLabel label="Disambiguation enabled">
-                {selectedDeployment.LlmParams.PromptParams.DisambiguationEnabled ? 'Yes' : 'No'}
+                {getBooleanString(selectedDeployment.LlmParams.PromptParams.DisambiguationEnabled)}
             </ValueWithLabel>
             {selectedDeployment.LlmParams.PromptParams.DisambiguationEnabled && (
                 <ValueWithLabel label="Disambiguation prompt template">

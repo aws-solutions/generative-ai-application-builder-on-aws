@@ -12,10 +12,7 @@
  *********************************************************************************************************************/
 
 module.exports = {
-    modulePaths: [
-        '<rootDir>/../layers/',
-        '<rootDir>/../layers/aws-sdk-lib/node_modules/',
-    ],
+    modulePaths: ['<rootDir>/../layers/', '<rootDir>/../layers/aws-sdk-lib/node_modules/'],
     testMatch: ['**/*.test.ts'],
     setupFiles: ['./test/jest-environment-variables.ts'],
     modulePathIgnorePatterns: ['<rootDir>/dist/'],

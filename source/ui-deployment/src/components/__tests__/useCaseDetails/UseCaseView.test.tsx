@@ -27,12 +27,17 @@ import {
     baseMock,
     selectedRAGEnabledWithKendra,
     selectedRAGEnabledWithBedrock,
-    selectedSageMakerProvider
+    selectedSageMakerProvider,
+    agentMock
 } from '../__mocks__/mock-context-variants.js';
 
 import { createCfnLink } from '../../commons/table-config';
 import { mockReactMarkdown, renderWithProvider } from '@/utils';
 import { act } from 'react-test-renderer';
+import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
+import { createAgentLink } from '@/components/useCaseDetails/AgentDetails';
+import { createVpcLink } from '@/components/useCaseDetails/common-components';
 
 describe('UseCaseView', () => {
     let WizardView: any;
@@ -84,6 +89,31 @@ describe('UseCaseView', () => {
         expect(openCfnLinkButton).toBeDefined();
         expect(openCfnLinkButton?.getElement().getAttribute('href')).toEqual(
             createCfnLink(baseMock.selectedDeployment.StackId)
+        );
+    });
+
+    test('General config container is rendered with VPC ID link', async () => {
+        baseMock.selectedDeployment.vpcEnabled = 'Yes';
+        baseMock.selectedDeployment.vpcId = 'vpc-fakeVpc';
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details' });
+
+        const element = screen.getByTestId('use-case-view');
+        expect(element).toBeDefined();
+        const vpcLink = screen.getByTestId('vpc-link-with-modal');
+        expect(vpcLink).toBeDefined();
+
+        createWrapper(vpcLink).findLink()?.click();
+
+        const externalLinkWarningModal = screen.getByTestId('external-link-warning-modal');
+        expect(externalLinkWarningModal).toBeDefined();
+
+        const openVpcLinkButton = createWrapper(externalLinkWarningModal).findButton(
+            '[data-testid="external-link-warning-modal-open-button"]'
+        );
+
+        expect(openVpcLinkButton).toBeDefined();
+        expect(openVpcLinkButton?.getElement().getAttribute('href')).toEqual(
+            createVpcLink(baseMock.runtimeConfig.AwsRegion, baseMock.selectedDeployment.vpcId)
         );
     });
 
@@ -165,6 +195,31 @@ describe('UseCaseView', () => {
         const kbSettingsTab = screen.getByTestId('kb-settings-tab');
         expect(kbSettingsTab).toBeDefined();
     });
+
+    test('Agent details tab is rendered for agent use case', async () => {
+        renderWithProvider(<UseCaseView />, { customState: agentMock, route: '/deployment-details' });
+
+        const element = screen.getByTestId('use-case-view');
+        expect(element).toBeDefined();
+
+        const modelTab = screen.getByTestId('agent-details-tab');
+        expect(modelTab).toBeDefined();
+
+        createWrapper(screen.getByTestId('agent-link-with-modal')).findLink()?.click();
+        const externalLinkWarningModal = screen.getByTestId('external-link-warning-modal');
+        expect(externalLinkWarningModal).toBeDefined();
+        const openAgentLinkButton = createWrapper(externalLinkWarningModal).findButton(
+            '[data-testid="external-link-warning-modal-open-button"]'
+        );
+
+        expect(openAgentLinkButton).toBeDefined();
+        expect(openAgentLinkButton?.getElement().getAttribute('href')).toEqual(
+            createAgentLink(
+                baseMock.selectedDeployment.StackId,
+                baseMock.selectedDeployment.AgentParams.BedrockAgentParams.AgentId
+            )
+        );
+    });
 });
 
 describe('Navigating to edit/clone from UseCaseView', () => {
@@ -185,7 +240,10 @@ describe('Navigating to edit/clone from UseCaseView', () => {
                 <MemoryRouter initialEntries={['/deployment-details']}>
                     <Routes>
                         <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route path="/wizardView" element={<WizardView />} />
+                        <Route
+                            path={USECASE_TYPE_ROUTE.TEXT}
+                            element={<WizardView useCase={new TextUseCaseType()} />}
+                        />
                     </Routes>
                 </MemoryRouter>
             </HomeContext.Provider>
@@ -215,7 +273,10 @@ describe('Navigating to edit/clone from UseCaseView', () => {
                 <MemoryRouter initialEntries={['/deployment-details']}>
                     <Routes>
                         <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route path="/wizardView" element={<WizardView />} />
+                        <Route
+                            path={USECASE_TYPE_ROUTE.TEXT}
+                            element={<WizardView useCase={new TextUseCaseType()} />}
+                        />
                     </Routes>
                 </MemoryRouter>
             </HomeContext.Provider>

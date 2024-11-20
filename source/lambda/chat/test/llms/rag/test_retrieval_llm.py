@@ -15,58 +15,93 @@
 from unittest import mock
 
 import pytest
-from langchain.chains import ConversationalRetrievalChain
-from langchain_core.prompts import PromptTemplate
+from langchain_core.documents import Document
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables.base import RunnableBinding
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
+    CONTEXT_KEY,
     DEFAULT_PROMPT_PLACEHOLDERS,
     DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     DEFAULT_REPHRASE_RAG_QUESTION,
     DISAMBIGUATION_PROMPT_PLACEHOLDERS,
+    OUTPUT_KEY,
     RAG_CHAT_IDENTIFIER,
-    SOURCE_DOCUMENTS_KEY,
+    REPHRASED_QUERY_KEY,
+    SOURCE_DOCUMENTS_OUTPUT_KEY,
 )
-from utils.enum_types import BedrockModelProviders
+from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
-BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
-DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
-TAGS_REPLACED_DISAMBIGUATION_PROMPT = DISAMBIGUATION_PROMPT.replace("{input}", "{question}").replace(
-    "{history}", "{chat_history}"
-)
-RESPONSE_IF_NO_DOCS_FOUND = "Sorry, the model cannot respond to your questions due to admin enforced constraints."
-
-RAG_ENABLED = False
+RAG_ENABLED = True
 model_id = "amazon.fake-model"
-provider_name = "Bedrock"
+model_provider = LLMProviderTypes.BEDROCK.value
+BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+DISAMBIGUATION_PROMPT_TEMPLATE = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
+RESPONSE_IF_NO_DOCS_FOUND = "Sorry, the model cannot respond to your questions due to admin enforced constraints."
+MOCKED_SOURCE_DOCS = [
+    Document(**{"page_content": "some-content-1", "metadata": {"source": "https://fake-url-1.com"}}),
+    Document(**{"page_content": "some-content-2", "metadata": {"source": "https://fake-url-2.com"}}),
+]
+MOCKED_SOURCE_DOCS_DICT = [
+    {
+        "excerpt": None,
+        "location": "https://fake-url-1.com",
+        "score": None,
+        "document_title": None,
+        "document_id": None,
+        "additional_attributes": None,
+    },
+    {
+        "excerpt": None,
+        "location": "https://fake-url-2.com",
+        "score": None,
+        "document_title": None,
+        "document_id": None,
+        "additional_attributes": None,
+    },
+]
 
 
 @pytest.fixture
-def llm_params(disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found):
+def model_inputs(disambiguation_enabled, disambiguation_prompt, return_source_docs, response_if_no_docs_found):
     return BedrockInputs(
         **{
-            "conversation_memory": DynamoDBChatMemory(
-                DynamoDBChatMessageHistory(
-                    table_name="fake-table", user_id="fake-user-id", conversation_id="fake-conversation-id"
-                )
+            "conversation_history_cls": DynamoDBChatMessageHistory,
+            "conversation_history_params": {
+                "table_name": "fake-table",
+                "user_id": "fake-user-id",
+                "conversation_id": "fake-conversation-id",
+            },
+            "rag_enabled": RAG_ENABLED,
+            "knowledge_base": KendraKnowledgeBase(
+                {
+                    "NumberOfDocs": 2,
+                    "AttributeFilter": {
+                        "AndAllFilters": [
+                            {"EqualsTo": {"Key": "user_id", "Value": {"StringValue": "12345"}}},
+                        ]
+                    },
+                    "UserContext": None,
+                }
             ),
-            "knowledge_base": None,
             "model": "amazon.fake-model",
+            "model_family": BedrockModelProviders.AMAZON.value,
             "model_params": {
                 "topP": {"Type": "float", "Value": "0.9"},
                 "maxTokenCount": {"Type": "integer", "Value": "200"},
             },
-            "prompt_template": BEDROCK_PROMPT,
+            "prompt_template": BEDROCK_RAG_PROMPT,
             "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
-            "rephrase_question": DEFAULT_REPHRASE_RAG_QUESTION,
             "disambiguation_prompt_template": disambiguation_prompt,
             "disambiguation_prompt_enabled": disambiguation_enabled,
+            "rephrase_question": DEFAULT_REPHRASE_RAG_QUESTION,
             "response_if_no_docs_found": response_if_no_docs_found,
+            "return_source_docs": return_source_docs,
             "streaming": False,
             "verbose": False,
             "temperature": 0.25,
@@ -80,7 +115,7 @@ def rag_chat(
     use_case,
     model_id,
     disambiguation_prompt,
-    llm_params,
+    model_inputs,
     prompt,
     is_streaming,
     setup_environment,
@@ -89,24 +124,10 @@ def rag_chat(
     bedrock_dynamodb_defaults_table,
     disambiguation_enabled,
 ):
-    llm_params.knowledge_base = KendraKnowledgeBase(
-        {
-            "NumberOfDocs": 2,
-            "ReturnSourceDocs": return_source_docs,
-            "AttributeFilter": {
-                "AndAllFilters": [
-                    {"EqualsTo": {"Key": "user_id", "Value": {"StringValue": "12345"}}},
-                ]
-            },
-            "UserContext": None,
-        }
-    )
-    llm_params.streaming = is_streaming
+    model_inputs.streaming = is_streaming
     chat = BedrockRetrievalLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-        model_family=BedrockModelProviders.AMAZON,
-        return_source_docs=return_source_docs,
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(model_provider, model_id, rag_enabled),
     )
     yield chat
 
@@ -124,7 +145,7 @@ def rag_chat(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            TAGS_REPLACED_DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             None,
         ),
         (
@@ -136,7 +157,7 @@ def rag_chat(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            TAGS_REPLACED_DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             None,
         ),
         (
@@ -148,7 +169,7 @@ def rag_chat(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            TAGS_REPLACED_DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             None,
         ),
         (
@@ -160,7 +181,7 @@ def rag_chat(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            TAGS_REPLACED_DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             None,
         ),
         (
@@ -173,7 +194,7 @@ def rag_chat(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            TAGS_REPLACED_DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             RESPONSE_IF_NO_DOCS_FOUND,
         ),
         # Disambiguation disabled
@@ -198,27 +219,33 @@ def test_implement_error_not_raised(
     disambiguation_enabled,
     response_if_no_docs_found,
 ):
-    chat_model = request.getfixturevalue(chat_fixture)
+    chat = request.getfixturevalue(chat_fixture)
     try:
-        assert chat_model.model == model_id
-        assert chat_model.prompt_template.template == BEDROCK_RAG_PROMPT
-        assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
-        assert chat_model.model_params == {"temperature": 0.25, "maxTokenCount": 200, "topP": 0.9}
-        assert chat_model.streaming == is_streaming
-        assert chat_model.verbose == False
-        assert chat_model.knowledge_base.kendra_index_id == "fake-kendra-index-id"
-        assert chat_model.conversation_memory.chat_memory.messages == []
+        assert chat.model == model_id
+        assert chat.model_arn is None
+        assert chat.conversation_history_cls == DynamoDBChatMessageHistory
+        assert chat.conversation_history_params == {
+            "table_name": "fake-table",
+            "user_id": "fake-user-id",
+            "conversation_id": "fake-conversation-id",
+        }
+        assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
+        assert set(chat.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
+        assert chat.model_params == {"temperature": 0.25, "maxTokenCount": 200, "topP": 0.9}
+        assert chat.streaming == is_streaming
+        assert chat.verbose == False
+        assert chat.knowledge_base.kendra_index_id == "fake-kendra-index-id"
         if disambiguation_enabled:
-            assert chat_model.disambiguation_prompt_template == PromptTemplate.from_template(disambiguation_prompt)
+            assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(disambiguation_prompt)
         else:
-            assert chat_model.disambiguation_prompt_template is disambiguation_prompt
-        assert chat_model.return_source_docs == return_source_docs
+            assert chat.disambiguation_prompt_template is disambiguation_prompt
+        assert chat.return_source_docs == return_source_docs
 
         if response_if_no_docs_found is not None:
-            assert chat_model.response_if_no_docs_found == response_if_no_docs_found
+            assert chat.response_if_no_docs_found == response_if_no_docs_found
 
-        assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
-        assert type(chat_model.conversation_memory) == DynamoDBChatMemory
+        runnable_type = RunnableBinding if is_streaming else RunnableWithMessageHistory
+        assert type(chat.runnable_with_history) == runnable_type
     except NotImplementedError as ex:
         raise Exception(ex)
 
@@ -236,13 +263,12 @@ def test_implement_error_not_raised(
             model_id,
             "rag_chat",
             {
-                "answer": "some answer based on context",
+                OUTPUT_KEY: "some answer based on context",
+                REPHRASED_QUERY_KEY: "rephrased query",
                 "other_fields": {"some_field": "some_value"},
             },
-            {
-                "answer": "some answer based on context",
-            },
-            DISAMBIGUATION_PROMPT,
+            {OUTPUT_KEY: "some answer based on context", REPHRASED_QUERY_KEY: "rephrased query"},
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             None,
         ),
         (
@@ -254,129 +280,9 @@ def test_implement_error_not_raised(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            {"answer": "some answer based on context"},
-            {"answer": "some answer based on context"},
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            False,
-            True,
-            True,
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            model_id,
-            "rag_chat",
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-                "other_fields": {"some_field": "some_value"},
-            },
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-            },
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            True,
-            True,
-            True,
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            model_id,
-            "rag_chat",
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-                "other_fields": {"some_field": "some_value"},
-            },
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-            },
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            False,
-            False,
-            False,
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            model_id,
-            "rag_chat",
-            {
-                "answer": "some answer based on context",
-                "other_fields": {"some_field": "some_value"},
-            },
-            {
-                "answer": "some answer based on context",
-            },
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            True,
-            False,
-            False,
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            model_id,
-            "rag_chat",
-            {
-                "answer": "some answer based on context",
-                "other_fields": {"some_field": "some_value"},
-            },
-            {"answer": "some answer based on context"},
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            False,
-            True,
-            False,
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            model_id,
-            "rag_chat",
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-                "other_fields": {"some_field": "some_value"},
-            },
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-            },
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            True,
-            True,
-            False,
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            model_id,
-            "rag_chat",
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-                "other_fields": {"some_field": "some_value"},
-            },
-            {
-                "answer": "some answer based on context",
-                "source_documents": [{"page_content": "some-content-1"}, {"page_content": "some-content-2"}],
-            },
-            DISAMBIGUATION_PROMPT,
+            {OUTPUT_KEY: "some answer based on context", REPHRASED_QUERY_KEY: "rephrased query"},
+            {OUTPUT_KEY: "some answer based on context", REPHRASED_QUERY_KEY: "rephrased query"},
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             None,
         ),
         (
@@ -389,15 +295,141 @@ def test_implement_error_not_raised(
             model_id,
             "rag_chat",
             {
-                "answer": RESPONSE_IF_NO_DOCS_FOUND,
+                OUTPUT_KEY: "some answer based on context",
+                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                REPHRASED_QUERY_KEY: "rephrased query",
                 "other_fields": {"some_field": "some_value"},
-                "source_documents": [],
             },
             {
-                "answer": RESPONSE_IF_NO_DOCS_FOUND,
-                "source_documents": [],
+                OUTPUT_KEY: "some answer based on context",
+                SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
-            DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
+            None,
+        ),
+        (
+            True,
+            True,
+            True,
+            True,
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            model_id,
+            "rag_chat",
+            {
+                OUTPUT_KEY: "some answer based on context",
+                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                REPHRASED_QUERY_KEY: "rephrased query",
+                "other_fields": {"some_field": "some_value"},
+            },
+            {
+                OUTPUT_KEY: "some answer based on context",
+                SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
+                REPHRASED_QUERY_KEY: "rephrased query",
+            },
+            DISAMBIGUATION_PROMPT_TEMPLATE,
+            None,
+        ),
+        (
+            True,
+            False,
+            False,
+            False,
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            model_id,
+            "rag_chat",
+            {
+                OUTPUT_KEY: "some answer based on context",
+                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                "other_fields": {"some_field": "some_value"},
+            },
+            {OUTPUT_KEY: "some answer based on context"},
+            None,
+            None,
+        ),
+        (
+            True,
+            True,
+            False,
+            False,
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            model_id,
+            "rag_chat",
+            {
+                OUTPUT_KEY: "some answer based on context",
+                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                "other_fields": {"some_field": "some_value"},
+            },
+            {OUTPUT_KEY: "some answer based on context"},
+            None,
+            None,
+        ),
+        (
+            True,
+            False,
+            True,
+            False,
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            model_id,
+            "rag_chat",
+            {
+                OUTPUT_KEY: "some answer based on context",
+                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                "other_fields": {"some_field": "some_value"},
+            },
+            {
+                OUTPUT_KEY: "some answer based on context",
+                SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
+            },
+            None,
+            None,
+        ),
+        (
+            True,
+            True,
+            True,
+            False,
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            model_id,
+            "rag_chat",
+            {
+                OUTPUT_KEY: "some answer based on context",
+                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                "other_fields": {"some_field": "some_value"},
+            },
+            {
+                OUTPUT_KEY: "some answer based on context",
+                SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
+            },
+            None,
+            None,
+        ),
+        (
+            True,
+            False,
+            True,
+            True,
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            model_id,
+            "rag_chat",
+            {
+                OUTPUT_KEY: "some answer based not based on context",
+                CONTEXT_KEY: [],
+                REPHRASED_QUERY_KEY: "rephrased query",
+                "other_fields": {"some_field": "some_value"},
+            },
+            {
+                OUTPUT_KEY: RESPONSE_IF_NO_DOCS_FOUND,
+                SOURCE_DOCUMENTS_OUTPUT_KEY: [],
+                REPHRASED_QUERY_KEY: "rephrased query",
+            },
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             RESPONSE_IF_NO_DOCS_FOUND,
         ),
     ],
@@ -421,17 +453,17 @@ def test_generate(
 ):
     model = request.getfixturevalue(chat_fixture)
     response = None
-    with mock.patch("langchain.chains.ConversationalRetrievalChain.invoke", return_value=chain_output):
+    with mock.patch("langchain_core.runnables.RunnableWithMessageHistory.invoke", return_value=chain_output):
         response = model.generate("What is lambda?")
         assert response == expected_output
 
         if return_source_docs:
-            assert SOURCE_DOCUMENTS_KEY in response
+            assert SOURCE_DOCUMENTS_OUTPUT_KEY in response
         else:
-            assert SOURCE_DOCUMENTS_KEY not in response
+            assert SOURCE_DOCUMENTS_OUTPUT_KEY not in response
 
         if response_if_no_docs_found is not None:
-            assert response["answer"] == response_if_no_docs_found
+            assert response[OUTPUT_KEY] == response_if_no_docs_found
 
 
 @pytest.mark.parametrize(
@@ -446,9 +478,9 @@ def test_generate(
             model_id,
             BEDROCK_RAG_PROMPT,
             "rag_chat",
-            DISAMBIGUATION_PROMPT,
-            "{chat_history} {question}",
-            "{chat_history} {question}",
+            DISAMBIGUATION_PROMPT_TEMPLATE,
+            "{history} {input}",
+            "{history} {input}",
             None,
         ),
         (
@@ -460,9 +492,9 @@ def test_generate(
             model_id,
             BEDROCK_RAG_PROMPT,
             "rag_chat",
-            DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             "{history} {context} {input}",
-            "{chat_history} {context} {question}",
+            "{history} {context} {input}",
             None,
         ),
         (
@@ -475,9 +507,9 @@ def test_generate(
             model_id,
             BEDROCK_RAG_PROMPT,
             "rag_chat",
-            DISAMBIGUATION_PROMPT,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
             "{history} {input} {extra_tag}",
-            "{chat_history} {question} {extra_tag}",
+            "{history} {input} {extra_tag}",
             None,
         ),
     ],
@@ -501,9 +533,12 @@ def test_get_validated_disambiguation_prompt(
 ):
     chat = request.getfixturevalue(chat_fixture)
     response = chat.get_validated_disambiguation_prompt(
-        test_disambiguation_prompt, DISAMBIGUATION_PROMPT, DISAMBIGUATION_PROMPT_PLACEHOLDERS, disambiguation_enabled
+        test_disambiguation_prompt,
+        DISAMBIGUATION_PROMPT_TEMPLATE,
+        DISAMBIGUATION_PROMPT_PLACEHOLDERS,
+        disambiguation_enabled,
     )
-    assert response.template == expected_response
+    assert response == ChatPromptTemplate.from_template(expected_response)
 
 
 @pytest.mark.parametrize(
@@ -518,8 +553,8 @@ def test_get_validated_disambiguation_prompt(
             RAG_CHAT_IDENTIFIER,
             model_id,
             BEDROCK_RAG_PROMPT,
-            "{question} {question} {context} {chat_history}",
-            TAGS_REPLACED_DISAMBIGUATION_PROMPT,
+            "{input} {input} {context} {history}",
+            DISAMBIGUATION_PROMPT_TEMPLATE,
         ),
     ],
 )
@@ -539,11 +574,13 @@ def test_exceptional_disambiguation_prompt_validations(
 ):
     llm_params = BedrockInputs(
         **{
-            "conversation_memory": DynamoDBChatMemory(
-                DynamoDBChatMessageHistory(
-                    table_name="fake-table", user_id="fake-user-id", conversation_id="fake-conversation-id"
-                )
-            ),
+            "conversation_history_cls": DynamoDBChatMessageHistory,
+            "conversation_history_params": {
+                "table_name": "fake-table",
+                "user_id": "fake-user-id",
+                "conversation_id": "fake-conversation-id",
+            },
+            "rag_enabled": True,
             "knowledge_base": KendraKnowledgeBase(
                 {
                     "NumberOfDocs": 2,
@@ -557,6 +594,7 @@ def test_exceptional_disambiguation_prompt_validations(
                 }
             ),
             "model": "amazon.fake-model",
+            "model_family": BedrockModelProviders.AMAZON.value,
             "model_params": {
                 "topP": {"Type": "float", "Value": "0.2"},
                 "maxTokenCount": {"Type": "integer", "Value": "100"},
@@ -574,11 +612,9 @@ def test_exceptional_disambiguation_prompt_validations(
     )
 
     chat = BedrockRetrievalLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-        model_family=BedrockModelProviders.AMAZON,
-        return_source_docs=return_source_docs,
+        model_inputs=llm_params,
+        model_defaults=ModelDefaults(model_provider, model_id, rag_enabled),
     )
 
-    assert chat.prompt_template.template == BEDROCK_RAG_PROMPT
-    assert chat.disambiguation_prompt_template.template == expected_prompt
+    assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
+    assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(expected_prompt)

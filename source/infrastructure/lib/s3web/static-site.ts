@@ -86,6 +86,7 @@ export class StaticWebsite extends Construct {
                 ]
             })
         });
+
         bucketPolicyForLambda.attachToRole(
             iam.Role.fromRoleArn(this, 'BucketPolicyLambdaRole', props.customResourceRoleArn)
         );
@@ -212,6 +213,13 @@ export class StaticWebsite extends Construct {
             {
                 id: 'AwsSolutions-CFR4',
                 reason: 'Because the domain name is unknown for this solution, a default CDN distribution is used. Hence TLSv2 cannot be enforced'
+            }
+        ]);
+
+        NagSuppressions.addResourceSuppressions(this.cloudfrontDistribution, [
+            {
+                id: 'AwsSolutions-CFR7',
+                reason: 'The distribution is configured with origin access identity'
             }
         ]);
 

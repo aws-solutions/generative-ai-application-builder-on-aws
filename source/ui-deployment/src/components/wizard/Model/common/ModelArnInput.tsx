@@ -20,6 +20,8 @@ import { IG_DOCS } from '@/utils/constants';
 
 export interface ModelArnInputProps extends BaseFormComponentProps {
     modelData: any;
+    modelArnError: string;
+    setModelArnError: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const arnPrefix = 'arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}:';
@@ -30,8 +32,6 @@ const provisionedModelPattern = '([0-9]{12}:provisioned-model/[a-z0-9]{12})';
 const arnPattern = `^(${arnPrefix}(${customModelPattern}|${foundationModelPattern}|${provisionedModelPattern}))$`;
 
 export const ModelArnInput = (props: ModelArnInputProps) => {
-    const [modelArnError, setModelArnError] = React.useState('');
-
     const onModelArnChange = (detail: InputProps.ChangeDetail) => {
         props.onChangeFn({ modelArn: detail.value });
         let errors = '';
@@ -41,8 +41,8 @@ export const ModelArnInput = (props: ModelArnInputProps) => {
         if (!detail.value.match(arnPattern)) {
             errors += 'Invalid model ARN.';
         }
-        updateNumFieldsInError(errors, modelArnError, props.setNumFieldsInError);
-        setModelArnError(errors);
+        updateNumFieldsInError(errors, props.modelArnError, props.setNumFieldsInError);
+        props.setModelArnError(errors);
     };
 
     return (
@@ -59,7 +59,7 @@ export const ModelArnInput = (props: ModelArnInputProps) => {
                 />
             }
             description={'ARN of the provisioned/custom model to use from Amazon Bedrock.'}
-            errorText={modelArnError}
+            errorText={props.modelArnError}
             data-testid="model-arn-field"
         >
             <Input
@@ -110,7 +110,7 @@ const modelArnInfoPanel = {
                 Pattern:{' '}
                 <code>
                     {
-                        '^(arn:aws(-[^:]+)?:bedrock:[a-z0-9-]<span>{</span>1,20}:(([0-9]<span>{</span>12}:custom-model/[a-z0-9-]<span>{</span>1,63}[.]<span>{</span>1}[a-z0-9-]<span>{</span>1,63}/[a-z0-9]<span>{</span>12})|(:foundation-model/[a-z0-9-]<span>{</span>1,63}[.]<span>{</span>1}[a-z0-9-]<span>{</span>1,63}([.:]?[a-z0-9-]<span>{</span>1,63}))|([0-9]<span>{</span>12}:provisioned-model/[a-z0-9]<span>{</span>12})))|([a-z0-9-]<span>{</span>1,63}[.]<span>{</span>1}[a-z0-9-]<span>{</span>1,63}([.:]?[a-z0-9-]<span>{</span>1,63}))|(([0-9a-zA-Z][_-]?)+)$'
+                        '^(arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}:(([0-9]{12}:custom-model/[a-z0-9-]{1,63}[.]{1}[a-z0-9-]{1,63}/[a-z0-9]{12})|(:foundation-model/[a-z0-9-]{1,63}[.]{1}[a-z0-9-]{1,63}([.:]?[a-z0-9-]{1,63}))|([0-9]{12}:provisioned-model/[a-z0-9]{12})))|([a-z0-9-]{1,63}[.]{1}[a-z0-9-]{1,63}([.:]?[a-z0-9-]{1,63}))|(([0-9a-zA-Z][_-]?)+)$'
                     }
                 </code>
             </Box>

@@ -33,9 +33,9 @@ describe('ReturnSourceDocuments', () => {
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="display-document-source-radio-group"]');
         expect(screen.getByTestId('display-document-source-field')).toBeDefined();
         expect(radioGroup?.getElement()).toBeDefined();
-        expect(radioGroup?.findInputByValue('yes')?.getElement().checked).toBeTruthy();
+        expect(radioGroup?.findInputByValue('Yes')?.getElement().checked).toBeTruthy();
 
-        radioGroup?.findInputByValue('no')?.getElement().click();
+        radioGroup?.findInputByValue('No')?.getElement().click();
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
             returnDocumentSource: false
         });

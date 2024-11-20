@@ -16,6 +16,7 @@ import { cleanup, screen } from '@testing-library/react';
 import Prompt from '../Prompt';
 import { sampleDeployUseCaseFormData } from '@/components/__tests__/__mocks__/deployment-steps-form-data';
 import * as QueryHooks from 'hooks/useQueries';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('Prompt', () => {
     const consoleMock = vi.spyOn(console, 'error').mockImplementation((error) => error);
@@ -32,7 +33,7 @@ describe('Prompt', () => {
             } as any);
 
             renderWithProvider(<Prompt info={sampleDeployUseCaseFormData} {...mockFormComponentCallbacks()} />, {
-                route: '/wizardView'
+                route: USECASE_TYPE_ROUTE.TEXT
             });
 
             expect(consoleMock).toHaveBeenCalled();
@@ -46,7 +47,7 @@ describe('Prompt', () => {
             } as any);
 
             renderWithProvider(<Prompt info={sampleDeployUseCaseFormData} {...mockFormComponentCallbacks()} />, {
-                route: '/wizardView'
+                route: USECASE_TYPE_ROUTE.TEXT
             });
 
             expect(screen.getByTestId('prompt-step-loading-spinner')).toBeDefined();
@@ -77,7 +78,7 @@ describe('Prompt', () => {
             } as any);
 
             renderWithProvider(<Prompt info={sampleDeployUseCaseFormData} {...mockFormComponentCallbacks()} />, {
-                route: '/wizardView'
+                route: USECASE_TYPE_ROUTE.TEXT
             });
         });
 
@@ -113,7 +114,7 @@ describe('Prompt', () => {
             //before re-rendering, first clear the screen to prevent clashing with previous render
             cleanup();
             renderWithProvider(<Prompt info={ragDisabledFormData} {...mockFormComponentCallbacks()} />, {
-                route: '/wizardView'
+                route: USECASE_TYPE_ROUTE.TEXT
             });
             expect(screen.queryByTestId('prompt-step-disambiguation-prompt-configuration-component')).toBeNull();
             expect(

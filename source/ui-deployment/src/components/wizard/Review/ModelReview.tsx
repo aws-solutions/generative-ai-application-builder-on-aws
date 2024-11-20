@@ -22,12 +22,13 @@ import {
     AttributeEditor
 } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
-import { MODEL_PROVIDER_NAME_MAP, WIZARD_PAGE_INDEX } from '../steps-config';
+import { INFERENCE_PROFILE, MODEL_PROVIDER_NAME_MAP, WIZARD_PAGE_INDEX } from '../steps-config';
 import { createBox, escapedNewLineToLineBreakTag, ValueWithLabel } from '../../useCaseDetails/common-components';
 import { useComponentId } from '../../commons/use-component-id';
 
 import { ModelParams } from '../Model/AdvancedModelSettings';
 import { useQueryClient } from '@tanstack/react-query';
+import { getBooleanString } from '../utils';
 
 interface ModelReviewProps extends ReviewSectionProps {
     knowledgeBaseData: any;
@@ -119,7 +120,7 @@ export const ModelReview = (props: ModelReviewProps) => {
                             <ColumnLayout columns={2} variant="text-grid">
                                 <ValueWithLabel label="Model temperature">{props.modelData.temperature}</ValueWithLabel>
                                 <ValueWithLabel label="Enable guardrails">
-                                    {props.modelData.enableGuardrails ? 'yes' : 'no'}
+                                    {getBooleanString(props.modelData.enableGuardrails)}
                                 </ValueWithLabel>
                                 {props.modelData.enableGuardrails && (
                                     <>
@@ -144,10 +145,14 @@ export const ModelReview = (props: ModelReviewProps) => {
                 >
                     <ColumnLayout columns={2} variant="text-grid">
                         <ValueWithLabel label="Model provider">{props.modelData.modelProvider.label}</ValueWithLabel>
-
-                        {props.modelData.modelProvider.value !== MODEL_PROVIDER_NAME_MAP.SageMaker && (
-                            <ValueWithLabel label="Model name">{props.modelData.modelName}</ValueWithLabel>
-                        )}
+                        {props.modelData.modelProvider.value !== MODEL_PROVIDER_NAME_MAP.SageMaker &&
+                            (props.modelData.modelName === INFERENCE_PROFILE ? (
+                                <ValueWithLabel label="Inference profile ID">
+                                    {props.modelData.inferenceProfileId}
+                                </ValueWithLabel>
+                            ) : (
+                                <ValueWithLabel label="Model name">{props.modelData.modelName}</ValueWithLabel>
+                            ))}
 
                         {props.modelData.provisionedModel && (
                             <ValueWithLabel label="Model ARN">{props.modelData.modelArn}</ValueWithLabel>

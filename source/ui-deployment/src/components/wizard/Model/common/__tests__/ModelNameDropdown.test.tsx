@@ -16,6 +16,7 @@ import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { ModelNameDropdown } from '../ModelNameDropdown';
 
 import { BEDROCK_MODEL_OPTION_IDX, MODEL_FAMILY_PROVIDER_OPTIONS } from '@/components/wizard/steps-config';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('ModelNameDropdown', () => {
     afterEach(() => {
@@ -41,7 +42,7 @@ describe('ModelNameDropdown', () => {
 
         const view = renderWithProvider(
             <ModelNameDropdown modelData={mockModelData} {...mockFormComponentCallbacks()} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
 
         let select: any;

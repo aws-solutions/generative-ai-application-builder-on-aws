@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { BaseFormComponentProps } from '../../interfaces';
-import { CodeEditor, CodeEditorProps, FormField } from '@cloudscape-design/components';
+import { Box, CodeEditor, CodeEditorProps, FormField } from '@cloudscape-design/components';
 
 import 'ace-builds/css/ace.css';
 import 'ace-builds/css/theme/dawn.css';
@@ -27,8 +27,8 @@ import {
     validateModelParamsInTemplate
 } from './helpers';
 import { InfoLink } from '@/components/commons';
-import { modelToolsContent } from '../helpers';
 import { loadAce } from '../../utils';
+import { IG_DOCS } from '@/utils/constants';
 
 export interface InputSchemaProps extends BaseFormComponentProps {
     modelData: any;
@@ -174,7 +174,7 @@ export const InputSchema = (props: InputSchemaProps) => {
             description="SageMaker input schema is your model payload with placeholders for the model parameter values and the prompt."
             constraintText={`Parameter values supplied in Advanced Model Parameter section are represented in the SageMaker input schema by a placeholder value comprised of the key name wrapped inside "<<" and ">>". Preview is rendered to show your real model payload. ${INPUT_SCHEMA_RESERVED_KEYS.prompt} and ${INPUT_SCHEMA_RESERVED_KEYS.temperature} are reserved for prompt and temperature respectively.`}
             errorText={setErrorText()}
-            info={<InfoLink onFollow={() => props.setHelpPanelContent!(modelToolsContent.sagemakerHelpPanel)} />}
+            info={<InfoLink onFollow={() => props.setHelpPanelContent!(sagemakerInputSchemaHelpPanel)} />}
         >
             <CodeEditor
                 ref={editorRef}
@@ -196,3 +196,39 @@ export const InputSchema = (props: InputSchemaProps) => {
 };
 
 export default InputSchema;
+
+//INFO PANELS CONTENT
+const sagemakerInputSchemaHelpPanel = {
+    title: 'Input Payload Schema',
+    content: (
+        <Box variant="p">
+            The schema of the input payload expected by the endpoint. To support the widest set of endpoints, Admin
+            users are required to tell the solution how their endpoint expects the input to be formatted. In the model
+            selection wizard, provide the JSON schema for the solution to send to the endpoint. Placeholders can be
+            added to inject static and dynamic values into the request payload. The available options are:
+            <ul>
+                <li>
+                    <b>Mandatory placeholders:</b> {'<<prompt>>'} will be dynamically replaced with the full input (e.g.
+                    history, context, and user input as per the prompt template) to be sent to the SageMaker endpoint at
+                    runtime.
+                </li>
+                <li>
+                    <b>Optional placeholders:</b> {'<<temperature>>'}, as well as any parameters defined in advanced
+                    model parameters can be provided to the endpoint. Any string containing a placeholder by enclosed in{' '}
+                    {'<< and >>'} (e.g. {'<<max_new_tokens>>'}) will be replaced by the value of the advanced model
+                    parameter of the same name.
+                </li>
+            </ul>
+        </Box>
+    ),
+    links: [
+        {
+            href: IG_DOCS.SAGEMAKER_CREATE_ENDPOINT,
+            text: 'Creating a SageMaker Endpoint'
+        },
+        {
+            href: IG_DOCS.SAGEMAKER_USE,
+            text: 'Using a SageMaker Endpoint'
+        }
+    ]
+};

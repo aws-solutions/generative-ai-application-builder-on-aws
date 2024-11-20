@@ -52,10 +52,10 @@ class LLMChatClient(ABC):
     LLMChatClient also allows methods for validating the event and the environment.
 
     Attributes:
-        builder (LLMBuilder): Builder object that helps create the LLM object
-        use_case_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from DynamoDB
-        rag_enabled (bool): Stores the value of the RAG feature flag that is set on the use-case
-        connection_id (str): The connection ID for the websocket client
+        - builder (LLMBuilder): Builder object that helps create the LLM object
+        - use_case_config (Dict): Stores the configuration that the admin sets on a use-case, fetched from DynamoDB
+        - rag_enabled (bool): Stores the value of the RAG feature flag that is set on the use-case
+        - connection_id (str): The connection ID for the websocket client
 
     Methods:
         check_env(List[str]): Checks if the environment variable list provided, along with other required environment variables, are set.
@@ -63,7 +63,7 @@ class LLMChatClient(ABC):
         retrieve_use_case_config(): Retrieves the configuration that the admin sets on a use-case fetched from DynamoDB
         construct_chat_model(): Constructs the Chat model based on the event and the LLM configuration as a series of steps on the builder
         get_event_conversation_id(): Sets the conversation_id for the event
-        get_model(): Retrieves the LLM model that is used to generate content
+        get_model(): Retrieves the LLM that is used to generate content
 
     """
 
@@ -74,10 +74,10 @@ class LLMChatClient(ABC):
         use_case_config: Optional[Dict] = None,
         rag_enabled: Optional[bool] = None,
     ) -> None:
-        self._builder = builder
-        self._llm_config = use_case_config
-        self._rag_enabled = rag_enabled if (rag_enabled is not None) else DEFAULT_RAG_ENABLED_MODE
         self._connection_id = connection_id
+        self.builder = builder
+        self._use_case_config = use_case_config
+        self.rag_enabled = rag_enabled if (rag_enabled is not None) else DEFAULT_RAG_ENABLED_MODE
 
     @property
     def builder(self) -> Optional[LLMBuilder]:
@@ -88,14 +88,10 @@ class LLMChatClient(ABC):
         self._builder = builder
 
     @property
-    def use_case_config(self) -> Optional[Dict]:
-        if self._llm_config is None:
-            self._llm_config = self.retrieve_use_case_config()
-        return self._llm_config
-
-    @use_case_config.setter
-    def use_case_config(self, use_case_config) -> None:
-        self._llm_config = use_case_config
+    def use_case_config(self) -> Optional[Dict[str, Any]]:
+        if self._use_case_config is None:
+            self._use_case_config = self.retrieve_use_case_config()
+        return self._use_case_config
 
     @property
     def rag_enabled(self) -> bool:
@@ -108,10 +104,6 @@ class LLMChatClient(ABC):
     @property
     def connection_id(self) -> str:
         return self._connection_id
-
-    @connection_id.setter
-    def connection_id(self, connection_id) -> None:
-        self._connection_id = connection_id
 
     @classmethod
     def check_env(cls, additional_keys: Optional[List[str]] = []) -> None:
@@ -136,7 +128,7 @@ class LLMChatClient(ABC):
             )
             raise ValueError(error_message)
 
-    def __validate_user_id(self, event) -> str:
+    def _validate_user_id(self, event) -> str:
         """
         Validates the user id.
         Args:
@@ -152,7 +144,7 @@ class LLMChatClient(ABC):
 
         return user_id
 
-    def __validate_event_body(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_event_body(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validates the event body.
         Args:
@@ -174,7 +166,7 @@ class LLMChatClient(ABC):
         parsed_event_body = json.loads(event_body)
         return parsed_event_body
 
-    def __validate_user_query(self, event_body: Dict[str, Any]) -> List[str]:
+    def _validate_user_query(self, event_body: Dict[str, Any]) -> List[str]:
         """
         Validates the user query.
         Args:
@@ -207,7 +199,7 @@ class LLMChatClient(ABC):
 
         return []
 
-    def __validate_event_prompt(self, event_body: Dict[str, Any]) -> List[str]:
+    def _validate_event_prompt(self, event_body: Dict[str, Any]) -> List[str]:
         """
          Validates the event prompt.
          Args:
@@ -245,7 +237,7 @@ class LLMChatClient(ABC):
 
         return []
 
-    def __validate_auth_token(self, event: Dict[str, Any]) -> Union[str, None]:
+    def _validate_auth_token(self, event: Dict[str, Any]) -> Union[str, None]:
         """
         Validates the auth token.
         Args:
@@ -279,11 +271,11 @@ class LLMChatClient(ABC):
             ValueError: If the event it requires is not set.
         """
         errors_list = []
-        parsed_event_body = self.__validate_event_body(event)
-        user_id = self.__validate_user_id(parsed_event_body)
-        auth_token = self.__validate_auth_token(parsed_event_body)
-        errors_list.extend(self.__validate_user_query(parsed_event_body[MESSAGE_KEY]))
-        errors_list.extend(self.__validate_event_prompt(parsed_event_body[MESSAGE_KEY]))
+        parsed_event_body = self._validate_event_body(event)
+        user_id = self._validate_user_id(parsed_event_body)
+        auth_token = self._validate_auth_token(parsed_event_body)
+        errors_list.extend(self._validate_user_query(parsed_event_body[MESSAGE_KEY]))
+        errors_list.extend(self._validate_event_prompt(parsed_event_body[MESSAGE_KEY]))
 
         if errors_list:
             errors = "\n".join(errors_list)
@@ -376,7 +368,7 @@ class LLMChatClient(ABC):
             self.builder.validate_event_input_sizes(event_body)
             self.builder.set_knowledge_base()
             self.builder.set_conversation_memory(user_id, conversation_id)
-            self.builder.set_llm_model()
+            self.builder.set_llm()
 
         else:
             error_message = (
@@ -405,8 +397,16 @@ class LLMChatClient(ABC):
         """
         :param: event (Dict): AWS Lambda Event
         Returns:
-            BaseLangChainModel: The LLM model that is used to generate content.
+            BaseLangChainModel: The LLM that is used to generate content.
         """
         # If event provides a prompt, use_case_config uses that instead.
         event_prompt = event_body.get("promptTemplate")
-        self.use_case_config["LlmParams"]["PromptParams"]["PromptTemplate"] = event_prompt if event_prompt else self.use_case_config["LlmParams"]["PromptParams"].get("PromptTemplate")
+        usecase_llm_params = self.use_case_config.get("LlmParams", {})
+        usecase_prompt_params = usecase_llm_params.get("PromptParams", {})
+
+        usecase_prompt_params["PromptTemplate"] = event_prompt if event_prompt else usecase_prompt_params.get("PromptTemplate")
+
+        if usecase_llm_params.get("Verbose") is not None and usecase_llm_params["Verbose"] == True:
+            os.environ["LOG_LEVEL"] = "DEBUG"
+        
+        # Child class adds its own implementation following this to get the appropriate model.

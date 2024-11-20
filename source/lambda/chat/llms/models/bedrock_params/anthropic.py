@@ -91,6 +91,8 @@ class BedrockAnthropicV3LLMParams(BedrockAnthropicLLMParams):
 
     max_tokens: Optional[int] = None
     system: Optional[str] = None
+    tools: Optional[Dict[str, Any]] = None
+    tool_choice: Optional[Dict[str, str]] = None
 
     def __post_init__(self):
         super().__post_init__()

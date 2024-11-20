@@ -58,7 +58,13 @@ describe('When deploying', () => {
             cloudFrontUrl: new cdk.CfnParameter(stack, 'CloudFrontUrl', {
                 type: 'String'
             }).valueAsString,
-            deployWebApp: deployWebApp.valueAsString
+            deployWebApp: deployWebApp.valueAsString,
+            existingCognitoUserPoolId: new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolId', {
+                type: 'String'
+            }).valueAsString,
+            existingCognitoUserPoolClientId: new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClientId', {
+                type: 'String'
+            }).valueAsString
         });
 
         template = Template.fromStack(stack);
@@ -75,18 +81,48 @@ describe('When deploying', () => {
             'Environment': {
                 'Variables': {
                     [USER_POOL_ID_ENV_VAR]: {
-                        Ref: Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupNewUserPool*')
+                        'Fn::If': [
+                            Match.stringLikeRegexp(
+                                'WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'
+                            ),
+                            {
+                                'Ref': Match.anyValue()
+                            },
+                            {
+                                'Ref': 'ExistingCognitoUserPoolId'
+                            }
+                        ]
                     },
                     [CLIENT_ID_ENV_VAR]: {
-                        'Fn::GetAtt': [
-                            Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCfnAppClient*'),
-                            'ClientId'
+                        'Fn::If': [
+                            Match.stringLikeRegexp(
+                                'WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolClientCondition'
+                            ),
+                            {
+                                'Fn::GetAtt': [
+                                    Match.stringLikeRegexp(
+                                        'WebSocketEndpointDeploymentPlatformCognitoSetupCfnAppClient'
+                                    ),
+                                    'ClientId'
+                                ]
+                            },
+                            {
+                                'Ref': 'ExistingCognitoUserPoolClientId'
+                            }
                         ]
                     },
                     [COGNITO_POLICY_TABLE_ENV_VAR]: {
-                        Ref: Match.stringLikeRegexp(
-                            'WebSocketEndpointDeploymentPlatformCognitoSetupCognitoGroupPolicyStore*'
-                        )
+                        'Fn::If': [
+                            Match.stringLikeRegexp(
+                                'WebSocketEndpointDeploymentPlatformCognitoSetupCreateCognitoGroupPolicyTableCondition'
+                            ),
+                            {
+                                'Ref': Match.stringLikeRegexp(
+                                    'WebSocketEndpointDeploymentPlatformCognitoSetupCognitoGroupPolicyStore'
+                                )
+                            },
+                            ''
+                        ]
                     }
                 }
             },
@@ -135,12 +171,28 @@ describe('When deploying', () => {
         });
         template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
             'UserPoolId': {
-                'Ref': userPoolIdCapture
+                'Fn::If': [
+                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolIdCapture
+                    },
+                    {
+                        'Ref': 'ExistingCognitoUserPoolId'
+                    }
+                ]
             }
         });
         template.hasResourceProperties('AWS::Cognito::UserPoolUser', {
             'UserPoolId': {
-                'Ref': userPoolIdCapture.asString()
+                'Fn::If': [
+                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolIdCapture.asString()
+                    },
+                    {
+                        'Ref': 'ExistingCognitoUserPoolId'
+                    }
+                ]
             },
             'DesiredDeliveryMediums': ['EMAIL'],
             'ForceAliasCreation': false,
@@ -154,7 +206,15 @@ describe('When deploying', () => {
         });
         template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
             'UserPoolId': {
-                'Ref': userPoolIdCapture.asString()
+                'Fn::If': [
+                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolIdCapture.asString()
+                    },
+                    {
+                        'Ref': 'ExistingCognitoUserPoolId'
+                    }
+                ]
             },
             'GroupName': 'admin',
             'Precedence': 1
@@ -163,7 +223,15 @@ describe('When deploying', () => {
             'GroupName': 'admin',
             'Username': 'testuser-admin',
             'UserPoolId': {
-                'Ref': userPoolIdCapture.asString()
+                'Fn::If': [
+                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
+                    {
+                        'Ref': userPoolIdCapture.asString()
+                    },
+                    {
+                        'Ref': 'ExistingCognitoUserPoolId'
+                    }
+                ]
             }
         });
     });

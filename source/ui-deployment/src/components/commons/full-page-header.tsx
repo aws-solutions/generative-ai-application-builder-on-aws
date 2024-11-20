@@ -15,7 +15,7 @@ import { Button, Header, HeaderProps, SpaceBetween } from '@cloudscape-design/co
 import React, { useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HomeContext from '../../contexts/home.context';
-import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS } from '../../utils/constants';
+import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS, USECASE_TYPE_ROUTE } from '../../utils/constants';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 import { InfoLink } from './info-link';
 
@@ -48,6 +48,10 @@ export function FullPageHeader({
         dispatch: homeDispatch
     } = useContext(HomeContext);
 
+    type UseCaseType = keyof typeof USECASE_TYPE_ROUTE;
+    const navigateWizardDestination =
+        USECASE_TYPE_ROUTE[selectedDeployment.UseCaseType?.toUpperCase() as UseCaseType] ?? USECASE_TYPE_ROUTE.TEXT;
+
     function handleOnDeploymentIdClick() {
         homeDispatch({
             field: 'selectedDeployment',
@@ -65,7 +69,7 @@ export function FullPageHeader({
             field: 'deploymentAction',
             value: DEPLOYMENT_ACTIONS.EDIT
         });
-        navigate(`/wizardView`);
+        navigate(navigateWizardDestination);
     }
 
     function handleCloneDeploymentClick() {
@@ -77,7 +81,7 @@ export function FullPageHeader({
             field: 'deploymentAction',
             value: DEPLOYMENT_ACTIONS.CLONE
         });
-        navigate(`/wizardView`);
+        navigate(navigateWizardDestination);
     }
 
     function handleCreateDeploymentClick() {
@@ -89,7 +93,7 @@ export function FullPageHeader({
             field: 'deploymentAction',
             value: DEPLOYMENT_ACTIONS.CREATE
         });
-        navigate(`/wizardView`);
+        navigate(`/create`);
     }
 
     const currentDeploymentStatus = statusIndicatorTypeSelector(selectedDeployment.status);
@@ -97,6 +101,11 @@ export function FullPageHeader({
     const isEditEnabled =
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING;
+
+    const isCloneEnabled =
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING ||
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.STOPPED;
 
     const handleRefresh = () => {
         homeDispatch({
@@ -145,7 +154,7 @@ export function FullPageHeader({
                     <Button
                         onClick={() => handleCloneDeploymentClick()}
                         data-testid="header-btn-clone"
-                        disabled={selectedItems.length !== 1}
+                        disabled={!isCloneEnabled || selectedItems.length !== 1}
                     >
                         Clone
                     </Button>

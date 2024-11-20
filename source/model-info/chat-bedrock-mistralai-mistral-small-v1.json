@@ -1,0 +1,21 @@
+{
+    "UseCase": "Chat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "mistral.mistral-small-2402-v1:0",
+    "AllowsStreaming": true,
+    "Prompt": "[INST] {history}\n\n{input} [/INST]",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "0.7",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "history",
+        "input": "input",
+        "context": null,
+        "ai_prefix": "AI",
+        "human_prefix": "Human",
+        "output": null
+    },
+    "MaxPromptSize": 60000,
+    "MaxChatMessageSize": 60000
+}

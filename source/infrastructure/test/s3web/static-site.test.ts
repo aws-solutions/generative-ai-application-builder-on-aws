@@ -122,7 +122,11 @@ describe('When static website is created', () => {
                                     'Fn::Join': [
                                         '',
                                         [
-                                            'arn:aws:cloudfront::',
+                                            'arn:',
+                                            {
+                                                'Ref': 'AWS::Partition'
+                                            },
+                                            ':cloudfront::',
                                             {
                                                 Ref: 'AWS::AccountId'
                                             },

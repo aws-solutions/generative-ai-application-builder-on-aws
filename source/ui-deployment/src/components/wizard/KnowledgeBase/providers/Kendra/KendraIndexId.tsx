@@ -15,10 +15,8 @@ import React from 'react';
 import { BaseFormComponentProps } from '../../../interfaces';
 import { FormField, Input, InputProps } from '@cloudscape-design/components';
 import { InfoLink } from '../../../../commons';
-import { TOOLS_CONTENT } from '../../../tools-content';
 import { updateNumFieldsInError } from '../../../utils';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { knowledgeBaseInfoPanel } from '../../helpers';
 
 interface KendraIndexIdProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -50,7 +48,7 @@ export const KendraIndexId = (props: KendraIndexIdProps) => {
             }
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.kendraIndex)}
+                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseInfoPanel.kendraIndex)}
                     ariaLabel={'Information about the Kendra Index.'}
                 />
             }

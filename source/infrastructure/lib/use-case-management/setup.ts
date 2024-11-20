@@ -48,7 +48,7 @@ export interface UseCaseManagementProps extends BaseStackProps {
     /**
      * Domain for the Cognito User Pool Client
      */
-    cognitoDomainPrefix: cdk.CfnParameter;
+    cognitoDomainPrefix: string;
 
     /**
      * CloudFront url of the UI application
@@ -69,6 +69,16 @@ export interface UseCaseManagementProps extends BaseStackProps {
      * access logging bucket for the nested stack
      */
     accessLoggingBucket: s3.Bucket;
+
+    /**
+     * If provided, will use the provided UserPool instead of creating a new one.
+     */
+    existingCognitoUserPoolId: string;
+
+    /**
+     * If provided, will use the provided UserPoolClient instead of creating a new one.
+     */
+    existingCognitoUserPoolClientId: string;
 }
 
 /**
@@ -100,10 +110,12 @@ export class UseCaseManagementSetup extends Construct {
                 CustomResourceRoleArn: props.customInfra.role!.roleArn,
                 ExistingSecurityGroupIds: props.securityGroupIds!,
                 ExistingPrivateSubnetIds: props.privateSubnetIds!,
-                CognitoDomainPrefix: props.cognitoDomainPrefix.valueAsString,
+                CognitoDomainPrefix: props.cognitoDomainPrefix,
                 CloudFrontUrl: props.cloudFrontUrl,
                 DeployUI: props.deployWebApp,
-                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn
+                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn,
+                ExistingCognitoUserPoolId: props.existingCognitoUserPoolId,
+                ExistingCognitoUserPoolClientId: props.existingCognitoUserPoolClientId
             },
             description: `Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${props.solutionVersion}`
         });

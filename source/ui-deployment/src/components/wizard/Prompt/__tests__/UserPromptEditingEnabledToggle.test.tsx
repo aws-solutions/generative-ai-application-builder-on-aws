@@ -14,6 +14,7 @@
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { screen } from '@testing-library/react';
 import UserPromptEditingEnabledToggle from '../UserPromptEditingEnabledToggle';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('UserPromptEditingEnabledToggle', () => {
     afterEach(() => {
@@ -26,7 +27,7 @@ describe('UserPromptEditingEnabledToggle', () => {
         const { cloudscapeWrapper } = renderWithProvider(
             <UserPromptEditingEnabledToggle userPromptEditingEnabled={false} {...callbacks} />,
             {
-                route: '/wizardView'
+                route: USECASE_TYPE_ROUTE.TEXT
             }
         );
 

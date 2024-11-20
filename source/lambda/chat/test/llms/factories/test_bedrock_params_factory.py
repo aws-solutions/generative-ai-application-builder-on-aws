@@ -17,7 +17,7 @@ from llms.factories.bedrock_adapter_factory import BedrockAdapterFactory
 from llms.models.bedrock_params.ai21 import BedrockAI21LLMParams
 from llms.models.bedrock_params.amazon import BedrockAmazonLLMParams
 from llms.models.bedrock_params.anthropic import BedrockAnthropicV1LLMParams, BedrockAnthropicV3LLMParams
-from llms.models.bedrock_params.cohere import BedrockCohereLLMParams
+from llms.models.bedrock_params.cohere import BedrockCohereTextLLMParams
 from llms.models.bedrock_params.meta import BedrockMetaLLMParams
 from utils.enum_types import BedrockModelProviders
 
@@ -29,8 +29,8 @@ from utils.enum_types import BedrockModelProviders
         (BedrockModelProviders.ANTHROPIC.value, "anthropic.claude-3-haiku-20240307-v1:0", BedrockAnthropicV3LLMParams),
         (BedrockModelProviders.AMAZON.value, "amazon.titan-text-lite-v1", BedrockAmazonLLMParams),
         (BedrockModelProviders.AI21.value, "ai21.j2-mid-v1", BedrockAI21LLMParams),
-        (BedrockModelProviders.COHERE.value, "cohere.command-text-v14", BedrockCohereLLMParams),
-        (BedrockModelProviders.META.value, "meta.llama2-70b-chat-v1", BedrockMetaLLMParams),
+        (BedrockModelProviders.COHERE.value, "cohere.command-text-v14", BedrockCohereTextLLMParams),
+        (BedrockModelProviders.META.value, "meta.llama3-70b-instruct-v1", BedrockMetaLLMParams),
     ],
 )
 def test_sanitizer_passes(model_family, model_id, expected_adapter):

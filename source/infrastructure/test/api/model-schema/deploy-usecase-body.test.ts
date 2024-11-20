@@ -15,6 +15,8 @@ import { deployUseCaseBodySchema } from '../../../lib/api/model-schema/deploy-us
 import { checkValidationSucceeded, checkValidationFailed } from './utils';
 import { Validator } from 'jsonschema';
 import {
+    AGENT_TYPES,
+    AUTHENTICATION_PROVIDERS,
     CHAT_PROVIDERS,
     CONVERSATION_MEMORY_TYPES,
     DEFAULT_KENDRA_EDITION,
@@ -22,7 +24,8 @@ import {
     MAX_KENDRA_NUMBER_OF_DOCS,
     MAX_SCORE_THRESHOLD,
     MIN_KENDRA_NUMBER_OF_DOCS,
-    MIN_SCORE_THRESHOLD
+    MIN_SCORE_THRESHOLD,
+    USE_CASE_TYPES
 } from '../../../lib/utils/constants';
 
 describe('Testing API schema validation', () => {
@@ -40,6 +43,7 @@ describe('Testing API schema validation', () => {
             it('Test Bedrock deployment', () => {
                 const payload = {
                     UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
@@ -53,6 +57,7 @@ describe('Testing API schema validation', () => {
             it('Test Bedrock deployment with an arn', () => {
                 const payload = {
                     UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
@@ -67,6 +72,7 @@ describe('Testing API schema validation', () => {
             it('Test Bedrock deployment with a guardrail', () => {
                 const payload = {
                     UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
@@ -79,9 +85,24 @@ describe('Testing API schema validation', () => {
                 checkValidationSucceeded(validator.validate(payload, schema));
             });
 
+            it('Test Bedrock deployment with an InferenceProfileId', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            InferenceProfileId: 'fakeprofile'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
             it('Test Bedrock deployment failed, missing ModelId', () => {
                 const payload = {
                     UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
@@ -95,6 +116,7 @@ describe('Testing API schema validation', () => {
             it('Test Bedrock deployment failed, missing params', () => {
                 const payload = {
                     UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK
                     }
@@ -105,6 +127,7 @@ describe('Testing API schema validation', () => {
             it('Test Bedrock deployment failed, bad arn', () => {
                 const payload = {
                     UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         ModelArn: 'garbage'
@@ -115,6 +138,7 @@ describe('Testing API schema validation', () => {
 
             it('Test Bedrock deployment failed, no guardrail version', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -129,6 +153,7 @@ describe('Testing API schema validation', () => {
 
             it('Test Bedrock deployment failed, no guardrail id', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -141,8 +166,38 @@ describe('Testing API schema validation', () => {
                 checkValidationFailed(validator.validate(payload, schema));
             });
 
+            it('Test Bedrock deployment failed, provided ModelId and InferenceProfileId', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel',
+                            InferenceProfileId: 'fakeprofile'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Test Bedrock deployment failed, bad InferenceProfileId', () => {
+                const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    UseCaseName: 'test',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            InferenceProfileId: '_garbage'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
             it('Test Bedrock deployment failed, bad guardrail version', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -158,6 +213,7 @@ describe('Testing API schema validation', () => {
 
             it('Test Bedrock deployment failed, bad guardrail id', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -175,6 +231,7 @@ describe('Testing API schema validation', () => {
         describe('SageMaker deployments', () => {
             it('Test SageMaker deployment', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
@@ -190,6 +247,7 @@ describe('Testing API schema validation', () => {
 
             it('Test SageMaker deployment failed, missing EndpointName', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
@@ -204,6 +262,7 @@ describe('Testing API schema validation', () => {
 
             it('Test SageMaker deployment failed, invalid EndpointName', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
@@ -219,6 +278,7 @@ describe('Testing API schema validation', () => {
 
             it('Test SageMaker deployment failed, missing ModelInputPayloadSchema', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
@@ -233,6 +293,7 @@ describe('Testing API schema validation', () => {
 
             it('Test SageMaker deployment failed, invalid ModelInputPayloadSchema', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
@@ -248,6 +309,7 @@ describe('Testing API schema validation', () => {
 
             it('Test SageMaker deployment failed, invalid ModelOutputJSONPath', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
@@ -263,6 +325,7 @@ describe('Testing API schema validation', () => {
 
             it('Test SageMaker deployment failed, missing ModelOutputJSONPath', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
@@ -279,6 +342,7 @@ describe('Testing API schema validation', () => {
         describe('Advanced model params', () => {
             it('Succeeds with advanced model params of all compatible types', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -298,6 +362,7 @@ describe('Testing API schema validation', () => {
 
             it('Fails with advanced model params of incompatible types', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -312,6 +377,7 @@ describe('Testing API schema validation', () => {
 
             it('Fails with advanced model params with non-string value', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -330,6 +396,7 @@ describe('Testing API schema validation', () => {
         describe('Kendra validations', () => {
             it('New Kendra index succeeds', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -348,6 +415,7 @@ describe('Testing API schema validation', () => {
 
             it('New Kendra index fails for no name', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -368,6 +436,7 @@ describe('Testing API schema validation', () => {
 
             it('New Kendra index succeeds with additional params', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -389,6 +458,7 @@ describe('Testing API schema validation', () => {
 
             it('Existing Kendra index succeeds', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -407,6 +477,7 @@ describe('Testing API schema validation', () => {
 
             it('Existing Kendra index fails when providing extra params', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -426,6 +497,7 @@ describe('Testing API schema validation', () => {
 
             it('Kendra index fails when providing bad index id', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -444,6 +516,7 @@ describe('Testing API schema validation', () => {
 
             it('Kendra index fails when providing both new and existing params', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -463,6 +536,7 @@ describe('Testing API schema validation', () => {
 
             it('Kendra index succeeds when RBAC enabled flag is provided', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -482,6 +556,7 @@ describe('Testing API schema validation', () => {
 
             it('fails when NoDocsFoundResponse is empty', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -501,6 +576,7 @@ describe('Testing API schema validation', () => {
 
             it('passes when NoDocsFoundResponse has valid string', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -522,6 +598,7 @@ describe('Testing API schema validation', () => {
         describe('Bedrock knowledge base validations', () => {
             it('Bedrock succeeds', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -540,6 +617,7 @@ describe('Testing API schema validation', () => {
 
             it('Bedrock with optional params', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -560,6 +638,7 @@ describe('Testing API schema validation', () => {
 
             it('Bedrock fails for missing id', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -576,6 +655,7 @@ describe('Testing API schema validation', () => {
 
             it('Bedrock fails for bad id', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -594,6 +674,7 @@ describe('Testing API schema validation', () => {
 
             it('Bedrock fails for a bad retrieval filter type', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -613,6 +694,7 @@ describe('Testing API schema validation', () => {
 
             it('Bedrock fails for a bad OverrideSearchType', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -632,6 +714,7 @@ describe('Testing API schema validation', () => {
 
             it('fails when NoDocsFoundResponse is empty', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -651,6 +734,7 @@ describe('Testing API schema validation', () => {
 
             it('passes when NoDocsFoundResponse has valid string', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -672,6 +756,7 @@ describe('Testing API schema validation', () => {
         describe('General knowledge base validations', () => {
             it('setting misc parameters succeeds', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -693,6 +778,7 @@ describe('Testing API schema validation', () => {
 
             it('setting NumberOfDocs below range fails', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -712,6 +798,7 @@ describe('Testing API schema validation', () => {
 
             it('setting NumberOfDocs above range fails', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -731,6 +818,7 @@ describe('Testing API schema validation', () => {
 
             it('setting ScoreThreshold below range fails', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -750,6 +838,7 @@ describe('Testing API schema validation', () => {
 
             it('setting ScoreThreshold above range fails', () => {
                 const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -770,6 +859,7 @@ describe('Testing API schema validation', () => {
 
         it('Can not provide KnowledgeBaseParams if not using RAG', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -788,6 +878,7 @@ describe('Testing API schema validation', () => {
 
         it('Can not provide BedrockKnowledgeBaseParams if not using Kendra', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -809,6 +900,7 @@ describe('Testing API schema validation', () => {
 
         it('Can not provide KendraKnowledgeBaseParams if not using Bedrock', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -830,6 +922,7 @@ describe('Testing API schema validation', () => {
 
         it('Can not validate a bad KnowledgeBaseType', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -851,6 +944,7 @@ describe('Testing API schema validation', () => {
 
         it('No VPC succeeds', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -865,6 +959,7 @@ describe('Testing API schema validation', () => {
 
         it('No VPC fails due to a mismatch of params', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -880,6 +975,7 @@ describe('Testing API schema validation', () => {
 
         it('Create a VPC succeeds', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -895,6 +991,7 @@ describe('Testing API schema validation', () => {
 
         it('Create a VPC fails due to extra params', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -911,6 +1008,7 @@ describe('Testing API schema validation', () => {
 
         it('Using an existing VPC succeeds', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -929,6 +1027,7 @@ describe('Testing API schema validation', () => {
 
         it('Using an existing VPC fails due to missing VPC ID', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -946,6 +1045,7 @@ describe('Testing API schema validation', () => {
 
         it('Using an existing VPC fails due to bad VPC ID', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -964,6 +1064,7 @@ describe('Testing API schema validation', () => {
 
         it('Using an existing VPC fails due to missing subnet IDs', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -981,6 +1082,7 @@ describe('Testing API schema validation', () => {
 
         it('Using an existing VPC fails due to bad subnet IDs', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -999,6 +1101,7 @@ describe('Testing API schema validation', () => {
 
         it('Using an existing VPC fails due to missing security group IDs', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -1016,6 +1119,7 @@ describe('Testing API schema validation', () => {
 
         it('Using an existing VPC fails due to bad security group IDs', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -1036,6 +1140,7 @@ describe('Testing API schema validation', () => {
     describe('Email Validations', () => {
         it('Email is valid succeeds', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -1048,6 +1153,7 @@ describe('Testing API schema validation', () => {
 
         it('Email is invalid fails', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -1062,6 +1168,7 @@ describe('Testing API schema validation', () => {
     describe('ConversationMemoryParamsValidation', () => {
         it('ConversationMemoryParams is valid succeeds', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -1079,6 +1186,7 @@ describe('Testing API schema validation', () => {
 
         it('ConversationMemoryParams bad memory type fails', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -1093,6 +1201,7 @@ describe('Testing API schema validation', () => {
 
         it('ConversationMemoryParams bad param fails', () => {
             const payload = {
+                UseCaseType: USE_CASE_TYPES.TEXT,
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
@@ -1103,9 +1212,312 @@ describe('Testing API schema validation', () => {
                     HumanPrefix: 'human',
                     AiPrefix: 'ai',
                     ChatHistoryLength: -1
+                },
+                AuthenticationParams: {
+                    AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                    CognitoParams: {
+                        ExistingUserPoolId: 'us-east-1_111111111111'
+                    }
                 }
             };
             checkValidationFailed(validator.validate(payload, schema));
+        });
+    });
+
+    describe('AgentParams and Agent use case type validations', () => {
+        it('Test valid Agent use case type with AgentParams', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT,
+                AgentParams: {
+                    AgentType: AGENT_TYPES.BEDROCK,
+                    BedrockAgentParams: {
+                        AgentId: 'abc123',
+                        AgentAliasId: 'def456',
+                        EnableTrace: true
+                    }
+                }
+            };
+            checkValidationSucceeded(validator.validate(payload, schema));
+        });
+
+        it('Test Agent use case type without AgentParams (should fail)', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT
+            };
+            checkValidationFailed(validator.validate(payload, schema));
+        });
+
+        it('Test Agent use case type with invalid AgentId', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT,
+                AgentParams: {
+                    AgentType: AGENT_TYPES.BEDROCK,
+                    BedrockAgentParams: {
+                        AgentId: 'invalid@id',
+                        AgentAliasId: 'def456',
+                        EnableTrace: true
+                    }
+                }
+            };
+            checkValidationFailed(validator.validate(payload, schema));
+        });
+
+        it('Test Agent use case type with invalid AgentAliasId', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT,
+                AgentParams: {
+                    AgentType: AGENT_TYPES.BEDROCK,
+                    BedrockAgentParams: {
+                        AgentId: 'abc123',
+                        AgentAliasId: 'toolongaliasid',
+                        EnableTrace: true
+                    }
+                }
+            };
+            checkValidationFailed(validator.validate(payload, schema));
+        });
+
+        it('Test Agent use case type with missing EnableTrace', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT,
+                AgentParams: {
+                    AgentType: AGENT_TYPES.BEDROCK,
+                    BedrockAgentParams: {
+                        AgentId: 'abc123',
+                        AgentAliasId: 'def456'
+                    }
+                }
+            };
+            checkValidationFailed(validator.validate(payload, schema));
+        });
+
+        it('Test Agent use case type with additional properties (should fail)', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT,
+                AgentParams: {
+                    AgentType: AGENT_TYPES.BEDROCK,
+                    BedrockAgentParams: {
+                        AgentId: 'abc123',
+                        AgentAliasId: 'def456',
+                        EnableTrace: true,
+                        ExtraProperty: 'should not be allowed'
+                    }
+                }
+            };
+            checkValidationFailed(validator.validate(payload, schema));
+        });
+
+        it('Test Agent use case type with LlmParams (should fail)', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT,
+                AgentParams: {
+                    AgentType: AGENT_TYPES.BEDROCK,
+                    BedrockAgentParams: {
+                        AgentId: 'abc123',
+                        AgentAliasId: 'def456',
+                        EnableTrace: true
+                    }
+                },
+                LlmParams: {
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: {
+                        ModelId: 'fakemodel'
+                    }
+                }
+            };
+            checkValidationFailed(validator.validate(payload, schema));
+        });
+
+        it('Test Agent use case type with KnowledgeBaseParams (should fail)', () => {
+            const payload = {
+                UseCaseName: 'test-agent',
+                UseCaseType: USE_CASE_TYPES.AGENT,
+                AgentParams: {
+                    AgentType: AGENT_TYPES.BEDROCK,
+                    BedrockAgentParams: {
+                        AgentId: 'abc123',
+                        AgentAliasId: 'def456',
+                        EnableTrace: true
+                    }
+                },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KNOWLEDGE_BASE_TYPES.KENDRA,
+                    KendraIndexId: testKendraIndexId
+                }
+            };
+            checkValidationFailed(validator.validate(payload, schema));
+        });
+    });
+
+    it('Test agent creation failing if AgentType is not provided', () => {
+        const payload = {
+            UseCaseName: 'test-agent',
+            UseCaseType: USE_CASE_TYPES.AGENT,
+            AgentParams: {
+                BedrockAgentParams: {
+                    AgentId: 'XXXXXX',
+                    AgentAliasId: 'XXXXXX',
+                    EnableTrace: true
+                }
+            }
+        };
+        checkValidationFailed(validator.validate(payload, schema));
+    });
+
+    it('Test agent creation failing if AgentType is invalid', () => {
+        const payload = {
+            UseCaseName: 'test-agent',
+            UseCaseType: USE_CASE_TYPES.AGENT,
+            AgentParams: {
+                AgentType: 'invalid',
+                BedrockAgentParams: {
+                    AgentId: 'XXXXXX',
+                    AgentAliasId: 'XXXXXX',
+                    EnableTrace: true
+                }
+            }
+        };
+        checkValidationFailed(validator.validate(payload, schema));
+    });
+
+    describe('AuthenticationParams Validation', () => {
+        describe('User Pool Id provided', () => {
+            it('Valid User Pool Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+            it('Valid Pool Client Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'us-east-1_111111111111',
+                            ExistingUserPoolClientId: '1111111111111111111111111111'
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+        });
+
+        describe('Invalid Input provided', () => {
+            it('Empty Authentication Params', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {}
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Unsupported Authentication Provider', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: 'unsupported'
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Invalid User Pool Id provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {
+                            ExistingUserPoolId: 'invalid user pool'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No CognitoParams provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('No User Pool provided', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    },
+                    AuthenticationParams: {
+                        AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+                        CognitoParams: {}
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
         });
     });
 });

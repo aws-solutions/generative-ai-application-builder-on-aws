@@ -51,10 +51,6 @@ class WebsocketErrorHandler:
     def trace_id(self) -> str:
         return self._trace_id
 
-    @trace_id.setter
-    def trace_id(self, trace_id) -> None:
-        self._trace_id = trace_id
-
     @property
     def client(self) -> str:
         return self._client

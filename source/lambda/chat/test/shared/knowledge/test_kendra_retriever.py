@@ -19,6 +19,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from botocore.exceptions import ClientError
+from cognito_jwt_verifier import CognitoJWTVerifier
 from langchain_aws.retrievers.kendra import (
     KENDRA_CONFIDENCE_MAPPING,
     DocumentAttribute,
@@ -27,7 +28,6 @@ from langchain_aws.retrievers.kendra import (
 )
 from langchain_core.documents import Document
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
-from utils.cognito_jwt_verifier import CognitoJWTVerifier
 
 KENDRA_RESPONSE = None
 attribute_filter = {
@@ -98,9 +98,6 @@ def kendra_query_expected_response():
                 DocumentAttribute(
                     Key="_source_uri",
                     Value=DocumentAttributeValue(
-                        DateValue=None,
-                        LongValue=None,
-                        StringListValue=None,
                         StringValue="http://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html",
                     ),
                 )
@@ -120,9 +117,6 @@ def kendra_query_expected_response():
                 DocumentAttribute(
                     Key="_source_uri",
                     Value=DocumentAttributeValue(
-                        DateValue=None,
-                        LongValue=None,
-                        StringListValue=None,
                         StringValue="http://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html",
                     ),
                 )
@@ -150,7 +144,9 @@ def test_kendra_query(kendra_retriever, kendra_stubber, setup_environment, user_
     assert response == kendra_query_expected_response()
 
 
-def test_get_relevant_documents(kendra_retriever, kendra_stubber, user_context_token, rag_rbac_enabled):
+def test_get_relevant_documents(
+    kendra_retriever, kendra_stubber, user_context_token, rag_rbac_enabled, setup_environment
+):
     kendra_stubber = get_kendra_result_stubbed(kendra_stubber)
     kendra_stubber.activate()
     response = kendra_retriever._get_relevant_documents("sample query")
@@ -166,7 +162,7 @@ def test_get_relevant_documents(kendra_retriever, kendra_stubber, user_context_t
     assert type(response[0]) == Document
 
 
-def test_kendra_throws_client_error(kendra_retriever, user_context_token, rag_rbac_enabled):
+def test_kendra_throws_client_error(kendra_retriever, user_context_token, rag_rbac_enabled, setup_environment):
     with mock.patch("shared.knowledge.kendra_retriever.CustomKendraRetriever._kendra_query") as mocked_query:
         mocked_query.side_effect = ClientError(
             {"Error": {"Code": "InternalServerException", "Message": "fake-error"}}, "Retrieve"

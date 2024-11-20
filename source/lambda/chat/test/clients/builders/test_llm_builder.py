@@ -18,7 +18,7 @@ import os
 import pytest
 from clients.builders.bedrock_builder import BedrockBuilder
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
+from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
     BEDROCK_GUARDRAIL_IDENTIFIER_KEY,
     BEDROCK_GUARDRAIL_VERSION_KEY,
@@ -33,7 +33,7 @@ from utils.enum_types import KnowledgeBaseTypes, LLMProviderTypes
 
 # Testing LLMBuilder using subclass
 BASIC_PROMPT = """\n\n{history}\n\n{input}"""
-BASIC_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BASIC_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 
 
 @pytest.mark.parametrize(
@@ -163,12 +163,15 @@ def test_conversation_memory_builder(
     builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
 
     assert builder.use_case_config == config
-    assert type(builder.conversation_memory) == DynamoDBChatMemory
-    assert builder.conversation_memory.chat_memory.user_id == "fake-user-id"
-    assert builder.conversation_memory.chat_memory.conversation_id == "fake-conversation-id"
-    assert builder.conversation_memory.chat_memory.table == dynamodb_resource.Table(
-        os.environ[CONVERSATION_TABLE_NAME_ENV_VAR]
-    )
+    assert builder.conversation_history_cls == DynamoDBChatMessageHistory
+    assert builder.conversation_history_params == {
+        "conversation_id": "fake-conversation-id",
+        "max_history_length": 10,
+        "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
+        "user_id": "fake-user-id",
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
+    }
 
 
 @pytest.mark.parametrize(
@@ -186,6 +189,22 @@ def test_conversation_memory_builder(
             {BEDROCK_GUARDRAIL_IDENTIFIER_KEY: "fake-key", BEDROCK_GUARDRAIL_VERSION_KEY: "fake-version"},
             {"guardrailIdentifier": "fake-key", "guardrailVersion": "fake-version"},
         ),
+        (
+            {BEDROCK_GUARDRAIL_IDENTIFIER_KEY: None, BEDROCK_GUARDRAIL_VERSION_KEY: "fake-version"},
+            None,
+        ),
+        (
+            {BEDROCK_GUARDRAIL_IDENTIFIER_KEY: "fake-key", BEDROCK_GUARDRAIL_VERSION_KEY: None},
+            None,
+        ),
+        (
+            {BEDROCK_GUARDRAIL_VERSION_KEY: "fake-version"},
+            None,
+        ),
+        (
+            {BEDROCK_GUARDRAIL_IDENTIFIER_KEY: "fake-key"},
+            None,
+        ),
     ],
 )
 def test_get_guardrails(
@@ -198,4 +217,4 @@ def test_get_guardrails(
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
     )
-    builder.get_guardrails(model_config)
+    assert builder.get_guardrails(model_config) == output_response

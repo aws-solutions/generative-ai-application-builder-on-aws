@@ -34,7 +34,7 @@ describe('When performing ddb operations', () => {
     });
 
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
         ddbMockedClient = mockClient(DynamoDBClient);
         modelInfoRetriever = new ModelInfoRetriever(ddbMockedClient);
     });

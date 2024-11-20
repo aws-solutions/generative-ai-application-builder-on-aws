@@ -24,7 +24,14 @@ import { API, Auth } from 'aws-amplify';
 import { mockReactMarkdown, mockedAuthenticator, renderWithProvider } from '@/utils';
 import WizardView from '../../wizard/WizardView';
 import * as QueryHooks from 'hooks/useQueries';
-import { API_NAME, INTERNAL_USER_GENAI_POLICY_URL } from '@/utils/constants';
+import {
+    API_NAME,
+    DELAY_AFTER_SUCCESS_DEPLOYMENT,
+    INTERNAL_USER_GENAI_POLICY_URL,
+    USECASE_TYPE_ROUTE
+} from '@/utils/constants';
+import mockContext from '../__mocks__/mock-context.json';
+import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
 
 const mockAPI = {
     post: jest.fn(),
@@ -43,9 +50,15 @@ describe('Wizard', () => {
             selectedDeployment: {},
             deploymentsData: [],
             deploymentAction: 'CREATE',
+            usecaseType: '',
             runtimeConfig: {
                 IsInternalUser: 'true'
-            }
+            },
+            reloadData: true,
+            searchFilter: '',
+            submittedSearchFilter: '',
+            numUseCases: 1,
+            currentPageIndex: 1
         }
     };
 
@@ -92,16 +105,19 @@ describe('Wizard', () => {
     test('The initial state is correct', async () => {
         render(
             <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/wizardView']}>
+                <MemoryRouter initialEntries={[USECASE_TYPE_ROUTE.TEXT]}>
                     <Routes>
-                        <Route path="/wizardView" element={<WizardView />} />
+                        <Route
+                            path={USECASE_TYPE_ROUTE.TEXT}
+                            element={<WizardView useCase={new TextUseCaseType()} />}
+                        />
                     </Routes>
                 </MemoryRouter>
             </HomeContext.Provider>
         );
         const element = screen.getByTestId('wizard-view');
         const wrapper = createWrapper(element);
-        expect(wrapper.findBreadcrumbGroup()?.findBreadcrumbLinks()).toHaveLength(2);
+        expect(wrapper.findBreadcrumbGroup()?.findBreadcrumbLinks()).toHaveLength(3);
     });
 
     test('Navigating through wizard steps and filling form.', async () => {
@@ -109,20 +125,13 @@ describe('Wizard', () => {
         const mockUseEffect = jest.fn();
         jest.spyOn(React, 'useEffect').mockImplementation(mockUseEffect);
 
-        renderWithProvider(<WizardView />, { route: '/wizardView' });
+        renderWithProvider(<WizardView useCase={new TextUseCaseType()} />, { route: USECASE_TYPE_ROUTE.TEXT });
         const element = screen.getByTestId('wizard-view');
         const wrapper = createWrapper(element);
         const wizardWrapper = wrapper.findWizard();
 
         // step 1
         expect(wizardWrapper?.findMenuNavigationLink(1, 'active')).not.toBeNull();
-
-        const useCaseTypeFieldElement = screen.getByTestId('use-case-type-selection');
-        const useCaseTypeSelect = createWrapper(useCaseTypeFieldElement).findSelect();
-        useCaseTypeSelect?.openDropdown();
-        useCaseTypeSelect?.selectOptionByValue('Chat');
-        useCaseTypeSelect?.openDropdown();
-        expect(useCaseTypeSelect?.findDropdown().findSelectedOptions()[0].getElement().innerHTML).toContain('Chat');
 
         const useCaseNameFieldElement = screen.getByTestId('use-case-name-field');
         const useCaseNameInput = createWrapper(useCaseNameFieldElement).findInput();
@@ -148,8 +157,8 @@ describe('Wizard', () => {
         expect(wizardWrapper?.findMenuNavigationLink(2, 'active')).not.toBeNull();
         const selectVpcRadioGroup = createWrapper(screen.getByTestId('deploy-in-vpc-field')).findRadioGroup();
         expect(selectVpcRadioGroup).toBeDefined();
-        expect(selectVpcRadioGroup?.findInputByValue('yes')).toBeTruthy();
-        expect(selectVpcRadioGroup?.findInputByValue('no')).toBeTruthy();
+        expect(selectVpcRadioGroup?.findInputByValue('Yes')).toBeTruthy();
+        expect(selectVpcRadioGroup?.findInputByValue('No')).toBeTruthy();
 
         wizardWrapper?.findPrimaryButton().click();
 
@@ -223,7 +232,7 @@ describe('Wizard', () => {
         expect(screen.getByTestId('kendra-container')).toBeDefined();
         const existingKendraIndexElement = screen.getByTestId('existing-kendra-index-select');
         const exitingKendraIndexRadioGroup = createWrapper(existingKendraIndexElement).findRadioGroup();
-        exitingKendraIndexRadioGroup?.findInputByValue('yes')?.click();
+        exitingKendraIndexRadioGroup?.findInputByValue('Yes')?.click();
 
         expect(screen.getByTestId('input-kendra-index-id')).toBeDefined();
         const kendraIndexIdInput = createWrapper(screen.getByTestId('input-kendra-index-id')).findInput();
@@ -231,7 +240,7 @@ describe('Wizard', () => {
         kendraIndexIdInput?.setInputValue('');
         kendraIndexIdInput?.setInputValue('fake-kendra-index-id');
 
-        exitingKendraIndexRadioGroup?.findInputByValue('no')?.click();
+        exitingKendraIndexRadioGroup?.findInputByValue('No')?.click();
         expect(screen.getByTestId('input-kendra-index-name')).toBeDefined();
         const kendraIndexNameInput = createWrapper(screen.getByTestId('input-kendra-index-name')).findInput();
         kendraIndexNameInput?.setInputValue('fake-kendra-index-name');
@@ -335,6 +344,7 @@ describe('Wizard', () => {
                     KnowledgeBaseType: 'Kendra',
                     NoDocsFoundResponse: undefined,
                     NumberOfDocs: 3,
+                    ScoreThreshold: 0,
                     ReturnSourceDocs: false
                 },
 
@@ -362,7 +372,8 @@ describe('Wizard', () => {
                     VpcEnabled: false
                 },
                 UseCaseDescription: 'fake-use-case-description-name',
-                UseCaseName: 'fake-use-case-name'
+                UseCaseName: 'fake-use-case-name',
+                UseCaseType: 'Text'
             },
             headers: {
                 Authorization: 'fake-token'
@@ -370,5 +381,8 @@ describe('Wizard', () => {
         });
         const flashBarWrapper = createWrapper(reviewElement)?.findFlashbar();
         expect(flashBarWrapper).toBeDefined();
+        setTimeout(() => {
+            expect(screen?.getByTestId('dashboard-view')).toBeDefined();
+        }, DELAY_AFTER_SUCCESS_DEPLOYMENT);
     });
 });
