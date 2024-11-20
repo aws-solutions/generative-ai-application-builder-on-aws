@@ -26,9 +26,9 @@ describe('EnableGuardrails', () => {
 
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="enable-guardrails-radio-group"]');
         expect(radioGroup?.getElement()).toBeDefined();
-        expect(radioGroup?.findInputByValue('no')?.getElement().checked).toBeTruthy();
+        expect(radioGroup?.findInputByValue('No')?.getElement().checked).toBeTruthy();
 
-        radioGroup?.findInputByValue('yes')?.getElement().click();
+        radioGroup?.findInputByValue('Yes')?.getElement().click();
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
             enableGuardrails: true,
             guardrailIdentifier: '',

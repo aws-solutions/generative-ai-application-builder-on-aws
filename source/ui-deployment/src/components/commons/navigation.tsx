@@ -18,7 +18,7 @@ export const navItems: SideNavigationProps['items'] = [
     {
         type: 'section',
         text: 'Deployments',
-        items: [{ type: 'link', text: 'Deploy New Use Case', href: '/wizardview' }]
+        items: [{ type: 'link', text: 'Deploy New Use Case', href: '/create' }]
     }
 ];
 

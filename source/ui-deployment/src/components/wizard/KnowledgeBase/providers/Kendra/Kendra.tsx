@@ -34,13 +34,13 @@ const KendaComponentsOnCreate = (props: KendraProps) => {
     return (
         <SpaceBetween size="l">
             <ExistingKendraIndexOption {...props} />
-            {props.knowledgeBaseData.existingKendraIndex === 'no' && (
+            {props.knowledgeBaseData.existingKendraIndex === 'No' && (
                 <SpaceBetween size="l">
                     <KendraIndexName {...props} />
                     <KendraResourceRetentionWarning />
                 </SpaceBetween>
             )}
-            {props.knowledgeBaseData.existingKendraIndex === 'yes' && <KendraIndexId {...props} />}
+            {props.knowledgeBaseData.existingKendraIndex === 'Yes' && <KendraIndexId {...props} />}
         </SpaceBetween>
     );
 };
@@ -52,9 +52,9 @@ export const Kendra = (props: KendraProps) => {
 
     useEffect(() => {
         if (props.knowledgeBaseData.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.kendra) {
-            if (props.knowledgeBaseData.existingKendraIndex === 'yes' || deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
+            if (props.knowledgeBaseData.existingKendraIndex === 'Yes' || deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
                 props.onChangeFn({
-                    existingKendraIndex: 'yes'
+                    existingKendraIndex: 'Yes'
                 });
                 props.setRequiredFields!(['kendraIndexId']);
             } else {
@@ -66,7 +66,7 @@ export const Kendra = (props: KendraProps) => {
     return (
         <Container
             header={<Header variant="h2">Knowledge base configuration</Header>}
-            footer={props.knowledgeBaseData.existingKendraIndex === 'no' && <AdditionalKendraOptions {...props} />}
+            footer={props.knowledgeBaseData.existingKendraIndex === 'No' && <AdditionalKendraOptions {...props} />}
             data-testid="kendra-container"
         >
             <SpaceBetween size="l">

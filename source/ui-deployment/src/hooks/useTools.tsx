@@ -15,15 +15,7 @@ import { HelpPanel, AppLayoutProps } from '@cloudscape-design/components';
 import { useState, useRef } from 'react';
 import { ExternalLinkGroup } from '../components/commons';
 import { ToolHelpPanelContent } from '../components/wizard/interfaces/Steps';
-import { TOOLS_CONTENT } from '../components/wizard/tools-content';
-
-interface ToolsContent {
-    [key: string]: { [key: string]: ToolHelpPanelContent };
-}
-
-const getDefaultToolsUsingStateKey = (stateKey: string) => {
-    return (TOOLS_CONTENT as ToolsContent)[stateKey].default;
-};
+import { BaseWizardStep } from '@/components/wizard/interfaces/Steps/BaseWizardStep';
 
 const getFormattedToolsContent = (tools: ToolHelpPanelContent) => (
     <HelpPanel header={<h2>{tools.title}</h2>} footer={<ExternalLinkGroup items={tools.links} />}>
@@ -31,12 +23,10 @@ const getFormattedToolsContent = (tools: ToolHelpPanelContent) => (
     </HelpPanel>
 );
 
-export const useTools = (stepStateKey: string) => {
-    const [toolsContent, setToolsContent] = useState(
-        getFormattedToolsContent(getDefaultToolsUsingStateKey(stepStateKey))
-    );
+const generateTools = (content: ToolHelpPanelContent) => {
+    const [toolsContent, setToolsContent] = useState(getFormattedToolsContent(content));
     const [isToolsOpen, setIsToolsOpen] = useState(false);
-    const appLayoutRef = useRef<AppLayoutProps.Ref>();
+    const appLayoutRef = useRef<AppLayoutProps.Ref>(null);
 
     const setFormattedToolsContent = (tools: ToolHelpPanelContent) => {
         setToolsContent(getFormattedToolsContent(tools));
@@ -54,14 +44,16 @@ export const useTools = (stepStateKey: string) => {
     const onToolsChange = (evt: AppLayoutProps.ChangeDetail) => setIsToolsOpen(evt.open);
 
     return {
-        toolsContent,
-        isToolsOpen,
-        setHelpPanelContent,
-        closeTools,
-        setFormattedToolsContent,
-        onToolsChange,
-        appLayoutRef
+        content: toolsContent,
+        isOpen: isToolsOpen,
+        setContentAndOpen: setHelpPanelContent,
+        close: closeTools,
+        setContent: setFormattedToolsContent,
+        onChange: onToolsChange,
+        appLayoutRef: appLayoutRef
     };
 };
 
-export default useTools;
+export const generateToolsForStep = (step: BaseWizardStep) => {
+    return generateTools(step.toolContent);
+};

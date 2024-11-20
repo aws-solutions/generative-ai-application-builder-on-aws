@@ -59,31 +59,38 @@ DEFAULT_DDB_MESSAGE_TTL = 60 * 60 * 24  # 24 hours in seconds
 DEFAULT_RAG_CHAIN_TYPE = "stuff"
 DEFAULT_KENDRA_NUMBER_OF_DOCS = 2
 DEFAULT_BEDROCK_KNOWLEDGE_BASE_NUMBER_OF_DOCS = 2
-DEFAULT_RETURN_SOURCE_DOCS = False
+DEFAULT_RETURN_SOURCE_DOCS_MODE = False
+DEFAULT_REPHRASE_QUESTION_MODE = False
 DEFAULT_SCORE_THRESHOLD = 0.0
 DEFAULT_MAX_TOKENS_TO_SAMPLE = 256
 DEFAULT_VERBOSE_MODE = False
+DEFAULT_DISAMBIGUATION_ENABLED_MODE = True
 DEFAULT_RAG_ENABLED_MODE = False
 DEFAULT_DISAMBIGUATION_ENABLED_MODE = True
 DEFAULT_STREAMING_MODE = False
-DEFAULT_TEMPERATURE = 0.0
 DEFAULT_PROMPT_PLACEHOLDERS = ["history", "input"]
-DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["chat_history", "context", "question"]
-DISAMBIGUATION_PROMPT_PLACEHOLDERS = ["question", "chat_history"]
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context", "history", "input"]
+DISAMBIGUATION_PROMPT_PLACEHOLDERS = ["input", "history"]
 DEFAULT_RETURN_GENERATED_RAG_QUESTION = True
 DEFAULT_REPHRASE_RAG_QUESTION = True
-SOURCE_DOCUMENTS_KEY = "source_documents"
-GENERATED_QUESTION_KEY = "generated_question"
+SOURCE_DOCUMENTS_RECEIVED_KEY = "context"
+SOURCE_DOCUMENTS_OUTPUT_KEY = "source_documents"
 LLM_RESPONSE_KEY = "answer"
-
-
-DEFAULT_MODEL_ID = "default"
+DEFAULT_SAGEMAKER_MODEL_ID = "default"
 HISTORY_KEY = "history"
 INPUT_KEY = "input"
-OUTPUT_KEY = "output"
+OUTPUT_KEY = "answer"
 CONTEXT_KEY = "context"
 HUMAN_PREFIX = "human_prefix"
 AI_PREFIX = "ai_prefix"
+SYSTEM_PREFIX = "system"
+USER_ID_KEY = "user_id"
+CONVERSATION_ID_KEY = "conversation_id"
+RAG_CONVERSATION_TRACER_KEY = "retrievalAugmentedConversationInvocation"
+CONVERSATION_TRACER_KEY = "conversationInvocation"
+PAYLOAD_DATA_KEY = "data"
+PAYLOAD_SOURCE_DOCUMENT_KEY = "sourceDocument"
+REPHRASED_QUERY_KEY = "rephrased_query"
 
 
 # Bedrock text generation models
@@ -98,6 +105,13 @@ DEFAULT_MODELS_MAP = {
     LLMProviderTypes.BEDROCK.value: DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY],
     LLMProviderTypes.SAGEMAKER.value: "default",
 }
+BETA_USE_CONVERSE_API_MODELS = ["cohere.command-r-v1:0", "cohere.command-r-plus-v1:0"]
+CHATBEDROCK_MODELS = [
+    BedrockModelProviders.ANTHROPIC.value,
+    BedrockModelProviders.AMAZON.value,
+    BedrockModelProviders.MISTRAL.value,
+    BedrockModelProviders.META.value,
+]
 
 SAGEMAKER_ENDPOINT_ARGS = [
     "CustomAttributes",
@@ -112,5 +126,6 @@ SAGEMAKER_ENDPOINT_ARGS = [
 BEDROCK_GUARDRAILS_KEY = "guardrails"
 BEDROCK_GUARDRAIL_IDENTIFIER_KEY = "GuardrailIdentifier"
 BEDROCK_GUARDRAIL_VERSION_KEY = "GuardrailVersion"
+BEDROCK_INFERENCE_PROFILE_MODEL = "inference-profile"
 
 DEFAULT_RAG_RBAC_ENABLED_STATUS = False

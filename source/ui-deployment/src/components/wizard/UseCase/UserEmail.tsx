@@ -14,12 +14,10 @@
 import React from 'react';
 
 import { InfoLink } from '../../commons/common-components';
-import { Input, InputProps, FormField } from '@cloudscape-design/components';
-import { TOOLS_CONTENT } from '../tools-content';
+import { Input, InputProps, FormField, Box } from '@cloudscape-design/components';
 import { updateNumFieldsInError } from '../utils';
 import { BaseFormComponentProps } from '../interfaces/BaseFormComponent';
-
-const { useCase: useCaseToolsContent } = TOOLS_CONTENT;
+import { IG_DOCS } from '@/utils/constants';
 
 interface UserEmailProps extends BaseFormComponentProps {
     email: string;
@@ -49,7 +47,7 @@ export const UserEmail = (props: UserEmailProps) => {
             }
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(useCaseToolsContent.defaultUserEmail)}
+                    onFollow={() => props.setHelpPanelContent!(emailInfoPanel)}
                     ariaLabel={'Use case email address.'}
                 />
             }
@@ -70,3 +68,25 @@ export const UserEmail = (props: UserEmailProps) => {
 };
 
 export default UserEmail;
+
+//INFO PANEL CONTENT
+const emailInfoPanel = {
+    title: 'Default user email address',
+    content: (
+        <Box variant="p">
+            The email address of a user you want to give access to the deployment. This user (referred to as Business
+            user) will be sent an email with credentials to log in and use the deployment. If no email address is
+            provided, only other Admin users will have access to this deployment.
+        </Box>
+    ),
+    links: [
+        {
+            href: IG_DOCS.CONCEPTS,
+            text: 'Concepts and Definitions - Business user'
+        },
+        {
+            href: IG_DOCS.MANAGE_USERS,
+            text: 'Managing user access'
+        }
+    ]
+};

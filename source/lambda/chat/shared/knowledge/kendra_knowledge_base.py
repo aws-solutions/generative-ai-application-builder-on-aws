@@ -17,15 +17,15 @@ from dataclasses import asdict
 from typing import Any, Dict, List, Optional
 
 from aws_lambda_powertools import Logger
+from cognito_jwt_verifier import CognitoJWTVerifier
 from langchain_core.documents import Document
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
 from shared.knowledge.knowledge_base import KnowledgeBase, SourceDocument
-from utils.cognito_jwt_verifier import CognitoJWTVerifier
 from utils.constants import (
     CLIENT_ID_ENV_VAR,
     DEFAULT_KENDRA_NUMBER_OF_DOCS,
     DEFAULT_RAG_RBAC_ENABLED_STATUS,
-    DEFAULT_RETURN_SOURCE_DOCS,
+    DEFAULT_RETURN_SOURCE_DOCS_MODE,
     DEFAULT_SCORE_THRESHOLD,
     KENDRA_INDEX_ID_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
@@ -66,7 +66,7 @@ class KendraKnowledgeBase(KnowledgeBase):
         )
         self.return_source_documents = knowledge_base_params.get(
             "ReturnSourceDocs",
-            DEFAULT_RETURN_SOURCE_DOCS,
+            DEFAULT_RETURN_SOURCE_DOCS_MODE,
         )
         self.min_score_confidence = knowledge_base_params.get(
             "ScoreThreshold",

@@ -24,7 +24,7 @@ describe('When performing storage management operations', () => {
 
     describe('When successfully invoking the commands', () => {
         beforeAll(() => {
-            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
 
             const event = {
                 queryStringParameters: {

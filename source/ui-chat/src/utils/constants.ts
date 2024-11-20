@@ -13,7 +13,6 @@
 
 export const API_NAME = 'api';
 export const APP_TRADEMARK_NAME = 'Generative AI Application Builder on AWS - Chat';
-export const MODEL_MAX_INPUT_LENGTH = 375000;
 
 export const MIN_PROMPT_TEMPLATE_LENGTH = 0;
 export const MAX_PROMPT_TEMPLATE_LENGTH = 375000;
@@ -27,3 +26,19 @@ export const SOURCE_DOCS_RESPONSE_PAYLOAD_KEY = 'sourceDocument';
 // for socket connection
 export const SOCKET_CONNECTION_RETRIES = 15;
 export const DEFAULT_DELAY_MS = 1000;
+
+export enum USE_CASE_TYPES {
+    AGENT = 'Agent',
+    TEXT = 'Text'
+}
+
+export enum USE_CASE_TYPES_ROUTE {
+    AGENT = 'invokeAgent',
+    TEXT = 'sendMessage'
+}
+
+export enum MAX_TEXT_INPUT_LENGTHS {
+    DEFAULT = 375000,
+    AGENT = 25000000,
+    TEXT = 375000
+}

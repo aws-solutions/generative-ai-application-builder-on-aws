@@ -18,13 +18,19 @@ import { AppLayout, Button, Container, ContentLayout, Header, SpaceBetween, Tabs
 
 import { Breadcrumbs, GeneralConfig, PageHeader, ModelDetails, KnowledgeBaseDetails } from './common-components';
 import { PromptDetails } from './PromptDetails';
+import { AgentDetails } from './AgentDetails';
 import { Navigation, InfoLink, Notifications } from '../commons/common-components';
 import { appLayoutAriaLabels } from '../../i18n-strings';
 import { ToolsContent } from './tools-content';
 import HomeContext from '../../contexts/home.context';
 import { parseStackName } from '../commons/table-config';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
-import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS } from '../../utils/constants';
+import {
+    CFN_STACK_STATUS_INDICATOR,
+    DEPLOYMENT_ACTIONS,
+    USECASE_TYPE_ROUTE,
+    USECASE_TYPES
+} from '../../utils/constants';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 
 const Model = ({ loadHelpPanelContent }) => (
@@ -87,6 +93,26 @@ const Prompt = ({ loadHelpPanelContent, selectedDeployment }) => (
     </Container>
 );
 
+const Agent = ({ loadHelpPanelContent }) => (
+    <Container
+        header={
+            <Header
+                variant="h2"
+                info={
+                    <InfoLink
+                        onFollow={() => loadHelpPanelContent(1)}
+                        ariaLabel={'Information about deployment agent.'}
+                    />
+                }
+            >
+                Agent
+            </Header>
+        }
+    >
+        <AgentDetails />
+    </Container>
+);
+
 export default function UseCaseView() {
     const {
         state: { selectedDeployment },
@@ -98,6 +124,8 @@ export default function UseCaseView() {
     const [toolsOpen, setToolsOpen] = useState(false);
     const [, setToolsIndex] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const navigateDestination =
+        USECASE_TYPE_ROUTE[selectedDeployment.UseCaseType?.toUpperCase()] ?? USECASE_TYPE_ROUTE.TEXT;
 
     const onDeleteInit = () => setShowDeleteModal(true);
     const onDeleteDiscard = () => setShowDeleteModal(false);
@@ -108,7 +136,7 @@ export default function UseCaseView() {
         appLayout.current?.focusToolsClose();
     }
 
-    const tabs = [
+    let tabs = [
         {
             label: 'Model',
             id: 'model',
@@ -129,6 +157,17 @@ export default function UseCaseView() {
         }
     ];
 
+    if (selectedDeployment.UseCaseType === USECASE_TYPES.AGENT) {
+        tabs = [
+            {
+                label: 'Agent',
+                id: 'agent',
+                content: <Agent loadHelpPanelContent={loadHelpPanelContent} />,
+                key: 'agent'
+            }
+        ];
+    }
+
     const onEditClickAction = () => {
         homeDispatch({
             field: 'selectedDeployment',
@@ -138,7 +177,7 @@ export default function UseCaseView() {
             field: 'deploymentAction',
             value: DEPLOYMENT_ACTIONS.EDIT
         });
-        navigate(`/wizardView`);
+        navigate(navigateDestination);
     };
 
     const onCloneClickAction = () => {
@@ -150,7 +189,7 @@ export default function UseCaseView() {
             field: 'deploymentAction',
             value: DEPLOYMENT_ACTIONS.CLONE
         });
-        navigate(`/wizardView`);
+        navigate(navigateDestination);
     };
 
     const onFollowNavigationHandler = (event) => {
@@ -161,6 +200,10 @@ export default function UseCaseView() {
     const isEditEnabled =
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING;
+    const isCloneEnabled =
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING ||
+        currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.STOPPED;
 
     return (
         <AppLayout
@@ -182,6 +225,7 @@ export default function UseCaseView() {
                                     onClick={onCloneClickAction}
                                     key={'clone-button'}
                                     data-testid="use-case-view-clone-btn"
+                                    disabled={!isCloneEnabled}
                                 >
                                     Clone
                                 </Button>,
@@ -207,7 +251,7 @@ export default function UseCaseView() {
             }
             breadcrumbs={<Breadcrumbs deploymentId={parseStackName(selectedDeployment.StackId)} />}
             navigation={<Navigation onFollowHandler={onFollowNavigationHandler} />}
-            tools={<ToolsContent />}
+            tools={<ToolsContent useCaseType={selectedDeployment.UseCaseType} />}
             toolsOpen={toolsOpen}
             onToolsChange={({ detail }) => setToolsOpen(detail.open)}
             ariaLabels={appLayoutAriaLabels}

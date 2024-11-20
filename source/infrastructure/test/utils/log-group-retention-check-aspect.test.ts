@@ -42,9 +42,7 @@ describe('LogGroupRetentionCheckAspect', () => {
 
         template.resourceCountIs('AWS::Logs::LogGroup', 1);
 
-        expect(addWarningSpy).toHaveBeenCalledWith(
-            expect.stringContaining('Log group')
-        );
+        expect(addWarningSpy).toHaveBeenCalledWith(expect.stringContaining('Log group'));
     });
 
     it('should not add a warning annotation when log group retention is set to 10 years', () => {

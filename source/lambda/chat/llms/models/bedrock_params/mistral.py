@@ -27,8 +27,17 @@ class BedrockMistralLLMParams(BedrockLLMParams):
 
     max_tokens: Optional[int] = None
     stop: Optional[List[str]] = None
-    temperature: Optional[float] = None
     top_p: Optional[float] = None
+    temperature: Optional[float] = None
+
+
+@dataclass
+class BedrockMistralTextLLMParams(BedrockLLMParams):
+    """
+    Model parameters for the Mistral models available in Bedrock.
+    The class also provides logic to parse and clean model parameters specifically for the Amazon Mistral Bedrock model.
+    """
+
     top_k: Optional[int] = None
 
     def __post_init__(self):

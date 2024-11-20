@@ -154,7 +154,9 @@ describe('When creating the Use Case config ddb builder commands', () => {
             expect(result.Key).toEqual({
                 key: { S: 'test-record-key' }
             });
-            expect(result.UpdateExpression).toEqual('SET #TTL = :expiry_time, #DeletedBy = :user, #DeletedDate = :deletion_date');
+            expect(result.UpdateExpression).toEqual(
+                'SET #TTL = :expiry_time, #DeletedBy = :user, #DeletedDate = :deletion_date'
+            );
             expect(result.ExpressionAttributeNames).toEqual({
                 '#TTL': DYNAMODB_TTL_ATTRIBUTE_NAME,
                 '#DeletedBy': 'DeletedBy',

@@ -25,14 +25,17 @@ from utils.constants import (
     END_CONVERSATION_TOKEN,
     MESSAGE_KEY,
     RAG_CHAT_IDENTIFIER,
+    REPHRASED_QUERY_KEY,
     REQUEST_CONTEXT_KEY,
+    CONTEXT_KEY,
+    OUTPUT_KEY,
 )
 from utils.enum_types import KnowledgeBaseTypes
 
 from . import bedrock_source_doc_responses, kendra_source_doc_responses, mocked_bedrock_docs, mocked_kendra_docs
 
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 
 
 @pytest.mark.parametrize(
@@ -40,7 +43,7 @@ BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
     [
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             BEDROCK_PROMPT,
             False,
             False,
@@ -50,7 +53,7 @@ BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         ),
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             BEDROCK_PROMPT,
             True,
             False,
@@ -60,7 +63,7 @@ BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {OUTPUT_KEY: "I'm doing well, how are you?", REPHRASED_QUERY_KEY: "rephrased query"},
             BEDROCK_RAG_PROMPT,
             False,
             True,
@@ -70,7 +73,7 @@ BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {OUTPUT_KEY: "I'm doing well, how are you?", REPHRASED_QUERY_KEY: "rephrased query"},
             BEDROCK_RAG_PROMPT,
             True,
             True,
@@ -81,8 +84,9 @@ BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_kendra_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             BEDROCK_RAG_PROMPT,
             False,
@@ -94,8 +98,9 @@ BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_bedrock_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_bedrock_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             BEDROCK_RAG_PROMPT,
             True,
@@ -170,13 +175,11 @@ def test_bedrock_chat_handler(
             apigateway_stubber.activate()
 
             with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
-                with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
-                    with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
-                        mocked_predict.return_value = "I'm doing well, how are you?"
-                        mocked_rag_predict.return_value = mocked_response
-                        mocked_retrieve_llm_config.return_value = bedrock_llm_config
-                        response = lambda_handler(chat_event, context)
-                        assert response == {"batchItemFailures": []}
+                with patch("langchain_core.runnables.RunnableWithMessageHistory.invoke") as mocked_predict:
+                    mocked_predict.return_value = mocked_response
+                    mocked_retrieve_llm_config.return_value = bedrock_llm_config
+                    response = lambda_handler(chat_event, context)
+                    assert response == {"batchItemFailures": []}
 
             apigateway_stubber.deactivate()
 
@@ -186,7 +189,7 @@ def test_bedrock_chat_handler(
     [
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             BEDROCK_PROMPT,
             False,
             False,
@@ -196,7 +199,7 @@ def test_bedrock_chat_handler(
         ),
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             BEDROCK_PROMPT,
             True,
             False,
@@ -206,7 +209,7 @@ def test_bedrock_chat_handler(
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {OUTPUT_KEY: "I'm doing well, how are you?", REPHRASED_QUERY_KEY: "rephrased query"},
             BEDROCK_RAG_PROMPT,
             False,
             True,
@@ -216,7 +219,7 @@ def test_bedrock_chat_handler(
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {OUTPUT_KEY: "I'm doing well, how are you?", REPHRASED_QUERY_KEY: "rephrased query"},
             BEDROCK_RAG_PROMPT,
             True,
             True,
@@ -227,8 +230,9 @@ def test_bedrock_chat_handler(
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_kendra_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             BEDROCK_RAG_PROMPT,
             False,
@@ -240,8 +244,9 @@ def test_bedrock_chat_handler(
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_bedrock_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_bedrock_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             BEDROCK_RAG_PROMPT,
             True,
@@ -321,8 +326,8 @@ def test_bedrock_chat_handler_empty_conversation(
 
             apigateway_stubber.activate()
             with patch("clients.llm_chat_client.uuid4", return_value=fake_uuid):
-                with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
-                    with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
+                with patch("langchain_core.runnables.RunnableWithMessageHistory.invoke") as mocked_predict:
+                    with patch("langchain_core.runnables.RunnableWithMessageHistory.invoke") as mocked_rag_predict:
                         mocked_predict.return_value = "I'm doing well, how are you?"
                         mocked_rag_predict.return_value = mocked_response
                         mocked_retrieve_llm_config.return_value = bedrock_llm_config

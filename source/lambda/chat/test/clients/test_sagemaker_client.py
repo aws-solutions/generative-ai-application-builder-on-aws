@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 import pytest
 from clients.sagemaker_client import SageMakerClient
+from langchain_core.prompts import ChatPromptTemplate
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from llms.sagemaker import SageMakerLLM
 from utils.constants import (
@@ -31,7 +32,7 @@ from utils.constants import (
 from utils.enum_types import KnowledgeBaseTypes
 
 SAGEMAKER_PROMPT = """\n\n{history}\n\n{input}"""
-SAGEMAKER_RAG_PROMPT = """\n\n{chat_history}\n\n{question}\n\n{context}"""
+SAGEMAKER_RAG_PROMPT = """\n\n{history}\n\n{input}\n\n{context}"""
 table_name = "fake-table"
 model_id = "default"
 
@@ -158,17 +159,17 @@ def test_construct_chat_model1(
     llm_client = SageMakerClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
     llm_client.get_model(chat_event_body[MESSAGE_KEY], "fake-user-id")
 
-    assert type(llm_client.builder.llm_model) == llm_type
-    assert llm_client.builder.llm_model.model == "default"
-    assert llm_client.builder.llm_model.model_params == {
+    assert type(llm_client.builder.llm) == llm_type
+    assert llm_client.builder.llm.model == "default"
+    assert llm_client.builder.llm.model_params == {
         "maxTokenCount": 100,
         "topP": 0.3,
         "temperature": 0.2,
     }
-    assert (
-        llm_client.builder.llm_model.prompt_template.template
-        == parsed_sagemaker_config["LlmParams"]["PromptParams"]["PromptTemplate"]
+
+    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(
+        parsed_sagemaker_config["LlmParams"]["PromptParams"]["PromptTemplate"]
     )
-    assert set(llm_client.builder.llm_model.prompt_template.input_variables) == set(placeholders)
-    assert llm_client.builder.llm_model.streaming == parsed_sagemaker_config["LlmParams"]["Streaming"]
-    assert llm_client.builder.llm_model.verbose == parsed_sagemaker_config["LlmParams"]["Verbose"]
+    assert set(llm_client.builder.llm.prompt_template.input_variables) == set(placeholders)
+    assert llm_client.builder.llm.streaming == parsed_sagemaker_config["LlmParams"]["Streaming"]
+    assert llm_client.builder.llm.verbose == parsed_sagemaker_config["LlmParams"]["Verbose"]

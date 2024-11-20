@@ -26,7 +26,7 @@ import {
 } from '../../ddb/storage-operation-builder';
 import { ScanCaseTableCommandBuilder } from '../../ddb/storage-view-builder';
 import { ListUseCasesAdapter } from '../../model/list-use-cases';
-import { ChatUseCaseInfoAdapter, UseCase } from '../../model/use-case';
+import { UseCase } from '../../model/use-case';
 import {
     CfnParameterKeys,
     DDB_SCAN_RECORDS_LIMIT,
@@ -40,6 +40,7 @@ import {
     permanentlyDeleteUseCaseEvent,
     updateUseCaseEvent
 } from '../event-test-data';
+import { ChatUseCaseInfoAdapter } from '../../model/chat-use-case-adapter';
 
 describe('When creating StackCommandBuilders', () => {
     let createEvent: any;

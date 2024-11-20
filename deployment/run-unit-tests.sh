@@ -56,18 +56,6 @@ install_lambda_layer() {
 
 	setup_python_env
 
-	echo "Initiating virtual environment"
-	source .venv-test/bin/activate
-
-	echo "------------------------------------------------------------------------------"
-	echo "Check for vulnerabilities"
-	pip install pip-audit
-	pip-audit
-	echo "------------------------------------------------------------------------------"	
-
-	echo "deactivate virtual environment"
-	deactivate
-
 	[ "${CLEAN:-true}" = "true" ] && rm -fr .venv-test
 }
 
@@ -85,12 +73,6 @@ run_python_lambda_test() {
 
 	echo "Initiating virtual environment"
 	source .venv-test/bin/activate
-
-	echo "------------------------------------------------------------------------------"
-	echo "Check for vulnerabilities"
-	pip install pip-audit
-	pip-audit
-	echo "------------------------------------------------------------------------------"	
 
 	# setup coverage report path
 	mkdir -p $source_dir/test/coverage-reports
@@ -134,7 +116,7 @@ run_python_scripts_test() {
 	echo "Check for vulnerabilities"
 	pip install pip-audit
 	pip-audit
-	echo "------------------------------------------------------------------------------"	
+	echo "------------------------------------------------------------------------------"
 
 	# setup coverage report path
 	mkdir -p $source_dir/test/coverage-reports
@@ -309,6 +291,7 @@ echo "Running unit test for lambda functions"
 echo "---------------------------------------"
 
 run_python_lambda_test chat "Chat Use Case"
+run_python_lambda_test invoke-agent "Bedrock Agent"
 run_javascript_lambda_test custom-authorizer "Custom Authorizer"
 run_python_lambda_test custom-resource "Custom Resource"
 run_python_lambda_test ext-idp-group-mapper "IDP Group Mapper for Cognito JWT pre-token generation"

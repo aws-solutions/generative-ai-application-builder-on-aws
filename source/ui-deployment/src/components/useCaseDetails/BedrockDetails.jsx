@@ -28,9 +28,16 @@ export const BedrockDetails = () => {
             {
                 <SpaceBetween size="l">
                     <ValueWithLabel label={'Model Provider'}>{BEDROCK_MODEL_PROVIDER_NAME}</ValueWithLabel>
-                    <ValueWithLabel label={'Model Name'}>
-                        {selectedDeployment.LlmParams.BedrockLlmParams.ModelId}
-                    </ValueWithLabel>
+                    {selectedDeployment.LlmParams.BedrockLlmParams.ModelId && (
+                        <ValueWithLabel label={'Model Name'}>
+                            {selectedDeployment.LlmParams.BedrockLlmParams.ModelId}
+                        </ValueWithLabel>
+                    )}
+                    {selectedDeployment.LlmParams.BedrockLlmParams.InferenceProfileId && (
+                        <ValueWithLabel label={'Inference Profile ID'}>
+                            {selectedDeployment.LlmParams.BedrockLlmParams.InferenceProfileId}
+                        </ValueWithLabel>
+                    )}
                     {selectedDeployment.LlmParams.BedrockLlmParams.ModelArn && (
                         <ValueWithLabel label={'Model ARN'}>
                             {selectedDeployment.LlmParams.BedrockLlmParams.ModelArn}

@@ -1,6 +1,6 @@
 {
   "name": "gen-ai-app-builder-on-aws-infrastructure",
-  "version": "2.0.4",
+  "version": "2.1.0",
   "bin": {
     "infrastructure": "bin/gen-ai-app-builder.js"
   },
@@ -19,9 +19,9 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/mock-fs": "^4.13.4",
-    "@typescript-eslint/eslint-plugin": "^8.0.1",
-    "@typescript-eslint/parser": "^8.0.1",
-    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^8.2.0",
+    "@typescript-eslint/parser": "^8.2.0",
+    "eslint": "^9.9.0",
     "jest": "^29.7.0",
     "jsonschema": "^1.4.1",
     "mock-fs": "^5.2.0",
@@ -32,7 +32,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@aws-cdk/aws-servicecatalogappregistry-alpha": "2.150.0-alpha.0",
+    "@aws-cdk/aws-servicecatalogappregistry-alpha": "2.161.0-alpha.0",
     "@aws-solutions-constructs/aws-apigateway-lambda": "^2.65.0",
     "@aws-solutions-constructs/aws-apigatewayv2websocket-sqs": "^2.65.0",
     "@aws-solutions-constructs/aws-cloudfront-s3": "^2.65.0",
@@ -40,13 +40,13 @@
     "@aws-solutions-constructs/aws-sqs-lambda": "^2.65.0",
     "@aws-solutions-constructs/aws-wafwebacl-apigateway": "^2.65.0",
     "@aws-solutions-constructs/core": "^2.65.0",
-    "@types/node": "^22.2.0",
+    "@types/node": "^22.5.0",
     "@types/npmlog": "^7.0.0",
     "@types/uuid": "^10.0.0",
-    "aws-cdk": "^2.150.0",
-    "aws-cdk-lib": "2.150.0",
-    "cdk": "2.150.0",
-    "cdk-nag": "^2.28.177",
+    "aws-cdk": "^2.161.1",
+    "aws-cdk-lib": "2.161.1",
+    "cdk": "2.161.1",
+    "cdk-nag": "^2.28.187",
     "constructs": "^10.3.0",
     "npmlog": "^7.0.1",
     "source-map-support": "^0.5.21",

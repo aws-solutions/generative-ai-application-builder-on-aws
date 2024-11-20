@@ -14,9 +14,7 @@
 import { FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../../interfaces';
 import { InfoLink } from '../../../../commons';
-import { TOOLS_CONTENT } from '../../../tools-content';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { knowledgeBaseInfoPanel } from '../../helpers';
 
 interface ExistingKendraIndexProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -38,7 +36,7 @@ export const ExistingKendraIndexOption = (props: ExistingKendraIndexProps) => {
             }
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.kendraIndex)}
+                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseInfoPanel.kendraIndex)}
                     ariaLabel={'Information about having a Kendra Index.'}
                 />
             }
@@ -49,11 +47,11 @@ export const ExistingKendraIndexOption = (props: ExistingKendraIndexProps) => {
                 onChange={({ detail }) => onExistingKendraIndexChange(detail)}
                 items={[
                     {
-                        value: 'yes',
+                        value: 'Yes',
                         label: 'Yes'
                     },
                     {
-                        value: 'no',
+                        value: 'No',
                         label: 'No',
                         description: 'It will be created for you.'
                     }

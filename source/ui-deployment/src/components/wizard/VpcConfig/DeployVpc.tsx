@@ -11,14 +11,14 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import React from 'react';
 import { FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 import { InfoLink } from '@/components/commons';
 import { VpcFormFieldProps, vpcToolsContent } from './helpers';
+import { getBooleanString } from '../utils';
 
 export const DeployVpc = (props: VpcFormFieldProps) => {
     const onDeployVpcChange = (detail: RadioGroupProps.ChangeDetail) => {
-        const isVpcRequired = detail.value === 'yes';
+        const isVpcRequired = detail.value === 'Yes';
 
         if (!isVpcRequired) {
             props.onChangeFn({ isVpcRequired: isVpcRequired, inError: false });
@@ -44,15 +44,15 @@ export const DeployVpc = (props: VpcFormFieldProps) => {
                 onChange={({ detail }) => onDeployVpcChange(detail)}
                 items={[
                     {
-                        value: 'yes',
+                        value: 'Yes',
                         label: 'Yes'
                     },
                     {
-                        value: 'no',
+                        value: 'No',
                         label: 'No'
                     }
                 ]}
-                value={props.vpcData.isVpcRequired === true ? 'yes' : 'no'}
+                value={getBooleanString(props.vpcData.isVpcRequired)}
                 data-testid="deploy-in-vpc-radio-group"
             />
         </FormField>

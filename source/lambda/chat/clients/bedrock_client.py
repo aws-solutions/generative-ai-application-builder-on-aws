@@ -21,7 +21,13 @@ from clients.builders.bedrock_builder import BedrockBuilder
 from clients.llm_chat_client import LLMChatClient
 from llms.bedrock import BedrockLLM
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
-from utils.constants import AUTH_TOKEN_EVENT_KEY, CONVERSATION_ID_EVENT_KEY, TRACE_ID_ENV_VAR, USER_ID_EVENT_KEY
+from utils.constants import (
+    AUTH_TOKEN_EVENT_KEY,
+    BEDROCK_INFERENCE_PROFILE_MODEL,
+    CONVERSATION_ID_EVENT_KEY,
+    TRACE_ID_ENV_VAR,
+    USER_ID_EVENT_KEY,
+)
 from utils.enum_types import CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client
 
@@ -35,7 +41,7 @@ class BedrockClient(LLMChatClient):
     Class that allows building a Bedrock LLM client that is used to generate content.
 
     Attributes:
-        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For Bedrock provider, this is BedrockLLM or
+        llm (BaseLangChainModel): The LLM which is used for generating content. For Bedrock provider, this is BedrockLLM or
             BedrockRetrievalLLM
         use_case_config (Dict): Stores the configuration that the admin sets on a use-case fetched from DynamoDB
         rag_enabled (bool): Whether or not RAG is enabled for the use-case
@@ -47,7 +53,7 @@ class BedrockClient(LLMChatClient):
         retrieve_use_case_config(): Retrieves the configuration that the admin sets on a use-case fetched from DynamoDB
         construct_chat_model(): Constructs the Chat model based on the event and the LLM configuration as a series of steps on the builder
         get_event_conversation_id(): Returns the conversation_id for the event
-        get_model(): Retrieves the LLM model that is used to generate content
+        get_model(): Retrieves the LLM that is used to generate content
     """
 
     def __init__(
@@ -64,7 +70,7 @@ class BedrockClient(LLMChatClient):
 
         :param event (Dict): The AWS Lambda event
         Returns:
-            BedrockLLM: The Bedrock LLM model that is used to generate content.
+            BedrockLLM: The Bedrock LLM that is used to generate content.
         """
         super().get_model(event_body)
 
@@ -75,9 +81,18 @@ class BedrockClient(LLMChatClient):
             user_context_token=event_body.get(AUTH_TOKEN_EVENT_KEY),
             rag_enabled=self.rag_enabled,
         )
-        model_name = self.use_case_config.get("LlmParams", {}).get("BedrockLlmParams", {}).get("ModelId", None)
+        inference_profile_id = (
+            self.use_case_config.get("LlmParams", {}).get("BedrockLlmParams", {}).get("InferenceProfileId")
+        )
+
+        model_name = (
+            BEDROCK_INFERENCE_PROFILE_MODEL
+            if inference_profile_id is not None
+            else self.use_case_config.get("LlmParams", {}).get("BedrockLlmParams", {}).get("ModelId")
+        )
+
         self.construct_chat_model(user_id, event_body, LLMProviderTypes.BEDROCK.value, model_name)
-        return self.builder.llm_model
+        return self.builder.llm
 
     @tracer.capture_method
     def construct_chat_model(
@@ -107,7 +122,7 @@ class BedrockClient(LLMChatClient):
             self.builder.validate_event_input_sizes(event_body)
             self.builder.set_knowledge_base()
             self.builder.set_conversation_memory(user_id, conversation_id)
-            self.builder.set_llm_model()
+            self.builder.set_llm()
 
         else:
             error_message = (

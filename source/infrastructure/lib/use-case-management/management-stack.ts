@@ -36,10 +36,10 @@ import {
     ARTIFACT_KEY_PREFIX_ENV_VAR,
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
-    EMAIL_REGEX_PATTERN,
     INTERNAL_EMAIL_DOMAIN,
     IS_INTERNAL_USER_ENV_VAR,
     LAMBDA_TIMEOUT_MINS,
+    OPTIONAL_EMAIL_REGEX_PATTERN,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USE_CASE_API_KEY_SUFFIX_ENV_VAR,
@@ -99,11 +99,26 @@ export class UseCaseManagementParameters {
      */
     deployWebApp: cdk.CfnParameter;
 
+    /**
+     * If provided, will use the provided UserPool instead of creating a new one.
+     */
+    existingCognitoUserPoolId: cdk.CfnParameter;
+
+    /**
+     * Name of table which stores policies for cognito user groups. Required if existingCognitoUserPoolId is provided.
+     */
+    existingCognitoGroupPolicyTableName: cdk.CfnParameter;
+
+    /**
+     * If provided, will use the provided UserPoolClient instead of creating a new one.
+     */
+    existingCognitoUserPoolClientId: cdk.CfnParameter;
+
     constructor(stack: IConstruct) {
         this.defaultUserEmail = new cdk.CfnParameter(stack, 'DefaultUserEmail', {
             type: 'String',
             description: 'Email required to create the default user for the deployment platform',
-            allowedPattern: EMAIL_REGEX_PATTERN,
+            allowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             constraintDescription: 'Please provide a valid email'
         }).valueAsString;
 
@@ -148,6 +163,24 @@ export class UseCaseManagementParameters {
                 'Please select the option to deploy the front end UI for this deployment. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
             allowedValues: ['Yes', 'No'],
             default: 'Yes'
+        });
+
+        this.existingCognitoUserPoolId = new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolId', {
+            type: 'String',
+            allowedPattern: '^$|^[0-9a-zA-Z_-]{9,24}$',
+            maxLength: 24,
+            description:
+                'Optional - UserPoolId of an existing cognito user pool which this use case will be authenticated with. Will be created if not provided',
+            default: ''
+        });
+
+        this.existingCognitoUserPoolClientId = new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClientId', {
+            type: 'String',
+            allowedPattern: '^$|^[a-z0-9]{3,128}$',
+            maxLength: 128,
+            description:
+                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
+            default: ''
         });
 
         const captureExistingVPCParamerters = new ExistingVPCParameters(stack);
@@ -226,7 +259,7 @@ export class UseCaseManagement extends BaseNestedStack {
     /**
      * Hold instance of the RestRequestProcess construct. This construct creates API GW and also sets up Cognito pool resources.
      */
-    private requestProcessor: RestRequestProcessor;
+    public readonly requestProcessor: RestRequestProcessor;
 
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
@@ -394,14 +427,30 @@ export class UseCaseManagement extends BaseNestedStack {
             customResourceRoleArn: this.customResourceLambdaRoleArn,
             cognitoDomainPrefix: this.stackParameters.cognitoDomainPrefix.valueAsString,
             cloudFrontUrl: this.stackParameters.cloudFrontUrl.valueAsString,
-            deployWebApp: this.stackParameters.deployWebApp.valueAsString
+            deployWebApp: this.stackParameters.deployWebApp.valueAsString,
+            existingCognitoUserPoolId: this.stackParameters.existingCognitoUserPoolId.valueAsString,
+            existingCognitoUserPoolClientId: this.stackParameters.existingCognitoUserPoolClientId.valueAsString
         });
+
         this.restApi = this.requestProcessor.restEndpoint.restApi;
         this.apiRootResource = this.requestProcessor.restEndpoint.apiRootResource;
         this.userPool = this.requestProcessor.userPool;
         this.userPoolClient = this.requestProcessor.userPoolClient;
         this.userAuthorizer = this.requestProcessor.userAuthorizer;
         this.cognitoUserPoolDomainName = this.requestProcessor.getCognitoDomainName();
+
+        // add cfnOutputs
+        const cognitoResourcesGeneratedCondition = new cdk.CfnCondition(this, 'CognitoResourcesGenerated', {
+            expression: cdk.Fn.conditionEquals(this.stackParameters.existingCognitoUserPoolId.valueAsString, '')
+        });
+        new cdk.CfnOutput(cdk.Stack.of(this), 'GeneratedUserPoolId', {
+            value: this.userPool.userPoolId,
+            condition: cognitoResourcesGeneratedCondition
+        });
+        new cdk.CfnOutput(cdk.Stack.of(this), 'GeneratedUserPoolClientId', {
+            value: this.userPoolClient.userPoolClientId,
+            condition: cognitoResourcesGeneratedCondition
+        });
 
         NagSuppressions.addResourceSuppressions(
             this.useCaseManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
@@ -715,6 +764,11 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                 conditions: {
                     ...awsCalledViaCondition
                 }
+            }),
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['cognito-idp:DescribeUserPool'],
+                resources: [`arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`]
             }),
             new iam.PolicyStatement({
                 effect: iam.Effect.ALLOW,

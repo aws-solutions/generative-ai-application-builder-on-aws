@@ -14,11 +14,9 @@
 import React from 'react';
 import { BaseFormComponentProps } from '../../interfaces';
 import { updateNumFieldsInError } from '../../utils';
-import { TOOLS_CONTENT } from '../../tools-content';
-import { FormField, Input, InputProps } from '@cloudscape-design/components';
+import { Box, FormField, Input, InputProps, SpaceBetween } from '@cloudscape-design/components';
 import { InfoLink } from '../../../commons';
-
-const { model: modelToolsContent } = TOOLS_CONTENT;
+import { IG_DOCS } from '@/utils/constants';
 
 export interface SageMakerEndpointNameInputProps extends BaseFormComponentProps {
     modelData: any;
@@ -53,7 +51,7 @@ export const SageMakerEndpointNameInput = (props: SageMakerEndpointNameInputProp
             }
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(modelToolsContent.sagemakerHelpPanel)}
+                    onFollow={() => props.setHelpPanelContent!(endpointNameInfoPanel)}
                     ariaLabel={'Information about inference endpoints name.'}
                 />
             }
@@ -77,3 +75,41 @@ export const SageMakerEndpointNameInput = (props: SageMakerEndpointNameInputProp
 };
 
 export default SageMakerEndpointNameInput;
+
+//INFO PANEL CONTENT
+const endpointNameInfoPanel = {
+    title: 'Using SageMaker Endpoint',
+    content: (
+        <SpaceBetween size="xs">
+            <Box variant="p">
+                SageMaker is available as a Model Provider for Text use cases. This feature allows you to use a
+                SageMaker Inference Endpoint already existing within the AWS account in the solution.
+            </Box>
+
+            <Box variant="h4">SageMaker Endpoint Name</Box>
+            <Box variant="p">
+                The name of the SageMaker Endpoint you wish to use. DevOps users can obtain this from the AWS console.
+                Note that the endpoint must be in the same account and region as the solution is deployed in.
+            </Box>
+
+            <Box variant="h4">Note</Box>
+            <Box variant="p">
+                SageMaker now supports hosting multiple models behind the same endpoint, and this is the default
+                configuration when deploying an endpoint in the current version of SageMaker Studio (i.e. not Studio
+                Classic). If your endpoint is configured in this way, you will be required to add
+                “InferenceComponentName” to the advanced model parameters section, with a value corresponding to the
+                name of the model you wish to use.
+            </Box>
+        </SpaceBetween>
+    ),
+    links: [
+        {
+            href: IG_DOCS.SAGEMAKER_CREATE_ENDPOINT,
+            text: 'Creating a SageMaker Endpoint'
+        },
+        {
+            href: IG_DOCS.SAGEMAKER_USE,
+            text: 'Using a SageMaker Endpoint'
+        }
+    ]
+};

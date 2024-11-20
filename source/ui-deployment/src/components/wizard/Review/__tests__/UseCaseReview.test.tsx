@@ -26,7 +26,7 @@ describe('UseCaseReview', () => {
 
     test('renders', () => {
         const useCaseData = {
-            useCase: { label: 'Test Use Case', value: 'testUseCase' },
+            UseCaseType: 'Text',
             useCaseDescription: 'Test Use Case Description',
             useCaseName: 'Test Use Case',
             defaultUserEmail: 'fake-email@example.com',

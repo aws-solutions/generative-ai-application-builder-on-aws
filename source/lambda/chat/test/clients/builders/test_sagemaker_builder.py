@@ -20,12 +20,15 @@ from unittest.mock import patch
 import pytest
 from clients.builders.sagemaker_builder import SageMakerBuilder
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+from langchain_core.prompts import ChatPromptTemplate
+from llms.models.model_provider_inputs import SageMakerInputs
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from llms.sagemaker import SageMakerLLM
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
+from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
+    CONVERSATION_TABLE_NAME_ENV_VAR,
     DEFAULT_PROMPT_PLACEHOLDERS,
     DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     KENDRA_INDEX_ID_ENV_VAR,
@@ -33,11 +36,11 @@ from utils.constants import (
     RAG_CHAT_IDENTIFIER,
     USER_ID_EVENT_KEY,
 )
-from utils.enum_types import ConversationMemoryTypes, KnowledgeBaseTypes, LLMProviderTypes
+from utils.enum_types import KnowledgeBaseTypes, LLMProviderTypes
 
 SAGEMAKER_PROMPT = """\n\n{history}\n\n{input}"""
-SAGEMAKER_RAG_PROMPT = """\n\n{chat_history}\n\n{question}\n\n{context}"""
-CONDENSE_QUESTION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:"""
+SAGEMAKER_RAG_PROMPT = """\n\n{history}\n\n{input}\n\n{context}"""
+CONDENSE_QUESTION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
 
 MEMORY_CONFIG = {
     CHAT_IDENTIFIER: {
@@ -47,8 +50,8 @@ MEMORY_CONFIG = {
         "output": None,
     },
     RAG_CHAT_IDENTIFIER: {
-        "history": "chat_history",
-        "input": "question",
+        "history": "history",
+        "input": "input",
         "context": "context",
         "output": "answer",
     },
@@ -128,7 +131,7 @@ model_id = "default"
         ),
     ],
 )
-def test_set_llm_model(
+def test_set_llm(
     use_case,
     model_id,
     prompt,
@@ -165,31 +168,32 @@ def test_set_llm_model(
             "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
             return_value=AsyncIteratorCallbackHandler(),
         ):
-            builder.set_llm_model()
+            builder.set_llm()
     else:
         with patch(
             "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
             return_value=AsyncIteratorCallbackHandler(),
         ):
-            builder.set_llm_model()
+            builder.set_llm()
 
-    assert type(builder.llm_model) == llm_type
-    assert builder.llm_model.prompt_template.template == prompt
-    assert set(builder.llm_model.prompt_template.input_variables) == set(placeholders)
-    assert builder.llm_model.model_params["temperature"] == 0.2
-    assert builder.llm_model.streaming == config["LlmParams"]["Streaming"]
-    assert builder.llm_model.verbose == config["LlmParams"]["Verbose"]
+    assert type(builder.llm) == llm_type
+    assert builder.llm.prompt_template == ChatPromptTemplate.from_template(prompt)
+    assert set(builder.llm.prompt_template.input_variables) == set(placeholders)
+    assert builder.llm.model_params["temperature"] == 0.2
+    assert builder.llm.streaming == config["LlmParams"]["Streaming"]
+    assert builder.llm.verbose == config["LlmParams"]["Verbose"]
     if rag_enabled:
-        assert builder.llm_model.knowledge_base.kendra_index_id == os.getenv(KENDRA_INDEX_ID_ENV_VAR)
-    else:
-        assert builder.llm_model.knowledge_base == None
-    assert builder.llm_model.conversation_memory.memory_type == ConversationMemoryTypes.DynamoDB.value
-    assert type(builder.llm_model.conversation_memory) == DynamoDBChatMemory
-    assert builder.llm_model.conversation_memory.memory_key == MEMORY_CONFIG[use_case]["history"]
-    assert builder.llm_model.conversation_memory.input_key == MEMORY_CONFIG[use_case]["input"]
-    assert builder.llm_model.conversation_memory.output_key == MEMORY_CONFIG[use_case]["output"]
-    assert builder.llm_model.conversation_memory.human_prefix == test_human
-    assert builder.llm_model.conversation_memory.ai_prefix == test_ai
+        assert builder.llm.knowledge_base.kendra_index_id == os.getenv(KENDRA_INDEX_ID_ENV_VAR)
+    assert builder.conversation_history_cls == DynamoDBChatMessageHistory
+    assert builder.conversation_history_params == {
+        "conversation_id": "fake-conversation-id",
+        "max_history_length": 10,
+        "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
+        "user_id": "fake-user-id",
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
+    }
+    assert type(builder.model_inputs) == SageMakerInputs
 
     if is_streaming:
         assert builder.callbacks
@@ -208,7 +212,7 @@ def test_set_llm_model(
         (RAG_CHAT_IDENTIFIER, SAGEMAKER_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
-def test_set_llm_model_throws_error_missing_memory(
+def test_set_llm_throws_error_missing_memory(
     use_case,
     model_id,
     prompt,
@@ -236,9 +240,9 @@ def test_set_llm_model_throws_error_missing_memory(
         return_value=AsyncIteratorCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
-            builder.set_llm_model()
+            builder.set_llm()
 
-        assert error.value.args[0] == "Conversation Memory was set to null."
+        assert error.value.args[0] == "Conversation History not set."
 
 
 @pytest.mark.parametrize(
@@ -252,7 +256,7 @@ def test_set_llm_model_throws_error_missing_memory(
         (RAG_CHAT_IDENTIFIER, SAGEMAKER_RAG_PROMPT, False, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
-def test_set_llm_model_with_errors(
+def test_set_llm_with_errors(
     use_case,
     model_id,
     prompt,
@@ -278,7 +282,7 @@ def test_set_llm_model_with_errors(
         return_value=AsyncIteratorCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
-            builder.set_llm_model()
+            builder.set_llm()
 
     assert (
         error.value.args[0] == "There are errors in the following configuration parameters:\nsome-error-1\nsome-error-2"
@@ -296,9 +300,7 @@ def test_set_llm_model_with_errors(
         (SAGEMAKER_RAG_PROMPT, True, True, KnowledgeBaseTypes.KENDRA.value, True, model_id),
     ],
 )
-def test_set_llm_model_with_missing_config_fields(
-    sagemaker_llm_config, model_id, return_source_docs, setup_environment
-):
+def test_set_llm_with_missing_config_fields(sagemaker_llm_config, model_id, return_source_docs, setup_environment):
     parsed_config = deepcopy(sagemaker_llm_config)
     del parsed_config["LlmParams"]
     builder = SageMakerBuilder(
@@ -309,11 +311,11 @@ def test_set_llm_model_with_missing_config_fields(
     )
 
     with pytest.raises(ValueError) as error:
-        builder.set_llm_model()
+        builder.set_llm()
 
     assert (
         error.value.args[0]
-        == "There are errors in the following configuration parameters:\nMissing required field (LlmParams) containing LLM configuration in the config which is required to construct the LLM."
+        == "There are errors in the following configuration parameters:\nMissing required field (LlmParams) that contains configuration required to construct the LLM."
     )
 
 
@@ -393,5 +395,5 @@ def test_returned_sagemaker_model(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
     ):
-        builder.set_llm_model()
-        assert type(builder.llm_model) == model
+        builder.set_llm()
+        assert type(builder.llm) == model

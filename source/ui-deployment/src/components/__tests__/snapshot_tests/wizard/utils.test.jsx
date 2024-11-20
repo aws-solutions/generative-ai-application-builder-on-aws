@@ -11,8 +11,14 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { DEFAULT_STEP_INFO, KNOWLEDGE_BASE_PROVIDERS, KNOWLEDGE_BASE_TYPES } from '@/components/wizard/steps-config';
 import {
+    INFERENCE_PROFILE,
+    DEFAULT_STEP_INFO,
+    KNOWLEDGE_BASE_PROVIDERS,
+    KNOWLEDGE_BASE_TYPES
+} from '@/components/wizard/steps-config';
+import {
+    createAgentApiParams,
     createDeployRequestPayload,
     createUpdateRequestPayload,
     createUseCaseInfoApiParams,
@@ -26,6 +32,8 @@ import {
 } from '../../../wizard/utils';
 // eslint-disable-next-line jest/no-mocks-import
 import { sampleDeployUseCaseFormData } from '../../__mocks__/deployment-steps-form-data';
+import { USECASE_TYPES } from '@/utils/constants';
+import { cloneDeep } from 'lodash';
 
 describe('createDeployRequestPayload', () => {
     it('should create valid knowledgebase params payload for existing Kendra index', () => {
@@ -38,7 +46,8 @@ describe('createDeployRequestPayload', () => {
                     RoleBasedAccessControlEnabled: false
                 },
                 ReturnSourceDocs: false,
-                NumberOfDocs: 10
+                NumberOfDocs: 10,
+                ScoreThreshold: 0
             }
         });
     });
@@ -46,7 +55,7 @@ describe('createDeployRequestPayload', () => {
     it('should create valid knowledgebase params payload', () => {
         const stepInfo = JSON.parse(JSON.stringify(sampleDeployUseCaseFormData.knowledgeBase));
         // modify form data to create new Kendra idx
-        stepInfo.existingKendraIndex = 'no';
+        stepInfo.existingKendraIndex = 'No';
         stepInfo.kendraIndexName = 'new-fake-index';
         expect(createKnowledgeBaseApiParams(stepInfo)).toEqual({
             KnowledgeBaseParams: {
@@ -59,6 +68,7 @@ describe('createDeployRequestPayload', () => {
                     RoleBasedAccessControlEnabled: false
                 },
                 NumberOfDocs: 10,
+                ScoreThreshold: 0,
                 ReturnSourceDocs: false
             }
         });
@@ -85,7 +95,8 @@ describe('createDeployRequestPayload', () => {
                     }
                 },
                 ReturnSourceDocs: false,
-                NumberOfDocs: 10
+                NumberOfDocs: 10,
+                ScoreThreshold: 0
             }
         });
     });
@@ -117,7 +128,8 @@ describe('createDeployRequestPayload', () => {
                     }
                 },
                 ReturnSourceDocs: false,
-                NumberOfDocs: 10
+                NumberOfDocs: 10,
+                ScoreThreshold: 0
             }
         });
     });
@@ -134,7 +146,8 @@ describe('createDeployRequestPayload', () => {
                     RoleBasedAccessControlEnabled: false
                 },
                 ReturnSourceDocs: false,
-                NumberOfDocs: 10
+                NumberOfDocs: 10,
+                ScoreThreshold: 0
             }
         });
     });
@@ -163,6 +176,7 @@ describe('createDeployRequestPayload', () => {
                     OverrideSearchType: 'HYBRID'
                 },
                 NumberOfDocs: 2,
+                ScoreThreshold: 0,
                 ReturnSourceDocs: false
             }
         });
@@ -199,6 +213,7 @@ describe('createDeployRequestPayload', () => {
                     }
                 },
                 NumberOfDocs: 2,
+                ScoreThreshold: 0,
                 ReturnSourceDocs: false
             }
         });
@@ -207,7 +222,7 @@ describe('createDeployRequestPayload', () => {
     it('should create valid knowledgebase params payload if rag is disabled', () => {
         const stepInfo = sampleDeployUseCaseFormData.knowledgeBase;
         // modify form data to create new Kendra idx
-        stepInfo.existingKendraIndex = 'no';
+        stepInfo.existingKendraIndex = 'No';
         stepInfo.kendraIndexName = 'new-fake-index';
         stepInfo.isRagRequired = false;
         expect(createKnowledgeBaseApiParams(stepInfo)).toEqual({});
@@ -219,6 +234,7 @@ describe('createDeployRequestPayload', () => {
                 'label': 'Bedrock',
                 'value': 'Bedrock'
             },
+            'enableGuardrails': false,
             'modelName': 'fake-model',
             'accessibility': 'on',
             'encryption': 'off',
@@ -237,6 +253,95 @@ describe('createDeployRequestPayload', () => {
                 ModelProvider: 'Bedrock',
                 BedrockLlmParams: {
                     ModelId: 'fake-model'
+                },
+                PromptParams: {
+                    MaxInputTextLength: 30000,
+                    MaxPromptTemplateLength: 30000,
+                    PromptTemplate: '{history}\n\n{input}',
+                    DisambiguationEnabled: true,
+                    DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
+                },
+                ModelParams: {},
+                Temperature: 0.1,
+                RAGEnabled: true
+            }
+        });
+    });
+
+    it('should create valid Bedrock llm params payload with inference profile', () => {
+        const stepInfo = {
+            'modelProvider': {
+                'label': 'Bedrock',
+                'value': 'Bedrock'
+            },
+            'enableGuardrails': false,
+            'modelName': INFERENCE_PROFILE,
+            'inferenceProfileId': 'fake-id',
+            'accessibility': 'on',
+            'encryption': 'off',
+            'upgrades': 'off',
+            'monitoring': 'off',
+            'backtrack': 'on',
+            'inError': false,
+            'temperature': 0.1,
+            'verbose': false,
+            'streaming': true
+        };
+        expect(createLLMParamsApiParams(stepInfo, sampleDeployUseCaseFormData.prompt, true)).toEqual({
+            LlmParams: {
+                Streaming: true,
+                Verbose: false,
+                ModelProvider: 'Bedrock',
+                BedrockLlmParams: {
+                    InferenceProfileId: 'fake-id'
+                },
+                PromptParams: {
+                    MaxInputTextLength: 30000,
+                    MaxPromptTemplateLength: 30000,
+                    PromptTemplate: '{history}\n\n{input}',
+                    DisambiguationEnabled: true,
+                    DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
+                },
+                ModelParams: {},
+                Temperature: 0.1,
+                RAGEnabled: true
+            }
+        });
+    });
+
+    it('should create valid Bedrock llm params payload with guardrails', () => {
+        const stepInfo = {
+            'modelProvider': {
+                'label': 'Bedrock',
+                'value': 'Bedrock'
+            },
+            'modelName': 'fake-model',
+            'enableGuardrails': true,
+            'guardrailVersion': 'draft',
+            'guardrailIdentifier': 'fake-guardrail',
+            'accessibility': 'on',
+            'encryption': 'off',
+            'upgrades': 'off',
+            'monitoring': 'off',
+            'backtrack': 'on',
+            'inError': false,
+            'temperature': 0.1,
+            'verbose': false,
+            'streaming': true
+        };
+        expect(createLLMParamsApiParams(stepInfo, sampleDeployUseCaseFormData.prompt, true)).toEqual({
+            LlmParams: {
+                Streaming: true,
+                Verbose: false,
+                ModelProvider: 'Bedrock',
+                BedrockLlmParams: {
+                    ModelId: 'fake-model',
+                    GuardrailIdentifier: 'fake-guardrail',
+                    GuardrailVersion: 'draft'
                 },
                 PromptParams: {
                     MaxInputTextLength: 30000,
@@ -337,6 +442,7 @@ describe('createDeployRequestPayload', () => {
         expect(createUseCaseInfoApiParams(useCaseStepInfo, modelStepInfo)).toEqual({
             UseCaseName: 'test-use-case',
             UseCaseDescription: 'test use case description',
+            UseCaseType: 'Text',
             DeployUI: true
         });
     });
@@ -379,6 +485,20 @@ describe('createDeployRequestPayload', () => {
         });
     });
 
+    it('should create valid agent info params payload', () => {
+        const agentStepInfo = sampleDeployUseCaseFormData.agent;
+        expect(createAgentApiParams(agentStepInfo)).toEqual({
+            AgentParams: {
+                AgentType: 'Bedrock',
+                BedrockAgentParams: {
+                    AgentId: '1111111111',
+                    AgentAliasId: '1111111111',
+                    EnableTrace: false
+                }
+            }
+        });
+    });
+
     it('should create valid deploy request payload', () => {
         sampleDeployUseCaseFormData.knowledgeBase.isRagRequired = true;
         const payload = createDeployRequestPayload(sampleDeployUseCaseFormData);
@@ -394,6 +514,7 @@ describe('createDeployRequestPayload', () => {
                     RoleBasedAccessControlEnabled: false
                 },
                 NumberOfDocs: 10,
+                ScoreThreshold: 0,
                 ReturnSourceDocs: false
             },
             LlmParams: {
@@ -439,6 +560,34 @@ describe('createDeployRequestPayload', () => {
                 HumanPrefix: 'Human'
             },
             UseCaseName: 'test-use-case',
+            UseCaseType: 'Text',
+            UseCaseDescription: 'test use case description',
+            DeployUI: true
+        });
+    });
+
+    it('should create valid agent deploy request payload', () => {
+        const formDataCopy = cloneDeep(sampleDeployUseCaseFormData);
+        formDataCopy.useCase.useCaseType = USECASE_TYPES.AGENT;
+        const payload = createDeployRequestPayload(formDataCopy);
+        expect(payload).toEqual({
+            VpcParams: {
+                VpcEnabled: true,
+                CreateNewVpc: false,
+                ExistingVpcId: formDataCopy.vpc.vpcId,
+                ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
+                ExistingSecurityGroupIds: ['sg-24234']
+            },
+            AgentParams: {
+                AgentType: 'Bedrock',
+                BedrockAgentParams: {
+                    AgentId: '1111111111',
+                    AgentAliasId: '1111111111',
+                    EnableTrace: false
+                }
+            },
+            UseCaseName: 'test-use-case',
+            UseCaseType: 'Agent',
             UseCaseDescription: 'test use case description',
             DeployUI: true
         });
@@ -449,6 +598,9 @@ describe('createUpdateRequestPayload', () => {
     it('should create valid update request payload with empty string valued items removed', () => {
         sampleDeployUseCaseFormData.model.isRagRequired = true;
         sampleDeployUseCaseFormData.model.modelName = '';
+        sampleDeployUseCaseFormData.model.enableGuardrails = true;
+        sampleDeployUseCaseFormData.model.guardrailIdentifier = 'fake-guardrail';
+        sampleDeployUseCaseFormData.model.guardrailVersion = 'DRAFT';
 
         const payload = createUpdateRequestPayload(sampleDeployUseCaseFormData);
         expect(payload).toEqual({
@@ -460,13 +612,17 @@ describe('createUpdateRequestPayload', () => {
                 },
                 KnowledgeBaseType: 'Kendra',
                 NoDocsFoundResponse: undefined,
-                NumberOfDocs: 10
+                NumberOfDocs: 10,
+                ScoreThreshold: 0
             },
             LlmParams: {
                 Streaming: true,
                 Verbose: false,
                 ModelProvider: 'Bedrock',
-                BedrockLlmParams: {},
+                BedrockLlmParams: {
+                    GuardrailIdentifier: 'fake-guardrail',
+                    GuardrailVersion: 'DRAFT'
+                },
                 ModelParams: {
                     'fake-param': {
                         Value: '1',
@@ -500,6 +656,94 @@ describe('createUpdateRequestPayload', () => {
                 ChatHistoryLength: 20,
                 HumanPrefix: 'Human'
             },
+            UseCaseType: 'Text',
+            UseCaseDescription: 'test use case description',
+            DeployUI: true
+        });
+    });
+
+    it('should create valid update request payload with guardrails cleared', () => {
+        sampleDeployUseCaseFormData.model.enableGuardrails = false;
+
+        const payload = createUpdateRequestPayload(sampleDeployUseCaseFormData);
+        expect(payload).toEqual({
+            KnowledgeBaseParams: {
+                ReturnSourceDocs: false,
+                KendraKnowledgeBaseParams: {
+                    ExistingKendraIndexId: 'fake-idx-id',
+                    RoleBasedAccessControlEnabled: false
+                },
+                KnowledgeBaseType: 'Kendra',
+                NoDocsFoundResponse: undefined,
+                NumberOfDocs: 10,
+                ScoreThreshold: 0
+            },
+            LlmParams: {
+                Streaming: true,
+                Verbose: false,
+                ModelProvider: 'Bedrock',
+                BedrockLlmParams: {
+                    GuardrailIdentifier: null,
+                    GuardrailVersion: null
+                },
+                ModelParams: {
+                    'fake-param': {
+                        Value: '1',
+                        Type: 'integer'
+                    },
+                    'fake-param2': {
+                        Value: '0.9',
+                        Type: 'float'
+                    }
+                },
+                PromptParams: {
+                    MaxInputTextLength: 30000,
+                    MaxPromptTemplateLength: 30000,
+                    PromptTemplate: '{history}\n\n{input}',
+                    DisambiguationEnabled: true,
+                    DisambiguationPromptTemplate: 'fake-disambiguation-prompt',
+                    UserPromptEditingEnabled: true,
+                    RephraseQuestion: true
+                },
+                Temperature: 0.1,
+                RAGEnabled: true
+            },
+            VpcParams: {
+                ExistingVpcId: sampleDeployUseCaseFormData.vpc.vpcId,
+                ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
+                ExistingSecurityGroupIds: ['sg-24234']
+            },
+            ConversationMemoryParams: {
+                ConversationMemoryType: 'DynamoDB',
+                AiPrefix: 'AI',
+                ChatHistoryLength: 20,
+                HumanPrefix: 'Human'
+            },
+            UseCaseType: 'Text',
+            UseCaseDescription: 'test use case description',
+            DeployUI: true
+        });
+    });
+
+    it('should create valid update request payload for agent use case', () => {
+        const formDataCopy = cloneDeep(sampleDeployUseCaseFormData);
+        formDataCopy.useCase.useCaseType = USECASE_TYPES.AGENT;
+        const payload = createUpdateRequestPayload(formDataCopy);
+        expect(payload).toEqual({
+            VpcParams: {
+                ExistingVpcId: formDataCopy.vpc.vpcId,
+                ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
+                ExistingSecurityGroupIds: ['sg-24234']
+            },
+            AgentParams: {
+                AgentType: 'Bedrock',
+                BedrockAgentParams: {
+                    AgentId: '1111111111',
+                    AgentAliasId: '1111111111',
+                    EnableTrace: false
+                }
+            },
+            UseCaseType: 'Agent',
             UseCaseDescription: 'test use case description',
             DeployUI: true
         });
@@ -529,6 +773,7 @@ describe('When transforming the deployment data into the knowledgebase step of t
                 KnowledgeBaseParams: {
                     KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.kendra,
                     NumberOfDocs: 2,
+                    ScoreThreshold: 0,
                     ReturnSourceDocs: true,
                     KendraKnowledgeBaseParams: {
                         RoleBasedAccessControlEnabled: true,
@@ -562,7 +807,7 @@ describe('When transforming the deployment data into the knowledgebase step of t
             expect(result.maxNumDocs).toBe(2);
             expect(result.returnDocumentSource).toBe(true);
             expect(result.isRagRequired).toBe(true);
-            expect(result.existingKendraIndex).toBe('yes');
+            expect(result.existingKendraIndex).toBe('Yes');
         });
 
         it('should return Bedrock knowledge base parameters if Bedrock is selected', () => {
@@ -573,6 +818,7 @@ describe('When transforming the deployment data into the knowledgebase step of t
                 KnowledgeBaseParams: {
                     KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.bedrock,
                     NumberOfDocs: 2,
+                    ScoreThreshold: 0,
                     ReturnSourceDocs: false,
                     BedrockKnowledgeBaseParams: {
                         BedrockKnowledgeBaseId: 'my-bedrock-index',
@@ -616,6 +862,7 @@ describe('When transforming the deployment data into the knowledgebase step of t
                 },
                 KnowledgeBaseParams: {
                     NumberOfDocs: 20,
+                    ScoreThreshold: 0,
                     ReturnSourceDocs: false,
                     KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.bedrock,
                     ScoreThreshold: 0.4,
@@ -632,7 +879,7 @@ describe('When transforming the deployment data into the knowledgebase step of t
             expect(result.knowledgeBaseType).toEqual(
                 KNOWLEDGE_BASE_TYPES.find((item) => item.value === KNOWLEDGE_BASE_PROVIDERS.bedrock)
             );
-            expect(result.existingBedrockIndex).toBe('yes');
+            expect(result.existingBedrockIndex).toBe('Yes');
             expect(result.bedrockKnowledgeBaseId).toBe('my-bedrock-index');
             expect(result.maxNumDocs).toBe(20);
             expect(result.queryFilter).toBe('{"field":"value"}');
@@ -650,6 +897,7 @@ describe('When transforming the deployment data into the knowledgebase step of t
                 kendraIndexId: 'my-kendra-index',
                 KnowledgeBaseParams: {
                     NumberOfDocs: 10,
+                    ScoreThreshold: 0,
                     ReturnSourceDocs: true,
                     KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.kendra,
                     KendraKnowledgeBaseParams: {
@@ -665,7 +913,7 @@ describe('When transforming the deployment data into the knowledgebase step of t
             expect(result.knowledgeBaseType).toEqual(
                 KNOWLEDGE_BASE_TYPES.find((item) => item.value === KNOWLEDGE_BASE_PROVIDERS.kendra)
             );
-            expect(result.existingKendraIndex).toBe('yes');
+            expect(result.existingKendraIndex).toBe('Yes');
             expect(result.kendraIndexId).toBe('my-kendra-index');
             expect(result.maxNumDocs).toBe(10);
             expect(result.enableRoleBasedAccessControl).toBe(false);

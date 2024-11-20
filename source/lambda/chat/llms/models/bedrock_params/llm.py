@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 from llms.models.llm_params import LLMParams
 from shared.defaults.model_defaults import ModelDefaults
@@ -22,7 +22,7 @@ from shared.defaults.model_defaults import ModelDefaults
 @dataclass
 class BedrockLLMParams(LLMParams):
     """
-    BedrockLLMParams provides provides a means to define a common interface and functionalities across all Bedrock LLM models.
+    BedrockLLMParams provides provides a means to define a common interface and functionalities across all Bedrock LLMs.
     """
 
     model_defaults: Optional[ModelDefaults] = None

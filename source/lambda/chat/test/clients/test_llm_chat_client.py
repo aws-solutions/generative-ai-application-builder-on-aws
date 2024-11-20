@@ -15,10 +15,12 @@
 import json
 import os
 from contextlib import nullcontext as does_not_raise
+from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
 from clients.bedrock_client import BedrockClient
+from langchain_core.prompts import ChatPromptTemplate
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
@@ -32,7 +34,7 @@ from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 # Testing LLMChatClient using subclass
 BASIC_PROMPT = """\n\n{history}\n\n{input}"""
-BASIC_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BASIC_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 
 PROMPT = """The following is a conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it says "Sorry I dont know".
 Current conversation:
@@ -58,6 +60,13 @@ def setup_test_table(dynamodb_resource, table_name):
 @pytest.fixture
 def simple_llm_client(basic_llm_config_parsed):
     yield BedrockClient(rag_enabled=False, connection_id="fake-connection_id", use_case_config=basic_llm_config_parsed)
+
+
+@pytest.fixture
+def verbose_llm_client(basic_llm_config_parsed):
+    config = deepcopy(basic_llm_config_parsed)
+    config["LlmParams"]["Verbose"] = True
+    yield BedrockClient(rag_enabled=False, connection_id="fake-connection_id", use_case_config=config)
 
 
 @pytest.fixture
@@ -467,4 +476,38 @@ def test_construct_chat_model_new_prompt(
     llm_client.get_model(chat_body, "fake-user-uuid")
 
     assert llm_client.use_case_config["LlmParams"]["PromptParams"]["PromptTemplate"] == PROMPT
-    assert llm_client.builder.llm_model.prompt_template.template == PROMPT
+    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(PROMPT)
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
+    [
+        (
+            CHAT_IDENTIFIER,
+            BASIC_PROMPT,
+            False,
+            False,
+            None,
+            False,
+            f"{BedrockModelProviders.ANTHROPIC.value}.fake-model",
+        )
+    ],
+)
+def test_construct_chat_model_new_prompt(
+    use_case,
+    rag_enabled,
+    model_id,
+    bedrock_llm_config,
+    setup_environment,
+    verbose_llm_client,
+    bedrock_dynamodb_defaults_table,
+    apigateway_stubber,
+):
+    chat_body = {
+        "action": "sendMessage",
+        "conversationId": "fake-conversation-id",
+        "question": "How are you?",
+        "promptTemplate": PROMPT,
+    }
+    verbose_llm_client.get_model(chat_body, "fake-user-uuid")
+    assert os.environ["LOG_LEVEL"] == "DEBUG"

@@ -13,9 +13,9 @@
 
 import { Box, HelpPanel, SpaceBetween } from '@cloudscape-design/components';
 import { ExternalLinkGroup } from '../commons';
-import { IG_DOCS } from '../../utils/constants';
+import { IG_DOCS, USECASE_TYPES } from '../../utils/constants';
 
-export const ToolsContent = () => (
+export const ToolsContent = ({ useCaseType }) => (
     <HelpPanel
         header={<h2>Deployment Details</h2>}
         footer={
@@ -35,17 +35,30 @@ export const ToolsContent = () => (
                 deployed application, as well as relevant resources on the AWS Console.
             </Box>
 
-            <Box variant="h4">Model</Box>
-            <Box variant="p">This section shows information about the model that is being used by this deployment.</Box>
-            <Box variant="h4">Knowledge Base</Box>
-            <Box variant="p">
-                This section shows information about the knowledge base that is being used by this deployment (if
-                applicable).
-            </Box>
-            <Box variant="h4">Prompt</Box>
-            <Box variant="p">
-                This section shows information about the prompt related settings used by this deployment.
-            </Box>
+            {useCaseType === USECASE_TYPES.AGENT ? (
+                <>
+                    <Box variant="h4">Agent</Box>
+                    <Box variant="p">
+                        This section shows information about the agent that is being used by this deployment.
+                    </Box>
+                </>
+            ) : (
+                <>
+                    <Box variant="h4">Model</Box>
+                    <Box variant="p">
+                        This section shows information about the model that is being used by this deployment.
+                    </Box>
+                    <Box variant="h4">Knowledge Base</Box>
+                    <Box variant="p">
+                        This section shows information about the knowledge base that is being used by this deployment
+                        (if applicable).
+                    </Box>
+                    <Box variant="h4">Prompt</Box>
+                    <Box variant="p">
+                        This section shows information about the prompt related settings used by this deployment.
+                    </Box>
+                </>
+            )}
         </SpaceBetween>
     </HelpPanel>
 );

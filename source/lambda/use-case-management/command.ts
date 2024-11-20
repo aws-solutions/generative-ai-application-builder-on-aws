@@ -50,7 +50,45 @@ export abstract class UseCaseMgmtCommand implements CaseCommand {
         this.stackMgmt = new StackManagement();
         this.storageMgmt = new StorageManagement();
         this.useCaseConfigMgmt = new UseCaseConfigManagement();
-        this.validator = new UseCaseValidator(this.storageMgmt, this.useCaseConfigMgmt);
+    }
+
+    /**
+     * Initializes the validator based on the use case type.
+     * This method should be called before using validateNewUseCase or validateUpdateUseCase.
+     *
+     * @param useCaseType - The type of use case (e.g., 'Text', 'Agent')
+     */
+    protected initializeValidator(useCaseType: string): void {
+        this.validator = UseCaseValidator.createValidator(useCaseType, this.storageMgmt, this.useCaseConfigMgmt);
+    }
+
+    /**
+     * Validates a new use case using the initialized validator.
+     *
+     * @param useCase - The use case to be validated
+     * @returns A promise that resolves to the validated use case
+     * @throws Error if the validator has not been initialized
+     */
+    protected async validateNewUseCase(useCase: UseCase): Promise<UseCase> {
+        if (!this.validator) {
+            throw new Error('Validator not initialized. Call initializeValidator first.');
+        }
+        return this.validator.validateNewUseCase(useCase);
+    }
+
+    /**
+     * Validates an updated use case using the initialized validator.
+     *
+     * @param useCase - The use case to be validated
+     * @param oldDynamoDbRecordKey - The key of the old DynamoDB record
+     * @returns A promise that resolves to the validated use case
+     * @throws Error if the validator has not been initialized
+     */
+    protected async validateUpdateUseCase(useCase: UseCase, oldDynamoDbRecordKey: string): Promise<UseCase> {
+        if (!this.validator) {
+            throw new Error('Validator not initialized. Call initializeValidator first.');
+        }
+        return this.validator.validateUpdateUseCase(useCase, oldDynamoDbRecordKey);
     }
 
     /**
@@ -67,6 +105,8 @@ export class CreateUseCaseCommand extends UseCaseMgmtCommand {
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###createUseCaseCommand' })
     public async execute(useCase: UseCase): Promise<Status> {
         let stackId: string;
+        this.initializeValidator(useCase.useCaseType);
+
         try {
             await this.useCaseConfigMgmt.createUseCaseConfig(useCase);
         } catch (error) {
@@ -75,7 +115,7 @@ export class CreateUseCaseCommand extends UseCaseMgmtCommand {
         }
 
         try {
-            useCase = await this.validator.validateNewUseCase(useCase);
+            useCase = await this.validateNewUseCase(useCase);
             stackId = await this.stackMgmt.createStack(useCase);
             useCase.stackId = stackId;
         } catch (error) {
@@ -101,11 +141,13 @@ export class UpdateUseCaseCommand extends UseCaseMgmtCommand {
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###updateUseCaseCommand' })
     public async execute(useCase: UseCase): Promise<any> {
         let oldDynamoDbRecordKey;
+        this.initializeValidator(useCase.useCaseType);
         try {
             const useCaseRecord = await this.storageMgmt.getUseCaseRecord(useCase);
             oldDynamoDbRecordKey = useCaseRecord.UseCaseConfigRecordKey;
             useCase.stackId = useCaseRecord.StackId;
-            useCase = await this.validator.validateUpdateUseCase(useCase, oldDynamoDbRecordKey);
+
+            useCase = await this.validateUpdateUseCase(useCase, oldDynamoDbRecordKey);
 
             const roleArn = await this.stackMgmt.getStackRoleArnIfExists(useCaseRecord);
             await this.stackMgmt.updateStack(useCase, roleArn);
@@ -139,8 +181,8 @@ export class DeleteUseCaseCommand implements CaseCommand {
     storageMgmt: StorageManagement;
     useCaseConfigMgmt: UseCaseConfigManagement;
 
-    constructor() {
-        // NOSONAR - typescript:S4144 - this hierarchy is separate from line 152.
+    // prettier-ignore
+    constructor() { // NOSONAR - typescript:S4144 - this hierarchy is separate from line 49.
         this.stackMgmt = new StackManagement();
         this.storageMgmt = new StorageManagement();
         this.useCaseConfigMgmt = new UseCaseConfigManagement();
@@ -182,7 +224,7 @@ export class PermanentlyDeleteUseCaseCommand implements CaseCommand {
     useCaseConfigMgmt: UseCaseConfigManagement;
 
     // prettier-ignore
-    constructor() { // NOSONAR - typescript:S4144 - this hierarchy is separate from line 152.
+    constructor() { // NOSONAR - typescript:S4144 - this hierarchy is separate from line 49.
         this.stackMgmt = new StackManagement();
         this.storageMgmt = new StorageManagement();
         this.useCaseConfigMgmt = new UseCaseConfigManagement();

@@ -29,14 +29,14 @@ class ConversationMemoryTypes(str, Enum):
 
 
 class LLMProviderTypes(str, Enum):
-    """Supported provider types that can be used to create an LLM model"""
+    """Supported provider types that can be used to create an LLM"""
 
     BEDROCK = "Bedrock"
     SAGEMAKER = "SageMaker"
 
 
 class BedrockModelProviders(str, Enum):
-    """Supported model families for Bedrock that can be used to create an LLM model"""
+    """Supported model families for Bedrock that can be used to create an LLM"""
 
     AI21 = "ai21"
     ANTHROPIC = "anthropic"

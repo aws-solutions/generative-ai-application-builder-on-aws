@@ -16,18 +16,17 @@ import os
 from unittest import mock
 
 import pytest
-from langchain.chains import ConversationalRetrievalChain
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables.base import RunnableBinding
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
-    DEFAULT_BEDROCK_MODEL_FAMILY,
-    DEFAULT_MODELS_MAP,
+    DEFAULT_PROMPT_PLACEHOLDERS,
     DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     DEFAULT_REPHRASE_RAG_QUESTION,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
@@ -36,40 +35,52 @@ from utils.constants import (
 from utils.custom_exceptions import LLMBuildError
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
-BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
 RAG_ENABLED = True
-DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT_TEMPLATE = """\n\nHuman: Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.\n\nChat history:\n{chat_history}\n\nFollow up question: {question}\n\nAssistant: Standalone question:"""
-DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = PromptTemplate.from_template(
-    DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT_TEMPLATE
-)
-
-DISAMBIGUATION_PROMPT_TEMPLATE = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.
-
-Chat History:
-{chat_history}
-Follow Up Input: {question}
-Standalone question:"""
-DISAMBIGUATION_PROMPT = PromptTemplate.from_template(DISAMBIGUATION_PROMPT_TEMPLATE)
-model_provider = LLMProviderTypes.BEDROCK.value
-model_id = DEFAULT_MODELS_MAP[LLMProviderTypes.BEDROCK.value]
-mocked_doc = Document(**{"page_content": "some-page-content-1", "metadata": {"source": "fake-url-1"}})
+MODEL_ID = "amazon.fake-model"
+MODEL_PROVIDER = LLMProviderTypes.BEDROCK.value
+BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
+RESPONSE_IF_NO_DOCS_FOUND = "Sorry, the model cannot respond to your questions due to admin enforced constraints."
+MOCKED_SOURCE_DOCS = [
+    Document(**{"page_content": "some-content-1", "metadata": {"source": "https://fake-url-1.com"}}),
+    Document(**{"page_content": "some-content-2", "metadata": {"source": "https://fake-url-2.com"}}),
+]
+MOCKED_SOURCE_DOCS_DICT = [
+    {
+        "excerpt": None,
+        "location": "https://fake-url-1.com",
+        "score": None,
+        "document_title": None,
+        "document_id": None,
+        "additional_attributes": None,
+    },
+    {
+        "excerpt": None,
+        "location": "https://fake-url-2.com",
+        "score": None,
+        "document_title": None,
+        "document_id": None,
+        "additional_attributes": None,
+    },
+]
 
 
 @pytest.fixture
-def llm_params(is_streaming, setup_environment, return_source_docs):
+def model_inputs(
+    disambiguation_enabled, disambiguation_prompt, return_source_docs, response_if_no_docs_found, is_streaming
+):
     yield BedrockInputs(
         **{
-            "conversation_memory": DynamoDBChatMemory(
-                DynamoDBChatMessageHistory(
-                    table_name="fake-table",
-                    user_id="fake-user-id",
-                    conversation_id="fake-conversation-id",
-                )
-            ),
+            "conversation_history_cls": DynamoDBChatMessageHistory,
+            "conversation_history_params": {
+                "table_name": "fake-table",
+                "user_id": "fake-user-id",
+                "conversation_id": "fake-conversation-id",
+            },
+            "rag_enabled": True,
             "knowledge_base": KendraKnowledgeBase(
                 {
                     "NumberOfDocs": 2,
-                    "ReturnSourceDocs": return_source_docs,
                     "AttributeFilter": {
                         "AndAllFilters": [
                             {"EqualsTo": {"Key": "user_id", "Value": {"StringValue": "12345"}}},
@@ -78,16 +89,19 @@ def llm_params(is_streaming, setup_environment, return_source_docs):
                     "UserContext": None,
                 }
             ),
-            "model": model_id,
+            "model": "amazon.fake-model",
+            "model_family": BedrockModelProviders.AMAZON.value,
             "model_params": {
                 "topP": {"Type": "float", "Value": "0.9"},
                 "maxTokenCount": {"Type": "integer", "Value": "200"},
             },
             "prompt_template": BEDROCK_RAG_PROMPT,
-            "prompt_placeholders": DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+            "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
+            "disambiguation_prompt_template": disambiguation_prompt,
+            "disambiguation_prompt_enabled": disambiguation_enabled,
             "rephrase_question": DEFAULT_REPHRASE_RAG_QUESTION,
-            "disambiguation_prompt_template": "test disambiguation prompt",
-            "disambiguation_prompt_enabled": True,
+            "response_if_no_docs_found": response_if_no_docs_found,
+            "return_source_docs": return_source_docs,
             "streaming": is_streaming,
             "verbose": False,
             "temperature": 0.25,
@@ -97,25 +111,36 @@ def llm_params(is_streaming, setup_environment, return_source_docs):
 
 
 @pytest.fixture
-def titan_model(is_streaming, return_source_docs, llm_params, setup_environment):
+def titan_model(
+    use_case,
+    model_id,
+    disambiguation_prompt,
+    model_inputs,
+    prompt,
+    is_streaming,
+    setup_environment,
+    rag_enabled,
+    return_source_docs,
+    bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+):
     chat = BedrockRetrievalLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
-        model_family=DEFAULT_BEDROCK_MODEL_FAMILY,
-        return_source_docs=return_source_docs,
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, rag_enabled),
     )
     yield chat
 
 
 @pytest.fixture
-def temp_bedrock_dynamodb_defaults_table(dynamodb_resource, prompt, dynamodb_defaults_table, use_case, is_streaming):
+def temp_bedrock_dynamodb_defaults_table(
+    dynamodb_resource, prompt, dynamodb_defaults_table, use_case, is_streaming, model_id, disambiguation_prompt
+):
     model_provider = LLMProviderTypes.BEDROCK.value
-    model_id = "anthropic.claude-x"
     table_name = os.getenv(MODEL_INFO_TABLE_NAME_ENV_VAR)
     output_key = "answer"
     context_key = "context"
-    input_key = "question"
-    history_key = "chat_history"
+    input_key = "input"
+    history_key = "history"
 
     table = dynamodb_resource.Table(table_name)
     table.put_item(
@@ -140,50 +165,32 @@ def temp_bedrock_dynamodb_defaults_table(dynamodb_resource, prompt, dynamodb_def
             "ModelProviderName": model_provider,
             "Prompt": prompt,
             "DefaultStopSequences": [],
-            "DisambiguationPrompt": DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT_TEMPLATE,
+            "DisambiguationPrompt": disambiguation_prompt,
         }
     )
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, model_id, return_source_docs, chat_fixture",
+    "rag_enabled, is_streaming, return_source_docs, disambiguation_enabled, use_case, prompt, model_id, chat_fixture, disambiguation_prompt, response_if_no_docs_found",
     [
+        # Other test cases are tested in test_retrieval_llm.py
         (
+            True,
+            False,
+            False,
+            True,
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
-            False,
-            model_id,
-            False,
+            MODEL_ID,
             "titan_model",
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            True,
-            model_id,
-            False,
-            "titan_model",
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            False,
-            model_id,
-            True,
-            "titan_model",
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            True,
-            model_id,
-            True,
-            "titan_model",
-        ),
+            DISAMBIGUATION_PROMPT,
+            None,
+        )
     ],
 )
 def test_implement_error_not_raised(
     use_case,
+    rag_enabled,
     prompt,
     is_streaming,
     chat_fixture,
@@ -191,77 +198,117 @@ def test_implement_error_not_raised(
     model_id,
     return_source_docs,
     setup_environment,
+    disambiguation_prompt,
     bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+    response_if_no_docs_found,
 ):
-    chat_model = request.getfixturevalue(chat_fixture)
+    chat = request.getfixturevalue(chat_fixture)
     try:
-        assert chat_model.model == model_id
-        assert chat_model.prompt_template.template == BEDROCK_RAG_PROMPT
-        assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
-        assert chat_model.model_params == {"temperature": 0.25, "maxTokenCount": 200, "topP": 0.9}
-        assert chat_model.streaming == is_streaming
-        assert chat_model.verbose == False
-        assert chat_model.knowledge_base.kendra_index_id == "fake-kendra-index-id"
-        assert chat_model.conversation_memory.chat_memory.messages == []
-        assert chat_model.disambiguation_prompt_template == DISAMBIGUATION_PROMPT
-        assert chat_model.return_source_docs == return_source_docs
-        assert chat_model.guardrails is None
+        assert chat.model == model_id
+        assert chat.model_arn is None
+        assert chat.conversation_history_cls == DynamoDBChatMessageHistory
+        assert chat.conversation_history_params == {
+            "table_name": "fake-table",
+            "user_id": "fake-user-id",
+            "conversation_id": "fake-conversation-id",
+        }
+        assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
+        assert set(chat.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
+        assert chat.model_params == {"temperature": 0.25, "maxTokenCount": 200, "topP": 0.9}
+        assert chat.streaming == is_streaming
+        assert chat.verbose == False
+        assert chat.knowledge_base.kendra_index_id == "fake-kendra-index-id"
+        if disambiguation_enabled:
+            assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(DISAMBIGUATION_PROMPT)
+        else:
+            assert chat.disambiguation_prompt_template is disambiguation_prompt
+        assert chat.return_source_docs == return_source_docs
 
-        assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
-        assert type(chat_model.conversation_memory) == DynamoDBChatMemory
+        if response_if_no_docs_found is not None:
+            assert chat.response_if_no_docs_found == response_if_no_docs_found
+        assert chat.rephrase_question == DEFAULT_REPHRASE_RAG_QUESTION
+
+        runnable_type = RunnableBinding if is_streaming else RunnableWithMessageHistory
+        assert type(chat.runnable_with_history) == runnable_type
     except NotImplementedError as ex:
         raise Exception(ex)
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
     [
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, False, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            False,
+            MODEL_ID,
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
         (
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             True,
             False,
-            model_id,
+            MODEL_ID,
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            True,
+            MODEL_ID,
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
         (
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             True,
             True,
-            model_id,
+            MODEL_ID,
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
     ],
 )
-def test_exception_for_failed_model_incorrect_key(
+def test_exception_for_incorrect_model_params(
     use_case,
     prompt,
     is_streaming,
     model_id,
     setup_environment,
-    llm_params,
+    model_inputs,
     return_source_docs,
     bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+    disambiguation_prompt,
+    response_if_no_docs_found,
 ):
     with pytest.raises(LLMBuildError) as error:
         with mock.patch(
             "shared.knowledge.kendra_retriever.CustomKendraRetriever.get_relevant_documents"
         ) as mocked_kendra_docs:
-            mocked_kendra_docs.return_value = [mocked_doc]
-            model_family = BedrockModelProviders.AMAZON.value
-            llm_params.model_params = {"incorrect_param": {"Type": "integer", "Value": "512"}}
+            mocked_kendra_docs.return_value = [MOCKED_SOURCE_DOCS]
+            model_inputs.model_family = BedrockModelProviders.AMAZON.value
+            model_inputs.model_params = {"incorrect_param": {"Type": "integer", "Value": "512"}}
 
             chat = BedrockRetrievalLLM(
-                llm_params=llm_params,
-                model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
-                model_family=DEFAULT_BEDROCK_MODEL_FAMILY,
-                return_source_docs=return_source_docs,
+                model_inputs=model_inputs,
+                model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, RAG_ENABLED),
             )
             chat.generate("What is lambda?")
 
     assert (
-        f"Error occurred while building Bedrock family '{model_family}' model '{model_id}'. "
+        f"Error occurred while building Bedrock family '{model_inputs.model_family}' model '{MODEL_ID}'. "
         "Ensure that the model params provided are correct and they match the model specification."
         in error.value.args[0]
     )
@@ -272,23 +319,47 @@ def test_exception_for_failed_model_incorrect_key(
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
     [
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, False, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            False,
+            "anthropic.claude-x",
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
         (
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             True,
             False,
-            model_id,
+            "anthropic.claude-x",
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, True, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            True,
+            "anthropic.claude-x",
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
         (
             RAG_CHAT_IDENTIFIER,
             BEDROCK_RAG_PROMPT,
             True,
             True,
-            model_id,
+            "anthropic.claude-x",
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
     ],
 )
@@ -298,42 +369,66 @@ def test_bedrock_model_variation(
     is_streaming,
     model_id,
     setup_environment,
-    llm_params,
+    model_inputs,
     return_source_docs,
     temp_bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+    response_if_no_docs_found,
+    disambiguation_prompt,
 ):
     # testing another bedrock model
-    llm_params.model_params = {
+    model_inputs.model_params = {
         "top_p": {"Type": "float", "Value": "0.9"},
-        "max_tokens_to_sample": {"Type": "integer", "Value": "200"},
+        "max_tokens": {"Type": "integer", "Value": "200"},
     }
-    chat_model = BedrockRetrievalLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(model_provider, "anthropic.claude-x", RAG_ENABLED),
-        model_family=BedrockModelProviders.ANTHROPIC.value,
-        return_source_docs=return_source_docs,
+    model_inputs.model_family = BedrockModelProviders.ANTHROPIC.value
+    model_inputs.model = model_id
+
+    chat = BedrockRetrievalLLM(
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, RAG_ENABLED),
     )
 
-    assert chat_model.model == model_id
-    assert chat_model.prompt_template.template == BEDROCK_RAG_PROMPT
-    assert set(chat_model.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
-    assert chat_model.model_params == {"temperature": 0.25, "max_tokens_to_sample": 200, "top_p": 0.9}
-    assert chat_model.streaming == is_streaming
-    assert chat_model.verbose == False
-    assert chat_model.knowledge_base.kendra_index_id == "fake-kendra-index-id"
-    assert chat_model.conversation_memory.chat_memory.messages == []
-    assert chat_model.disambiguation_prompt_template == DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT
-    assert chat_model.return_source_docs == return_source_docs
-    assert chat_model.guardrails is None
+    assert chat.model == model_id
+    assert chat.model_arn is None
+    assert chat.conversation_history_cls == DynamoDBChatMessageHistory
+    assert chat.conversation_history_params == {
+        "table_name": "fake-table",
+        "user_id": "fake-user-id",
+        "conversation_id": "fake-conversation-id",
+    }
+    assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
+    assert set(chat.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
+    assert chat.model_params == {"temperature": 0.25, "max_tokens": 200, "top_p": 0.9}
+    assert chat.streaming == is_streaming
+    assert chat.verbose == False
+    assert chat.knowledge_base.kendra_index_id == "fake-kendra-index-id"
+    if disambiguation_enabled:
+        assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(disambiguation_prompt)
+    else:
+        assert chat.disambiguation_prompt_template is disambiguation_prompt
+    assert chat.return_source_docs == return_source_docs
 
-    assert type(chat_model.conversation_chain) == ConversationalRetrievalChain
-    assert type(chat_model.conversation_memory) == DynamoDBChatMemory
+    if response_if_no_docs_found is not None:
+        assert chat.response_if_no_docs_found == response_if_no_docs_found
+
+    runnable_type = RunnableBinding if is_streaming else RunnableWithMessageHistory
+    assert type(chat.runnable_with_history) == runnable_type
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
     [
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, False, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            False,
+            "anthropic.claude-x",
+            False,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
     ],
 )
 def test_guardrails(
@@ -342,30 +437,40 @@ def test_guardrails(
     is_streaming,
     model_id,
     setup_environment,
-    llm_params,
+    model_inputs,
     return_source_docs,
     temp_bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+    disambiguation_prompt,
+    response_if_no_docs_found,
 ):
-    # testing another bedrock model
-    model_provider = LLMProviderTypes.BEDROCK.value
-    llm_params.model_params = {"top_p": {"Value": "0.9", "Type": "float"}}
-    llm_params.streaming = is_streaming
-    llm_params.guardrails = {"guardrailIdentifier": "fake-id", "guardrailVersion": "1"}
+    model_inputs.model_params = {"top_p": {"Value": "0.9", "Type": "float"}}
+    model_inputs.model_family = BedrockModelProviders.ANTHROPIC.value
+    model_inputs.model = model_id
+    model_inputs.guardrails = {"guardrailIdentifier": "fake-id", "guardrailVersion": "1"}
 
     chat = BedrockRetrievalLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(model_provider, "anthropic.claude-x", RAG_ENABLED),
-        model_family=BedrockModelProviders.ANTHROPIC.value,
-        return_source_docs=return_source_docs,
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, RAG_ENABLED),
     )
-    assert chat.model_params["top_p"] == 0.9
+
+    assert chat.model_params == {"temperature": 0.25, "top_p": 0.9}
     assert chat.guardrails == {"guardrailIdentifier": "fake-id", "guardrailVersion": "1"}
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, return_source_docs, model_id",
+    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
     [
-        (RAG_CHAT_IDENTIFIER, BEDROCK_RAG_PROMPT, False, False, model_id),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            False,
+            MODEL_ID,
+            False,
+            None,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
     ],
 )
 def test_provisioned_model(
@@ -374,22 +479,21 @@ def test_provisioned_model(
     is_streaming,
     model_id,
     setup_environment,
-    llm_params,
+    model_inputs,
     return_source_docs,
     test_provisioned_arn,
     bedrock_dynamodb_defaults_table,
 ):
-    llm_params.model_arn = test_provisioned_arn
+    model_inputs.model_arn = test_provisioned_arn
     model_provider = LLMProviderTypes.BEDROCK.value
-    llm_params.streaming = is_streaming
-    llm_params.model = model_id
+    model_inputs.streaming = is_streaming
+    model_inputs.model = model_id
+    model_inputs.model_family = BedrockModelProviders.AMAZON.value
 
     chat = BedrockRetrievalLLM(
-        llm_params=llm_params,
+        model_inputs=model_inputs,
         model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
-        model_family=BedrockModelProviders.AMAZON.value,
-        return_source_docs=return_source_docs,
     )
-    assert chat.model == model_id
+    assert chat.model == MODEL_ID
     assert chat.model_arn == test_provisioned_arn
     assert chat.model_family == BedrockModelProviders.AMAZON.value

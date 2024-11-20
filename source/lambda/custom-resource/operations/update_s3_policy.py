@@ -37,6 +37,7 @@ logger = Logger(utc=True)
 tracer = Tracer()
 
 
+@tracer.capture_method
 def create(event, context):
     """
     This function updates the logging bucket's policy so that the source bucket can write access logs to
@@ -68,7 +69,16 @@ def create(event, context):
         ExpectedBucketOwner=account_id,
     )
 
-    policy_string = s3.get_bucket_policy(Bucket=logging_bucket_name)["Policy"]
+    bucket_policy_raw_response = None
+
+    try:
+        logger.info("Retrieving existing bucket policy")
+        bucket_policy_raw_response = s3.get_bucket_policy(Bucket=logging_bucket_name)
+    except Exception as ex:
+        logger.error(f"Error received when retrieving bucket policy. Error is {str(ex)}")
+        return
+
+    policy_string = bucket_policy_raw_response["Policy"]
     bucket_policy = json.loads(policy_string)
 
     update_policy = True

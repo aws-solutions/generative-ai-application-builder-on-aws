@@ -19,10 +19,10 @@ from typing import Dict, List, Optional, Sequence, Union
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError
+from cognito_jwt_verifier import CognitoJWTVerifier
 from helper import get_service_client
 from langchain_aws.retrievers.kendra import AmazonKendraRetriever, ResultItem, clean_excerpt
 from langchain_core.documents import Document
-from utils.cognito_jwt_verifier import CognitoJWTVerifier
 from utils.constants import DEFAULT_KENDRA_NUMBER_OF_DOCS, TRACE_ID_ENV_VAR
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client
@@ -95,7 +95,6 @@ class CustomKendraRetriever(AmazonKendraRetriever):
             List[Document]: List of LangChain document objects.
         """
         with tracer.provider.in_subsegment("## kendra_query") as subsegment:
-            logger.debug(f"Inside kendra, received query={query}")
             subsegment.put_annotation("service", "kendra")
             subsegment.put_annotation("operation", "retrieve/query")
             metrics.add_metric(name=CloudWatchMetrics.KENDRA_QUERY.value, unit=MetricUnit.Count, value=1)
@@ -144,7 +143,7 @@ class CustomKendraRetriever(AmazonKendraRetriever):
             name=CloudWatchMetrics.KENDRA_FETCHED_DOCUMENTS.value, unit=MetricUnit.Count, value=len(cleaned_docs)
         )
 
-        if len(cleaned_docs) == 0:
+        if not cleaned_docs:
             logger.info(f"Kendra query returned no docs. Query: {query}")
             metrics.add_metric(name=CloudWatchMetrics.KENDRA_NO_HITS.value, unit=MetricUnit.Count, value=1)
         else:

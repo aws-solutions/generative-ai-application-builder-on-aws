@@ -28,7 +28,7 @@ describe('When performing storage management operations', () => {
 
     describe('When sucessfully invoking the commands', () => {
         beforeAll(() => {
-            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
 
             stackInfo = {
                 stackArn: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid',

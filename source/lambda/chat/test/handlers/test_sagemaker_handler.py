@@ -21,10 +21,13 @@ import pytest
 from sagemaker_handler import lambda_handler
 from utils.constants import (
     CHAT_IDENTIFIER,
+    CONTEXT_KEY,
     CONVERSATION_ID_EVENT_KEY,
     END_CONVERSATION_TOKEN,
     MESSAGE_KEY,
+    OUTPUT_KEY,
     RAG_CHAT_IDENTIFIER,
+    REPHRASED_QUERY_KEY,
     REQUEST_CONTEXT_KEY,
 )
 from utils.enum_types import KnowledgeBaseTypes
@@ -32,7 +35,7 @@ from utils.enum_types import KnowledgeBaseTypes
 from . import kendra_source_doc_responses, mocked_kendra_docs
 
 SAGEMAKER_PROMPT = """\n\n{history}\n\n{input}"""
-SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+SAGEMAKER_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 
 
 @pytest.mark.parametrize(
@@ -40,7 +43,7 @@ SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
     [
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             SAGEMAKER_PROMPT,
             False,  # is_streaming
             False,  # rag_enabled
@@ -50,7 +53,7 @@ SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         ),
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             SAGEMAKER_PROMPT,
             True,  # is_streaming
             False,  # rag_enabled
@@ -60,7 +63,7 @@ SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {OUTPUT_KEY: "I'm doing well, how are you?", REPHRASED_QUERY_KEY: "rephrased query"},
             SAGEMAKER_RAG_PROMPT,
             False,  # is_streaming
             True,  # rag_enabled
@@ -70,7 +73,7 @@ SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {OUTPUT_KEY: "I'm doing well, how are you?", REPHRASED_QUERY_KEY: "rephrased query"},
             SAGEMAKER_RAG_PROMPT,
             True,  # is_streaming
             True,  # rag_enabled,
@@ -81,8 +84,9 @@ SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_kendra_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             SAGEMAKER_RAG_PROMPT,
             False,  # is_streaming
@@ -94,8 +98,9 @@ SAGEMAKER_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_kendra_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             SAGEMAKER_RAG_PROMPT,
             True,  # is_streaming
@@ -163,12 +168,10 @@ def test_sagemaker_chat_handler(
                 with patch(
                     "clients.sagemaker_client.SageMakerClient.retrieve_use_case_config"
                 ) as mocked_retrieve_llm_config:
-                    with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
-                        with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
-                            mocked_predict.return_value = "I'm doing well, how are you?"
-                            mocked_rag_predict.return_value = mocked_response
-                            mocked_retrieve_llm_config.return_value = sagemaker_llm_config
-                            response = lambda_handler(chat_event, context)
+                    with patch("langchain_core.runnables.RunnableWithMessageHistory.invoke") as mocked_predict:
+                        mocked_predict.return_value = mocked_response
+                        mocked_retrieve_llm_config.return_value = sagemaker_llm_config
+                        response = lambda_handler(chat_event, context)
                         assert response == {"batchItemFailures": []}
 
 
@@ -177,7 +180,7 @@ def test_sagemaker_chat_handler(
     [
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             SAGEMAKER_PROMPT,
             False,  # is_streaming
             False,  # rag_enabled
@@ -187,7 +190,7 @@ def test_sagemaker_chat_handler(
         ),
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             SAGEMAKER_PROMPT,
             True,  # is_streaming
             False,  # rag_enabled
@@ -197,7 +200,10 @@ def test_sagemaker_chat_handler(
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                REPHRASED_QUERY_KEY: "rephrased query",
+            },
             SAGEMAKER_RAG_PROMPT,
             False,  # is_streaming
             True,  # rag_enabled
@@ -207,7 +213,10 @@ def test_sagemaker_chat_handler(
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                REPHRASED_QUERY_KEY: "rephrased query",
+            },
             SAGEMAKER_RAG_PROMPT,
             True,  # is_streaming
             True,  # rag_enabled
@@ -218,8 +227,9 @@ def test_sagemaker_chat_handler(
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_kendra_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             SAGEMAKER_RAG_PROMPT,
             False,  # is_streaming
@@ -231,8 +241,9 @@ def test_sagemaker_chat_handler(
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_kendra_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             SAGEMAKER_RAG_PROMPT,
             True,  # is_streaming
@@ -304,13 +315,11 @@ def test_sagemaker_chat_handler_empty_conversation(
 
             apigateway_stubber.activate()
             with patch("clients.llm_chat_client.uuid4", return_value=fake_uuid):
-                with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
-                    with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
-                        mocked_predict.return_value = "I'm doing well, how are you?"
-                        mocked_rag_predict.return_value = mocked_response
-                        mocked_retrieve_llm_config.return_value = sagemaker_llm_config
-                        response = lambda_handler(chat_event_conversation_empty, context)
-                        assert response == {"batchItemFailures": []}
+                with patch("langchain_core.runnables.RunnableWithMessageHistory.invoke") as mocked_predict:
+                    mocked_predict.return_value = mocked_response
+                    mocked_retrieve_llm_config.return_value = sagemaker_llm_config
+                    response = lambda_handler(chat_event_conversation_empty, context)
+                    assert response == {"batchItemFailures": []}
             apigateway_stubber.deactivate()
 
 

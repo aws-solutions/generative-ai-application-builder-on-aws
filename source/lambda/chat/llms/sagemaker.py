@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
@@ -21,12 +21,11 @@ from botocore.exceptions import ClientError, EndpointConnectionError
 from helper import get_service_client
 from langchain_aws.llms.sagemaker_endpoint import SagemakerEndpoint
 from llms.base_langchain import BaseLangChainModel
-from llms.models.model_provider_inputs import ModelProviderInputs
+from llms.models.model_provider_inputs import SageMakerInputs
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
 from pydantic_core import ValidationError
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import (
-    DEFAULT_RAG_ENABLED_MODE,
     SAGEMAKER_ENDPOINT_ARGS,
     TEMPERATURE_PLACEHOLDER_STR,
     TRACE_ID_ENV_VAR,
@@ -43,84 +42,54 @@ langchain_metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
 
 class SageMakerLLM(BaseLangChainModel):
     """
-    SageMakerLLM is a wrapper around the the SageMaker LLM invocation and can generate chat responses, provided a conversation memory.
+    SageMakerLLM is a wrapper around the LangChain SageMaker LLM which can generate chat responses, provided a conversation memory.
 
     Attributes:
-        - llm_params: LLM dataclass object which has the following:
-            conversation_memory (BaseMemory): A BaseMemory object which helps store and access user chat history
-            knowledge_base (KnowledgeBase): A KnowledgeBase object which retrieves information from the user's knowledge base for LLM context. This
-               field is only used when the child class SageMakerRetrievalLLM passes this value, else for regular non-RAG chat this is set to None.
-            model_params (dict): A dictionary of model parameters, which can be obtained from the SageMaker Hub documentation [optional]
-            prompt_template (str): A string which represents the prompt template [optional, defaults to prompt template provided in ModelInfoStorage DynamoDB table]
-            streaming (bool): A boolean which represents whether the chat is streaming or not [optional, defaults to streaming value provided in ModelInfoStorage
-                DynamoDB table]
-            verbose (bool): A boolean which represents whether the chat is verbose or not [optional, defaults to DEFAULT_VERBOSE_MODE]
-            temperature (float): A non-negative float that tunes the degree of randomness in model response generation [optional, defaults to temperature provided in
-                ModelInfoStorage DynamoDB table]
+        - model_defaults (ModelDefaults): The default values for the model, as specified on a per-model basis in the source/model-info files
+        - model_inputs (SageMakerInputs): The model inputs that the user provided. Each model_input object consists of all the required properties to deploy a Bedrock model such as the type of Conversation Memory class (DynamoDB for example), the type of knowledge base (Kendra, Bedrock KB, etc.) and their associated properties.
 
-        - model_defaults (ModelDefaults): A ModelDefaults object which contains default values for the model retrieved from ModelInfoStorage DynamoDB table
-        - sagemaker_endpoint_name (str): A string which represents the SageMaker endpoint name. The SageMaker endpoint is invoked with the user inputs to get
-            chat responses
-        - input_schema (dict): A dictionary of input schema for the SageMaker endpoint. This is passed to SageMaker Content Handler.
-            The content handler is used to transform the input to the SageMaker endpoint as it expects, and then retrieve the response from the JSON response received.
-            The input_schema represents the schema of the input to the SageMaker endpoint. The response_jsonpath below represents the path for the text output from the
-            SageMaker endpoint. See SageMakerContentHandler for more information and examples available at llms/models/sagemaker/content_handler.py
-        - response_jsonpath (str): A string which represents the jsonpath for the chat text output from the SageMaker endpoint
-        - rag_enabled (bool): A boolean which represents whether the RAG is enabled or not [optional, defaults to DEFAULT_RAG_ENABLED_MODE]
 
     Methods:
-        generate(question): Generates a chat response
-        get_conversation_chain(): Creates a `ConversationChain` chain that is connected to a conversation memory and the specified prompt
-        get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template, default_prompt_template_placeholders): Generates the PromptTemplate using
-            the provided prompt template and placeholders. In case of errors, falls back on default values.
-        get_clean_params(): Sanitizes the model params for use with the model. SageMakerLLM also allows you to send additional endpoint arguments to the SageMaker Endpoint
-            as specified in SAGEMAKER_ENDPOINT_ARGS. These keys are sent to the 'SagemakerEndpoint' class which is used to invoke the SageMaker endpoint.
-            See boto3 documentation for InvokeEndpointWithResponseStream (https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_runtime_InvokeEndpointWithResponseStream.html)
-            and InvokeEndpoint (https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_runtime_InvokeEndpoint.html) documentation -- these are the underlying APIs called for
-            streaming and non-streaming SageMaker model invocations respectively.
+        - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
+        - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
+        - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
+        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
+        placeholders. In case of errors, falls back on default values.
+        - get_llm(): Returns the BedrockChat/BedrockLLM object that is used by the runnable.
+         get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM. SageMakerLLM also allows you to send additional endpoint arguments to the SageMaker Endpoint. For more information, refer SageMakerInputs dataclass.
+
+    See boto3 documentation for InvokeEndpoint (https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_runtime_InvokeEndpoint.html) documentation - this is the underlying API called for SageMaker model invocation.
 
     See SageMaker documentation for information on sagemaker endpoints. You can also browse specific model notebooks to infer model input_schema and response_jsonpath
     """
 
     def __init__(
         self,
-        llm_params: ModelProviderInputs,
         model_defaults: ModelDefaults,
-        sagemaker_endpoint_name: Optional[str],
-        input_schema=Dict[str, Any],
-        response_jsonpath=str,
-        rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
+        model_inputs: SageMakerInputs,
     ) -> None:
         super().__init__(
-            rag_enabled=rag_enabled,
-            streaming=llm_params.streaming,
-            verbose=llm_params.verbose,
-            temperature=llm_params.temperature,
+            model_defaults=model_defaults,
+            model_inputs=model_inputs,
         )
-        self.streaming = model_defaults.allows_streaming if self.streaming is None else self.streaming
-        self.model = llm_params.model
-        self.model_defaults = model_defaults
-        self._prompt_template_placeholders = llm_params.prompt_placeholders
-        self.prompt_template = llm_params.prompt_template
-        self.conversation_memory = llm_params.conversation_memory
-        self.knowledge_base = llm_params.knowledge_base
-        self.callbacks = llm_params.callbacks or None
+        self.model = model_inputs.model
 
-        if sagemaker_endpoint_name is None or not sagemaker_endpoint_name:
+        if model_inputs.sagemaker_endpoint_name is None or not model_inputs.sagemaker_endpoint_name:
             raise ValueError("SageMaker endpoint name is required.")
 
-        if not input_schema:
+        if not model_inputs.input_schema:
             raise ValueError("SageMaker input schema is required.")
 
-        if not response_jsonpath:
+        if not model_inputs.response_jsonpath:
             raise ValueError("SageMaker response JSONPath is required.")
 
-        self.sagemaker_endpoint_name = sagemaker_endpoint_name
-        self._input_schema = input_schema
-        self._response_jsonpath = response_jsonpath
-        self.model_params, self._endpoint_params = self.get_clean_params(llm_params.model_params)
-        self._llm = self.get_llm()
-        self._conversation_chain = self.get_conversation_chain()
+        self.sagemaker_endpoint_name = model_inputs.sagemaker_endpoint_name
+        self._input_schema = model_inputs.input_schema
+        self._response_jsonpath = model_inputs.response_jsonpath
+        self.model_params, self.endpoint_params = self.get_clean_model_params(model_inputs.model_params)
+        self.llm = self.get_llm()
+        self.runnable_with_history = self.get_runnable()
 
     @property
     def sagemaker_endpoint_name(self) -> bool:
@@ -142,10 +111,13 @@ class SageMakerLLM(BaseLangChainModel):
     def endpoint_params(self) -> Dict[str, Any]:
         return self._endpoint_params
 
-    def get_llm(self, condense_prompt_model: bool = False) -> SagemakerEndpoint:
+    @endpoint_params.setter
+    def endpoint_params(self, endpoint_params) -> None:
+        self._endpoint_params = endpoint_params
+
+    def get_llm(self, *args, **kwargs) -> SagemakerEndpoint:
         """
         Creates a SagemakerEndpoint LLM based on supplied params
-        Args: None
 
         Returns:
             (SagemakerEndpoint) The created LangChain LLM object that can be invoked in a conversation chain
@@ -156,16 +128,12 @@ class SageMakerLLM(BaseLangChainModel):
             output_path_expression=self.response_jsonpath,
         )
 
-        callbacks = None if condense_prompt_model else self.callbacks
-        streaming = False if condense_prompt_model else self.streaming
-
         return SagemakerEndpoint(
             endpoint_name=self.sagemaker_endpoint_name,
             client=sagemaker_client,
             model_kwargs=self.model_params,
             content_handler=content_handler,
-            streaming=streaming,
-            callbacks=callbacks,
+            streaming=self.streaming,
             endpoint_kwargs=self.endpoint_params,
         )
 
@@ -227,7 +195,7 @@ class SageMakerLLM(BaseLangChainModel):
             langchain_metrics.flush_metrics()
 
     @tracer.capture_method(capture_response=True)
-    def get_clean_params(self, model_params: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def get_clean_model_params(self, model_params: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Sanitizes and returns the model params and endpoint params for use with SageMaker models.
 

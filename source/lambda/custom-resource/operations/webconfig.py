@@ -75,6 +75,22 @@ def verify_env_setup(event):
         raise ValueError(err_msg)
 
 
+def retrieve_cognito_hosted_url(event):
+    """This method retrieves the Cognito Hosted URL using the AWS SDK based on the provided UserPoolId
+
+    Args:
+        event (LambdaEvent): An event object received by the lambda function that is passed by AWS services when invoking the function's handler
+
+    Returns:
+        str: Cognito Hosted URL
+    """
+    cognito = get_service_client("cognito-idp")
+    response = cognito.describe_user_pool(UserPoolId=event[RESOURCE_PROPERTIES][USER_POOL_ID])
+    if response.get("UserPool", {}).get("Domain", None) is not None:
+        return f'{response["UserPool"]["Domain"]}.auth.{os.environ["AWS_REGION"]}.amazoncognito.com'
+    return None
+
+
 @tracer.capture_method
 def create(event, context):
     """This method creates a JSON string from all incoming resource properties and writes to SSM Parameter store.
@@ -97,6 +113,8 @@ def create(event, context):
             for k in set(list(event[RESOURCE_PROPERTIES].keys())) - set(CONFIG_EXCLUDE_KEYS)
         }
         config_dict["AwsRegion"] = os.environ["AWS_REGION"]
+
+        config_dict["CognitoDomain"] = retrieve_cognito_hosted_url(event)
 
         json_config_string = json.dumps(config_dict)
 

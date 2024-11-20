@@ -14,9 +14,8 @@
 
 import io
 import json
-import os
 import zipfile
-from pathlib import Path, PosixPath
+from decimal import Decimal
 from test.fixtures.copy_web_ui_events import (
     SAMPLE_JSON_VALUE,
     lambda_event,
@@ -29,22 +28,16 @@ import mock
 import pytest
 from lambda_func import handler
 from operations.copy_web_ui import (
-    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     DESTINATION_BUCKET_NAME,
+    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     WEBSITE_CONFIG_FILE_NAME,
     WEBSITE_CONFIG_PARAM_KEY,
     create,
-    delete,
     execute,
     get_params,
     verify_env_setup,
 )
-from operations.operation_types import (
-    RESOURCE,
-    RESOURCE_PROPERTIES,
-    SOURCE_BUCKET_NAME,
-    SOURCE_PREFIX,
-)
+from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES, SOURCE_BUCKET_NAME, SOURCE_PREFIX
 from utils.lambda_context_parser import get_invocation_account_id
 
 
@@ -113,114 +106,199 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
 
 
 @pytest.mark.parametrize(
-    "requestType,is_internal_user_ssm,is_internal_user_ddb,expected_runtime_config",
+    "requestType,is_internal_user_ssm,is_internal_user_ddb,prompt_editing_enabled,expected_runtime_config",
     [
         (
             "Create",
             None,
             None,
+            None,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "false",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Create",
             False,
             False,
+            True,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "false",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "PromptParams": {
+                            "PromptTemplate": "fake_prompt_template",
+                            "MaxPromptTemplateLength": 1000.0,
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": True,
+                        },
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Create",
             False,
             True,
+            True,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "PromptParams": {
+                            "PromptTemplate": "fake_prompt_template",
+                            "MaxPromptTemplateLength": 1000.0,
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": True,
+                        },
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Create",
             True,
             False,
+            False,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Create",
             True,
             None,
+            False,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Update",
             None,
             None,
+            False,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "false",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Update",
             False,
             False,
+            True,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "false",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "PromptParams": {
+                            "PromptTemplate": "fake_prompt_template",
+                            "MaxPromptTemplateLength": 1000.0,
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": True,
+                        },
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Update",
             False,
             True,
+            True,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "PromptParams": {
+                            "PromptTemplate": "fake_prompt_template",
+                            "MaxPromptTemplateLength": 1000.0,
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": True,
+                        },
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
         (
             "Update",
             True,
             False,
+            True,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {"param1": "test", "param2": 10.0},
+                "UseCaseConfig": {
+                    "UseCaseName": "test_use_case",
+                    "LlmParams": {
+                        "PromptParams": {
+                            "PromptTemplate": "fake_prompt_template",
+                            "MaxPromptTemplateLength": 1000.0,
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": True,
+                        },
+                        "RAGEnabled": True,
+                    },
+                },
             },
         ),
-        ("Delete", None, None, None),
+        ("Delete", None, None, None, None),
     ],
     # indirect=["is_internal_user_ssm", "is_internal_user_ddb"],
 )
 def test_execute_call_success_use_case(
     is_internal_user_ssm,
     is_internal_user_ddb,
+    prompt_editing_enabled,
     web_ui_copy_setup_with_config,
     mock_lambda_context,
     requestType,

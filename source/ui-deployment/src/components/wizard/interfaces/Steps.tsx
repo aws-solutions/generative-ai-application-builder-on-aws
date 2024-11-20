@@ -13,14 +13,6 @@
 
 import React from 'react';
 
-export interface WizardStep {
-    title: string;
-    stateKey: string;
-    content: any;
-}
-
-export type WizardSteps = WizardStep[];
-
 export interface ToolHelpPanelContent {
     title: string;
     links: {
@@ -59,14 +51,7 @@ export interface KnowledgeBaseConfigProps {
     setRequiredFields?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-export interface ReviewProps {
-    info: {
-        useCase: any;
-        knowledgeBase: any;
-        model: any;
-        vpc: any;
-        prompt: any;
-    };
+export interface ReviewProps extends StepContentProps {
     setActiveStepIndex: (e: number) => void;
 }
 

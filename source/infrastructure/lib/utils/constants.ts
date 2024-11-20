@@ -99,10 +99,16 @@ export enum LLM_LIBRARY_LAYER_TYPES {
     BOTO3_LIB_LAYER = 'Boto3Layer'
 }
 
-export const EMAIL_REGEX_PATTERN = "^$|[A-Za-z0-9_!#$%&'*+/=?`{|}~^.-]+@[A-Za-z0-9.-]+$";
+export const OPTIONAL_EMAIL_REGEX_PATTERN = "^$|[A-Za-z0-9_!#$%&'*+/=?`{|}~^.-]+@[A-Za-z0-9.-]+$";
+export const MANDATORY_EMAIL_REGEX_PATTERN = "[A-Za-z0-9_!#$%&'*+/=?`{|}~^.-]+@[A-Za-z0-9.-]+$";
 
 export enum UseCaseNames {
     CHAT = 'chat'
+}
+
+export enum USE_CASE_TYPES {
+    TEXT = 'Text',
+    AGENT = 'Agent'
 }
 
 export enum CONVERSATION_MEMORY_TYPES {
@@ -117,6 +123,11 @@ export enum KNOWLEDGE_BASE_TYPES {
 }
 
 export const SUPPORTED_KNOWLEDGE_BASE_TYPES = [KNOWLEDGE_BASE_TYPES.KENDRA, KNOWLEDGE_BASE_TYPES.BEDROCK];
+
+export enum AGENT_TYPES {
+    BEDROCK = 'Bedrock'
+}
+export const SUPPORTED_AGENT_TYPES = [AGENT_TYPES.BEDROCK];
 
 export enum DynamoDBAttributes {
     CONVERSATION_TABLE_PARTITION_KEY = 'UserId',
@@ -136,9 +147,14 @@ export enum DynamoDBAttributes {
 // LLM related constants
 export const enum CHAT_PROVIDERS {
     BEDROCK = 'Bedrock',
-    SAGEMAKER = 'SageMaker'
+    SAGEMAKER = 'SageMaker',
+    BEDROCK_AGENT = 'BedrockAgent'
+}
+export const enum AUTHENTICATION_PROVIDERS {
+    COGNITO = 'Cognito'
 }
 export const SUPPORTED_CHAT_PROVIDERS = [CHAT_PROVIDERS.BEDROCK, CHAT_PROVIDERS.SAGEMAKER];
+export const SUPPORTED_AUTHENTICATION_PROVIDERS = [AUTHENTICATION_PROVIDERS.COGNITO];
 
 export const KENDRA_EDITIONS = ['DEVELOPER_EDITION', 'ENTERPRISE_EDITION'];
 export const DEFAULT_KENDRA_EDITION = 'DEVELOPER_EDITION';
@@ -154,7 +170,6 @@ export const BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR = 'BEDROCK_KNOWLEDGE_BASE_ID';
 export const COGNITO_POLICY_TABLE_ENV_VAR = 'COGNITO_POLICY_TABLE_NAME';
 export const USER_POOL_ID_ENV_VAR = 'USER_POOL_ID';
 export const CLIENT_ID_ENV_VAR = 'CLIENT_ID';
-export const COGNITO_DOMAIN_PREFIX_VAR = 'COGNITO_DOMAIN_PREFIX';
 export const ARTIFACT_BUCKET_ENV_VAR = 'ARTIFACT_BUCKET_LOCATION';
 export const ARTIFACT_KEY_PREFIX_ENV_VAR = 'ARTIFACT_KEY_PREFIX';
 export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
@@ -201,23 +216,6 @@ export const DEFAULT_RAG_RBAC_ENABLED_STATUS = 'false';
 
 // default VPC enabled status
 export const DEFAULT_VPC_ENABLED_STATUS = 'false';
-
-export const additionalDeploymentPlatformConfigValues = {
-    KnowledgeBaseParams: {
-        [KNOWLEDGE_BASE_TYPES.KENDRA]: {
-            AvailableEditions: KENDRA_EDITIONS,
-            DefaultEdition: DEFAULT_KENDRA_EDITION,
-            DefaultNewKendraIndexName: DEFAULT_NEW_KENDRA_INDEX_NAME,
-            DefaultQueryCapacityUnits: DEFAULT_KENDRA_QUERY_CAPACITY_UNITS,
-            DefaultStorageCapacityUnits: DEFAULT_KENDRA_STORAGE_CAPACITY_UNITS,
-            MaxQueryCapacityUnits: MAX_KENDRA_QUERY_CAPACITY_UNITS,
-            MaxStorageCapacityUnits: MAX_KENDRA_STORAGE_CAPACITY_UNITS,
-            DefaultNumberOfDocs: DEFAULT_KENDRA_NUMBER_OF_DOCS,
-            MaxNumberOfDocs: MAX_KENDRA_NUMBER_OF_DOCS,
-            MinNumberOfDocs: MIN_KENDRA_NUMBER_OF_DOCS
-        }
-    }
-};
 
 // WAF WebACL configs for blocking headers
 export const INVALID_REQUEST_HEADER_RESPONSE_CODE = 403;

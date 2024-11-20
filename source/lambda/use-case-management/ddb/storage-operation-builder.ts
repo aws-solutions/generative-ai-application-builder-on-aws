@@ -24,6 +24,7 @@ import {
     CfnParameterKeys,
     CHAT_PROVIDERS,
     DYNAMODB_TTL_ATTRIBUTE_NAME,
+    INFERENCE_PROFILE,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     TTL_SECONDS,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
@@ -69,7 +70,7 @@ export class PutItemCommandInputBuilder extends CommandInputBuilder {
                 CreatedBy: { S: this.useCase.userId },
                 CreatedDate: { S: new Date().toISOString() },
                 UseCaseConfigRecordKey: { S: this.useCase.getUseCaseConfigRecordKey() },
-                UseCaseConfigTableName: { S: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR], }
+                UseCaseConfigTableName: { S: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] }
             }
         } as PutItemCommandInput;
     }
@@ -201,7 +202,7 @@ export class GetModelInfoCommandInputBuilder extends CommandInputBuilder {
         let sortKey = `${this.useCase.configuration.LlmParams!.ModelProvider}#`;
         switch (this.useCase.configuration.LlmParams!.ModelProvider) {
             case CHAT_PROVIDERS.BEDROCK:
-                sortKey += this.useCase.configuration.LlmParams!.BedrockLlmParams!.ModelId;
+                sortKey += this.useCase.configuration.LlmParams!.BedrockLlmParams!.ModelId ?? INFERENCE_PROFILE;
                 break;
             case CHAT_PROVIDERS.SAGEMAKER:
                 sortKey += 'default';

@@ -12,7 +12,7 @@
  *********************************************************************************************************************/
 
 import { Alert, Button, SpaceBetween, Textarea } from '@cloudscape-design/components';
-import { FC, useState, useContext } from 'react';
+import { FC, useContext, useState } from 'react';
 import HomeContext from '../home/home.context';
 import { MIN_PROMPT_TEMPLATE_LENGTH } from '../utils/constants';
 
@@ -97,7 +97,7 @@ export const PromptTemplate: FC<Props> = ({ onChangePrompt, showPromptWindow, ha
                         data-testid="prompt-template-textarea"
                         placeholder={defaultPromptTemplate}
                         value={value || ''}
-                        rows={10}
+                        rows={15}
                         onChange={({ detail }) => setValue(detail.value)}
                         disabled={selectedConversation!.messages.length > 0}
                     />

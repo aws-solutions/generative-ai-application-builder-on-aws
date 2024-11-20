@@ -89,7 +89,28 @@ def create_config_string(
     ssm_params = json.loads(get_params(ssm_param_key))
     if usecase_table_name and usecase_config_key:
         config = get_usecase_config(usecase_table_name, usecase_config_key)
-        logger.info(f"create_config_string:config:: {config}")
+
+        ui_use_case_config = {
+            "UseCaseName": config.get("UseCaseName"),
+            "LlmParams": {
+                "RAGEnabled": config.get("LlmParams", {}).get("RAGEnabled", False),
+            },
+        }
+
+        # Only taking necessary values from the config for the chat UI when prompt editing is enabled, to avoid exposing customer data
+        if config.get("LlmParams", {}).get("PromptParams", {}).get("UserPromptEditingEnabled"):
+            ui_use_case_config["LlmParams"]["PromptParams"] = {
+                "PromptTemplate": config.get("LlmParams", {}).get("PromptParams", {}).get("PromptTemplate"),
+                "MaxPromptTemplateLength": config.get("LlmParams", {})
+                .get("PromptParams", {})
+                .get("MaxPromptTemplateLength"),
+                "MaxInputTextLength": config.get("LlmParams", {}).get("PromptParams", {}).get("MaxInputTextLength"),
+                "UserPromptEditingEnabled": config.get("LlmParams", {})
+                .get("PromptParams", {})
+                .get("UserPromptEditingEnabled"),
+            }
+
+        logger.info(f"create_config_string:config:: {ui_use_case_config}")
         # IS_INTERNAL_USER_KEY can be populated inside the usecase config via the deployment platform, or be inside the SSM param as determined by the cloudformation stack creating the use case based on inputted email
         config_sourced_is_internal_user = config.pop(IS_INTERNAL_USER_KEY, None)
         ssm_params[IS_INTERNAL_USER_KEY] = (
@@ -97,8 +118,8 @@ def create_config_string(
             if ssm_params.get(IS_INTERNAL_USER_KEY, None) == "true" or config_sourced_is_internal_user == "true"
             else "false"
         )
-        config.pop(IS_INTERNAL_USER_KEY, None)  # removing the duplicate value to avoid confusion
-        ssm_params[USE_CASE_CONFIG_KEY] = config
+
+        ssm_params[USE_CASE_CONFIG_KEY] = ui_use_case_config
 
     return json.dumps(ssm_params, cls=DecimalEncoder)
 

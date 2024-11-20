@@ -11,12 +11,12 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { UIInfrastructureBuilder } from '../../lib/ui/ui-infrastructure-builder';
-import { UIAssetFolders } from '../../lib/utils/constants';
 import * as cdk from 'aws-cdk-lib';
-import { Match, Template, Capture } from 'aws-cdk-lib/assertions';
+import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
 import * as rawCdkJson from '../../cdk.json';
 import { ApplicationSetup } from '../../lib/framework/application-setup';
+import { UIInfrastructureBuilder } from '../../lib/ui/ui-infrastructure-builder';
+import { UIAssetFolders } from '../../lib/utils/constants';
 
 describe('UIInfrastructureBuilder constructor', () => {
     it('sets properties from props for chat ui', () => {
@@ -141,7 +141,7 @@ describe('UIInfrastructureBuilder build', () => {
             Properties: Match.anyValue(),
             UpdateReplacePolicy: 'Delete',
             DeletionPolicy: 'Delete',
-            Condition: 'DeployWebApp'
+            Condition: 'DeployWebAppUIInfrastructureCondition'
         });
     });
 });

@@ -32,7 +32,7 @@ export interface CustomVPCProps extends cdk.NestedStackProps {}
 /**
  * Construct to deploy the VPC as a nested stack
  */
-export abstract class CustomVPC extends BaseNestedStack {
+export class CustomVPC extends BaseNestedStack {
     /**
      * The VPC for the stack
      */
@@ -367,6 +367,10 @@ export abstract class CustomVPC extends BaseNestedStack {
         );
     }
 
+    protected getCompatibleAzs(): string[] | undefined {
+        return undefined;
+    }
+
     /**
      * Create the VPC. Can be overridden by child classes for custom behaviour.
      *
@@ -393,7 +397,10 @@ export abstract class CustomVPC extends BaseNestedStack {
             expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.iPamPoolId, ''))
         });
 
+        const compatibleAzs = this.getCompatibleAzs();
+
         this.vpc = new ec2.Vpc(this, 'UseCaseVPC', {
+            ...(compatibleAzs && { availabilityZones: compatibleAzs }),
             createInternetGateway: true,
             subnetConfiguration: subnets,
             flowLogs: {

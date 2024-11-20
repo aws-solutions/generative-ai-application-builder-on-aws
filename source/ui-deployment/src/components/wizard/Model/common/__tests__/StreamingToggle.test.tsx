@@ -18,6 +18,7 @@ import { screen } from '@testing-library/react';
 import { API, Auth } from 'aws-amplify';
 import * as queryHooks from 'hooks/useQueries';
 import { UseQueryResult } from '@tanstack/react-query';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('StreamingToggle', () => {
     const mockAPI = {
@@ -44,7 +45,7 @@ describe('StreamingToggle', () => {
                     data: true,
                     isPending: false,
                     isSuccess: true
-                }) as UseQueryResult
+                } as UseQueryResult) // prettier-ignore
         );
 
         const mockModelData = {
@@ -62,7 +63,7 @@ describe('StreamingToggle', () => {
                 {...callbacks}
             />,
             {
-                route: '/wizardView'
+                route: USECASE_TYPE_ROUTE.TEXT
             }
         );
 

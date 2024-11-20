@@ -15,7 +15,6 @@
 export const COGNITO_POLICY_TABLE_ENV_VAR = 'COGNITO_POLICY_TABLE_NAME';
 export const USER_POOL_ID_ENV_VAR = 'USER_POOL_ID';
 export const CLIENT_ID_ENV_VAR = 'CLIENT_ID';
-export const USE_EXISTING_USER_POOL_CLIENT_ENV_VAR = 'USE_EXISTING_USER_POOL_CLIENT';
 export const COGNITO_DOMAIN_PREFIX_VAR = 'COGNITO_DOMAIN_PREFIX';
 export const ARTIFACT_BUCKET_ENV_VAR = 'ARTIFACT_BUCKET_LOCATION';
 export const ARTIFACT_KEY_PREFIX_ENV_VAR = 'ARTIFACT_KEY_PREFIX';
@@ -27,6 +26,7 @@ export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
 export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
 export const USE_CASE_CONFIG_TABLE_NAME_ENV_VAR = 'USE_CASE_CONFIG_TABLE_NAME';
 export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
+export const INFERENCE_PROFILE = 'inference-profile';
 
 export const REQUIRED_ENV_VARS = [
     COGNITO_POLICY_TABLE_ENV_VAR,
@@ -101,7 +101,17 @@ export const enum ModelInfoTableKeys {
 
 export const enum UseCaseTypes {
     CHAT = 'Chat',
-    RAGChat = 'RAGChat'
+    RAGChat = 'RAGChat',
+    AGENT = 'Agent'
+}
+
+export const enum UseCaseTypeFromApiEvent {
+    TEXT = 'Text',
+    AGENT = 'Agent'
+}
+
+export const enum AgentProviders {
+    BEDROCK = 'Bedrock'
 }
 
 export const enum KnowledgeBaseTypes {
@@ -132,7 +142,10 @@ export const enum CfnParameterKeys {
     RAGEnabled = 'RAGEnabled',
     DeployUI = 'DeployUI',
     UseCaseConfigTableName = 'UseCaseConfigTableName',
-    UseCaseConfigRecordKey = 'UseCaseConfigRecordKey'
+    UseCaseConfigRecordKey = 'UseCaseConfigRecordKey',
+    BedrockAgentId = 'BedrockAgentId',
+    BedrockAgentAliasId = 'BedrockAgentAliasId',
+    UseInferenceProfile = 'UseInferenceProfile'
 }
 
 export const enum CfnOutputKeys {
@@ -151,7 +164,9 @@ export const RetainedCfnParameterKeys = [
     CfnParameterKeys.CreateNewVpc,
     CfnParameterKeys.ExistingVpcId,
     CfnParameterKeys.ExistingPrivateSubnetIds,
-    CfnParameterKeys.ExistingSecurityGroupIds
+    CfnParameterKeys.ExistingSecurityGroupIds,
+    CfnParameterKeys.ExistingCognitoUserPoolClient,
+    CfnParameterKeys.ExistingCognitoUserPoolId
 ];
 
 export const ChatRequiredPlaceholders = ['{input}', '{history}'];
@@ -168,3 +183,9 @@ export const USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME = 'key';
 export const USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME = 'config';
 
 export const DEFAULT_USE_CASES_PER_PAGE = 10;
+
+export const enum AUTHENTICATION_PROVIDERS {
+    COGNITO = 'Cognito'
+}
+
+export const SUPPORTED_AUTHENTICATION_PROVIDERS = [AUTHENTICATION_PROVIDERS.COGNITO];

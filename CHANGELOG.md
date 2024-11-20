@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2024-11-20
+
+### Added
+
+-   Support for using Amazon Bedrock Agents ([#49](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/49)).
+-   Support for new LLMs available through Amazon Bedrock.
+-   Support for [Bedrock cross-region inference profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html).
+-   Support for using existing Amazon Cognito user pool configuration when deploying the application and its use cases ([#129](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/pull/129)).
+
+### Changed
+
+-   Use [LCEL](https://python.langchain.com/docs/how_to/#langchain-expression-language-lcel) to replace LangChain `Chains` in the solution's implementation
+
+### Fixed
+
+-   Fixed issue when removing a score threshold on an existing use case ([#154](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/154)).
+
+### Security
+
+-   Updated library versions to address security vulnerabilities
+
 ## [2.0.4] - 2024-09-26
 
 ### Security
@@ -31,8 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
--   With the release of [AWS-Solutions-Constructs v2.65.0](https://github.com/awslabs/aws-solutions-constructs/tree/main/source/patterns/%40aws-solutions-constructs/aws-apigatewayv2websocket-sqs), the AWS ApiGateway websocket integration with Amazon SQS Queue is available in the library. Hence the
-    implementation has been updated to use this construct.
+-   With the release of [AWS-Solutions-Constructs v2.65.0](https://github.com/awslabs/aws-solutions-constructs/tree/main/source/patterns/%40aws-solutions-constructs/aws-apigatewayv2websocket-sqs), the AWS ApiGateway websocket integration with Amazon SQS Queue is available in the library. Hence the implementation has been updated to use this construct.
 
 ### Fixed
 

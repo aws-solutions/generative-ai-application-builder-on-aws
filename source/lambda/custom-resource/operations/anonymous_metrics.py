@@ -127,7 +127,6 @@ def get_use_case_config(table_name: str, key: str, retries=3, retry_interval=5):
 
     while retries > 0:
         try:
-
             usecase_config = (
                 config_table.get_item(
                     Key={USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME: key},

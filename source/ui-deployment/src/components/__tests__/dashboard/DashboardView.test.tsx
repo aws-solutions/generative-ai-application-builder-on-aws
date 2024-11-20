@@ -22,12 +22,14 @@ import { HomeInitialState } from '../../../contexts/home.state';
 import { ActionType } from '../../../hooks/useCreateReducer';
 import DashboardView from '../../dashboard/DashboardView';
 import { API, Auth } from 'aws-amplify';
-import { API_NAME } from '../../../utils/constants';
+import { API_NAME, USECASE_TYPE_ROUTE } from '../../../utils/constants';
 import UseCaseView from '../../useCaseDetails/UseCaseView';
 import { mockReactMarkdown, getTableRowIndexOfDeployment } from '@/utils';
 
 // eslint-disable-next-line jest/no-mocks-import
 import mockContext from '../__mocks__/mock-context.json';
+import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
+import UseCaseSelection from '@/components/wizard/UseCaseSelection';
 
 const mockAPI = {
     get: vi.fn(),
@@ -90,6 +92,7 @@ describe('Dashboard', () => {
                 deploymentsData: [],
                 selectedDeployment: {},
                 deploymentAction: 'CREATE',
+                usecaseType: '',
                 reloadData: true,
                 authorized: true,
                 searchFilter: '',
@@ -138,15 +141,17 @@ describe('Dashboard', () => {
         expect(table).toBeDefined();
 
         await waitFor(async () => {
-            expect(table?.findRows()).toHaveLength(7);
+            expect(table?.findRows()).toHaveLength(9);
         });
-        expect(table?.findColumnHeaders()).toHaveLength(7);
+        expect(table?.findColumnHeaders()).toHaveLength(8);
 
-        let firstDeployment = mockContext.deploymentsData[0];
+        const firstDeployment = mockContext.deploymentsData[0];
+        const deploymentRow = 1;
 
-        expect(table?.findBodyCell(1, 2)?.getElement().textContent).toEqual(firstDeployment.useCaseUUID);
-        expect(table?.findBodyCell(1, 3)?.getElement().textContent).toEqual(firstDeployment.Name);
-        expect(table?.findBodyCell(1, 4)?.getElement()?.textContent).toEqual(
+        expect(table?.findBodyCell(deploymentRow, 2)?.getElement().textContent).toEqual(firstDeployment.useCaseUUID);
+        expect(table?.findBodyCell(deploymentRow, 3)?.getElement().textContent).toEqual(firstDeployment.Name);
+        expect(table?.findBodyCell(deploymentRow, 4)?.getElement().textContent).toEqual(firstDeployment.UseCaseType);
+        expect(table?.findBodyCell(deploymentRow, 5)?.getElement()?.textContent).toEqual(
             firstDeployment.status.toLowerCase().replaceAll('_', ' ')
         );
         const dateString = new Date(firstDeployment.CreatedDate).toLocaleDateString('en-US', {
@@ -157,8 +162,30 @@ describe('Dashboard', () => {
             hour: 'numeric',
             minute: 'numeric'
         });
-        expect(table?.findBodyCell(1, 5)?.getElement().textContent).toEqual(dateString);
-        expect(table?.findBodyCell(1, 6)?.getElement().textContent).toEqual(firstDeployment.LlmParams.ModelProvider);
+        expect(table?.findBodyCell(deploymentRow, 6)?.getElement().textContent).toEqual(dateString);
+        expect(table?.findBodyCell(deploymentRow, 7)?.getElement().textContent).toEqual(
+            firstDeployment.LlmParams?.ModelProvider
+        );
+
+        let agentDeployment = mockContext.deploymentsData[2];
+
+        expect(table?.findBodyCell(3, 2)?.getElement().textContent).toEqual(agentDeployment.useCaseUUID);
+        expect(table?.findBodyCell(3, 3)?.getElement().textContent).toEqual(agentDeployment.Name);
+        expect(table?.findBodyCell(3, 4)?.getElement().textContent).toEqual(agentDeployment.UseCaseType);
+        expect(table?.findBodyCell(3, 5)?.getElement()?.textContent).toEqual(
+            agentDeployment.status.toLowerCase().replaceAll('_', ' ')
+        );
+        const agentDateString = new Date(agentDeployment.CreatedDate).toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric'
+        });
+        expect(table?.findBodyCell(3, 6)?.getElement().textContent).toEqual(agentDateString);
+        expect(table?.findBodyCell(3, 7)?.getElement().textContent).toEqual('N/A');
+
         // row select radio button
         expect(table?.findRowSelectionArea(1)).toBeDefined();
     });
@@ -180,10 +207,10 @@ describe('Dashboard', () => {
         expect(table).toBeDefined();
 
         await waitFor(async () => {
-            expect(table?.findRows()).toHaveLength(7);
+            expect(table?.findRows()).toHaveLength(9);
         });
 
-        expect(table?.findRows()).toHaveLength(7);
+        expect(table?.findColumnHeaders()).toHaveLength(8);
         table?.findRowSelectionArea(1)?.click();
 
         // find the view details button
@@ -198,7 +225,10 @@ describe('Dashboard', () => {
                     <Routes>
                         <Route path="/" element={<DashboardView />} />
                         <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route path="/wizardView" element={<WizardView />} />
+                        <Route
+                            path={USECASE_TYPE_ROUTE.TEXT}
+                            element={<WizardView useCase={new TextUseCaseType()} />}
+                        />
                     </Routes>
                 </MemoryRouter>
             </HomeContext.Provider>
@@ -224,7 +254,10 @@ describe('Dashboard', () => {
                     <Routes>
                         <Route path="/" element={<DashboardView />} />
                         <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route path="/wizardView" element={<WizardView />} />
+                        <Route
+                            path={USECASE_TYPE_ROUTE.TEXT}
+                            element={<WizardView useCase={new TextUseCaseType()} />}
+                        />
                     </Routes>
                 </MemoryRouter>
             </HomeContext.Provider>
@@ -249,8 +282,12 @@ describe('Dashboard', () => {
                 <MemoryRouter initialEntries={['/']}>
                     <Routes>
                         <Route path="/" element={<DashboardView />} />
+                        <Route path="/create" element={<UseCaseSelection />} />
                         <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route path="/wizardView" element={<WizardView />} />
+                        <Route
+                            path={USECASE_TYPE_ROUTE.TEXT}
+                            element={<WizardView useCase={new TextUseCaseType()} />}
+                        />
                     </Routes>
                 </MemoryRouter>
             </HomeContext.Provider>
@@ -261,7 +298,7 @@ describe('Dashboard', () => {
         table?.findRowSelectionArea(1)?.click();
 
         dashboardWrapper.findButton('[data-testid="header-btn-create"]')?.click();
-        const wizardView = createWrapper(screen.getByTestId('wizard-view'));
+        const wizardView = createWrapper(screen.getByTestId('create-usecase-view-app-layout'));
         const wizard = wizardView.findWizard();
         expect(wizard?.findMenuNavigationLink(1, 'active')).not.toBeNull();
     });

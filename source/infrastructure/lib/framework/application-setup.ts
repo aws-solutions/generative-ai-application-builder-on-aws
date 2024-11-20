@@ -49,11 +49,6 @@ export interface WebConfigProps {
     userPoolClientId: string;
 
     /**
-     * The CognitoDomainPrefix of the Cognito user pool created or provided during deployment
-     */
-    cognitoDomainPrefix: string;
-
-    /**
      * The CognitoRedirectUrl of the Cognito user pool created or provided during deployment
      */
     cognitoRedirectUrl: string;
@@ -264,7 +259,6 @@ export class ApplicationSetup extends Construct {
                 ApiEndpoint: props.apiEndpoint,
                 UserPoolId: props.userPoolId,
                 UserPoolClientId: props.userPoolClientId,
-                CognitoDomain: this.createCognitoDomain(props.cognitoDomainPrefix),
                 CognitoRedirectUrl: props.cognitoRedirectUrl,
                 IsInternalUser: cdk.Fn.conditionIf(props.isInternalUserCondition.logicalId, true, false),
                 ...props.additionalProperties
@@ -286,6 +280,20 @@ export class ApplicationSetup extends Construct {
         lambdaSSMPolicy.attachToRole(this.customResourceLambda.role!);
         this.webConfigResource.node.tryFindChild('Default')!.node.addDependency(lambdaSSMPolicy);
 
+        const lambdaCognitoPolicy = new iam.Policy(this, 'GetCognitoUserPoolInfo', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['cognito-idp:DescribeUserPool'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/${props.userPoolId}`
+                    ]
+                })
+            ]
+        });
+        lambdaCognitoPolicy.attachToRole(this.customResourceLambda.role!);
+        this.webConfigResource.node.tryFindChild('Default')!.node.addDependency(lambdaCognitoPolicy);
+
         // prettier-ignore
         new cdk.CfnOutput(cdk.Stack.of(this), 'WebConfigKey', { // NOSONAR typescript:S1848. Not valid for CDK
             value: ssmKey
@@ -300,13 +308,6 @@ export class ApplicationSetup extends Construct {
                 ]
             }
         ]);
-    }
-
-    private createCognitoDomain(domainPrefix: string | undefined): string {
-        if (!domainPrefix) {
-            throw new Error('CognitoDomainPrefix is required');
-        }
-        return `${domainPrefix}.auth.${cdk.Aws.REGION}.amazoncognito.com`;
     }
 
     /**

@@ -32,6 +32,7 @@ export const serverSideErrorsStore = new Map();
 const CONTENT_DISPLAY_OPTIONS = [
     { id: 'name', label: 'Name', alwaysVisible: true },
     { id: 'stackId', label: 'Deployment Stack ID' },
+    { id: 'useCaseType', label: 'Use Case Type' },
     { id: 'status', label: 'CloudFormation Deployment Status' },
     { id: 'modelProvider', label: 'Model Provider' },
     { id: 'webUrl', label: 'CloudFront URL' },
@@ -42,6 +43,7 @@ export const DEFAULT_PREFERENCES = {
     contentDisplay: [
         { id: 'stackId', visible: true },
         { id: 'name', visible: true },
+        { id: 'useCaseType', visible: true },
         { id: 'status', visible: true },
         { id: 'dateCreated', visible: true },
         { id: 'modelProvider', visible: true },

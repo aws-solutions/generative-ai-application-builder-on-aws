@@ -17,15 +17,23 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 
-import { FirstPartyUseCaseVPC } from './first-party-use-case-vpc';
 import { CustomVPCProps } from './custom-vpc';
+import { TextUseCaseVPC } from './text-use-case-vpc';
 
 /**
  * VPC for first party use cases (Bedrock/ Sagemaker) deployment
  */
-export class BedrockUseCaseVPC extends FirstPartyUseCaseVPC {
+export class BedrockUseCaseVPC extends TextUseCaseVPC {
     constructor(scope: any, id: string, props: CustomVPCProps) {
         super(scope, id, props);
+        const stack = cdk.Stack.of(this);
+
+        const subnetCidrMask = 24;
+        this.createVpc(subnetCidrMask);
+        this.createSecurityGroups();
+        this.createServiceEndpoints();
+        this.configureNacl();
+        this.setOutputs(stack);
     }
 
     protected createServiceEndpoints(): void {

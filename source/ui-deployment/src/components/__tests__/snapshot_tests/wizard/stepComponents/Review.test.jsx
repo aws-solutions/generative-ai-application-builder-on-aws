@@ -46,7 +46,7 @@ describe('Chat', () => {
         knowledgeBase: {
             isRagRequired: true,
             knowledgeBaseType: KNOWLEDGE_BASE_TYPES[0],
-            existingKendraIndex: 'no',
+            existingKendraIndex: 'No',
             kendraIndexId: '',
             kendraAdditionalQueryCapacity: DEFAULT_ADDITIONAL_KENDRA_QUERY_CAPACITY,
             kendraAdditionalStorageCapacity: DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY,

@@ -23,7 +23,7 @@ from shared.knowledge.knowledge_base import KnowledgeBase, SourceDocument
 from utils.constants import (
     BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR,
     DEFAULT_BEDROCK_KNOWLEDGE_BASE_NUMBER_OF_DOCS,
-    DEFAULT_RETURN_SOURCE_DOCS,
+    DEFAULT_RETURN_SOURCE_DOCS_MODE,
     DEFAULT_SCORE_THRESHOLD,
 )
 from utils.enum_types import KnowledgeBaseTypes
@@ -59,7 +59,7 @@ class BedrockKnowledgeBase(KnowledgeBase):
         )
         self.return_source_documents = knowledge_base_params.get(
             "ReturnSourceDocs",
-            DEFAULT_RETURN_SOURCE_DOCS,
+            DEFAULT_RETURN_SOURCE_DOCS_MODE,
         )
         self.min_score_confidence = knowledge_base_params.get(
             "ScoreThreshold",

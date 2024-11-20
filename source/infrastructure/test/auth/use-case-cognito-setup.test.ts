@@ -16,12 +16,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as rawCdkJson from '../../cdk.json';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
-import { UserPoolProps } from '../../lib/auth/cognito-setup';
-import {
-    UseCaseCognitoSetup,
-    UseCaseUserPoolProps,
-    UserCaseUserPoolClientProps
-} from '../../lib/auth/use-case-cognito-setup';
+import { CognitoSetup, UserPoolClientProps, UserPoolProps } from '../../lib/auth/cognito-setup';
 
 describe('When creating as a standalone stack', () => {
     it('should set the security policies for the user pool and create the policy store table', () => {
@@ -35,14 +30,7 @@ describe('When creating as a standalone stack', () => {
         });
 
         template.hasCondition('TestCognitoSetupCreateUserPoolCondition319150D4', {
-            'Fn::Or': [
-                {
-                    'Fn::Equals': ['', '']
-                },
-                {
-                    'Fn::Equals': ['', '']
-                }
-            ]
+            'Fn::Equals': ['', '']
         });
 
         const snsPublishRoleCapture = new Capture();
@@ -126,7 +114,7 @@ describe('When creating as a standalone stack', () => {
             AccessTokenValidity: 5,
             AllowedOAuthFlows: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     ['code'],
                     {
                         Ref: 'AWS::NoValue'
@@ -135,7 +123,7 @@ describe('When creating as a standalone stack', () => {
             },
             AllowedOAuthFlowsUserPoolClient: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     true,
                     {
                         Ref: 'AWS::NoValue'
@@ -144,7 +132,7 @@ describe('When creating as a standalone stack', () => {
             },
             AllowedOAuthScopes: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     ['email', 'aws.cognito.signin.user.admin', 'openid'],
                     {
                         Ref: 'AWS::NoValue'
@@ -154,11 +142,11 @@ describe('When creating as a standalone stack', () => {
             CallbackURLs: [
                 {
                     'Fn::If': [
-                        'DeployWebApp',
-                        'https://fakeurl.com',
+                        'DeployWebAppCognitoCondition',
                         {
-                            Ref: 'AWS::NoValue'
-                        }
+                            'Fn::If': ['DeployWebApp', 'https://fakeurl.com', { Ref: 'AWS::NoValue' }]
+                        },
+                        { Ref: 'AWS::NoValue' }
                     ]
                 }
             ],
@@ -166,18 +154,20 @@ describe('When creating as a standalone stack', () => {
             LogoutURLs: [
                 {
                     'Fn::If': [
-                        'DeployWebApp',
-                        'https://fakeurl.com',
+                        'DeployWebAppCognitoCondition',
                         {
-                            Ref: 'AWS::NoValue'
-                        }
+                            'Fn::If': ['DeployWebApp', 'https://fakeurl.com', { Ref: 'AWS::NoValue' }]
+                        },
+                        { Ref: 'AWS::NoValue' }
                     ]
                 }
             ],
+            RefreshTokenValidity: 1,
             SupportedIdentityProviders: ['COGNITO'],
             TokenValidityUnits: {
-                'AccessToken': 'minutes',
-                'IdToken': 'minutes'
+                AccessToken: 'minutes',
+                RefreshToken: 'days',
+                IdToken: 'minutes'
             },
             UserPoolId: {
                 'Fn::If': [
@@ -190,7 +180,7 @@ describe('When creating as a standalone stack', () => {
             },
             ExplicitAuthFlows: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     [
                         'ALLOW_USER_PASSWORD_AUTH',
                         'ALLOW_ADMIN_USER_PASSWORD_AUTH',
@@ -466,7 +456,7 @@ describe('When providing an existing userpool', () => {
             },
             ExplicitAuthFlows: {
                 'Fn::If': [
-                    'DeployWebApp',
+                    'DeployWebAppCognitoCondition',
                     [
                         'ALLOW_USER_PASSWORD_AUTH',
                         'ALLOW_ADMIN_USER_PASSWORD_AUTH',
@@ -609,7 +599,7 @@ describe('When providing an existing userpool', () => {
     });
 });
 
-function createTemplate(props: Partial<UseCaseUserPoolProps>): [cdk.assertions.Template, any] {
+function createTemplate(props: Partial<UserPoolProps>): [cdk.assertions.Template, any] {
     let stack = new cdk.Stack();
     const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
         type: 'String',
@@ -619,7 +609,7 @@ function createTemplate(props: Partial<UseCaseUserPoolProps>): [cdk.assertions.T
         default: 'Yes'
     });
 
-    const cognitoSetup = new UseCaseCognitoSetup(stack, 'TestCognitoSetup', {
+    const cognitoSetup = new CognitoSetup(stack, 'TestCognitoSetup', {
         userPoolProps: {
             ...props,
             cognitoDomainPrefix: new cdk.CfnParameter(stack, 'CognitoDomainPrefix', {
@@ -632,12 +622,13 @@ function createTemplate(props: Partial<UseCaseUserPoolProps>): [cdk.assertions.T
                     'The provided domain prefix is not a valid format. The domain prefix should be be of the following format "^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$"',
                 maxLength: 63
             }).valueAsString
-        } as UserPoolProps
+        } as UserPoolProps,
+        deployWebApp: deployWebApp.valueAsString
     });
     cognitoSetup.createUserPoolClient({
         logoutUrl: {
             'Fn::If': [
-                'DeployWebApp',
+                'DeployWebAppCognitoCondition',
                 'https://fakeurl.com',
                 {
                     Ref: 'AWS::NoValue'
@@ -660,9 +651,8 @@ function createTemplate(props: Partial<UseCaseUserPoolProps>): [cdk.assertions.T
             description:
                 'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
             default: ''
-        }).valueAsString,
-        deployWebApp: deployWebApp.valueAsString
-    } as UserCaseUserPoolClientProps);
+        }).valueAsString
+    } as UserPoolClientProps);
     const template = Template.fromStack(stack);
     return [template, template.toJSON()];
 }

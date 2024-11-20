@@ -154,7 +154,38 @@ const validateUserPromptInput = (promptTemplate: string, isRag: boolean, maxProm
         }
     }
 
+    error = checkPromptIsEscaped(promptTemplate, isRag ? requiredRagPlaceholders : requiredPlaceholders);
+
     return error;
+};
+
+const checkPromptIsEscaped = (promptTemplate: string, requiredPlaceholders: Array<string>): string => {
+    // removes all the placeholders, which are valid uses of unescaped curly braces
+    requiredPlaceholders.forEach((placeholder) => {
+        promptTemplate = promptTemplate.replace(placeholder, '');
+    });
+
+    // ensure both types of braces are escaped (doubled), per langchain standards
+    const escapableCharacters = ['{', '}'];
+    for (const char of escapableCharacters) {
+        let index = 0;
+        while (index < promptTemplate.length) {
+            const charIndex = promptTemplate.indexOf(char, index);
+
+            if (charIndex === -1) {
+                // No more curly braces found
+                break;
+            }
+
+            // is it escaped by doubling?
+            if (promptTemplate.charAt(charIndex + 1) !== char) {
+                return `Prompt template contains an unescaped curly brace '${char}'. To use literal curly braces in your template, please double them: '${char}${char}' instead of '${char}'.`;
+            } else {
+                index = charIndex + 2;
+            }
+        }
+    }
+    return '';
 };
 
 //show basic prompt structure as a placeholder when the prompt template component is empty

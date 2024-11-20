@@ -70,10 +70,11 @@ const guardrailVersionInfoPanel = {
     content: (
         <div>
             <Box variant="p">
-                The version number for the guardrail. The value can also be <code>DRAFT</code>.
+                The version number for the guardrail. For example, if the Guardrails version is <code>version 1</code>,
+                enter <code>1</code> in this field. The value can also be <code>DRAFT</code>.
             </Box>
             <Box variant="p">
-                Pattern: <code>{'^(([1-9][0-9]<span>{</span>0,7})|(DRAFT))$'}</code>
+                Pattern: <code>{'^(([1-9][0-9]{0,7})|(DRAFT))$'}</code>
             </Box>
         </div>
     ),

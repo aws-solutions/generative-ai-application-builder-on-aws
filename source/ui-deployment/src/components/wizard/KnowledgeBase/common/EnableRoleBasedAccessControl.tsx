@@ -15,6 +15,7 @@ import { Box, FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/
 import { BaseFormComponentProps } from '../../interfaces';
 import { InfoLink } from '../../../commons';
 import { IG_DOCS } from '@/utils/constants';
+import { getBooleanString } from '../../utils';
 
 interface EnableRoleBasedAccessControlProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -22,7 +23,7 @@ interface EnableRoleBasedAccessControlProps extends BaseFormComponentProps {
 
 export const EnableRoleBasedAccessControl = (props: EnableRoleBasedAccessControlProps) => {
     const onEnableRoleBasedAccessControl = (detail: RadioGroupProps.ChangeDetail) => {
-        const enableRoleBasedAccessControl = detail.value === 'yes';
+        const enableRoleBasedAccessControl = detail.value === 'Yes';
         props.onChangeFn({ 'enableRoleBasedAccessControl': enableRoleBasedAccessControl });
     };
     const warningText = 'Ensure the Knowledge Base is configured to support role-based access control.';
@@ -44,15 +45,15 @@ export const EnableRoleBasedAccessControl = (props: EnableRoleBasedAccessControl
                 onChange={({ detail }) => onEnableRoleBasedAccessControl(detail)}
                 items={[
                     {
-                        value: 'yes',
+                        value: 'Yes',
                         label: 'Yes'
                     },
                     {
-                        value: 'no',
+                        value: 'No',
                         label: 'No'
                     }
                 ]}
-                value={props.knowledgeBaseData.enableRoleBasedAccessControl ? 'yes' : 'no'}
+                value={getBooleanString(props.knowledgeBaseData.enableRoleBasedAccessControl)}
                 data-testid="enable-role-based-access-control-radio-group"
             />
         </FormField>

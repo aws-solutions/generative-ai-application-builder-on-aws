@@ -25,16 +25,11 @@ class BedrockCohereLLMParams(BedrockLLMParams):
     The class also provides logic to parse and clean model parameters specifically for the Amazon AI21 Bedrock model.
     """
 
-    num_generations: Optional[int] = None
-    logit_bias: Optional[Dict[str, float]] = None
-    stream: Optional[bool] = None
-    return_likelihoods: Optional[str] = None
-    temperature: Optional[float] = None
     p: Optional[float] = None
     k: Optional[float] = None
     max_tokens: Optional[int] = None
-    truncate: Optional[str] = None
     stop_sequences: Optional[List[str]] = None
+    temperature: Optional[float] = None
 
     def __post_init__(self):
         """
@@ -59,3 +54,35 @@ class BedrockCohereLLMParams(BedrockLLMParams):
             (Dict): Dict of the model parameters.
         """
         return super().get_params_as_dict(stop_sequence_key=stop_sequence_key, pop_null=pop_null)
+
+
+@dataclass
+class BedrockCohereTextLLMParams(BedrockCohereLLMParams):
+    """
+    Model parameters for the Anthropic model available in Bedrock.
+    The class also provides logic to parse and clean model parameters specifically for the Amazon AI21 Bedrock model.
+    """
+
+    return_likelihoods: Optional[str] = None
+    num_generations: Optional[int] = None
+    logit_bias: Optional[Dict[str, float]] = None
+    truncate: Optional[str] = None
+
+
+@dataclass
+class BedrockCohereCommandLLMParams(BedrockCohereLLMParams):
+    """
+    Model parameters for the Anthropic model available in Bedrock.
+    The class also provides logic to parse and clean model parameters specifically for the Amazon AI21 Bedrock model.
+    """
+
+    search_queries_only: Optional[bool] = None
+    preamble: Optional[str] = None
+    prompt_truncation: Optional[str] = None
+    frequency_penalty: Optional[float] = None
+    presence_penalty: Optional[float] = None
+    seed: Optional[int] = None
+    return_prompt: Optional[bool] = None
+    tools: Optional[Dict[str, Any]] = None
+    tools_results: Optional[Dict[str, Any]] = None
+    raw_prompting: Optional[bool] = None

@@ -18,6 +18,7 @@ import { WIZARD_PAGE_INDEX } from '../steps-config';
 import { HomeContext } from 'contexts';
 import { DEPLOYMENT_ACTIONS } from 'utils/constants';
 import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
+import { getBooleanString } from '../utils';
 
 interface VpcConfigReviewProps extends ReviewSectionProps {
     vpcData: any;
@@ -59,12 +60,12 @@ export const VpcConfigReview = (props: VpcConfigReviewProps) => {
             >
                 <ColumnLayout columns={2} variant="text-grid" data-testid="vpc-config-details">
                     <ValueWithLabel label="Do you want to deploy this use case with a VPC?">
-                        {props.vpcData.isVpcRequired ? 'Yes' : 'No'}
+                        {getBooleanString(props.vpcData.isVpcRequired)}
                     </ValueWithLabel>
 
                     {props.vpcData.isVpcRequired && (
                         <ValueWithLabel label="Would you like to use an existing VPC?">
-                            {props.vpcData.existingVpc ? 'Yes' : 'No'}
+                            {getBooleanString(props.vpcData.existingVpc)}
                         </ValueWithLabel>
                     )}
 
