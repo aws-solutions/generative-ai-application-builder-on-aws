@@ -14,7 +14,7 @@
 import { Box, FormField, RadioGroup, RadioGroupProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 import { InfoLink } from '../../../commons';
-import { TOOLS_CONTENT } from '../../tools-content';
+import { getBooleanString } from '../../utils';
 
 interface ReturnSourceDocumentsProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -22,7 +22,7 @@ interface ReturnSourceDocumentsProps extends BaseFormComponentProps {
 
 export const ReturnSourceDocuments = (props: ReturnSourceDocumentsProps) => {
     const onReturnDocumentSource = (detail: RadioGroupProps.ChangeDetail) => {
-        const returnDocumentSource = detail.value === 'yes';
+        const returnDocumentSource = detail.value === 'Yes';
 
         props.onChangeFn({ 'returnDocumentSource': returnDocumentSource });
     };
@@ -43,15 +43,15 @@ export const ReturnSourceDocuments = (props: ReturnSourceDocumentsProps) => {
                 onChange={({ detail }) => onReturnDocumentSource(detail)}
                 items={[
                     {
-                        value: 'yes',
+                        value: 'Yes',
                         label: 'Yes'
                     },
                     {
-                        value: 'no',
+                        value: 'No',
                         label: 'No'
                     }
                 ]}
-                value={props.knowledgeBaseData.returnDocumentSource ? 'yes' : 'no'}
+                value={getBooleanString(props.knowledgeBaseData.returnDocumentSource)}
                 data-testid="display-document-source-radio-group"
             />
         </FormField>

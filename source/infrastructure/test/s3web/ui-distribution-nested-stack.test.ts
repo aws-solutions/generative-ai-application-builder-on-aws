@@ -21,7 +21,7 @@ describe('When creating a nested stack with the cloudfront distribution', () => 
     beforeAll(() => {
         template = buildStack();
     });
-    
+
     it('should have the correct output', () => {
         template.hasOutput('WebUrl', {
             Value: {

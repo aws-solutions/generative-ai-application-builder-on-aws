@@ -16,6 +16,7 @@ import { BEDROCK_MODEL_OPTION_IDX, MODEL_FAMILY_PROVIDER_OPTIONS } from '@/compo
 import { BedrockModel } from '../Bedrock';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { screen } from '@testing-library/react';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 const modelNameQueryReturn = {
     isLoading: false,
@@ -44,7 +45,7 @@ describe('Bedrock', () => {
 
         const { cloudscapeWrapper } = renderWithProvider(
             <BedrockModel {...mockFormComponentCallbacks()} modelData={mockModelData} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
 
         expect(screen.getByTestId('bedrock-model-components')).toBeDefined();
@@ -76,7 +77,7 @@ describe('Bedrock', () => {
 
         const { cloudscapeWrapper } = renderWithProvider(
             <BedrockModel {...mockFormComponentCallbacks()} modelData={mockModelData} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
 
         const modelArnInput = cloudscapeWrapper.findInput();

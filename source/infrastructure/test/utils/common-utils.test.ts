@@ -352,10 +352,7 @@ describe('generateCfnTemplateUrl', () => {
         process.env.DIST_OUTPUT_BUCKET = 'fakebucket';
         const result = util.generateCfnTemplateUrl(stack);
 
-        expect(result).toEqual([
-            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/SageMakerChat*.template',
-            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/BedrockChat*.template'
-        ]);
+        expect(result).toEqual(['https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/*.template']);
     });
 
     it('should return template URLs for cdk-asset-bucket', () => {

@@ -13,6 +13,7 @@
 
 import { VerboseToggle } from '../VerboseToggle';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 import { screen } from '@testing-library/react';
 
 describe('StreamingToggle', () => {
@@ -28,7 +29,7 @@ describe('StreamingToggle', () => {
         const callbacks = mockFormComponentCallbacks();
 
         const { cloudscapeWrapper } = renderWithProvider(<VerboseToggle modelData={mockModelData} {...callbacks} />, {
-            route: '/wizardView'
+            route: USECASE_TYPE_ROUTE.TEXT
         });
 
         const element = screen.getByTestId('model-verbose-field');

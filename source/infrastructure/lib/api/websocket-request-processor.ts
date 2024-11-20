@@ -14,45 +14,34 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as api from 'aws-cdk-lib/aws-apigateway';
+import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
+import { SqsToLambda } from '@aws-solutions-constructs/aws-sqs-lambda';
+import * as awssolutionsconstructscore from '@aws-solutions-constructs/core';
 import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
+import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
-import { UserPoolProps } from '../auth/cognito-setup';
-import { UseCaseCognitoSetup } from '../auth/use-case-cognito-setup';
+import { CognitoSetup } from '../auth/cognito-setup';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
 import { createCustomResourceForLambdaLogRetention, createDefaultLambdaRole } from '../utils/common-utils';
 import {
+    CLIENT_ID_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
     LAMBDA_TIMEOUT_MINS,
     USER_POOL_ID_ENV_VAR
 } from '../utils/constants';
-import { RequestProcessor } from './request-processor';
-import { WebSocketEndpoint } from './websocket-endpoint';
+import { RequestProcessor, RequestProcessorProps } from './request-processor';
+import { requestTemplate, WebSocketEndpoint } from './websocket-endpoint';
 
-export interface WebsocketRequestProcessorProps {
+export interface WebsocketRequestProcessorProps extends RequestProcessorProps {
     /**
      * The function to back the LangChain chat LLM model
      */
-    chatProviderLambda: lambda.Function;
-
-    /**
-     * The trademark name of the solution
-     */
-    applicationTrademarkName: string;
-
-    /**
-     * Default user email address used to create a cognito user in the created or existing user pool.
-     */
-    defaultUserEmail: string;
-
-    /**
-     * If provided, will use the provided UserPool instead of creating a new one.
-     */
-    existingCognitoUserPoolId: string;
+    lambdaRouteMapping: Map<string, lambda.Function>;
 
     /**
      * Name of table which stores policies for cognito user groups. Required if existingCognitoUserPoolId is provided.
@@ -68,17 +57,6 @@ export interface WebsocketRequestProcessorProps {
      * Used here to append to the username for created user(s)
      */
     useCaseUUID: string;
-
-    /**
-     * Domain for the Cognito User Pool Client
-     */
-    cognitoDomainPrefix: string;
-
-    /**
-     * The user pool client id for the user pool. Required if existingCognitoUserPoolId is provided.
-     * Must be provided an empty string if we do not want to use it (as condition must be checked from an incoming cfnParameter)
-     */
-    existingCognitoUserPoolClientId: string;
 }
 
 export class WebsocketRequestProcessor extends RequestProcessor {
@@ -153,7 +131,7 @@ export class WebsocketRequestProcessor extends RequestProcessor {
         );
 
         // will create a new user pool if deploying standalone, otherwise simply adds a group to the existing user pool
-        this.cognitoSetup = new UseCaseCognitoSetup(this, 'UseCaseCognitoSetup', {
+        this.cognitoSetup = new CognitoSetup(this, 'UseCaseCognitoSetup', {
             userPoolProps: {
                 defaultUserEmail: props.defaultUserEmail,
                 applicationTrademarkName: props.applicationTrademarkName,
@@ -162,11 +140,17 @@ export class WebsocketRequestProcessor extends RequestProcessor {
                 existingCognitoGroupPolicyTableName: props.existingCognitoGroupPolicyTableName,
                 usernameSuffix: props.useCaseUUID,
                 customResourceLambdaArn: props.customResourceLambda.functionArn,
-                cognitoDomainPrefix: props.cognitoDomainPrefix,
+                cognitoDomainPrefix: props.cognitoDomainPrefix
+            },
+            userPoolClientProps: {
+                logoutUrl: props.cloudFrontUrl,
+                callbackUrl: props.cloudFrontUrl,
                 existingCognitoUserPoolClientId: props.existingCognitoUserPoolClientId
-            } as UserPoolProps
+            },
+            deployWebApp: props.deployWebApp
         });
         this.userPool = this.cognitoSetup.userPool;
+        this.userPoolClient = this.cognitoSetup.userPoolClient;
 
         const webSocketAuthLambdaRole = createDefaultLambdaRole(this, 'WebSocketAuthorizerRole');
         this.authorizerLambda = new lambda.Function(this, 'WebSocketAuthorizer', {
@@ -183,6 +167,7 @@ export class WebsocketRequestProcessor extends RequestProcessor {
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
             environment: {
                 [USER_POOL_ID_ENV_VAR]: this.userPool.userPoolId,
+                [CLIENT_ID_ENV_VAR]: this.userPoolClient.userPoolClientId,
                 [COGNITO_POLICY_TABLE_ENV_VAR]: this.cognitoSetup.cognitoGroupPolicyTable.tableName
             }
         });
@@ -209,13 +194,20 @@ export class WebsocketRequestProcessor extends RequestProcessor {
             authorizerLambda: this.authorizerLambda,
             onConnectLambda: this.onConnectLambda,
             onDisconnectLambda: this.onDisconnectLambda,
-            onMessageLambda: props.chatProviderLambda,
-            useCaseUUID: props.useCaseUUID
+            useCaseUUID: props.useCaseUUID,
+            lambdaRouteMapping: props.lambdaRouteMapping
         });
 
         this.webSocketApi = webSocketEndpoint.webSocketApi;
         this.websocketApiStage = webSocketEndpoint.websocketApiStage;
         this.webSocketApi.node.addDependency(this.cognitoSetup.userPoolGroup);
+
+        const routeKeys = props.lambdaRouteMapping.keys();
+        routeKeys.next();
+        // the first route is added when creating the construct. the additional routes (if exists) will be added here.
+        // note: that this implementation is opinionated such that each route adds it own queue as the integration. there
+        // may be alternate AWS services or lambda functions as integration options, but this one assumes it always is a queue.
+        addAddtionalRoutes(this, routeKeys, webSocketEndpoint, props);
 
         // custom resource to populate policy table with admin policy
         const cognitoUserGroupPolicyCustomResource = new cdk.CustomResource(this, 'CognitoUseCaseGroupPolicy', {
@@ -285,5 +277,52 @@ export class WebsocketRequestProcessor extends RequestProcessor {
                 reason: 'The solution does not enforce reserved concurrency'
             }
         ]);
+    }
+}
+
+export function addAddtionalRoutes(
+    construct: Construct,
+    routeKeys: MapIterator<string>,
+    webSocketEndpoint: WebSocketEndpoint,
+    props: WebsocketRequestProcessorProps
+) {
+    for (const routeKey of routeKeys) {
+        const queue = awssolutionsconstructscore.buildQueue(construct, `${routeKey}Queue`, {}).queue; // each route requires its own queue
+        webSocketEndpoint.webSocketApi.addRoute(
+            routeKey,
+            awssolutionsconstructscore.buildWebSocketQueueRouteOptions(
+                webSocketEndpoint.apiGatewayRole,
+                queue,
+                routeKey,
+                { [routeKey]: requestTemplate }
+            )
+        );
+
+        const lambda = props.lambdaRouteMapping.get(routeKey);
+        lambda!.addEnvironment('WEBSOCKET_CALLBACK_URL', webSocketEndpoint.websocketApiStage.callbackUrl);
+        webSocketEndpoint.webSocketApi.grantManageConnections(lambda!);
+        new SqsToLambda(construct, `${routeKey}SqsToLambda`, {
+            existingQueueObj: queue,
+            deployDeadLetterQueue: false,
+            existingLambdaObj: lambda
+        });
+    }
+
+    const routesListForSuppressions = ['$disconnect-Route'];
+    for (const customRoute of props.lambdaRouteMapping.keys()) {
+        routesListForSuppressions.push(`${customRoute}-Route`);
+    }
+
+    for (const route in routesListForSuppressions) {
+        NagSuppressions.addResourceSuppressions(
+            webSocketEndpoint.webSocketApi.node.tryFindChild(routesListForSuppressions[route])?.node
+                .defaultChild as apigwv2.CfnRoute,
+            [
+                {
+                    id: 'AwsSolutions-APIG4',
+                    reason: 'Only $connect accepts an authorizer for a websocket api'
+                }
+            ]
+        );
     }
 }

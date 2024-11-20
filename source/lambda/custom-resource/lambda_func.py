@@ -31,6 +31,7 @@ from operations import (
     get_compatible_azs,
     gen_domain_prefix,
     cw_log_retention,
+    get_arns_for_inference_profile,
 )
 from operations.operation_types import FAILED, RESOURCE, RESOURCE_PROPERTIES
 
@@ -52,6 +53,7 @@ operations_dictionary = {
     operation_types.GET_COMPATIBLE_AZS: get_compatible_azs.execute,
     operation_types.GEN_DOMAIN_PREFIX: gen_domain_prefix.execute,
     operation_types.CW_LOG_RETENTION: cw_log_retention.execute,
+    operation_types.GET_MODEL_RESOURCE_ARNS: get_arns_for_inference_profile.execute,
 }
 
 

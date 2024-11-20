@@ -26,20 +26,17 @@ import { BedrockDetails } from './BedrockDetails';
 import { SageMakerDetails } from './SageMakerDetails';
 import { useNavigate } from 'react-router-dom';
 import HomeContext from '../../contexts/home.context';
-import {
-    DEFAULT_STEP_INFO,
-    KNOWLEDGE_BASE_PROVIDERS,
-    BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES
-} from '../wizard/steps-config';
+import { KNOWLEDGE_BASE_PROVIDERS, BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES } from '../wizard/steps-config';
 import { createCfnLink, parseStackName } from '../commons/table-config';
 import { ExternalLinkWarningModal } from '../commons/external-link-warning-modal';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 import {
     BEDROCK_MODEL_PROVIDER_NAME,
     SAGEMAKER_MODEL_PROVIDER_NAME,
-    CFN_STACK_STATUS_INDICATOR
+    CFN_STACK_STATUS_INDICATOR,
+    USECASE_TYPES
 } from '../../utils/constants';
-import { getQueryFilterFromDeployment } from '../wizard/utils';
+import { getBooleanString, getQueryFilterFromDeployment } from '../wizard/utils';
 import JsonCodeView from '../commons/json-code-view';
 import { scoreToKendraMapping } from '../wizard/KnowledgeBase/helpers';
 
@@ -114,24 +111,32 @@ export const createBedrockKnowledgeBaseConsoleLink = (region, bedrockKnowledgeBa
     return `https://console.aws.amazon.com/bedrock/home?region=${region}#/knowledge-bases`;
 };
 
+export const createVpcLink = (region, vpcId) => {
+    return `https://console.aws.amazon.com/vpcconsole/home?region=${region}#VpcDetails:VpcId=${vpcId}`;
+};
+
 export const GeneralConfig = () => {
     const {
-        state: { selectedDeployment }
+        state: { selectedDeployment, runtimeConfig }
     } = useContext(HomeContext);
 
     const [showCloudwatchModal, setShowCloudwatchModal] = useState(false);
     const [showCfnModal, setShowCfnModal] = useState(false);
+    const [showVpcModal, setShowVpcModal] = useState(false);
 
     const isEmptyOrUndefined = (value) => {
         return value === undefined || value === '' || value === null;
     };
+
+    const existingUserPoolId = selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolId;
+    const existingUserPoolClientId = selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolClientId;
 
     const isVpcEnabled = selectedDeployment.vpcEnabled ? selectedDeployment.vpcEnabled.toLowerCase() === 'yes' : false;
 
     return (
         <Container header={<Header variant="h2">Deployment details</Header>} data-testid="deployment-details-container">
             <ColumnLayout columns={4} variant="text-grid">
-                <ValueWithLabel label={'Type'}>{DEFAULT_STEP_INFO.useCase.useCase.label}</ValueWithLabel>
+                <ValueWithLabel label={'Type'}>{selectedDeployment.UseCaseType ?? USECASE_TYPES.TEXT}</ValueWithLabel>
                 <ValueWithLabel label={'Name'}>{selectedDeployment.Name}</ValueWithLabel>
 
                 {!isEmptyOrUndefined(selectedDeployment.Description) && (
@@ -219,7 +224,38 @@ export const GeneralConfig = () => {
                 </ValueWithLabel>
 
                 {isVpcEnabled && selectedDeployment.vpcId && (
-                    <ValueWithLabel label={'VPC ID'}>{selectedDeployment.vpcId}</ValueWithLabel>
+                    <Box data-testid="vpc-link-with-modal">
+                        <ValueWithLabel label={'VPC ID'}>
+                            {
+                                <>
+                                    <Link
+                                        target="_blank"
+                                        onFollow={() => {
+                                            setShowVpcModal(true);
+                                        }}
+                                        external
+                                    >
+                                        {selectedDeployment.vpcId}
+                                    </Link>
+                                    <ExternalLinkWarningModal
+                                        // data-testid="vpc-external-link-modal"
+                                        visible={showVpcModal}
+                                        onDiscard={() => setShowVpcModal(false)}
+                                        externalLink={createVpcLink(runtimeConfig.AwsRegion, selectedDeployment.vpcId)}
+                                        resourceType="VPC"
+                                    />
+                                </>
+                            }
+                        </ValueWithLabel>
+                    </Box>
+                )}
+
+                {existingUserPoolId && (
+                    <ValueWithLabel label={'Existing User Pool Id'}>{existingUserPoolId}</ValueWithLabel>
+                )}
+
+                {existingUserPoolClientId && (
+                    <ValueWithLabel label={'Existing User Pool Client Id'}>{existingUserPoolClientId}</ValueWithLabel>
                 )}
 
                 {isVpcEnabled && selectedDeployment.privateSubnetIds && (
@@ -378,7 +414,7 @@ export const KnowledgeBaseDetails = () => {
                 </ValueWithLabel>
 
                 <ValueWithLabel label={'Display document source'}>
-                    {selectedDeployment.KnowledgeBaseParams.ReturnSourceDocs ? 'Yes' : 'No'}
+                    {getBooleanString(selectedDeployment.KnowledgeBaseParams.ReturnSourceDocs)}
                 </ValueWithLabel>
             </SpaceBetween>
         </ColumnLayout>
@@ -400,7 +436,7 @@ const KendraKnowledgeBaseDetails = ({
         <div>
             <Box variant="awsui-key-label">Kendra index ID</Box>
             {deploymentStatus === 'CREATE_IN_PROGRESS' && !selectedDeployment.kendraIndexId && (
-                <StatusIndicator type="in-progress">create in progress</StatusIndicator>
+                <StatusIndicator type="in-progress">{deploymentStatus}</StatusIndicator>
             )}
             {deploymentStatus === 'CREATE_IN_PROGRESS' && (selectedDeployment.kendraIndexId ? '-' : '')}
             {isDeploymentInActiveState && (
@@ -451,7 +487,7 @@ const BedrockKnowledgeBaseDetails = ({
             <Box variant="awsui-key-label">Bedrock Knowledge base ID</Box>
             {deploymentStatus === 'CREATE_IN_PROGRESS' && !selectedDeployment.bedrockKnowledgeBaseId && (
                 <Box>
-                    <StatusIndicator type="in-progress">create in progress</StatusIndicator>
+                    <StatusIndicator type="in-progress">{deploymentStatus}</StatusIndicator>
                     {!isDeploymentInActiveState && (selectedDeployment.bedrockKnowledgeBaseId ?? '-')}
                 </Box>
             )}

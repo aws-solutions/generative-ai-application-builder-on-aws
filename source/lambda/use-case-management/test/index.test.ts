@@ -57,7 +57,7 @@ describe('When invoking the lambda function', () => {
     let ddbMockedClient: any;
 
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
         process.env[POWERTOOLS_METRICS_NAMESPACE_ENV_VAR] = 'UnitTest';
         process.env[USE_CASES_TABLE_NAME_ENV_VAR] = 'UseCaseTable';
         process.env[ARTIFACT_BUCKET_ENV_VAR] = 'fake-artifact-bucket';

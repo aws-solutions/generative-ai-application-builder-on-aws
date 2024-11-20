@@ -279,12 +279,7 @@ export function getResourceProperties(
 export function generateCfnTemplateUrl(construct: Construct): string[] {
     const templateUrls: string[] = [];
     if (process.env.DIST_OUTPUT_BUCKET) {
-        templateUrls.push(
-            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/SageMakerChat*.template'
-        );
-        templateUrls.push(
-            'https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/BedrockChat*.template'
-        );
+        templateUrls.push('https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/*.template');
     } else {
         const cdkAssetBucketName = construct.node.tryGetContext('cdk-asset-bucket');
         // this is most likely a `cdk deploy`.

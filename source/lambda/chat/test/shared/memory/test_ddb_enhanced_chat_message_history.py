@@ -43,9 +43,15 @@ def setup_test_table(dynamodb_resource):
 
 def test_add_message(setup_test_table):
     memory = DynamoDBChatMessageHistory(table_name, "fake-user-id", "fake-conversation-id")
-    message = HumanMessage(content="Hello world!")
-    memory.add_message(message)
-    assert memory.messages == [message]
+    human_message = HumanMessage(content="Hello world!")
+    memory.add_message(human_message)
+    assert memory.messages == [human_message]
+    assert memory.messages[0].content == "Human: Hello world!"
+
+    ai_message = AIMessage(content="Bye World!")
+    memory.add_message(ai_message)
+    assert memory.messages == [human_message, ai_message]
+    assert memory.messages[1].content == "AI: Bye World!"
 
 
 def test_add_message_with_ttl_env_var(setup_test_table):
@@ -151,7 +157,7 @@ def test_clear(dynamodb_resource, setup_test_table):
     assert memory.messages == []
 
 
-def test_get_message_generic_error(caplog):
+def test_get_message_generic_error(caplog, setup_environment):
     memory = DynamoDBChatMessageHistory(table_name, "fake-user-id", "fake-conversation-id")
     with patch.object(memory.table, "get_item") as mock_get_item:
         mock_get_item.side_effect = ClientError(
@@ -161,7 +167,7 @@ def test_get_message_generic_error(caplog):
         assert "get error" in caplog.text
 
 
-def test_get_message_no_resource_error(caplog):
+def test_get_message_no_resource_error(caplog, setup_environment):
     memory = DynamoDBChatMessageHistory(table_name, "fake-user-id", "fake-conversation-id")
     with patch.object(memory.table, "get_item") as mock_get_item:
         mock_get_item.side_effect = ClientError(
@@ -171,7 +177,7 @@ def test_get_message_no_resource_error(caplog):
         assert "No record found with user id" in caplog.text
 
 
-def test_add_message_error(caplog):
+def test_add_message_error(caplog, setup_environment):
     memory = DynamoDBChatMessageHistory(table_name, "fake-user-id", "fake-conversation-id")
     with patch.object(memory.table, "update_item") as mock_put_item:
         mock_put_item.side_effect = ClientError(
@@ -181,7 +187,7 @@ def test_add_message_error(caplog):
         assert "update error" in caplog.text
 
 
-def test_clear_error(caplog):
+def test_clear_error(caplog, setup_environment):
     memory = DynamoDBChatMessageHistory(table_name, "fake-user-id", "fake-conversation-id")
     with patch.object(memory.table, "delete_item") as mock_delete_item:
         mock_delete_item.side_effect = ClientError(

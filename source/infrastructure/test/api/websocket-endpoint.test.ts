@@ -31,12 +31,16 @@ describe('When creating a WebSocketEndpoint', () => {
             handler: 'index.handler'
         };
 
+        const lambdaRouteMapping: Map<string, lambda.Function> = new Map();
+        lambdaRouteMapping.set('Route1', new lambda.Function(stack, 'Route1Lambda', mockLambdaFuncProps));
+        lambdaRouteMapping.set('Route2', new lambda.Function(stack, 'Route2Lambda', mockLambdaFuncProps));
+
         new WebSocketEndpoint(stack, 'WebSocketEndpoint', {
             authorizerLambda: new lambda.Function(stack, 'AuthorizerLambda', mockLambdaFuncProps),
             onConnectLambda: new lambda.Function(stack, 'OnConnectLambda', mockLambdaFuncProps),
             onDisconnectLambda: new lambda.Function(stack, 'OnDisconnectLambda', mockLambdaFuncProps),
-            onMessageLambda: new lambda.Function(stack, 'OnEventLambda', mockLambdaFuncProps),
-            useCaseUUID: 'fake-id'
+            useCaseUUID: 'fake-id',
+            lambdaRouteMapping: lambdaRouteMapping
         });
 
         template = Template.fromStack(stack);
@@ -77,7 +81,7 @@ describe('When creating a WebSocketEndpoint', () => {
 
         template.hasResourceProperties('AWS::ApiGatewayV2::Route', {
             ApiId: { Ref: apiIdCapture.asString() },
-            RouteKey: 'sendMessage',
+            RouteKey: 'Route1',
             AuthorizationType: 'NONE',
             Target: Match.anyValue()
         });
@@ -132,7 +136,7 @@ describe('When creating a WebSocketEndpoint', () => {
         });
     });
 
-    it('should have a sendMessage requestTemplate in this sendMessage route integration', () => {
+    it('should have a Route1 requestTemplate in this Route1 route integration', () => {
         template.hasResourceProperties('AWS::ApiGatewayV2::Integration', {
             ApiId: {
                 'Ref': Match.anyValue()
@@ -170,10 +174,9 @@ describe('When creating a WebSocketEndpoint', () => {
                 'integration.request.header.Content-Type': "'application/x-www-form-urlencoded'"
             },
             RequestTemplates: {
-                sendMessage:
-                    'Action=SendMessage&MessageGroupId=$context.connectionId&MessageDeduplicationId=$context.requestId&MessageAttribute.1.Name=connectionId&MessageAttribute.1.Value.StringValue=$context.connectionId&MessageAttribute.1.Value.DataType=String&MessageAttribute.2.Name=requestId&MessageAttribute.2.Value.StringValue=$context.requestId&MessageAttribute.2.Value.DataType=String&MessageBody={"requestContext": {"authorizer": {"UserId": "$context.authorizer.UserId"}, "connectionId": "$context.connectionId"}, "message": $util.urlEncode($input.json($util.escapeJavaScript("$").replaceAll("\\\\\'","\'")))}'
+                Route1: 'Action=SendMessage&MessageGroupId=$context.connectionId&MessageDeduplicationId=$context.requestId&MessageAttribute.1.Name=connectionId&MessageAttribute.1.Value.StringValue=$context.connectionId&MessageAttribute.1.Value.DataType=String&MessageAttribute.2.Name=requestId&MessageAttribute.2.Value.StringValue=$context.requestId&MessageAttribute.2.Value.DataType=String&MessageBody={"requestContext": {"authorizer": {"UserId": "$context.authorizer.UserId"}, "connectionId": "$context.connectionId"}, "message": $util.urlEncode($input.json($util.escapeJavaScript("$").replaceAll("\\\\\'","\'")))}'
             },
-            TemplateSelectionExpression: 'sendMessage'
+            TemplateSelectionExpression: 'Route1'
         });
     });
 

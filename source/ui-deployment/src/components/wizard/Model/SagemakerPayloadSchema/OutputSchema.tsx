@@ -12,11 +12,11 @@
  **********************************************************************************************************************/
 
 import React from 'react';
-import { FormField, Input, InputProps } from '@cloudscape-design/components';
+import { Box, FormField, Input, InputProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 import { updateNumFieldsInError } from '../../utils';
 import { InfoLink } from '@/components/commons';
-import { modelToolsContent } from '../helpers';
+import { IG_DOCS } from '@/utils/constants';
 
 export interface OutputSchemaProps extends BaseFormComponentProps {
     modelData: any;
@@ -47,7 +47,7 @@ export const OutputPathSchema = (props: OutputSchemaProps) => {
             errorText={outputPathSchemaError}
             data-testid="output-path-schema-field"
             description="JSONPath expression that evaluates to the location of the generated text from the model's output response."
-            info={<InfoLink onFollow={() => props.setHelpPanelContent!(modelToolsContent.sagemakerHelpPanel)} />}
+            info={<InfoLink onFollow={() => props.setHelpPanelContent!(sagemakerOutputPathInfoPanel)} />}
         >
             <Input
                 placeholder="$[0].generatedText"
@@ -60,3 +60,21 @@ export const OutputPathSchema = (props: OutputSchemaProps) => {
 };
 
 export default OutputPathSchema;
+
+//INFO PANEL CONTENT
+const sagemakerOutputPathInfoPanel = {
+    title: 'Output Path',
+    content: (
+        <Box variant="p">
+            The location of the LLMs generated string response within the output payload. This must be supplied as a
+            JSONPath expression to indicate where the final text response shown to users is expected to be accessed from
+            within the endpoint's return object/response.
+        </Box>
+    ),
+    links: [
+        {
+            href: IG_DOCS.SAGEMAKER_USE,
+            text: 'Using a SageMaker Endpoint'
+        }
+    ]
+};

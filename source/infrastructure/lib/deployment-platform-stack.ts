@@ -13,9 +13,7 @@
  *********************************************************************************************************************/
 
 import * as cdk from 'aws-cdk-lib';
-import * as iam from 'aws-cdk-lib/aws-iam';
 
-import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 import { ApplicationSetup } from './framework/application-setup';
 import { BaseStack, BaseStackProps } from './framework/base-stack';
@@ -27,13 +25,12 @@ import { UIInfrastructureBuilder } from './ui/ui-infrastructure-builder';
 import { UseCaseManagementSetup } from './use-case-management/setup';
 import { generateSourceCodeMapping } from './utils/common-utils';
 import {
-    EMAIL_REGEX_PATTERN,
     INTERNAL_EMAIL_DOMAIN,
+    MANDATORY_EMAIL_REGEX_PATTERN,
     REST_API_NAME_ENV_VAR,
     UIAssetFolders,
     USE_CASE_UUID_ENV_VAR,
-    WEB_CONFIG_PREFIX,
-    additionalDeploymentPlatformConfigValues
+    WEB_CONFIG_PREFIX
 } from './utils/constants';
 import { VPCSetup } from './vpc/vpc-setup';
 
@@ -87,8 +84,48 @@ export class DeploymentPlatformStack extends BaseStack {
         const adminUserEmail = new cdk.CfnParameter(this, 'AdminUserEmail', {
             type: 'String',
             description: 'Email required to create the default user for the admin platform',
-            allowedPattern: EMAIL_REGEX_PATTERN,
+            allowedPattern: MANDATORY_EMAIL_REGEX_PATTERN,
             constraintDescription: 'Please provide a valid email'
+        });
+
+        const existingCognitoUserPoolId = new cdk.CfnParameter(this, 'ExistingCognitoUserPoolId', {
+            type: 'String',
+            allowedPattern: '^$|^[0-9a-zA-Z_-]{9,24}$',
+            maxLength: 24,
+            description:
+                'UserPoolId of an existing cognito user pool which this use case will be authenticated with. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
+            default: ''
+        });
+
+        const existingUserPoolClientId = new cdk.CfnParameter(this, 'ExistingCognitoUserPoolClient', {
+            type: 'String',
+            allowedPattern: '^$|^[a-z0-9]{3,128}$',
+            maxLength: 128,
+            description:
+                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
+            default: ''
+        });
+
+        new cdk.CfnRule(this, 'CognitoUserPoolAndClientRule', {
+            ruleCondition: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(existingCognitoUserPoolId.valueAsString, '')),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(existingUserPoolClientId.valueAsString, '')),
+                    assertDescription:
+                        'If an existing User Pool Id is provided, then an existing User Pool Client Id must also be provided.'
+                }
+            ]
+        });
+
+        new cdk.CfnRule(this, 'CognitoDomainNotProvidedIfPoolIsRule', {
+            ruleCondition: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(existingCognitoUserPoolId.valueAsString, '')),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals(this.stackParameters.cognitoUserPoolClientDomain.valueAsString, ''),
+                    assertDescription:
+                        'If an existing User Pool Id is provided, then a domain name for the User Pool Client must not be provided.'
+                }
+            ]
         });
 
         const stack = cdk.Stack.of(this);
@@ -112,7 +149,18 @@ export class DeploymentPlatformStack extends BaseStack {
                 default:
                     'Optional: If you would like to provide a sub domain for the UserPoolClient configuration. If not provided, a hashed value using the AWS Account number, current region, and stack name, will be used as sub-domain name'
             },
-            Parameters: [this.cognitoUserPoolClientDomain.logicalId]
+            Parameters: [this.stackParameters.cognitoUserPoolClientDomain.logicalId]
+        });
+
+        /**
+         * parameter group for bringing your own cognito user pool and client
+         */
+        existingParameterGroups.push({
+            Label: {
+                default:
+                    'Optional: If you would like to provide a Cognito UserPool and UserPoolClient, you can pass their IDs here. Otherwise, a new pool and client will be created for you'
+            },
+            Parameters: [existingCognitoUserPoolId.logicalId, existingUserPoolClientId.logicalId]
         });
 
         // internal users are identified by being of the form "X@amazon.Y"
@@ -148,11 +196,13 @@ export class DeploymentPlatformStack extends BaseStack {
             customInfra: this.applicationSetup.customResourceLambda,
             securityGroupIds: this.transpiredSecurityGroupIds,
             privateSubnetIds: this.transpiredPrivateSubnetIds,
-            cognitoDomainPrefix: this.cognitoDomainPrefixParam,
+            cognitoDomainPrefix: this.stackParameters.cognitoUserPoolClientDomain.valueAsString,
             cloudFrontUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
             deployWebApp: this.deployWebApp.valueAsString,
             deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition,
             accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
+            existingCognitoUserPoolId: existingCognitoUserPoolId.valueAsString,
+            existingCognitoUserPoolClientId: existingUserPoolClientId.valueAsString,
             ...this.baseStackProps
         });
 
@@ -170,11 +220,35 @@ export class DeploymentPlatformStack extends BaseStack {
             `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`
         );
 
+        const cognitoResourcesGeneratedCondition = new cdk.CfnCondition(
+            this,
+            'DeploymentDashboardCognitoResourcesGenerated',
+            {
+                expression: cdk.Fn.conditionEquals(existingCognitoUserPoolId.valueAsString, '')
+            }
+        );
+        const userPoolId = cdk.Fn.conditionIf(
+            cognitoResourcesGeneratedCondition.logicalId,
+            cdk.Fn.getAtt(
+                this.useCaseManagementSetup.useCaseManagement.nestedStackResource!.logicalId,
+                'Outputs.GeneratedUserPoolId'
+            ),
+            existingCognitoUserPoolId.valueAsString
+        ).toString();
+        const userPoolClientId = cdk.Fn.conditionIf(
+            cognitoResourcesGeneratedCondition.logicalId,
+            cdk.Fn.getAtt(
+                this.useCaseManagementSetup.useCaseManagement.nestedStackResource!.logicalId,
+                'Outputs.GeneratedUserPoolClientId'
+            ),
+            existingUserPoolClientId.valueAsString
+        ).toString();
+
         this.applicationSetup.addCustomDashboard(
             {
                 apiName: `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`,
-                userPoolId: this.useCaseManagementSetup.useCaseManagement.userPool.userPoolId,
-                userPoolClientId: this.useCaseManagementSetup.useCaseManagement.userPoolClient.userPoolClientId
+                userPoolId: userPoolId,
+                userPoolClientId: userPoolClientId
             },
             DashboardType.DeploymentPlatform
         );
@@ -182,16 +256,15 @@ export class DeploymentPlatformStack extends BaseStack {
         this.applicationSetup.createWebConfigStorage(
             {
                 apiEndpoint: this.useCaseManagementSetup.useCaseManagement.restApi.url,
-                userPoolId: this.useCaseManagementSetup.useCaseManagement.userPool.userPoolId,
-                userPoolClientId: this.useCaseManagementSetup.useCaseManagement.userPoolClient.userPoolClientId,
-                cognitoDomainPrefix: this.useCaseManagementSetup.useCaseManagement.cognitoUserPoolDomainName,
+                userPoolId: userPoolId,
+                userPoolClientId: userPoolClientId,
                 cognitoRedirectUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
                 isInternalUserCondition: isInternalUserCondition,
-                additionalProperties: additionalDeploymentPlatformConfigValues,
                 deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition
             },
             webConfigSsmKey
         );
+        this.applicationSetup.webConfigCustomResource.node.addDependency(this.useCaseManagementSetup.useCaseManagement);
 
         this.copyAssetsStack = uiInfrastructureBuilder.createUIAssetsCustomResource(this, 'CopyUICustomResource', {
             parameters: {
@@ -234,7 +307,7 @@ export class DeploymentPlatformStack extends BaseStack {
         cloudfrontUrlOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
 
         new cdk.CfnOutput(cdk.Stack.of(this), 'CognitoClientId', {
-            value: this.useCaseManagementSetup.useCaseManagement.userPoolClient.userPoolClientId
+            value: userPoolClientId
         });
 
         new cdk.CfnOutput(cdk.Stack.of(this), 'RestEndpointUrl', {
@@ -254,20 +327,6 @@ export class DeploymentPlatformStack extends BaseStack {
             VPC_ENABLED: this.vpcEnabled.valueAsString,
             CREATE_VPC: this.createNewVpc.valueAsString
         });
-
-        NagSuppressions.addResourceSuppressions(
-            this.useCaseManagementSetup.useCaseManagement.userPool.node
-                .tryFindChild('smsRole')
-                ?.node.tryFindChild('Resource') as iam.CfnRole,
-            [
-                {
-                    id: 'AwsSolutions-IAM5',
-                    reason: 'The role information is not available when creating the user pool',
-                    appliesTo: ['Resource::*']
-                }
-            ],
-            true
-        );
     }
 
     protected setupVPC(): VPCSetup {

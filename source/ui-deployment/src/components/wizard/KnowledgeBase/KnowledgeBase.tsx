@@ -22,14 +22,12 @@ import {
     RadioGroupProps
 } from '@cloudscape-design/components';
 import { InfoLink } from '../../commons/common-components';
-import { TOOLS_CONTENT } from '../tools-content.jsx';
 
 import AdvancedKnowledgeBaseConfig from './AdvancedKnowledgeBaseConfig';
 import { KnowledgeBaseType } from './KnowledgeBaseType';
 import KnowledgeBaseSelection from './KnowledgeBaseSelection';
 import { StepContentProps } from '../interfaces/Steps';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { knowledgeBaseInfoPanel } from './helpers';
 
 export const KnowledgeBase = ({ info: { knowledgeBase }, setHelpPanelContent, onChange }: StepContentProps) => {
     const [numFieldsInError, setNumFieldsInError] = React.useState(0);
@@ -102,7 +100,7 @@ export const KnowledgeBase = ({ info: { knowledgeBase }, setHelpPanelContent, on
                             description="If RAG is enabled, a Knowledge Base (such as one powered by Amazon Kendra) is required to be configured."
                             info={
                                 <InfoLink
-                                    onFollow={() => setHelpPanelContent(knowledgeBaseToolsContent.default)}
+                                    onFollow={() => setHelpPanelContent(knowledgeBaseInfoPanel.default)}
                                     ariaLabel={'Information about enabling RAG.'}
                                 />
                             }

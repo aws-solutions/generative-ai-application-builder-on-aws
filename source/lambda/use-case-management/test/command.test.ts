@@ -72,7 +72,7 @@ describe('When testing Use Case Commands', () => {
         cfnParameters.set(CfnParameterKeys.ExistingCognitoGroupPolicyTableName, 'fake-table-name');
         cfnParameters.set(CfnParameterKeys.UseCaseConfigRecordKey, 'fake-uuid');
 
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
         process.env[POWERTOOLS_METRICS_NAMESPACE_ENV_VAR] = 'UnitTest';
         process.env[USE_CASES_TABLE_NAME_ENV_VAR] = 'UseCaseTable';
         process.env[ARTIFACT_BUCKET_ENV_VAR] = 'fake-artifact-bucket';
@@ -274,7 +274,8 @@ describe('When testing Use Case Commands', () => {
                                 }
                             },
                             'UseCaseDescription': { 'S': 'fake-description' },
-                            'UseCaseName': { 'S': 'fake-name' }
+                            'UseCaseName': { 'S': 'fake-name' },
+                            'UseCaseType': { 'S': 'Text' }
                         }
                     },
                     'key': { 'S': 'fake-uuid' }

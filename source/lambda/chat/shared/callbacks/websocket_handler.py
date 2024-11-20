@@ -13,14 +13,13 @@
 
 import json
 import os
-from typing import Callable, Dict, List
+from typing import Dict, List
 
 from aws_lambda_powertools import Logger
 from helper import get_service_client
 from utils.constants import (
     CONVERSATION_ID_EVENT_KEY,
-    GENERATED_QUESTION_KEY,
-    SOURCE_DOCUMENTS_KEY,
+    SOURCE_DOCUMENTS_OUTPUT_KEY,
     TRACE_ID_ENV_VAR,
     WEBSOCKET_CALLBACK_URL_ENV_VAR,
 )
@@ -45,12 +44,11 @@ class WebsocketHandler:
         format_response(payload): Formats the payload in a format that the websocket accepts
     """
 
-    def __init__(self, connection_id: str, source_docs_formatter: Callable, conversation_id: str) -> None:
+    def __init__(self, connection_id: str, conversation_id: str) -> None:
         self._connection_url = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
         self._connection_id = connection_id
         self._conversation_id = conversation_id
         self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self.connection_url)
-        self._source_documents_formatter = source_docs_formatter
 
     @property
     def connection_id(self) -> str:
@@ -68,14 +66,8 @@ class WebsocketHandler:
     def connection_url(self) -> str:
         return self._connection_url
 
-    @property
-    def source_documents_formatter(self) -> str:
-        return self._source_documents_formatter
-
     def send_references(self, source_documents: List[Dict]):
-        payload = self.source_documents_formatter(source_documents)
-
-        for document in payload:
+        for document in source_documents:
             self.post_token_to_connection(document, "sourceDocument")
 
     def post_token_to_connection(self, payload: str, payload_key: str = "data") -> None:
@@ -108,11 +100,8 @@ class WebsocketHandler:
         """
         self.post_token_to_connection(payload["answer"])
 
-        if SOURCE_DOCUMENTS_KEY in payload and payload[SOURCE_DOCUMENTS_KEY]:
-            self.send_references(payload[SOURCE_DOCUMENTS_KEY])
-
-        if GENERATED_QUESTION_KEY in payload and payload[GENERATED_QUESTION_KEY]:
-            self.post_token_to_connection(payload[GENERATED_QUESTION_KEY], GENERATED_QUESTION_KEY)
+        if SOURCE_DOCUMENTS_OUTPUT_KEY in payload and payload[SOURCE_DOCUMENTS_OUTPUT_KEY]:
+            self.send_references(payload[SOURCE_DOCUMENTS_OUTPUT_KEY])
 
     def format_response(self, payload: str, payload_key: str = "data") -> str:
         """

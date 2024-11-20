@@ -27,7 +27,6 @@ import { SourceDocumentsModal } from './SourceDocumentsModal';
 export interface Props {
     message: MessageWithSource;
     messageIndex: number;
-    displaySourceConfigFlag: boolean;
 }
 
 const MARKDOWN_COMPONENTS: Components = {
@@ -53,7 +52,7 @@ const MARKDOWN_COMPONENTS: Components = {
     }
 };
 
-export const ChatMessage: FC<Props> = memo(({ message, messageIndex, displaySourceConfigFlag }) => {
+export const ChatMessage: FC<Props> = memo(({ message, messageIndex }) => {
     const {
         state: { selectedConversation, messageIsStreaming }
     } = useContext(HomeContext);
@@ -73,8 +72,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, displaySour
         });
     };
 
-    const displaySourceInResponse =
-        displaySourceConfigFlag && message.sourceDocuments && message.sourceDocuments.length > 0;
+    const displaySourceInResponse = message.sourceDocuments && message.sourceDocuments.length > 0;
 
     return (
         <div className={`${message.role === 'assistant' ? 'bg-gray-100' : ''}`} style={{ overflowWrap: 'anywhere' }}>

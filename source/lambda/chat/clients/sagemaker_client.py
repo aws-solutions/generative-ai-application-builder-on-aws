@@ -24,7 +24,7 @@ from llms.sagemaker import SageMakerLLM
 from utils.constants import (
     AUTH_TOKEN_EVENT_KEY,
     CONVERSATION_ID_EVENT_KEY,
-    DEFAULT_MODEL_ID,
+    DEFAULT_SAGEMAKER_MODEL_ID,
     TRACE_ID_ENV_VAR,
     USER_ID_EVENT_KEY,
 )
@@ -39,7 +39,7 @@ class SageMakerClient(LLMChatClient):
     Class that allows building a SageMaker LLM client that is used to generate content.
 
     Attributes:
-        llm_model (BaseLangChainModel): The LLM model which is used for generating content. For SageMaker provider, this is SageMakerLLM or
+        llm (BaseLangChainModel): The LLM which is used for generating content. For SageMaker provider, this is SageMakerLLM or
             SageMakerRetrievalLLM
         use_case_config (Dict): Stores the configuration that the admin sets on a use-case fetched from DynamoDB
         rag_enabled (bool): Whether or not RAG is enabled for the use-case
@@ -51,7 +51,7 @@ class SageMakerClient(LLMChatClient):
         retrieve_use_case_config(): Retrieves the configuration that the admin sets on a use-case fetched from DynamoDB
         construct_chat_model(): Constructs the Chat model based on the event and the LLM configuration as a series of steps on the builder
         get_event_conversation_id(): Returns the conversation_id for the event
-        get_model(): Retrieves the LLM model that is used to generate content
+        get_model(): Retrieves the LLM that is used to generate content
     """
 
     def __init__(
@@ -68,7 +68,7 @@ class SageMakerClient(LLMChatClient):
 
         :param event (Dict): The AWS Lambda event
         Returns:
-            SageMakerLLM or SageMakerRetrievalLLM: The SageMaker LLM model that is used to generate content.
+            SageMakerLLM or SageMakerRetrievalLLM: The SageMaker LLM that is used to generate content.
         """
         super().get_model(event_body)
 
@@ -79,12 +79,16 @@ class SageMakerClient(LLMChatClient):
             user_context_token=event_body.get(AUTH_TOKEN_EVENT_KEY),
             rag_enabled=self.rag_enabled,
         )
-        self.construct_chat_model(user_id, event_body, LLMProviderTypes.SAGEMAKER.value, DEFAULT_MODEL_ID)
-        return self.builder.llm_model
+        self.construct_chat_model(user_id, event_body, LLMProviderTypes.SAGEMAKER.value, DEFAULT_SAGEMAKER_MODEL_ID)
+        return self.builder.llm
 
     @tracer.capture_method
     def construct_chat_model(
-        self, user_id: str, event_body: Dict, llm_provider: LLMProviderTypes, model_name: str = DEFAULT_MODEL_ID
+        self,
+        user_id: str,
+        event_body: Dict,
+        llm_provider: LLMProviderTypes,
+        model_name: str = DEFAULT_SAGEMAKER_MODEL_ID,
     ) -> None:
         """Constructs the chat model using the builder object that is passed to it. Acts like a Director for the builder.
 
@@ -110,7 +114,7 @@ class SageMakerClient(LLMChatClient):
             self.builder.validate_event_input_sizes(event_body)
             self.builder.set_knowledge_base()
             self.builder.set_conversation_memory(user_id, conversation_id)
-            self.builder.set_llm_model()
+            self.builder.set_llm()
 
         else:
             error_message = (

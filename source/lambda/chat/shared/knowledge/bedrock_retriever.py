@@ -105,7 +105,7 @@ class CustomBedrockRetriever(AmazonKnowledgeBasesRetriever):
                     value=len(docs),
                 )
 
-                if len(docs) == 0:
+                if not docs:
                     logger.info(f"Bedrock retrieve returned no docs. Query: {query}")
                     metrics.add_metric(
                         name=CloudWatchMetrics.BEDROCK_KNOWLEDGE_BASE_NO_HITS.value, unit=MetricUnit.Count, value=1

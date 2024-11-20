@@ -1,9 +1,6 @@
 export const sampleDeployUseCaseFormData = {
     'useCase': {
-        'useCase': {
-            'value': 'Chat',
-            'label': 'Chat'
-        },
+        'useCaseType': 'Text',
         'useCaseName': 'test-use-case',
         'useCaseDescription': 'test use case description',
         'deployUI': true,
@@ -15,7 +12,7 @@ export const sampleDeployUseCaseFormData = {
             'value': 'Kendra',
             'label': 'Kendra'
         },
-        'existingKendraIndex': 'yes',
+        'existingKendraIndex': 'Yes',
         'kendraIndexId': 'fake-idx-id',
         'kendraAdditionalQueryCapacity': '',
         'kendraAdditionalStorageCapacity': '',
@@ -62,7 +59,8 @@ export const sampleDeployUseCaseFormData = {
         'temperature': 0.1,
         'stopSequences': [''],
         'verbose': false,
-        'streaming': true
+        'streaming': true,
+        'enableGuardrails': false
     },
     'vpc': {
         'isVpcRequired': true,
@@ -84,5 +82,10 @@ export const sampleDeployUseCaseFormData = {
         'chatHistoryLength': 20,
         'userPromptEditingEnabled': true,
         'rephraseQuestion': true
+    },
+    'agent': {
+        'bedrockAgentId': '1111111111',
+        'bedrockAgentAliasId': '1111111111',
+        'enableTrace': false
     }
 };

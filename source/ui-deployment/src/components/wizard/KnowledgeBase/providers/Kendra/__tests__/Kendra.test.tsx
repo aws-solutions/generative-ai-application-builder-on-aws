@@ -13,20 +13,20 @@
 
 import Kendra from '../Kendra';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
-import { DEPLOYMENT_ACTIONS } from '@/utils/constants';
+import { DEPLOYMENT_ACTIONS, USECASE_TYPE_ROUTE } from '@/utils/constants';
 import { screen } from '@testing-library/react';
 
 describe('Kendra', () => {
     test('renders on default state', () => {
         const mockKnowledgeBaseData = {
-            existingKendraIndex: 'no',
+            existingKendraIndex: 'No',
             knowledgeBaseType: {
                 value: 'Kendra',
                 label: 'Kendra'
             }
         };
         renderWithProvider(<Kendra knowledgeBaseData={mockKnowledgeBaseData} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
+            route: USECASE_TYPE_ROUTE.TEXT
         });
         expect(screen.getByTestId('kendra-container')).toBeDefined();
         expect(screen.getByTestId('existing-kendra-index-select')).toBeDefined();
@@ -37,14 +37,14 @@ describe('Kendra', () => {
 
     test('renders on state to show kendra config', () => {
         const mockKnowledgeBaseData = {
-            existingKendraIndex: 'yes',
+            existingKendraIndex: 'Yes',
             knowledgeBaseType: {
                 value: 'Kendra',
                 label: 'Kendra'
             }
         };
         renderWithProvider(<Kendra knowledgeBaseData={mockKnowledgeBaseData} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
+            route: USECASE_TYPE_ROUTE.TEXT
         });
         expect(screen.getByTestId('kendra-container')).toBeDefined();
         expect(screen.getByTestId('existing-kendra-index-select')).toBeDefined();
@@ -53,14 +53,14 @@ describe('Kendra', () => {
 
     test('does not render the option to create a new index on Edit', () => {
         const mockKnowledgeBaseData = {
-            existingKendraIndex: 'no',
+            existingKendraIndex: 'No',
             knowledgeBaseType: {
                 value: 'Kendra',
                 label: 'Kendra'
             }
         };
         renderWithProvider(<Kendra knowledgeBaseData={mockKnowledgeBaseData} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView',
+            route: USECASE_TYPE_ROUTE.TEXT,
             customState: {
                 deploymentAction: DEPLOYMENT_ACTIONS.EDIT
             }

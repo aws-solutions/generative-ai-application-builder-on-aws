@@ -11,26 +11,31 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
+import { CognitoIdentityProviderClient, DescribeUserPoolCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { customAwsConfig } from 'aws-node-user-agent-config';
 import _ from 'lodash';
 import { StorageManagement } from '../ddb/storage-management';
 import { UseCaseConfigManagement } from '../ddb/use-case-config-management';
-import { tracer } from '../power-tools-init';
+import { logger, tracer } from '../power-tools-init';
 import {
+    AUTHENTICATION_PROVIDERS,
+    CfnParameterKeys,
     ChatRequiredPlaceholders,
     DisambiguationRequiredPlaceholders,
     KnowledgeBaseTypes,
-    RAGChatRequiredPlaceholders
+    RAGChatRequiredPlaceholders,
+    UseCaseTypes
 } from '../utils/constants';
 import RequestValidationError from '../utils/error';
 import { UseCase } from './use-case';
 
 /**
- * Class responsible for validating that use cases can be used for creations and updates,
- * while providing functionality to modify use cases to fit requirements.
+ * Abstract base class for use case validators.
+ * This class provides a common interface for validating different types of use cases.
  */
-export class UseCaseValidator {
-    storageMgmt: StorageManagement;
-    useCaseConfigMgmt: UseCaseConfigManagement;
+export abstract class UseCaseValidator {
+    protected storageMgmt: StorageManagement;
+    protected useCaseConfigMgmt: UseCaseConfigManagement;
 
     constructor(storageMgmt: StorageManagement, useCaseConfigMgmt: UseCaseConfigManagement) {
         this.storageMgmt = storageMgmt;
@@ -38,7 +43,52 @@ export class UseCaseValidator {
     }
 
     /**
-     * Validates a use case meant for a new deployment fills in values as required. Will:
+     * Validates a new use case.
+     *
+     * @param useCase - The use case to be validated
+     * @returns A promise that resolves to the validated use case
+     */
+    public abstract validateNewUseCase(useCase: UseCase): Promise<UseCase>;
+
+    /**
+     * Validates an updated use case.
+     *
+     * @param useCase - The use case to be validated
+     * @param oldDynamoDbRecordKey - The key of the old DynamoDB record
+     * @returns A promise that resolves to the validated use case
+     */
+    public abstract validateUpdateUseCase(useCase: UseCase, oldDynamoDbRecordKey: string): Promise<UseCase>;
+
+    /**
+     * Factory method to create the appropriate validator based on the use case type.
+     *
+     * @param useCaseType - The type of use case (e.g., 'Text', 'Agent')
+     * @param storageMgmt - The storage management instance
+     * @param useCaseConfigMgmt - The use case configuration management instance
+     * @returns An instance of the appropriate UseCaseValidator subclass
+     * @throws Error if an invalid use case type is provided
+     */
+    static createValidator(
+        useCaseType: string,
+        storageMgmt: StorageManagement,
+        useCaseConfigMgmt: UseCaseConfigManagement
+    ): UseCaseValidator {
+        switch (useCaseType) {
+            case UseCaseTypes.CHAT:
+                return new TextUseCaseValidator(storageMgmt, useCaseConfigMgmt);
+            case UseCaseTypes.RAGChat:
+                return new TextUseCaseValidator(storageMgmt, useCaseConfigMgmt);
+            case UseCaseTypes.AGENT:
+                return new AgentUseCaseValidator(storageMgmt, useCaseConfigMgmt);
+            default:
+                throw new Error(`Invalid use case type: ${useCaseType}`);
+        }
+    }
+}
+
+export class TextUseCaseValidator extends UseCaseValidator {
+    /**
+     * Validates a use case meant for a new text deployment fills in values as required. Will:
      * - Check the model info database to ensure provider/modelid combination is valid
      * - Populate a default prompt if none is provided
      *
@@ -46,7 +96,7 @@ export class UseCaseValidator {
      * @returns validated config with values filled in where needed
      * @throws if the config is invalid or cannot be validated for some reason
      */
-    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateNewUseCase' })
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateNewTextUseCase' })
     public async validateNewUseCase(useCase: UseCase): Promise<UseCase> {
         const modelInfo = await this.storageMgmt.getModelInfo(useCase); // will throw if provider/model id combo does not exist
         if (!useCase.configuration.LlmParams!.PromptParams) {
@@ -58,10 +108,35 @@ export class UseCaseValidator {
         if (!useCase.configuration.LlmParams!.PromptParams.DisambiguationPromptTemplate) {
             useCase.configuration.LlmParams!.PromptParams.DisambiguationPromptTemplate = modelInfo.DisambiguationPrompt;
         }
+        if (useCase.configuration.AuthenticationParams) {
+            // prettier-ignore
+            switch (useCase.configuration.AuthenticationParams.AuthenticationProvider) { //NOSONAR - typescript:S1301, switch statement used for ease of future extensions
+                case AUTHENTICATION_PROVIDERS.COGNITO:
+                    // overriding the previously set CognitoDomainPrefix parameter
+                    // by fetching it dynamically based on the set user pool
 
-        await UseCaseValidator.checkModelInputPayloadSchema(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
-        await UseCaseValidator.checkPromptsAreCompatible(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
-        await UseCaseValidator.checkKnowledgeBaseTypeMatchesParams(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+                    const existingUserPoolId = useCase.cfnParameters?.get(CfnParameterKeys.ExistingCognitoUserPoolId);
+                    if (!existingUserPoolId) {
+                        throw new Error('Undefined user pool provided for the cognito authentication provider.');
+                    }
+
+                    const cognitoDomainPrefix = await getCognitoDomainPrefixByUserPool(existingUserPoolId);
+
+                    if (!useCase.cfnParameters) {
+                        throw new Error('CFNParameters are not available yet for setting Cognito Domain Prefix.');
+                    }
+
+                    useCase.cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, cognitoDomainPrefix);
+
+                    break;
+            }
+        }
+
+        await TextUseCaseValidator.checkModelInputPayloadSchema(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+        await TextUseCaseValidator.checkPromptsAreCompatible(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+        await TextUseCaseValidator.checkPromptIsEscaped(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+        await TextUseCaseValidator.checkKnowledgeBaseTypeMatchesParams(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+
         return useCase;
     }
 
@@ -74,7 +149,7 @@ export class UseCaseValidator {
      * @returns validated config with values filled in where needed
      * @throws if the config is invalid or cannot be validated for some reason
      */
-    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateUpdateUseCase' })
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateUpdateTextUseCase' })
     public async validateUpdateUseCase(useCase: UseCase, oldDynamoDbRecordKey: string): Promise<UseCase> {
         // retrieve the existing config from DynamoDB using a dummy use case object
         let dummyOldUseCase = useCase.clone();
@@ -82,12 +157,14 @@ export class UseCaseValidator {
         const existingConfigObj = await this.useCaseConfigMgmt.getUseCaseConfigFromTable(dummyOldUseCase);
 
         // this await is required for this to work on lambda, despite it seeming unnecessary here
-        useCase.configuration = await UseCaseValidator.mergeConfigs(existingConfigObj, useCase.configuration);
+        useCase.configuration = await TextUseCaseValidator.mergeConfigs(existingConfigObj, useCase.configuration);
 
         await this.storageMgmt.getModelInfo(useCase); // will throw if provider/model id combo does not exist
-        await UseCaseValidator.checkModelInputPayloadSchema(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
-        await UseCaseValidator.checkPromptsAreCompatible(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
-        await UseCaseValidator.checkKnowledgeBaseTypeMatchesParams(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+        await TextUseCaseValidator.checkModelInputPayloadSchema(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+        await TextUseCaseValidator.checkPromptsAreCompatible(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+        await TextUseCaseValidator.checkPromptIsEscaped(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+        await TextUseCaseValidator.checkKnowledgeBaseTypeMatchesParams(useCase); // NOSONAR - typescript:S4123 - await is required in tests despite seeming unnecessary
+
         return useCase;
     }
 
@@ -100,14 +177,14 @@ export class UseCaseValidator {
      * @returns
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###checkMergeConfigs' })
-    private static mergeConfigs(existingConfigObj: any, newConfigObj: any): any {
+    public static mergeConfigs(existingConfigObj: any, newConfigObj: any): any {
         const modelParams = _.get(newConfigObj, 'LlmParams.ModelParams', undefined);
         const sageMakerModelInputPayloadSchema = _.get(
             newConfigObj,
             'LlmParams.SageMakerLlmParams.ModelInputPayloadSchema',
             undefined
         );
-        const mergedConfig = _.merge(existingConfigObj, newConfigObj);
+        let mergedConfig = _.merge(existingConfigObj, newConfigObj);
 
         if (modelParams) {
             mergedConfig.LlmParams.ModelParams = modelParams;
@@ -115,7 +192,45 @@ export class UseCaseValidator {
         if (sageMakerModelInputPayloadSchema) {
             mergedConfig.LlmParams.SageMakerLlmParams.ModelInputPayloadSchema = sageMakerModelInputPayloadSchema;
         }
+
+        mergedConfig = this.resolveBedrockModelSourceOnUpdate(newConfigObj, mergedConfig);
+
         return mergedConfig;
+    }
+
+    /**
+     * Function to be applied to an updated use case configuration which will restrict the BedrockLlmParams to only contain one of the InferenceProfileId or ModelId. Required since merging of new and existing configs on updates will retain both values.
+     *
+     * @param newConfig The new config object coming from an update request
+     * @param mergedConfig A merged config from existing and new configs
+     * @returns A resolved config which has only 1 of the InferenceProfileId or ModelId.
+     */
+    public static resolveBedrockModelSourceOnUpdate(updateConfig: any, mergedConfig: any): any {
+        let resolvedConfig = mergedConfig;
+
+        // only perform this action if our merged config is invalid (has both a ModelId and an InferenceProfileId)
+        if (
+            mergedConfig.LlmParams?.BedrockLlmParams?.ModelId &&
+            mergedConfig.LlmParams?.BedrockLlmParams?.InferenceProfileId
+        ) {
+            // switching rom an inference profile to a model
+            if (updateConfig.LlmParams?.BedrockLlmParams?.ModelId) {
+                resolvedConfig.LlmParams.BedrockLlmParams.ModelId = updateConfig.LlmParams.BedrockLlmParams.ModelId;
+                delete resolvedConfig.LlmParams.BedrockLlmParams.InferenceProfileId;
+            }
+            // switching from a model to an inference profile
+            else if (updateConfig.LlmParams?.BedrockLlmParams?.InferenceProfileId) {
+                resolvedConfig.LlmParams.BedrockLlmParams.InferenceProfileId =
+                    updateConfig.LlmParams.BedrockLlmParams.InferenceProfileId;
+                delete resolvedConfig.LlmParams.BedrockLlmParams.ModelId;
+                // if previously using a provisioned model, ModelArn would be present and should be removed
+                if (resolvedConfig.LlmParams?.BedrockLlmParams?.ModelArn) {
+                    delete resolvedConfig.LlmParams?.BedrockLlmParams?.ModelArn;
+                }
+            }
+        }
+
+        return resolvedConfig;
     }
 
     /**
@@ -220,6 +335,45 @@ export class UseCaseValidator {
     }
 
     /**
+     * In order for a prompt to contain curly braces (e.g. providing code or JSON data in the prompt), LangChain requires they are escaped by being doubled ({{ }} rather than {}), so as to not interfere with the placeholders (e.g. history, etc.)
+     *
+     * @param useCase use case to check
+     * @throws if validation fails
+     */
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###checkPromptIsEscaped' })
+    private static checkPromptIsEscaped(useCase: UseCase): void {
+        // removes all the placeholders, which are valid uses of unescaped curly braces
+        let promptTemplate = useCase.configuration.LlmParams!.PromptParams!.PromptTemplate!;
+        const requiredPlaceholders = useCase.configuration.LlmParams!.RAGEnabled
+            ? RAGChatRequiredPlaceholders
+            : ChatRequiredPlaceholders;
+        requiredPlaceholders.forEach((placeholder) => {
+            promptTemplate = promptTemplate.replace(placeholder, '');
+        });
+
+        // ensure both types of braces are escaped (doubled), per langchain standards
+        const escapableCharacters = ['{', '}'];
+        escapableCharacters.forEach((char) => {
+            let index = 0;
+            while (index < promptTemplate.length) {
+                const charIndex = promptTemplate.indexOf(char, index);
+
+                if (charIndex === -1) {
+                    // No more curly braces found
+                    break;
+                }
+
+                // is it escaped by doubling?
+                if (promptTemplate.charAt(charIndex + 1) !== char) {
+                    throw new RequestValidationError(`Prompt template contains an unescaped curly brace '${char}'`);
+                } else {
+                    index = charIndex + 2;
+                }
+            }
+        });
+    }
+
+    /**
      * Checks that the selected KnowledgeBaseType is compatible with the KnowledgeBaseParams provided
      *
      * @param useCase use case to check
@@ -257,5 +411,63 @@ export class UseCaseValidator {
                 `Provided knowledge base type ${knowledgeBaseType} requires ${typeSpecificRequiredParamsObject} to be present in KnowledgeBaseParams.`
             );
         }
+    }
+}
+
+export class AgentUseCaseValidator extends UseCaseValidator {
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateNewAgentUseCase' })
+    public async validateNewUseCase(useCase: UseCase): Promise<UseCase> {
+        if (useCase.configuration.AuthenticationParams) {
+            // prettier-ignore
+            switch (useCase.configuration.AuthenticationParams.AuthenticationProvider) { //NOSONAR - typescript:S1301, switch statement used for ease of future extensions
+                case AUTHENTICATION_PROVIDERS.COGNITO:
+                    // overriding the previously set CognitoDomainPrefix parameter
+                    // by fetching it dynamically based on the set user pool
+
+                    const existingUserPoolId = useCase.cfnParameters?.get(CfnParameterKeys.ExistingCognitoUserPoolId);
+                    if (!existingUserPoolId) {
+                        throw new Error('Undefined user pool provided for the cognito authentication provider.');
+                    }
+
+                    const cognitoDomainPrefix = await getCognitoDomainPrefixByUserPool(existingUserPoolId);
+
+                    if (!useCase.cfnParameters) {
+                        throw new Error('CfnParameters are not available yet for setting Cognito Domain Prefix.');
+                    }
+
+                    useCase.cfnParameters.set(CfnParameterKeys.CognitoDomainPrefix, cognitoDomainPrefix);
+                    break;
+            }
+        }
+        return useCase;
+    }
+
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateUpdateAgentUseCase' })
+    public async validateUpdateUseCase(useCase: UseCase, oldDynamoDbRecordKey: string): Promise<UseCase> {
+        // retrieve the existing config from DynamoDB using a dummy use case object
+        let dummyOldUseCase = useCase.clone();
+        dummyOldUseCase.setUseCaseConfigRecordKey(oldDynamoDbRecordKey);
+        const existingConfigObj = await this.useCaseConfigMgmt.getUseCaseConfigFromTable(dummyOldUseCase);
+        _.merge(existingConfigObj, useCase.configuration);
+
+        return useCase;
+    }
+}
+
+export async function getCognitoDomainPrefixByUserPool(userPoolId: string) {
+    const client = new CognitoIdentityProviderClient(customAwsConfig());
+
+    try {
+        const command = new DescribeUserPoolCommand({ UserPoolId: userPoolId });
+        const response = await client.send(command);
+
+        if (response?.UserPool?.Domain) {
+            return response.UserPool.Domain;
+        } else {
+            throw new Error('No domain found for this user pool.');
+        }
+    } catch (error) {
+        logger.error(`Error fetching user pool details. Error: ${error}`);
+        throw error;
     }
 }

@@ -16,6 +16,7 @@ import { ModelTemperature } from '../ModelTemperature';
 import { BEDROCK_MODEL_OPTION_IDX, MODEL_FAMILY_PROVIDER_OPTIONS } from '@/components/wizard/steps-config';
 import { API, Auth } from 'aws-amplify';
 import { waitFor } from '@testing-library/react';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 describe('ModelTemperature', () => {
     const mockAPI = {
@@ -45,7 +46,7 @@ describe('ModelTemperature', () => {
 
         const { cloudscapeWrapper } = renderWithProvider(
             <ModelTemperature {...mockModelTemperatureProps} {...callbacks} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
 
         await waitFor(() => {

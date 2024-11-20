@@ -17,18 +17,8 @@ from typing import Dict, List, Optional
 
 from aws_lambda_powertools import Logger
 from langchain_core.memory import BaseMemory
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import (
-    AI_PREFIX,
-    CONTEXT_KEY,
-    CONVERSATION_TABLE_NAME_ENV_VAR,
-    HISTORY_KEY,
-    HUMAN_PREFIX,
-    INPUT_KEY,
-    OUTPUT_KEY,
-    TRACE_ID_ENV_VAR,
-)
+from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR, TRACE_ID_ENV_VAR
 from utils.enum_types import ConversationMemoryTypes
 
 logger = Logger(utc=True)
@@ -63,7 +53,10 @@ class ConversationMemoryFactory:
         if errors is None:
             errors = []
 
-        conversation_memory_type = use_case_config.get("ConversationMemoryParams", {}).get("ConversationMemoryType")
+        conversation_memory_params = use_case_config.get("ConversationMemoryParams", {})
+        conversation_memory_type = conversation_memory_params.get("ConversationMemoryType")
+        ai_prefix = conversation_memory_params.get("ai_prefix", default_memory_config.get("ai_prefix"))
+        human_prefix = conversation_memory_params.get("human_prefix", default_memory_config.get("human_prefix"))
         unsupported_memory_error = f"Unsupported Memory base type: {conversation_memory_type}."
 
         max_history_length = use_case_config.get("ConversationMemoryParams", {}).get("ChatHistoryLength")
@@ -98,28 +91,18 @@ class ConversationMemoryFactory:
                     f"Missing required environment variable {CONVERSATION_TABLE_NAME_ENV_VAR} which is required for constructing conversation memory for the LLM."
                 )
                 return
-            chat_history = DynamoDBChatMessageHistory(
-                table_name=table_name,
-                user_id=user_id,
-                conversation_id=conversation_id,
-                max_history_length=max_history_length,
-            )
 
-            ai_prefix = use_case_config.get("ConversationMemoryParams", {}).get("AiPrefix")
-            human_prefix = use_case_config.get("ConversationMemoryParams", {}).get("HumanPrefix")
-
-            chat_memory = DynamoDBChatMemory(
-                chat_message_history=chat_history,
-                memory_key=default_memory_config[HISTORY_KEY],
-                input_key=default_memory_config[INPUT_KEY],
-                output_key=default_memory_config[OUTPUT_KEY],
-                context_key=default_memory_config[CONTEXT_KEY],
-                human_prefix=(
-                    default_memory_config[HUMAN_PREFIX] if human_prefix is None or not human_prefix else human_prefix
-                ),
-                ai_prefix=(default_memory_config[AI_PREFIX] if ai_prefix is None or not ai_prefix else ai_prefix),
+            return (
+                DynamoDBChatMessageHistory,
+                {
+                    "table_name": table_name,
+                    "max_history_length": max_history_length,
+                    "user_id": user_id,
+                    "conversation_id": conversation_id,
+                    "ai_prefix": ai_prefix,
+                    "human_prefix": human_prefix,
+                },
             )
-            return chat_memory
 
         else:
             errors.append(unsupported_memory_error)

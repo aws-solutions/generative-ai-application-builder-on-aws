@@ -104,7 +104,7 @@ describe('When Solution Stack with a nested stack is registered with AppRegistry
             DependsOn: [Match.anyValue(), Match.anyValue(), 'WebConfig'],
             UpdateReplacePolicy: 'Delete',
             DeletionPolicy: 'Delete',
-            Condition: 'DeployWebApp'
+            Condition: 'DeployWebAppUIInfrastructureCondition'
         });
     });
 

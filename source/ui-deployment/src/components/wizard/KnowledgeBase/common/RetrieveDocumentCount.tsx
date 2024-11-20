@@ -12,14 +12,12 @@
  **********************************************************************************************************************/
 
 import React from 'react';
-import { Input, InputProps, FormField } from '@cloudscape-design/components';
+import { Input, InputProps, FormField, SpaceBetween, Box } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 import { updateNumFieldsInError } from '../../utils';
 import { InfoLink } from '../../../commons';
-import { TOOLS_CONTENT } from '../../tools-content';
 import { KNOWLEDGE_BASE_NUM_DOCS_MAP } from '../../steps-config';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { IG_DOCS } from '@/utils/constants';
 
 export interface RetrieveDocumentCountProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -51,7 +49,7 @@ export const RetrieveDocumentCount = (props: RetrieveDocumentCountProps) => {
             constraintText={'Min: ' + minNumDocs + ', Max: ' + maxNumDocs}
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.maxNumDocs)}
+                    onFollow={() => props.setHelpPanelContent!(maxNumDocsInfoPanel)}
                     ariaLabel={'Information about max documents to retrieve.'}
                 />
             }
@@ -68,3 +66,23 @@ export const RetrieveDocumentCount = (props: RetrieveDocumentCountProps) => {
     );
 };
 export default RetrieveDocumentCount;
+
+//INFO PANEL CONTENT
+const maxNumDocsInfoPanel = {
+    title: 'Number of documents to retrieve',
+    content: (
+        <SpaceBetween size="xs">
+            <Box variant="p">
+                This setting is used to control the maximum number of document excerpts that can be used as context for
+                a single query. If the number of documents returned by the knowledge base exceeds this maximum, only the
+                max number set here will be passed through.
+            </Box>
+        </SpaceBetween>
+    ),
+    links: [
+        {
+            href: IG_DOCS.TIPS_PROMPT_LIMITS,
+            text: 'Tips for managing prompt limits'
+        }
+    ]
+};

@@ -13,7 +13,7 @@
 ######################################################################################################################
 
 import json
-from test.fixtures.webconfig_events import lambda_event, setup_ssm
+from test.fixtures.webconfig_events import lambda_event, setup_ssm, setup_cognito
 
 import mock
 import pytest
@@ -31,6 +31,7 @@ from operations.webconfig import (
     delete,
     execute,
     verify_env_setup,
+    retrieve_cognito_hosted_url,
 )
 
 
@@ -71,7 +72,25 @@ def test_env_setup_with_no_usr_pool_client_id(monkeypatch, lambda_event, request
 
 
 @mock_aws
-def test_create_success(lambda_event, mock_lambda_context):
+def test_retrieve_cognito_hosted_url(setup_cognito, mock_lambda_context):
+    lambda_event, cognito = setup_cognito
+    domain = retrieve_cognito_hosted_url(lambda_event)
+    assert domain == "fake-domain.auth.us-east-1.amazoncognito.com"
+
+
+@mock_aws
+def test_retrieve_cognito_hosted_url_none(setup_cognito, mock_lambda_context):
+    lambda_event, cognito = setup_cognito
+    lambda_event[RESOURCE_PROPERTIES][USER_POOL_ID] = cognito.create_user_pool(
+        PoolName="fake-user-pool", AutoVerifiedAttributes=["email"]
+    )["UserPool"]["Id"]
+    domain = retrieve_cognito_hosted_url(lambda_event)
+    assert domain == None
+
+
+@mock_aws
+def test_create_success(setup_cognito, mock_lambda_context):
+    lambda_event, _ = setup_cognito
     create(lambda_event, mock_lambda_context)
     ssm = get_service_client("ssm")
     # fmt: off
@@ -82,9 +101,10 @@ def test_create_success(lambda_event, mock_lambda_context):
 
     assert json.loads(web_config_value) == {
         "ApiEndpoint": "https://non-existent/url/fakeapi",
-        "UserPoolId": "fakepoolid",
+        "UserPoolId": lambda_event[RESOURCE_PROPERTIES][USER_POOL_ID],
         "UserPoolClientId": "fakeclientid",
         "AwsRegion": "us-east-1",
+        "CognitoDomain": "fake-domain.auth.us-east-1.amazoncognito.com",
         "IsInternalUser": "false",
         "SomeOtherParam": "someOtherValue",
     }
@@ -110,7 +130,8 @@ def test_delete_success(monkeypatch, setup_ssm, mock_lambda_context):
 
 @mock_aws
 @pytest.mark.parametrize("requestType", ["Create", "Update"])
-def test_execute_create_and_update(lambda_event, mock_lambda_context, requestType):
+def test_execute_create_and_update(setup_cognito, mock_lambda_context, requestType):
+    lambda_event, _ = setup_cognito
     lambda_event["RequestType"] = requestType
     with mock.patch("cfn_response.http") as mocked_PoolManager:
         mocked_PoolManager.return_value = {"status": 200}

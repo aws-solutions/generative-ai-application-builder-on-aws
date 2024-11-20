@@ -15,9 +15,7 @@ import { Container, FormField, Header, Select, SelectProps } from '@cloudscape-d
 import { BaseFormComponentProps } from '../interfaces';
 import { InfoLink } from '../../commons';
 import { KNOWLEDGE_BASE_TYPES } from '../steps-config';
-import { TOOLS_CONTENT } from '../tools-content';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { knowledgeBaseInfoPanel } from './helpers';
 
 interface KnowledgeBaseTypeProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -39,7 +37,7 @@ export const KnowledgeBaseType = (props: KnowledgeBaseTypeProps) => {
                 label="Knowledge base type"
                 info={
                     <InfoLink
-                        onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.default)}
+                        onFollow={() => props.setHelpPanelContent!(knowledgeBaseInfoPanel.default)}
                         ariaLabel={'Information about different knowledge bases.'}
                     />
                 }

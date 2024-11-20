@@ -15,23 +15,33 @@
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
-from langchain.chains import ConversationChain
-from langchain_core.prompts import PromptTemplate
-from langchain_core.memory import BaseMemory
+from langchain.schema.runnable import RunnableConfig
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.language_models import BaseChatModel
 from langchain_core.language_models.llms import LLM
-from shared.knowledge.knowledge_base import KnowledgeBase
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import ConfigurableFieldSpec
+from langchain_core.runnables.base import RunnableBinding
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from llms.models.model_provider_inputs import ModelProviderInputs
+from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import (
+    CONVERSATION_ID_KEY,
+    CONVERSATION_TRACER_KEY,
     DEFAULT_PROMPT_PLACEHOLDERS,
     DEFAULT_PROMPT_RAG_PLACEHOLDERS,
-    DEFAULT_RAG_ENABLED_MODE,
-    DEFAULT_STREAMING_MODE,
-    DEFAULT_TEMPERATURE,
     DEFAULT_VERBOSE_MODE,
+    HISTORY_KEY,
+    INPUT_KEY,
+    LLM_RESPONSE_KEY,
+    RAG_CONVERSATION_TRACER_KEY,
     TRACE_ID_ENV_VAR,
+    USER_ID_KEY,
 )
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client, type_cast, validate_prompt_placeholders
@@ -46,41 +56,44 @@ class BaseLangChainModel(ABC):
     Represents the interface that the implementing models should follow for consistent behavior
 
     Attributes:
-        streaming (bool): A boolean which represents whether the chat is streaming or not [optional, default value is
-        DEFAULT_STREAMING_MODE]
-        verbose (bool): A boolean which represents whether the chat is verbose or not [optional, default value is
-        DEFAULT_VERBOSE_MODE]
-        temperature (float): A non-negative float that tunes the degree of randomness in model response generation
-        [optional, defaults to DEFAULT_TEMPERATURE]
-        rag_enabled (bool): A boolean which represents whether the RAG is enabled or not [optional, defaults to
-        DEFAULT_RAG_ENABLED_MODE]
-        prompt (str): Returns the string prompt template set on the underlying LLM
-        memory_buffer (str): Returns the conversation memory buffer for the underlying LLM
+        - model_defaults (ModelDefaults): The default values for the model, as specified on a per-model basis in the source/model-info files
+        - model_inputs (ModelProviderInputs): The model inputs that the user provided. Each model_input object consists of all the required properties to deploy a Bedrock model such as the type of Conversation Memory class (DynamoDB for example), the type of knowledge base (Kendra, Bedrock KB, etc.) and their associated properties.
 
     Methods:
         Specific implementation must be provided by the implementing class for the following abstract methods:
-        - get_conversation_chain(): Creates a `ConversationChain` chain that is connected to a conversation memory and
-        the specified prompt
-        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
-        default_prompt_template_placeholders): Generates the PromptTemplate using the provided prompt template and
-        placeholders. In case of errors, falls back on default values.
-        - get_validated_disambiguation_prompt(disambiguation_prompt_template, default_disambiguation_prompt_template,
-        disambiguation_prompt_template_placeholders): Generates the PromptTemplate using the provided disambiguation
-        prompt template. In case of errors, falls back on default values.
 
+        - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
+        - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
+        - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
+        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
+        placeholders. In case of errors, falls back on default values.
+        - get_llm(): Returns the underlying LLM object that is used by the runnable. Each child class must provide its own implementation.
+        - get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM. Each child class must provide its own implementation based on the model parameters it supports.
     """
 
-    def __init__(
-        self,
-        rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
-        streaming: Optional[bool] = DEFAULT_STREAMING_MODE,
-        verbose: Optional[bool] = DEFAULT_VERBOSE_MODE,
-        temperature: Optional[float] = None,
-    ) -> None:
-        self.rag_enabled = rag_enabled
-        self.streaming = streaming
-        self.verbose = verbose
-        self.temperature = float(temperature) if temperature is not None else DEFAULT_TEMPERATURE
+    def __init__(self, model_defaults: ModelDefaults, model_inputs: ModelProviderInputs) -> None:
+        self.model_defaults = model_defaults
+        self._model_inputs = model_inputs
+        self.rag_enabled = DEFAULT_RAG_ENABLED_MODE if model_inputs.rag_enabled is None else model_inputs.rag_enabled
+        self.streaming = (
+            self.model_defaults.allows_streaming if model_inputs.streaming is None else model_inputs.streaming
+        )
+        self.verbose = DEFAULT_VERBOSE_MODE if model_inputs.verbose is None else model_inputs.verbose
+        self.temperature = (
+            self.model_defaults.default_temperature
+            if model_inputs.temperature is None
+            else float(model_inputs.temperature)
+        )
+        self.prompt_template = model_inputs.prompt_template
+        self._prompt_template_placeholders = model_inputs.prompt_placeholders
+        self.conversation_history_cls = model_inputs.conversation_history_cls
+        self.conversation_history_params = model_inputs.conversation_history_params
+        self.callbacks = model_inputs.callbacks or None
+        self.model_params = model_inputs.model_params
+        self.model = model_inputs.model
+        self.llm = None
+        self.runnable_with_history = None
 
     @property
     def streaming(self) -> bool:
@@ -99,36 +112,27 @@ class BaseLangChainModel(ABC):
         self._verbose = verbose
 
     @property
-    def conversation_chain(self) -> ConversationChain:
-        return self._conversation_chain
+    def runnable_with_history(self) -> Union[RunnableWithMessageHistory, RunnableBinding]:
+        return self._runnable_with_history
 
-    @conversation_chain.setter
-    def conversation_chain(self, conversation_chain) -> None:
-        self._conversation_chain = conversation_chain
-
-    @property
-    def prompt(self) -> str:
-        return self.conversation_chain.prompt.template
+    @runnable_with_history.setter
+    def runnable_with_history(self, runnable_with_history) -> None:
+        self._runnable_with_history = runnable_with_history
 
     @property
-    def memory_buffer(self) -> str:
-        return self.conversation_chain.memory.buffer
+    def prompt_template_text(self) -> str:
+        if self._prompt_template is not None and self._prompt_template:
+            return self._prompt_template.pretty_repr()
+        else:
+            raise ValueError("Prompt template is empty")
 
     @property
-    def conversation_memory(self) -> BaseMemory:
-        return self._conversation_memory
+    def model_defaults(self) -> Dict:
+        return self._model_defaults
 
-    @conversation_memory.setter
-    def conversation_memory(self, conversation_memory) -> None:
-        self._conversation_memory = conversation_memory
-
-    @property
-    def knowledge_base(self) -> KnowledgeBase:
-        return self._knowledge_base
-
-    @knowledge_base.setter
-    def knowledge_base(self, knowledge_base) -> None:
-        self._knowledge_base = knowledge_base
+    @model_defaults.setter
+    def model_defaults(self, model_defaults) -> None:
+        self._model_defaults = model_defaults
 
     @property
     def model_params(self) -> Dict:
@@ -163,32 +167,20 @@ class BaseLangChainModel(ABC):
         self._llm = llm
 
     @property
-    def stop_sequences(self) -> List[str]:
-        return self._stop_sequences
-
-    @stop_sequences.setter
-    def stop_sequences(self, stop_sequences) -> None:
-        self._stop_sequences = stop_sequences
-
-    @property
-    def prompt_template(self) -> PromptTemplate:
+    def prompt_template(self) -> ChatPromptTemplate:
         return self._prompt_template
 
     @prompt_template.setter
     def prompt_template(self, prompt_template) -> None:
+        prompt_placeholders = self._model_inputs.prompt_placeholders
+        default_prompt_template = self.model_defaults.prompt
         default_prompt_placeholders = (
             DEFAULT_PROMPT_RAG_PLACEHOLDERS if self.rag_enabled else DEFAULT_PROMPT_PLACEHOLDERS
         )
-        default_prompt_template = self.model_defaults.prompt
-        prompt_placeholders = self._prompt_template_placeholders
 
         self._prompt_template, self._prompt_template_placeholders = self.get_validated_prompt(
             prompt_template, prompt_placeholders, default_prompt_template, default_prompt_placeholders
         )
-
-    @property
-    def prompt_template_placeholders(self) -> List[str]:
-        return self._prompt_template_placeholders
 
     @property
     def callbacks(self) -> List:
@@ -206,40 +198,66 @@ class BaseLangChainModel(ABC):
     def rag_enabled(self, rag_enabled) -> None:
         self._rag_enabled = rag_enabled
 
-    def prompt(self) -> str:
+    def get_session_history(self, user_id: str, conversation_id: str) -> BaseChatMessageHistory:
         """
-        Fetches the LLM's prompt template for the conversation
-        Args: None
-        Returns:
-            str: the prompt template for the model
-        """
-        return self.prompt_template.template
+        Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
 
-    def memory_buffer(self) -> str:
-        """
-        Fetches the memory buffer of the model containing the conversation, context, etc.
-        Args: None
-        Returns:
-            str: the memory buffer of the model
-        """
-        return self.conversation_memory.buffer
+        Args:
+            user_id (str): The unique identifier for the user.
+            conversation_id (str): The unique identifier for the conversation.
 
-    def get_conversation_chain(self) -> ConversationChain:
+        Returns:
+            BaseChatMessageHistory: The conversation history object.
         """
-        Creates a `ConversationChain` chain that is connected to a conversation memory and the specified prompt
+        self.conversation_history_params[USER_ID_KEY] = user_id
+        self.conversation_history_params[CONVERSATION_ID_KEY] = conversation_id
+        return self.conversation_history_cls(**self.conversation_history_params)
+
+    def get_runnable(self) -> Union[RunnableWithMessageHistory, RunnableBinding]:
+        """
+        Creates a `RunnableWithMessageHistory` (for non-streaming) or `RunnableBinding` (for streaming case) runnable that is connected to a conversation memory and the specified prompt
         Args: None
 
         Returns:
-            ConversationChain: An LLM chain that is chain that is connected to a conversation memory
+            RunnableWithMessageHistory/RunnableBinding: A runnable that manages chat message history
         """
-        return ConversationChain(
-            llm=self.llm, verbose=self.verbose, memory=self.conversation_memory, prompt=self.prompt_template
+
+        chain = self.prompt_template | self.llm | StrOutputParser()
+
+        with_message_history = RunnableWithMessageHistory(
+            chain,
+            get_session_history=self.get_session_history,
+            input_messages_key=INPUT_KEY,
+            history_messages_key=HISTORY_KEY,
+            history_factory_config=[
+                ConfigurableFieldSpec(
+                    id=USER_ID_KEY,
+                    annotation=str,
+                    name="User ID",
+                    description="Unique identifier for the user.",
+                    default="",
+                    is_shared=True,
+                ),
+                ConfigurableFieldSpec(
+                    id=CONVERSATION_ID_KEY,
+                    annotation=str,
+                    name="Conversation ID",
+                    description="Unique identifier for the conversation.",
+                    default="",
+                    is_shared=True,
+                ),
+            ],
         )
+
+        if self.streaming:
+            with_message_history = with_message_history.with_config(RunnableConfig(callbacks=self.callbacks))
+
+        return with_message_history
 
     @tracer.capture_method(capture_response=True)
     def generate(self, question: str) -> Dict[str, Any]:
         """
-        Fetches the response from the LLM
+        Invokes the LLM to fetch a response for the given question.
 
         Args:
             question (str): the question that should be sent to the LLM model
@@ -249,25 +267,38 @@ class BaseLangChainModel(ABC):
             Response dict form:
             {
              "answer": str,
-             "source_documents": List[Dict] # Optional key applicable for RAG child classes.
+             "context": List[Dict] # Optional key applicable for RAG child classes.
             }
+
+        Note: Add error handling based on your model implementation
         """
+        invoke_configuration = {
+            "configurable": {
+                "conversation_id": self.conversation_history_params["conversation_id"],
+                "user_id": self.conversation_history_params["user_id"],
+            }
+        }
+        operation = RAG_CONVERSATION_TRACER_KEY if self.rag_enabled else CONVERSATION_TRACER_KEY
+
         with tracer.provider.in_subsegment("## llm_chain") as subsegment:
             subsegment.put_annotation("library", "langchain")
-            subsegment.put_annotation("operation", "ConversationChain")
+            subsegment.put_annotation("operation", operation)
             metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_QUERY.value, unit=MetricUnit.Count, value=1)
+
+            response = {}
             start_time = time.time()
-            response = self.conversation_chain.predict(input=question)
+            model_response = self.runnable_with_history.invoke({"input": question}, invoke_configuration)
             end_time = time.time()
+            response[LLM_RESPONSE_KEY] = model_response.strip()
 
             metrics.add_metric(
                 name=CloudWatchMetrics.LANGCHAIN_QUERY_PROCESSING_TIME.value,
                 unit=MetricUnit.Seconds,
                 value=(end_time - start_time),
             )
-            logger.debug(f"LLM response: {response}")
+            logger.debug(f"Model response received: {model_response}")
             metrics.flush_metrics()
-            return {"answer": response.strip()}
+            return response
 
     def get_validated_prompt(
         self,
@@ -275,7 +306,7 @@ class BaseLangChainModel(ABC):
         prompt_template_placeholders: List[str],
         default_prompt_template: str,
         default_prompt_template_placeholders: List[str],
-    ) -> Tuple[PromptTemplate, List[str]]:
+    ) -> Tuple[ChatPromptTemplate, List[str]]:
         """
         Generates the PromptTemplate using the provided prompt template and default placeholders.
         If template is not set or if it is invalid, use the default.
@@ -285,20 +316,14 @@ class BaseLangChainModel(ABC):
             default_prompt_template (str): the default prompt template to be used in case of failures
             default_prompt_template_placeholders (List[str]): the list of default prompt template placeholders to be used in case of failures
         Returns:
-            PromptTemplate: the prompt template object with the prompt template and placeholders set
+            ChatPromptTemplate: the prompt template object with the prompt template and placeholders set
             List[str]: the list of prompt template placeholders
         """
         try:
             if prompt_template and prompt_template_placeholders:
-                if self.rag_enabled:
-                    # ConversationRetrievalChain expects the placeholders to be "question" and "chat_history" instead of "input" and "history"
-                    prompt_template = prompt_template.replace("{input}", "{question}").replace(
-                        "{history}", "{chat_history}"
-                    )
-                else:
-                    if "{context}" in prompt_template:
-                        error = f"Provided 'context' placeholder in prompt template for non-RAG use case: {prompt_template}."
-                        raise ValueError(error)
+                if self.rag_enabled is not None and not self.rag_enabled and "{context}" in prompt_template:
+                    error = f"Provided 'context' placeholder in prompt template for non-RAG use case. Prompt:\n{prompt_template}.\n"
+                    raise ValueError(error)
 
                 validate_prompt_placeholders(prompt_template, prompt_template_placeholders)
                 prompt_template_text = prompt_template
@@ -306,10 +331,11 @@ class BaseLangChainModel(ABC):
 
             else:
                 message = f"Prompt template not provided. Falling back to default prompt template."
-                logger.info(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+                logger.warning(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
                 prompt_template_text = default_prompt_template
                 placeholders = default_prompt_template_placeholders
 
+            return (ChatPromptTemplate.from_template(prompt_template_text), placeholders)
         except ValueError as ex:
             logger.error(
                 f"Prompt validation failed: {ex}. Falling back to default prompt template.",
@@ -318,20 +344,28 @@ class BaseLangChainModel(ABC):
             metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
             prompt_template_text = default_prompt_template
             placeholders = default_prompt_template_placeholders
-
+            return (ChatPromptTemplate.from_template(prompt_template_text), placeholders)
         finally:
             metrics.flush_metrics()
-        return (
-            PromptTemplate(template=prompt_template_text, input_variables=placeholders),
-            placeholders,
-        )
+
+    @abstractmethod
+    def get_llm(self, *args, **kwargs) -> Union[LLM, BaseChatModel]:
+        """
+        Creates an LangChain LLM based on supplied params. Child classes must provide an implementation of this method.
+
+        Returns:
+            LangChain LLM/Chat Model object that can be invoked in a conversation chain/runnable.
+        """
 
     @tracer.capture_method(capture_response=True)
     def get_clean_model_params(self, model_params) -> Dict:
         """
-        Sanitizes the model parameters. Implementation is model specific
-        Args: None
-        Returns: None
+        Sanitizes the model parameters. Implementation is model specific. This base class implementation formats the model arguments into a dictionary with values of the correct data type.
+        Args:
+            - model_params: Dictionary of model parameters to be sanitized.
+
+        Returns:
+            - Dictionary of sanitized model parameters.
         """
         sanitized_model_params = {}
         try:
@@ -358,16 +392,3 @@ class BaseLangChainModel(ABC):
             metrics.flush_metrics()
 
         return sanitized_model_params
-
-    @abstractmethod
-    def get_llm(self, condense_prompt_model: bool = False) -> LLM:
-        """
-        Creates an LangChain LLM based on supplied params. Child classes must provide an implementation of this method.
-        Args:
-             condense_prompt_model (bool): Flag that indicates whether to create a model for regular chat or
-                for disambiguating/condensing of the prompt for RAG use-cases.
-                callbacks and streaming are disabled when this flag is set to True
-
-        Returns:
-            LangChain LLM object that can be invoked in a conversation chain
-        """

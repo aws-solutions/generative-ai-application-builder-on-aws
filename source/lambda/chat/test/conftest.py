@@ -19,14 +19,13 @@ from unittest.mock import Mock
 import boto3
 import pytest
 from botocore.stub import Stubber
+from cognito_jwt_verifier import CognitoJWTVerifier
 from custom_config import custom_usr_agent_config
 from helper import get_service_client
 from jwt import PyJWKClient
 from moto import mock_aws
-from utils.cognito_jwt_verifier import CognitoJWTVerifier
 from utils.constants import (
     BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR,
-    CHAT_IDENTIFIER,
     CLIENT_ID_ENV_VAR,
     CONVERSATION_TABLE_NAME_ENV_VAR,
     KENDRA_INDEX_ID_ENV_VAR,
@@ -40,8 +39,8 @@ from utils.constants import (
 )
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
-DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """\n\nHuman: Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.\n\nChat history:\n{chat_history}\n\nFollow up question: {question}\n\nAssistant: Standalone question:"""
-CONDENSE_QUESTION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{chat_history}\nFollow Up Input: {question}\nStandalone question:"""
+DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """\n\nHuman: Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.\n\nChat history:\n{history}\n\nFollow up question: {input}\n\nAssistant: Standalone question:"""
+DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
 human_prefix = "human"
 ai_prefix = "ai"
 provisioned_arn = "arn:aws:bedrock:us-east-1:123456789012:provisioned-model/z8g9xzoxoxmw"
@@ -220,7 +219,7 @@ def bedrock_llm_config(
                 "MaxPromptTemplateLength": 1000,
                 "MaxInputTextLength": 1000,
                 "RephraseQuestion": True,
-                "DisambiguationPromptTemplate": "placeholder",
+                "DisambiguationPromptTemplate": DISAMBIGUATION_PROMPT,
                 "DisambiguationEnabled": True,
             },
             "Streaming": is_streaming,
@@ -284,7 +283,7 @@ def sagemaker_llm_config(
                 "UserPromptEditingEnabled": True,
                 "MaxPromptTemplateLength": 1000,
                 "MaxInputTextLength": 1000,
-                "DisambiguationPromptTemplate": "placeholder",
+                "DisambiguationPromptTemplate": DISAMBIGUATION_PROMPT,
                 "DisambiguationEnabled": True,
             },
             "Streaming": is_streaming,
@@ -314,7 +313,7 @@ def basic_llm_config_parsed():
                 "UserPromptEditingEnabled": True,
                 "MaxPromptTemplateLength": 1000,
                 "MaxInputTextLength": 1000,
-                "DisambiguationPromptTemplate": "placeholder",
+                "DisambiguationPromptTemplate": DISAMBIGUATION_PROMPT,
                 "DisambiguationEnabled": True,
             },
             "Streaming": True,
@@ -354,18 +353,10 @@ def bedrock_dynamodb_defaults_table(
     model_provider=LLMProviderTypes.BEDROCK.value,
 ):
     table_name = os.getenv(MODEL_INFO_TABLE_NAME_ENV_VAR)
-    if use_case == CHAT_IDENTIFIER:
-        output_key = None
-        context_key = None
-        input_key = "input"
-        history_key = "history"
-    elif use_case == RAG_CHAT_IDENTIFIER:
-        output_key = "answer"
-        context_key = "context"
-        input_key = "question"
-        history_key = "chat_history"
-    else:
-        raise Exception(f"Not a supported use-case {use_case}")
+    input_key = "input"
+    history_key = "history"
+    output_key = "answer"
+    context_key = "context" if use_case == RAG_CHAT_IDENTIFIER else None
 
     table = dynamodb_resource.Table(table_name)
     table.put_item(
@@ -390,7 +381,7 @@ def bedrock_dynamodb_defaults_table(
             "ModelProviderName": model_provider,
             "Prompt": prompt,
             "DefaultStopSequences": [],
-            "DisambiguationPrompt": CONDENSE_QUESTION_PROMPT,
+            "DisambiguationPrompt": DISAMBIGUATION_PROMPT,
         }
     )
 
@@ -406,18 +397,10 @@ def sagemaker_dynamodb_defaults_table(
     model_provider=LLMProviderTypes.SAGEMAKER.value,
 ):
     table_name = os.getenv(MODEL_INFO_TABLE_NAME_ENV_VAR)
-    if use_case == CHAT_IDENTIFIER:
-        output_key = None
-        context_key = None
-        input_key = "input"
-        history_key = "history"
-    elif use_case == RAG_CHAT_IDENTIFIER:
-        output_key = "answer"
-        context_key = "context"
-        input_key = "question"
-        history_key = "chat_history"
-    else:
-        raise Exception(f"Not a supported use-case {use_case}")
+    input_key = "input"
+    history_key = "history"
+    output_key = "answer"
+    context_key = "context" if use_case == RAG_CHAT_IDENTIFIER else None
 
     table = dynamodb_resource.Table(table_name)
     table.put_item(
@@ -442,7 +425,7 @@ def sagemaker_dynamodb_defaults_table(
             "ModelProviderName": model_provider,
             "Prompt": prompt,
             "DefaultStopSequences": [],
-            "DisambiguationPrompt": CONDENSE_QUESTION_PROMPT,
+            "DisambiguationPrompt": DISAMBIGUATION_PROMPT,
         }
     )
 

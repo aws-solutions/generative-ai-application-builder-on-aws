@@ -31,9 +31,9 @@ describe('UseExistingVpc', () => {
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="use-existing-vpc-radio-group"]');
         expect(screen.getByTestId('use-existing-vpc-field')).toBeDefined();
         expect(radioGroup?.getElement()).toBeDefined();
-        expect(radioGroup?.findInputByValue('yes')?.getElement().checked).toBeTruthy();
+        expect(radioGroup?.findInputByValue('Yes')?.getElement().checked).toBeTruthy();
 
-        radioGroup?.findInputByValue('no')?.getElement().click();
+        radioGroup?.findInputByValue('No')?.getElement().click();
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
             existingVpc: false,
             inError: false

@@ -14,7 +14,8 @@ import {
     DEFAULT_KENDRA_NUMBER_OF_DOCS,
     DEFAULT_ADDITIONAL_KENDRA_QUERY_CAPACITY,
     DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY,
-    DEFAULT_SCORE_THRESHOLD
+    DEFAULT_SCORE_THRESHOLD,
+    USECASE_TYPES
 } from '../../utils/constants';
 
 export const USE_CASE_OPTIONS = [
@@ -66,6 +67,9 @@ export const MODEL_PROVIDER_NAME_MAP = {
     SageMaker: 'SageMaker'
 };
 
+export const INFERENCE_PROFILE = 'inference-profile';
+export const CROSS_REGION_INFERENCE = 'cross-region inference';
+
 export const MODEL_ADVANCED_PARAMETERS_TYPE = {
     integer: 'integer',
     string: 'string',
@@ -80,17 +84,18 @@ export const WIZARD_PAGE_INDEX = {
     VPC: 1,
     MODEL: 2,
     KNOWLEDGE_BASE: 3,
-    PROMPT: 4
+    PROMPT: 4,
+    AGENT: 2
 };
 
 export const INCLUDE_UI_OPTIONS = [
     {
-        value: 'yes',
+        value: 'Yes',
         label: 'Yes',
         description: 'A UI will be created and deployed with the backend API'
     },
     {
-        value: 'no',
+        value: 'No',
         label: 'No',
         description: 'A backend API will be created and deployed. You may connect your own UI to the backend API'
     }
@@ -98,11 +103,15 @@ export const INCLUDE_UI_OPTIONS = [
 
 export const DEFAULT_STEP_INFO = {
     useCase: {
-        useCase: USE_CASE_OPTIONS[0],
+        useCaseType: USECASE_TYPES.TEXT,
         useCaseName: '',
         useCaseDescription: '',
         defaultUserEmail: '',
         deployUI: true,
+        useExistingUserPool: false,
+        existingUserPoolId: '',
+        useExistingUserPoolClient: false,
+        existingUserPoolClientId: '',
         inError: false
     },
     vpc: {
@@ -110,7 +119,8 @@ export const DEFAULT_STEP_INFO = {
         existingVpc: false,
         vpcId: '',
         subnetIds: [],
-        securityGroupIds: []
+        securityGroupIds: [],
+        inError: false
     },
     knowledgeBase: {
         isRagRequired: false,
@@ -157,7 +167,8 @@ export const DEFAULT_STEP_INFO = {
             2
         ),
         sagemakerOutputSchema: '',
-        sagemakerEndpointName: ''
+        sagemakerEndpointName: '',
+        inferenceProfileId: ''
     },
     prompt: {
         maxPromptTemplateLength: undefined,
@@ -170,6 +181,12 @@ export const DEFAULT_STEP_INFO = {
         aiPrefix: undefined,
         disambiguationEnabled: undefined,
         disambiguationPromptTemplate: undefined
+    },
+    agent: {
+        bedrockAgentId: '',
+        bedrockAgentAliasId: '',
+        enableTrace: false,
+        inError: false
     }
 };
 

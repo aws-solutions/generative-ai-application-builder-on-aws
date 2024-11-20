@@ -26,7 +26,7 @@ describe('When invoking the lambda function', () => {
     const ddbMockedClient = mockClient(DynamoDBClient);
 
     beforeAll(() => {
-        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+        process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
         process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = 'fake-model-table';
     });
 

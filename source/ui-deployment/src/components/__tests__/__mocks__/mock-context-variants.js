@@ -14,7 +14,7 @@
 
 import mockContext from './mock-context.json';
 
-import { SAGEMAKER_MODEL_PROVIDER_NAME } from '@/utils/constants';
+import { SAGEMAKER_MODEL_PROVIDER_NAME, USECASE_TYPES } from '@/utils/constants';
 
 export const baseMock = { ...mockContext };
 
@@ -64,4 +64,11 @@ export const ragDisabledMock = {
             RAGEnabled: false
         }
     }
+};
+
+export const agentMock = {
+    ...baseMock,
+    selectedDeployment: baseMock.deploymentsData.find((x) => {
+        return x.UseCaseType === USECASE_TYPES.AGENT;
+    })
 };

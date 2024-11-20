@@ -76,3 +76,14 @@ def setup_ssm(ssm, lambda_event):
     # fmt: on
 
     yield lambda_event, ssm
+
+
+@pytest.fixture
+def setup_cognito(cognito, lambda_event):
+    # create a user pool with a domain
+    result = cognito.create_user_pool(PoolName="fake-user-pool", AutoVerifiedAttributes=["email"])
+    user_pool_id = result["UserPool"]["Id"]
+    cognito.create_user_pool_domain(UserPoolId=user_pool_id, Domain="fake-domain")
+    lambda_event[RESOURCE_PROPERTIES][USER_POOL_ID] = user_pool_id
+
+    yield lambda_event, cognito

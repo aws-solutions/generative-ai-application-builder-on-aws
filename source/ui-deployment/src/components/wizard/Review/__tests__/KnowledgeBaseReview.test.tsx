@@ -19,7 +19,7 @@ describe('UseCaseReview', () => {
     const knowledgeBaseData = {
         isRagRequired: true,
         knowledgeBaseType: { label: 'Kendra', value: 'Kendra' },
-        existingKendraIndex: 'yes',
+        existingKendraIndex: 'Yes',
         kendraIndexId: 'fake-index-id',
         kendraAdditionalQueryCapacity: 0,
         kendraAdditionalStorageCapacity: 0,

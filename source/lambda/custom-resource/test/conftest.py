@@ -47,6 +47,12 @@ def ddb():
 
 
 @pytest.fixture
+def ddb_client():
+    with mock_aws():
+        yield boto3.client("dynamodb", config=custom_usr_agent_config())
+
+
+@pytest.fixture
 def cw_logs():
     with mock_aws():
         yield boto3.client("logs", config=custom_usr_agent_config())
@@ -56,6 +62,12 @@ def cw_logs():
 def ssm():
     with mock_aws():
         yield boto3.client("ssm", config=custom_usr_agent_config())
+
+
+@pytest.fixture
+def cognito():
+    with mock_aws():
+        yield boto3.client("cognito-idp", config=custom_usr_agent_config())
 
 
 @pytest.fixture

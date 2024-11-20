@@ -13,13 +13,10 @@
 
 import { InfoLink } from '@/components/commons';
 import { BaseFormComponentProps } from '@/components/wizard/interfaces';
-import { TOOLS_CONTENT } from '@/components/wizard/tools-content';
 import { updateNumFieldsInError } from '@/components/wizard/utils';
 import { IG_DOCS } from '@/utils/constants';
 import { Box, FormField, Input, InputProps } from '@cloudscape-design/components';
 import React from 'react';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
 
 interface BedrockKnowledgeBaseIdProps extends BaseFormComponentProps {
     knowledgeBaseData: any;

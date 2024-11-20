@@ -35,12 +35,12 @@ describe('EnableRoleBasedAccessControl', () => {
         );
         expect(screen.getByTestId('enable-role-based-access-control-field')).toBeDefined();
         expect(radioGroup?.getElement()).toBeDefined();
-        expect(radioGroup?.findInputByValue('yes')?.getElement().checked).toBeTruthy();
+        expect(radioGroup?.findInputByValue('Yes')?.getElement().checked).toBeTruthy();
         expect(
             screen.getByText('Ensure the Knowledge Base is configured to support role-based access control.')
         ).toBeDefined();
 
-        radioGroup?.findInputByValue('no')?.getElement().click();
+        radioGroup?.findInputByValue('No')?.getElement().click();
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
             enableRoleBasedAccessControl: false
         });
@@ -61,9 +61,9 @@ describe('EnableRoleBasedAccessControl', () => {
         );
         expect(screen.getByTestId('enable-role-based-access-control-field')).toBeDefined();
         expect(radioGroup?.getElement()).toBeDefined();
-        expect(radioGroup?.findInputByValue('no')?.getElement().checked).toBeTruthy();
+        expect(radioGroup?.findInputByValue('No')?.getElement().checked).toBeTruthy();
 
-        radioGroup?.findInputByValue('yes')?.getElement().click();
+        radioGroup?.findInputByValue('Yes')?.getElement().click();
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
             enableRoleBasedAccessControl: true
         });

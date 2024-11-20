@@ -61,23 +61,23 @@ exports[`Chat > Snapshot test for Chat 1`] = `
             }
           }
         >
-          <span
-            className="awsui_root_qk1j1_1x14a_97"
+          <div
+            className="awsui_root_55fkh_v0e3_98 awsui_root_nr3gs_1mr3y_5"
             data-class-name="chat-input-textarea"
             data-columns="3"
             data-testid="chat-input-textarea"
           >
             <textarea
-              autoComplete="on"
+              autoComplete="off"
               autoFocus={true}
-              className="awsui_textarea_qk1j1_1x14a_101"
+              className="awsui_textarea_55fkh_v0e3_128 awsui_textarea_nr3gs_1mr3y_9"
               onChange={[Function]}
               onKeyDown={[Function]}
               placeholder="Type a message..."
-              rows={1}
+              rows={4}
               value=""
             />
-          </span>
+          </div>
         </div>
         <div
           style={
@@ -96,7 +96,7 @@ exports[`Chat > Snapshot test for Chat 1`] = `
             type="submit"
           >
             <span
-              className="awsui_icon_vjswe_15u39_1111 awsui_icon-left_vjswe_15u39_1111 awsui_icon_h11ix_ayzd6_101 awsui_size-normal-mapped-height_h11ix_ayzd6_157 awsui_size-normal_h11ix_ayzd6_153 awsui_variant-normal_h11ix_ayzd6_229"
+              className="awsui_icon_vjswe_15u39_1111 awsui_icon-left_vjswe_15u39_1111 awsui_icon_h11ix_ayzd6_101 awsui_size-normal-mapped-height_h11ix_ayzd6_157 awsui_size-normal_h11ix_ayzd6_153 awsui_variant-normal_h11ix_ayzd6_229 awsui_name-send_h11ix_ayzd6_266"
               style={{}}
             >
               <svg
@@ -106,7 +106,8 @@ exports[`Chat > Snapshot test for Chat 1`] = `
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path
-                  d="m14.254 4.254-8.25 8.25L6 12.5l-.004.004-4.25-4.25.008-.008L6 12.493l8.246-8.247.008.008Z"
+                  className="stroke-linejoin-round"
+                  d="m1 1.001 14 7.004L1 15l2.693-6.994L1 1.001ZM3.693 8.005h10.271"
                 />
               </svg>
             </span>

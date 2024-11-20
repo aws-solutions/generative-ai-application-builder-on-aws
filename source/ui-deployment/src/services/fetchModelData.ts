@@ -87,7 +87,7 @@ export const fetchModelIds = async (params: ModelInfoRouteParams) => {
 
 export const fetchModelDefaults = async (params: ModelInfoRouteParams) => {
     if (!params.modelId || !params.providerName || !params.useCaseType) {
-        throw new Error('Missing useCaseType, useCaseType, or providerName');
+        throw new Error('Missing useCaseType, modelId, or providerName');
     }
 
     const { modelId, providerName, useCaseType } = encodeQueryParams(params);

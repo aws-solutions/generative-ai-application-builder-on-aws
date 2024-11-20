@@ -13,11 +13,9 @@
 
 import { FormField, Select, SelectProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../../interfaces';
-import { TOOLS_CONTENT } from '../../../tools-content';
 import { InfoLink } from '../../../../commons';
 import { KENDRA_EDITIONS } from '../../../steps-config';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { knowledgeBaseInfoPanel } from '../../helpers';
 
 interface KendraEditionProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -33,7 +31,7 @@ export const KendraEdition = (props: KendraEditionProps) => {
             label="Kendra edition"
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.kendraAdditionalQueryCapacity)}
+                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseInfoPanel.kendraAdditionalQueryCapacity)}
                     ariaLabel={'Information about Kendra editions.'}
                 />
             }

@@ -1,0 +1,4 @@
+moto==5.0.18
+pytest==8.3.3
+pytest-cov==5.0.0
+pytest-env==1.1.5

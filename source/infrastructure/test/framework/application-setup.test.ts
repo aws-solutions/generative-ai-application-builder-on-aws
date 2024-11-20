@@ -193,7 +193,6 @@ describe('When createWebConfigStorage is called', () => {
                 }).url,
                 userPoolId: userPool.userPoolId,
                 userPoolClientId: userPoolClient.ref,
-                cognitoDomainPrefix: 'fake-domain-prefix',
                 cognitoRedirectUrl: 'https://fake-redirect-url',
                 isInternalUserCondition: new cdk.CfnCondition(stack, 'TestCondition', {
                     expression: cdk.Fn.conditionEquals('Yes', 'Yes')
@@ -342,7 +341,6 @@ describe('When passing additional properties to createWebConfigStorage', () => {
                 }).url,
                 userPoolId: userPool.userPoolId,
                 userPoolClientId: userPoolClient.ref,
-                cognitoDomainPrefix: 'fake-domain-prefix',
                 cognitoRedirectUrl: 'https://fake-redirect-url',
                 isInternalUserCondition: new cdk.CfnCondition(stack, 'TestCondition', {
                     expression: cdk.Fn.conditionEquals('Yes', 'Yes')

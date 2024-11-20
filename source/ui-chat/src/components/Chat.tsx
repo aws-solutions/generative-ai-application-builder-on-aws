@@ -20,13 +20,16 @@ import {
     DEFAULT_DELAY_MS,
     END_CONVERSATION_TOKEN,
     SOCKET_CONNECTION_RETRIES,
-    SOURCE_DOCS_RESPONSE_PAYLOAD_KEY
+    SOURCE_DOCS_RESPONSE_PAYLOAD_KEY,
+    USE_CASE_TYPES,
+    USE_CASE_TYPES_ROUTE
 } from '../utils/constants';
 import { saveConversation } from '../utils/conversation';
 import './Chat.css';
 import { ChatInput } from './ChatInput';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
 import { PromptTemplate } from './PromptTemplate';
+import { ChatConfigType, AgentConfigType } from '../home/home.state';
 
 interface Props {
     stopConversationRef: MutableRefObject<boolean>;
@@ -43,6 +46,36 @@ export async function generateToken() {
     }
 }
 
+export async function constructPayload(
+    useCaseConfig: ChatConfigType | AgentConfigType,
+    message: string,
+    conversationId: string,
+    promptTemplate?: string
+) {
+    const authToken = await generateToken();
+
+    switch (useCaseConfig.UseCaseType) {
+        case USE_CASE_TYPES.AGENT:
+            return {
+                action: USE_CASE_TYPES_ROUTE.AGENT,
+                inputText: message,
+                conversationId: conversationId
+            };
+        case USE_CASE_TYPES.TEXT:
+            return {
+                action: USE_CASE_TYPES_ROUTE.TEXT,
+                question: message,
+                conversationId: conversationId,
+                promptTemplate: (useCaseConfig as ChatConfigType).LlmParams?.PromptParams.UserPromptEditingEnabled
+                    ? promptTemplate
+                    : undefined,
+                authToken: authToken
+            };
+        default:
+            console.error('Invalid use case type.');
+    }
+}
+
 // prettier-ignore
 export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOSONAR - This is a whole React component and should not be treated like other functions
     
@@ -55,8 +88,6 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
     const [socketState, setSocketState] = useState<number>(WebSocket.CLOSED);
     const [authorized, setAuthorized] = useState<boolean>(true);
     const updatedConversationRef = useRef(selectedConversation);
-
-    const displaySourceDocuments = useCaseConfig.KnowledgeBaseParams.ReturnSourceDocs;
 
     let socketRef = useRef<WebSocket | null>(null);
 
@@ -84,14 +115,14 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                 });
 
                 newSocket.addEventListener('error', (error) => {
-                    console.error('Socket error: ', error);
+                    console.error('Socket error: ', JSON.stringify(error));
                     setSocketState(4);
                     if (firstConnection) {
                         setAuthorized(false);
                     }
                 });
             } catch (error) {
-                console.error('Websocket connection error: ', error);
+                console.error('Websocket connection error: ', JSON.stringify(error));
                 // handle errors and reconnect after short delay
             }
         },
@@ -163,15 +194,14 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                         processResponse(event);
                         isFirst = false;
                     };
-
-                    let payload = {
-                        action: 'sendMessage',
-                        question: message.content,
-                        conversationId: selectedConversation.id,
-                        promptTemplate: useCaseConfig.LlmParams.PromptParams.UserPromptEditingEnabled ? promptTemplate : undefined,
-                        authToken: await generateToken()
-                    };
-
+                    
+                    const payload = await constructPayload(
+                      useCaseConfig,
+                      message.content,
+                      selectedConversation.id,
+                      promptTemplate
+                    );
+                    
                     socket.send(JSON.stringify(payload));
 
                     const data = response.body;
@@ -191,6 +221,7 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                         const initSourceDocuments: SourceDocument[] = [];
                         if (isFirst) {
                             isFirst = false;
+                            if (useCaseConfig.UseCaseType == USE_CASE_TYPES.TEXT) {
                             const updatedMessages: MessageWithSource[] = [
                                 ...updatedConversation.messages,
                                 { role: 'assistant', content: chunkValue, sourceDocuments: initSourceDocuments }
@@ -199,6 +230,16 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                                 ...updatedConversation,
                                 messages: updatedMessages
                             };
+                        } else {
+                            const updatedMessages: Message[] = [
+                                ...updatedConversation.messages,
+                                { role: 'assistant', content: chunkValue }
+                            ];
+                            updatedConversation = {
+                                ...updatedConversation,
+                                messages: updatedMessages
+                            };
+                        }
                             homeDispatch({
                                 field: 'selectedConversation',
                                 value: updatedConversation
@@ -226,7 +267,7 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
     };
 
     const isSendingReferences = (response: any) => {
-        return displaySourceDocuments && response[SOURCE_DOCS_RESPONSE_PAYLOAD_KEY] !== undefined;
+        return response[SOURCE_DOCS_RESPONSE_PAYLOAD_KEY] !== undefined;
     };
 
     const parseReferenceOutput = (response: any): SourceDocument | undefined => {
@@ -367,7 +408,6 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                                                 key={index} //NOSONAR - typescript:S6479 - index value required
                                                 message={message}
                                                 messageIndex={index}
-                                                displaySourceConfigFlag={displaySourceDocuments}
                                             /> // NOSONAR - array index is a stable identifier
                                         ))}
                                     </Container>

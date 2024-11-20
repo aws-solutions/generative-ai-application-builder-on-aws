@@ -11,20 +11,17 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { FormField, Select, SelectProps } from '@cloudscape-design/components';
+import { Box, FormField, Select, SelectProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
-import { TOOLS_CONTENT } from '../../tools-content';
 
 import React from 'react';
 import HomeContext from '../../../../contexts';
 import { InfoLink } from '../../../commons';
-import { DEPLOYMENT_ACTIONS } from '../../../../utils/constants';
+import { DEPLOYMENT_ACTIONS, IG_DOCS } from '../../../../utils/constants';
 import { DropdownStatusProps } from '@cloudscape-design/components/internal/components/dropdown-status';
 import { useModelProvidersQuery } from 'hooks/useQueries';
 import { formatModelProviderOptionsList } from './helpers';
 import { DEFAULT_STEP_INFO } from '../../steps-config';
-
-const { model: modelToolsContent } = TOOLS_CONTENT;
 
 export interface ModelProviderDropdownProps extends BaseFormComponentProps {
     modelData: any;
@@ -90,7 +87,7 @@ export const ModelProviderDropdown = (props: ModelProviderDropdownProps) => {
             label="Model provider"
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(modelToolsContent.modelProvider)}
+                    onFollow={() => props.setHelpPanelContent!(modelProviderInfoPanel)}
                     ariaLabel={'Information about the model provider.'}
                 />
             }
@@ -113,3 +110,40 @@ export const ModelProviderDropdown = (props: ModelProviderDropdownProps) => {
     );
 };
 export default ModelProviderDropdown;
+
+//INFO PANELS CONTENT
+const modelProviderInfoPanel = {
+    title: 'Model provider',
+    content: (
+        <div>
+            <Box variant="p">Select the model provider that hosts the LLM you wish to use for this deployment.</Box>
+
+            <Box variant="p">
+                Amazon Bedrock is an AWS service which provides access to a collection of LLMs and is the recommended
+                integration due to the improved security posture.
+            </Box>
+        </div>
+    ),
+    links: [
+        {
+            href: IG_DOCS.SUPPORTED_LLMS,
+            text: 'Supported LLM Providers'
+        },
+        {
+            href: IG_DOCS.CHOOSING_LLMS,
+            text: 'Choosing the right LLM'
+        },
+        {
+            href: IG_DOCS.FOUNDATION_MODELS,
+            text: 'Security - Using foundation models on Amazon Bedrock'
+        },
+        {
+            href: IG_DOCS.BEDROCK_SECURITY,
+            text: 'Amazon Bedrock - Security'
+        },
+        {
+            href: 'https://docs.aws.amazon.com/bedrock/latest/userguide/data-protection.html',
+            text: 'Amazon Bedrock - Data protection'
+        }
+    ]
+};

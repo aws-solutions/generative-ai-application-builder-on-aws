@@ -183,6 +183,170 @@ describe('When Chat use case is created', () => {
             }
         });
     });
+
+    it('should have a policy that allows resources arns from custom resource for inference profile', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            'PolicyDocument': {
+                'Statement': [
+                    {
+                        'Action': ['xray:PutTelemetryRecords', 'xray:PutTraceSegments'],
+                        'Effect': 'Allow',
+                        'Resource': '*'
+                    },
+                    {
+                        'Action': 'bedrock:GetInferenceProfile',
+                        'Effect': 'Allow',
+                        'Resource': {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        'Ref': 'AWS::Partition'
+                                    },
+                                    ':bedrock:',
+                                    {
+                                        'Ref': 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        'Ref': 'AWS::AccountId'
+                                    },
+                                    ':inference-profile/*'
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        'Action': 'dynamodb:GetItem',
+                        'Condition': {
+                            'ForAllValues:StringEquals': {
+                                'dynamodb:LeadingKeys': [
+                                    {
+                                        'Ref': 'UseCaseConfigRecordKey'
+                                    }
+                                ]
+                            }
+                        },
+                        'Effect': 'Allow',
+                        'Resource': {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        'Ref': 'AWS::Partition'
+                                    },
+                                    ':dynamodb:',
+                                    {
+                                        'Ref': 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        'Ref': 'AWS::AccountId'
+                                    },
+                                    ':table/',
+                                    {
+                                        'Ref': 'UseCaseConfigTableName'
+                                    }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        'Action': [
+                            'dynamodb:BatchGetItem',
+                            'dynamodb:BatchWriteItem',
+                            'dynamodb:ConditionCheckItem',
+                            'dynamodb:DeleteItem',
+                            'dynamodb:DescribeTable',
+                            'dynamodb:GetItem',
+                            'dynamodb:GetRecords',
+                            'dynamodb:GetShardIterator',
+                            'dynamodb:PutItem',
+                            'dynamodb:Query',
+                            'dynamodb:Scan',
+                            'dynamodb:UpdateItem'
+                        ],
+                        'Effect': 'Allow',
+                        'Resource': [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            'Ref': 'AWS::Partition'
+                                        },
+                                        ':dynamodb:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            'Ref': 'AWS::AccountId'
+                                        },
+                                        ':table/',
+                                        {
+                                            'Fn::If': [
+                                                Match.anyValue(),
+                                                {
+                                                    'Ref': Match.anyValue()
+                                                },
+                                                {
+                                                    'Ref': 'ExistingCognitoGroupPolicyTableName'
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                ]
+                            },
+                            {
+                                'Ref': 'AWS::NoValue'
+                            }
+                        ]
+                    }
+                ],
+                'Version': '2012-10-17'
+            },
+            'PolicyName': Match.anyValue(),
+            'Roles': [
+                {
+                    'Ref': Match.anyValue()
+                }
+            ]
+        });
+
+        template.hasParameter('UseInferenceProfile', {
+            Type: 'String',
+            Default: 'No',
+            AllowedValues: ['Yes', 'No'],
+            Description:
+                'If the model configured is Bedrock, you can indicate if you are using Bedrock Inference Profile. This will ensure that the required IAM policies will be configured during stack deployment. For more details refer the following https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html'
+        });
+
+        template.hasCondition('InferenceProfileProvidedCondition', {
+            'Fn::Equals': [
+                {
+                    Ref: 'UseInferenceProfile'
+                },
+                'Yes'
+            ]
+        });
+
+        template.hasResourceProperties('Custom::GetModelResourceArns', {
+            'ServiceToken': {
+                'Fn::GetAtt': [Match.anyValue(), 'Arn']
+            },
+            'Resource': 'GET_MODEL_RESOURCE_ARNS',
+            'USE_CASE_CONFIG_TABLE_NAME': {
+                'Ref': 'UseCaseConfigTableName'
+            },
+            'USE_CASE_CONFIG_RECORD_KEY': {
+                'Ref': 'UseCaseConfigRecordKey'
+            }
+        });
+    });
 });
 
 function buildStack(): [Template, cdk.Stack] {

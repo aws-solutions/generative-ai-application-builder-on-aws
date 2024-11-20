@@ -23,11 +23,7 @@ import 'aws-sdk-client-mock-jest';
 import { UseCaseConfigManagement } from '../../ddb/use-case-config-management';
 import { UseCaseRecord } from '../../model/list-use-cases';
 import { UseCase } from '../../model/use-case';
-import {
-    CfnParameterKeys,
-    CHAT_PROVIDERS,
-    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
-} from '../../utils/constants';
+import { CfnParameterKeys, CHAT_PROVIDERS, USE_CASE_CONFIG_TABLE_NAME_ENV_VAR } from '../../utils/constants';
 import { getRetrySettings } from '../../utils/utils';
 import { createUseCaseEvent } from '../event-test-data';
 
@@ -41,7 +37,7 @@ describe('When creating the use case config ddb management operations', () => {
 
     describe('When successfully invoking the commands', () => {
         beforeAll(() => {
-            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
             process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = 'UseCaseConfigTable';
 
             config = {
@@ -157,7 +153,7 @@ describe('When retrieving the use case config details from the config table', ()
     let mockUseCaseConfig: any;
     describe('When successfully invoking the commands', () => {
         beforeAll(() => {
-            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.0.0" }`;
+            process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
             process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = 'UseCaseConfigTable';
 
             ddbMockedClient = mockClient(DynamoDBClient);

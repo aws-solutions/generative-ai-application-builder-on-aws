@@ -91,7 +91,9 @@ def web_ui_copy_setup(tmp_path, s3, ssm, ddb, lambda_event):
 
 
 @pytest.fixture
-def web_ui_copy_setup_with_config(tmp_path, s3, ssm, ddb, lambda_event, is_internal_user_ssm, is_internal_user_ddb):
+def web_ui_copy_setup_with_config(
+    tmp_path, s3, ssm, ddb, lambda_event, is_internal_user_ssm, is_internal_user_ddb, prompt_editing_enabled
+):
     local_dir = Path(__file__).absolute().parents[4] / "ui-chat" / "build"
     destination_bucket_name = lambda_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME]
     source_bucket_name = lambda_event[RESOURCE_PROPERTIES][SOURCE_BUCKET_NAME]
@@ -143,9 +145,18 @@ def web_ui_copy_setup_with_config(tmp_path, s3, ssm, ddb, lambda_event, is_inter
         Item={
             USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME: "fake_ddb_table_hash_key",
             "config": {
-                "param1": "test",
-                "param2": 10,
                 IS_INTERNAL_USER_KEY: "true" if is_internal_user_ddb else "false",
+                "UseCaseName": "test_use_case",
+                "LlmParams": {
+                    "PromptParams": {
+                        "UserPromptEditingEnabled": prompt_editing_enabled,
+                        "PromptTemplate": "fake_prompt_template",
+                        "MaxPromptTemplateLength": 1000,
+                        "MaxInputTextLength": 1000,
+                    },
+                    "RAGEnabled": True,
+                    "some_extra_param": "test",
+                },
             },
         },
     )

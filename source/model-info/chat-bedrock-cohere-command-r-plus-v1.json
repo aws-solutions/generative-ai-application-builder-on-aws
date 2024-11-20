@@ -1,0 +1,21 @@
+{
+    "UseCase": "Chat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "cohere.command-r-plus-v1:0",
+    "AllowsStreaming": false,
+    "Prompt": "{history}\n\n{input}",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "0.3",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "history",
+        "input": "input",
+        "context": null,
+        "ai_prefix": "AI",
+        "human_prefix": "Human",
+        "output": null
+    },
+    "MaxPromptSize": 240000,
+    "MaxChatMessageSize": 240000
+}

@@ -50,13 +50,23 @@ describe('When deployment platform stack is created', () => {
                     ]
                 ]
             },
-            'Condition': 'DeployWebApp'
+            'Condition': 'DeployWebAppUIInfrastructureCondition'
         });
         template.hasOutput('CognitoClientId', {
             'Value': {
-                'Fn::GetAtt': [
-                    'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
-                    'Outputs.DeploymentPlatformStackUseCaseManagementSetupUseCaseManagementRequestProcessorDeploymentPlatformCognitoSetupCfnAppClient67E32B70ClientId'
+                'Fn::If': [
+                    'DeploymentDashboardCognitoResourcesGenerated',
+                    {
+                        'Fn::GetAtt': [
+                            Match.stringLikeRegexp(
+                                'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource'
+                            ),
+                            'Outputs.GeneratedUserPoolClientId'
+                        ]
+                    },
+                    {
+                        'Ref': 'ExistingCognitoUserPoolClient'
+                    }
                 ]
             }
         });
@@ -258,7 +268,7 @@ describe('When deployment platform stack is created', () => {
                 DependsOn: Match.anyValue(),
                 UpdateReplacePolicy: 'Delete',
                 DeletionPolicy: 'Delete',
-                Condition: 'DeployWebApp'
+                Condition: 'DeployWebAppUIInfrastructureCondition'
             });
         });
 
@@ -291,12 +301,12 @@ describe('When deployment platform stack is created', () => {
                 DependsOn: Match.anyValue(),
                 UpdateReplacePolicy: 'Delete',
                 DeletionPolicy: 'Delete',
-                Condition: 'DeployWebApp'
+                Condition: 'DeployWebAppUIInfrastructureCondition'
             });
         });
 
         it('should have a condition for UI deployment', () => {
-            template.hasCondition('DeployWebApp', {
+            template.hasCondition('DeployWebAppUIInfrastructureCondition', {
                 'Fn::Equals': [
                     {
                         Ref: 'DeployUI'
@@ -314,6 +324,12 @@ describe('When deployment platform stack is created', () => {
                     },
                     'Yes'
                 ]
+            });
+        });
+
+        it('should have a condition specifying if cognito resources are created', () => {
+            template.hasCondition('DeploymentDashboardCognitoResourcesGenerated', {
+                'Fn::Equals': [{ 'Ref': 'ExistingCognitoUserPoolId' }, '']
             });
         });
 

@@ -19,6 +19,8 @@ import HomeContext from '../../../../contexts/home.context';
 import { ActionType } from '../../../../hooks/useCreateReducer';
 import { HomeInitialState } from '../../../../contexts/home.state';
 import { mockReactMarkdown } from '@/utils';
+import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 vi.mock('@cloudscape-design/components');
 
@@ -45,9 +47,12 @@ test('Snapshot test', async () => {
                         ...contextValue
                     }}
                 >
-                    <MemoryRouter initialEntries={['/wizardView']}>
+                    <MemoryRouter initialEntries={[USECASE_TYPE_ROUTE.TEXT]}>
                         <Routes>
-                            <Route path="/wizardView" element={<WizardView />} />
+                            <Route
+                                path={USECASE_TYPE_ROUTE.TEXT}
+                                element={<WizardView useCase={new TextUseCaseType()} />}
+                            />
                         </Routes>
                     </MemoryRouter>
                 </HomeContext.Provider>

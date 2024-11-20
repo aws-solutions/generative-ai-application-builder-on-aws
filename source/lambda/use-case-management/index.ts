@@ -26,11 +26,14 @@ import {
     UpdateUseCaseCommand
 } from './command';
 import { ListUseCasesAdapter } from './model/list-use-cases';
-import { ChatUseCaseDeploymentAdapter, ChatUseCaseInfoAdapter, UseCase } from './model/use-case';
+import { UseCase } from './model/use-case';
 import { logger, metrics, tracer } from './power-tools-init';
 import { checkEnv } from './utils/check-env';
 import { formatError, formatResponse } from './utils/http-response-formatters';
 import RequestValidationError from './utils/error';
+import { ChatUseCaseDeploymentAdapter, ChatUseCaseInfoAdapter } from './model/chat-use-case-adapter';
+import { AgentUseCaseDeploymentAdapter } from './model/agent-use-case-adapter';
+import { UseCaseTypeFromApiEvent } from './utils/constants';
 
 const commands: Map<string, CaseCommand> = new Map<string, CaseCommand>();
 commands.set('create', new CreateUseCaseCommand());
@@ -106,7 +109,20 @@ export const adaptEvent = (event: APIGatewayEvent, stackAction: string): UseCase
     } else if (stackAction === 'delete' || stackAction === 'permanentlyDelete') {
         return new ChatUseCaseInfoAdapter(event);
     }
-    return new ChatUseCaseDeploymentAdapter(event);
+
+    // Parse the event body
+    const eventBody = JSON.parse(event.body || '{}');
+    const useCaseType = eventBody.UseCaseType;
+
+    // Create the appropriate adapter based on UseCaseType
+    switch (useCaseType) {
+        case UseCaseTypeFromApiEvent.TEXT:
+            return new ChatUseCaseDeploymentAdapter(event);
+        case UseCaseTypeFromApiEvent.AGENT:
+            return new AgentUseCaseDeploymentAdapter(event);
+        default:
+            throw new Error(`Unsupported UseCaseType: ${useCaseType}`);
+    }
 };
 
 export const handler = middy(lambdaHandler).use([

@@ -17,68 +17,23 @@ import './index.css';
 import { Amplify } from 'aws-amplify';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
-import { API_NAME } from './utils/constants';
 import { UserContextProvider } from './UserContext';
-
-export async function getRuntimeConfig() {
-    const runtimeConfig = await fetch('/runtimeConfig.json');
-    return runtimeConfig.json();
-}
-
-export function constructAmplifyConfig(config) {
-    const amplifyConfig = {
-        Auth: {
-            region: config.AwsRegion,
-            userPoolId: config.UserPoolId,
-            userPoolWebClientId: config.UserPoolClientId,
-            oauth: {
-                domain: config.CognitoDomain,
-                scopes: ['aws.cognito.signin.user.admin', 'email', 'openid', 'profile'],
-                redirectSignIn: config.CognitoRedirectUrl,
-                redirectSignOut: config.CognitoRedirectUrl,
-                responseType: 'code'
-            }
-        },
-        API: {
-            endpoints: [
-                {
-                    name: API_NAME,
-                    endpoint: config.ApiEndpoint,
-                    region: config.AwsRegion
-                }
-            ]
-        }
-    };
-    return amplifyConfig;
-}
-
-function getDefaultPrompt(config) {
-    return config.UseCaseConfig.LlmParams.PromptParams.PromptTemplate;
-}
+import {
+    getRuntimeConfig,
+    constructAmplifyConfig,
+    generateAppComponent,
+    addUseCaseTypeToConfig
+} from './utils/construct-config';
 
 getRuntimeConfig().then(function (config) {
+    const updatedConfig = addUseCaseTypeToConfig(config);
     const amplifyConfig = constructAmplifyConfig(config);
     Amplify.configure(amplifyConfig);
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    const isInternalUser = config.IsInternalUser.toLowerCase() === 'true' ? true : false;
+
     root.render(
         <React.StrictMode>
-            <UserContextProvider>
-                <App
-                    socketUrl={config.SocketURL}
-                    defaultPromptTemplate={getDefaultPrompt(config)}
-                    useCaseName={config.UseCaseConfig.UseCaseName}
-                    RAGEnabled={config.UseCaseConfig.LlmParams.RAGEnabled}
-                    isInternalUser={isInternalUser}
-                    useCaseConfig={config.UseCaseConfig}
-                    userPromptEditingEnabled={
-                        config.UseCaseConfig.LlmParams.PromptParams.UserPromptEditingEnabled ?? true
-                    }
-                    maxPromptTemplateLength={config.UseCaseConfig.LlmParams.PromptParams.MaxPromptTemplateLength}
-                    maxInputTextLength={config.UseCaseConfig.LlmParams.PromptParams.MaxInputTextLength}
-                />
-            </UserContextProvider>
+            <UserContextProvider>{generateAppComponent(updatedConfig)}</UserContextProvider>
         </React.StrictMode>
     );
 });

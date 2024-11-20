@@ -4,4 +4,4 @@ export default class RequestValidationError extends Error {
 
         this.name = 'CustomHttpError';
     }
-}   
+}

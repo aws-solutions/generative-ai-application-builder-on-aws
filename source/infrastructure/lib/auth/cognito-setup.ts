@@ -26,6 +26,7 @@ import { DynamoDBAttributes, PLACEHOLDER_EMAIL } from '../utils/constants';
 export interface CognitoSetupProps {
     userPoolProps?: UserPoolProps;
     userPoolClientProps?: UserPoolClientProps;
+    deployWebApp: string;
 }
 
 export interface UserPoolProps {
@@ -58,6 +59,18 @@ export interface UserPoolProps {
      * Domain for the Cognito User Pool Client
      */
     cognitoDomainPrefix: string;
+
+    /**
+     * If provided, will use the provided UserPool instead of creating a new one.
+     * Must be provided an empty string if we do not want to use it (as condition must be checked from an incoming cfnParameter)
+     */
+    existingCognitoUserPoolId: string;
+
+    /**
+     * Name of table which stores policies for cognito user groups. Required if existingCognitoUserPoolId is provided.
+     * Must be provided an empty string if we do not want to use it (as condition must be checked from an incoming cfnParameter)
+     */
+    existingCognitoGroupPolicyTableName: string;
 }
 
 /**
@@ -75,21 +88,22 @@ export interface UserPoolClientProps {
     logoutUrl: string;
 
     /**
-     * the parameter if web apps are deployed. If not deployed, it will not pass callback/ logout urls to app client
-     */
-    deployWebApp?: string;
-
-    /**
      * You can either pass the parameter deployWebApp parameter or the condition, not both. If the condition is passed,
      * the construct will use the condition not the parameter.
      */
     deployWebAppCondition?: cdk.CfnCondition;
+
+    /**
+     * If provided, will use the provided UserPoolClient instead of creating a new one.
+     * Must be provided an empty string if we do not want to use it (as condition must be checked from an incoming cfnParameter)
+     */
+    existingCognitoUserPoolClientId: string;
 }
 
 /**
  * Class handling common cognito setup logic, to be implemented in children specific to use case and deployment platforms
  */
-export abstract class CognitoSetup extends Construct {
+export class CognitoSetup extends Construct {
     /**
      * Cognito UserPool for external users
      */
@@ -104,6 +118,11 @@ export abstract class CognitoSetup extends Construct {
      * The domain associated with the user pool
      */
     public userPoolDomain: cognito.IUserPoolDomain;
+
+    /**
+     * Generated domain, filled if generated and used for exporting to parent stacks without condition
+     */
+    public generatedUserPoolDomain?: cognito.IUserPoolDomain;
 
     /**
      * The group created during execution of configureCognitoUserPool
@@ -125,9 +144,87 @@ export abstract class CognitoSetup extends Construct {
      */
     private readonly stack: cdk.Stack;
 
-    constructor(scope: Construct, id: string) {
+    public createUserPoolCondition: cdk.CfnCondition;
+
+    public createUserPoolClientCondition: cdk.CfnCondition;
+
+    public createCognitoGroupPolicyTableCondition: cdk.CfnCondition;
+
+    constructor(scope: Construct, id: string, props: CognitoSetupProps) {
         super(scope, id);
         this.stack = cdk.Stack.of(scope);
+
+        this.createUserPoolCondition = new cdk.CfnCondition(this, 'CreateUserPoolCondition', {
+            expression: cdk.Fn.conditionEquals(props.userPoolProps!.existingCognitoUserPoolId, '')
+        });
+
+        this.createCognitoGroupPolicyTableCondition = new cdk.CfnCondition(
+            this,
+            'CreateCognitoGroupPolicyTableCondition',
+            {
+                expression: cdk.Fn.conditionEquals(props.userPoolProps!.existingCognitoGroupPolicyTableName, '')
+            }
+        );
+
+        // conditionally create the user pool
+        const userPool = this.createUserPool(props.userPoolProps!);
+        (userPool.node.defaultChild as cdk.CfnResource).cfnOptions.condition = this.createUserPoolCondition;
+
+        // Conditionally create the ddb table for storing policies
+        const cognitoGroupPolicyTable = this.createPolicyTable();
+        (cognitoGroupPolicyTable.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            this.createCognitoGroupPolicyTableCondition;
+
+        // exposing the correct members based on whether new resources were created
+        const userPoolId = cdk.Fn.conditionIf(
+            this.createUserPoolCondition.logicalId,
+            userPool.userPoolId,
+            props.userPoolProps!.existingCognitoUserPoolId
+        ).toString();
+        this.userPool = cognito.UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
+
+        const CognitoGroupPolicyTableName = cdk.Fn.conditionIf(
+            this.createCognitoGroupPolicyTableCondition.logicalId,
+            cognitoGroupPolicyTable.tableName,
+            props.userPoolProps!.existingCognitoGroupPolicyTableName
+        ).toString();
+        this.cognitoGroupPolicyTable = dynamodb.Table.fromTableName(
+            this,
+            'CognitoGroupPolicyTable',
+            CognitoGroupPolicyTableName
+        );
+
+        // Create or expose the user pool domain
+        this.createUserPoolDomain(props.userPoolProps!);
+
+        // create the user and group as needed
+        this.createUserAndUserGroup(props.userPoolProps!);
+
+        // create the client as needed
+        if (props.userPoolClientProps?.deployWebAppCondition !== undefined) {
+            this.deployWebAppCondition = props.userPoolClientProps.deployWebAppCondition;
+        } else {
+            if (props.deployWebApp !== undefined) {
+                this.getOrCreateDeployWebAppCondition(this, props.deployWebApp);
+            } else {
+                throw new Error('deployWebApp parameter or deployWebAppCondition has to be provided');
+            }
+        }
+
+        if (props.userPoolClientProps !== undefined) {
+            this.createUserPoolClient(props.userPoolClientProps);
+        }
+
+        NagSuppressions.addResourceSuppressions(
+            this.node.tryFindChild('NewUserPool')?.node.tryFindChild('smsRole')?.node.defaultChild as iam.CfnRole,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'This user pool role is CDK generated for sending emails or SMS messages to users',
+                    appliesTo: ['Resource::*']
+                }
+            ]
+        );
     }
 
     /**
@@ -355,12 +452,25 @@ export abstract class CognitoSetup extends Construct {
             props.cognitoDomainPrefix
         ).toString();
 
-        this.userPoolDomain = new cognito.UserPoolDomain(this, 'UserPoolDomain', {
+        this.generatedUserPoolDomain = new cognito.UserPoolDomain(this, 'UserPoolDomain', {
             userPool: this.userPool,
             cognitoDomain: {
                 domainPrefix: domainPrefix
             }
         });
+        (this.generatedUserPoolDomain.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            this.createUserPoolCondition;
+
+        const userPoolDomainName = cdk.Fn.conditionIf(
+            this.createUserPoolCondition.logicalId,
+            this.generatedUserPoolDomain.domainName,
+            props.cognitoDomainPrefix
+        ).toString();
+        this.userPoolDomain = cognito.UserPoolDomain.fromDomainName(
+            this,
+            'GeneratedUserPoolDomain',
+            userPoolDomainName
+        );
     }
 
     /**
@@ -369,19 +479,10 @@ export abstract class CognitoSetup extends Construct {
      * @param props
      */
     public createUserPoolClient(props: UserPoolClientProps) {
-        if (props.deployWebAppCondition !== undefined) {
-            this.deployWebAppCondition = props.deployWebAppCondition;
-        } else {
-            if (props.deployWebApp !== undefined) {
-                this.getOrCreateDeployWebAppCondition(this, props.deployWebApp);
-            } else {
-                throw new Error('deployWebApp parameter or deployWebAppCondition has to be provided');
-            }
-        }
-
         const cfnUserPoolClient = new cognito.CfnUserPoolClient(this, 'CfnAppClient', {
             accessTokenValidity: cdk.Duration.minutes(5).toMinutes(),
             idTokenValidity: cdk.Duration.minutes(5).toMinutes(),
+            refreshTokenValidity: cdk.Duration.days(1).toDays(),
             userPoolId: this.userPool.userPoolId,
             generateSecret: false,
             allowedOAuthFlowsUserPoolClient: cdk.Fn.conditionIf(
@@ -414,20 +515,40 @@ export abstract class CognitoSetup extends Construct {
                 ],
                 cdk.Aws.NO_VALUE
             ).toString() as unknown as string[],
-            callbackUrLs: [props.callbackUrl],
-            logoutUrLs: [props.logoutUrl],
+            callbackUrLs: [
+                cdk.Fn.conditionIf(this.deployWebAppCondition.logicalId, props.callbackUrl, cdk.Aws.NO_VALUE).toString()
+            ],
+            logoutUrLs: [
+                cdk.Fn.conditionIf(this.deployWebAppCondition.logicalId, props.callbackUrl, cdk.Aws.NO_VALUE).toString()
+            ],
             supportedIdentityProviders: ['COGNITO'],
             tokenValidityUnits: {
                 accessToken: 'minutes',
-                idToken: 'minutes'
+                idToken: 'minutes',
+                refreshToken: 'days'
             }
         });
 
-        this.userPoolClient = cognito.UserPoolClient.fromUserPoolClientId(
+        const userPoolClient = cognito.UserPoolClient.fromUserPoolClientId(
             this,
             'AppClient',
             cfnUserPoolClient.attrClientId
         );
+
+        this.createUserPoolClientCondition = new cdk.CfnCondition(this, 'CreateUserPoolClientCondition', {
+            expression: cdk.Fn.conditionEquals(props.existingCognitoUserPoolClientId, '')
+        });
+
+        (this.node.tryFindChild('CfnAppClient') as cognito.CfnUserPoolClient).cfnOptions.condition =
+            this.createUserPoolClientCondition;
+
+        const userPoolClientId = cdk.Fn.conditionIf(
+            this.createUserPoolClientCondition.logicalId,
+            userPoolClient.userPoolClientId,
+            props.existingCognitoUserPoolClientId
+        ).toString();
+
+        this.userPoolClient = cognito.UserPoolClient.fromUserPoolClientId(this, 'UserPoolClient', userPoolClientId);
     }
 
     /**
@@ -441,7 +562,7 @@ export abstract class CognitoSetup extends Construct {
             return this.deployWebAppCondition;
         }
 
-        this.deployWebAppCondition = new cdk.CfnCondition(cdk.Stack.of(scope), 'DeployWebApp', {
+        this.deployWebAppCondition = new cdk.CfnCondition(cdk.Stack.of(scope), 'DeployWebAppCognitoCondition', {
             expression: cdk.Fn.conditionEquals(deployWebApp, 'Yes')
         });
         return this.deployWebAppCondition;

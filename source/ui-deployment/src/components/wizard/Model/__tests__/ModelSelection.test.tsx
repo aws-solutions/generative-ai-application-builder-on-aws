@@ -15,6 +15,7 @@ import { mockFormComponentCallbacks, mockReactMarkdown, renderWithProvider, mock
 import { screen } from '@testing-library/react';
 import { BEDROCK_MODEL_OPTION_IDX, MODEL_FAMILY_PROVIDER_OPTIONS } from '../../steps-config';
 import { ModelProviderOption } from '../../interfaces';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 
 let ModelSelection: any;
 
@@ -35,7 +36,7 @@ describe('ModelSelection', () => {
         };
 
         renderWithProvider(<ModelSelection {...mockModelSelectionProps} {...mockFormComponentCallbacks()} />, {
-            route: '/wizardView'
+            route: USECASE_TYPE_ROUTE.TEXT
         });
 
         expect(screen.getByTestId('bedrock-model-components')).toBeDefined();

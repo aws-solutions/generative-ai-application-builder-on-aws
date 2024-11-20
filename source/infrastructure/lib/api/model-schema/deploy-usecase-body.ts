@@ -13,6 +13,7 @@
 
 import { JsonSchema, JsonSchemaType, JsonSchemaVersion } from 'aws-cdk-lib/aws-apigateway';
 import {
+    AUTHENTICATION_PROVIDERS,
     CHAT_PROVIDERS,
     DEFAULT_CONVERSATION_MEMORY_TYPE,
     DEFAULT_ENABLE_RBAC,
@@ -31,15 +32,23 @@ import {
     MIN_KENDRA_NUMBER_OF_DOCS,
     MIN_SCORE_THRESHOLD,
     MODEL_PARAM_TYPES,
+    SUPPORTED_AGENT_TYPES,
+    SUPPORTED_AUTHENTICATION_PROVIDERS,
     SUPPORTED_CHAT_PROVIDERS,
     SUPPORTED_CONVERSATION_MEMORY_TYPES,
-    SUPPORTED_KNOWLEDGE_BASE_TYPES
+    SUPPORTED_KNOWLEDGE_BASE_TYPES,
+    USE_CASE_TYPES
 } from '../../utils/constants';
 
 export const deployUseCaseBodySchema: JsonSchema = {
     schema: JsonSchemaVersion.DRAFT7,
     type: JsonSchemaType.OBJECT,
     properties: {
+        UseCaseType: {
+            type: JsonSchemaType.STRING,
+            description: 'Type of the use case to be deployed. Either "Text" or "Agent".',
+            enum: [USE_CASE_TYPES.TEXT, USE_CASE_TYPES.AGENT]
+        },
         UseCaseName: {
             type: JsonSchemaType.STRING,
             description: 'Friendly name of the use case to be deployed. For display purposes.'
@@ -358,6 +367,47 @@ export const deployUseCaseBodySchema: JsonSchema = {
             required: ['KnowledgeBaseType'],
             additionalProperties: false
         },
+        AuthenticationParams: {
+            type: JsonSchemaType.OBJECT,
+            description: 'Parameters related to the Authentication.',
+            properties: {
+                AuthenticationProvider: {
+                    type: JsonSchemaType.STRING,
+                    description: 'Supported authentication provider.',
+                    enum: SUPPORTED_AUTHENTICATION_PROVIDERS
+                },
+                CognitoParams: {
+                    type: JsonSchemaType.OBJECT,
+                    description: 'Cognito user pool related parameters.',
+                    properties: {
+                        ExistingUserPoolId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Id.',
+                            pattern: '^[\\w-]+_[0-9a-zA-Z]+$',
+                            minLength: 1,
+                            maxLength: 55
+                        },
+                        ExistingUserPoolClientId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Existing Cognito User Pool Client Id.',
+                            pattern: '^[\\w+]+$',
+                            minLength: 1,
+                            maxLength: 128
+                        }
+                    },
+                    required: ['ExistingUserPoolId']
+                }
+            },
+            anyOf: [
+                {
+                    properties: {
+                        AuthenticationProvider: { enum: [AUTHENTICATION_PROVIDERS.COGNITO] }
+                    },
+                    required: ['CognitoParams']
+                }
+            ],
+            required: ['AuthenticationProvider']
+        },
         LlmParams: {
             type: JsonSchemaType.OBJECT,
             description: 'Parameters related to the LLM performing inferences.',
@@ -385,6 +435,12 @@ export const deployUseCaseBodySchema: JsonSchema = {
                             pattern:
                                 '^(arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}:(([0-9]{12}:custom-model/[a-z0-9-]{1,63}[.]{1}[a-z0-9-:]{1,63}/[a-z0-9]{12})|(:foundation-model/[a-z0-9-]{1,63}[.]{1}[a-z0-9-]{1,63}([.:]?[a-z0-9-]{1,63})([.:]?[a-z0-9-]{1,63}))|([0-9]{12}:provisioned-model/[a-z0-9]{12})))$'
                         },
+                        InferenceProfileId: {
+                            type: JsonSchemaType.STRING,
+                            description:
+                                'The identifier of the Bedrock inference profile to use when invoking the model. When provided, a ModelId and ModelArn should not be provided. All inference requests will be mapped to the specified inference profile, which can be configured in the Bedrock console. This enables cross region model invocation. See: https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference-use.html',
+                            pattern: '^[a-zA-Z0-9-:.]+$'
+                        },
                         GuardrailIdentifier: {
                             type: JsonSchemaType.STRING,
                             description:
@@ -399,23 +455,47 @@ export const deployUseCaseBodySchema: JsonSchema = {
                             pattern: '^(([1-9][0-9]{0,7})|(DRAFT))$'
                         }
                     },
-                    // either provide both guardrail params or neither
-                    oneOf: [
+                    allOf: [
+                        // either provide both guardrail params or neither
                         {
-                            required: ['GuardrailIdentifier', 'GuardrailVersion']
-                        },
-                        {
-                            properties: {
-                                GuardrailIdentifier: {
-                                    not: {}
+                            oneOf: [
+                                {
+                                    required: ['GuardrailIdentifier', 'GuardrailVersion']
                                 },
-                                GuardrailVersion: {
-                                    not: {}
+                                {
+                                    properties: {
+                                        GuardrailIdentifier: {
+                                            not: {}
+                                        },
+                                        GuardrailVersion: {
+                                            not: {}
+                                        }
+                                    }
                                 }
-                            }
+                            ]
+                        },
+                        // either provide ModelId or InferenceProfileId but not the other
+                        {
+                            oneOf: [
+                                {
+                                    required: ['ModelId'],
+                                    properties: {
+                                        InferenceProfileId: {
+                                            not: {}
+                                        }
+                                    }
+                                },
+                                {
+                                    required: ['InferenceProfileId'],
+                                    properties: {
+                                        ModelId: {
+                                            not: {}
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     ],
-                    required: ['ModelId'],
                     additionalProperties: false
                 },
                 SageMakerLlmParams: {
@@ -549,39 +629,87 @@ export const deployUseCaseBodySchema: JsonSchema = {
                 }
             ],
             additionalProperties: false
-        }
-    },
-    // If RAG is enabled, ensure we provide the KnowledgeBaseParams
-    oneOf: [
-        {
-            properties: {
-                LlmParams: {
-                    properties: {
-                        RAGEnabled: {
-                            type: JsonSchemaType.BOOLEAN,
-                            enum: [false]
-                        }
-                    }
-                },
-                KnowledgeBaseParams: {
-                    'not': {}
-                }
-            }
         },
-        {
+        AgentParams: {
+            type: JsonSchemaType.OBJECT,
+            description: 'Parameters for Bedrock agent invocation workflow.',
             properties: {
-                LlmParams: {
+                AgentType: {
+                    type: JsonSchemaType.STRING,
+                    description: 'The type of agent to use. Required.',
+                    enum: SUPPORTED_AGENT_TYPES
+                },
+                BedrockAgentParams: {
+                    type: JsonSchemaType.OBJECT,
                     properties: {
-                        RAGEnabled: {
+                        AgentId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'ID of the Bedrock agent to be invoked.',
+                            pattern: '^[0-9a-zA-Z]+$',
+                            maxLength: 10
+                        },
+                        AgentAliasId: {
+                            type: JsonSchemaType.STRING,
+                            description: 'Alias ID of the Bedrock agent to be invoked.',
+                            pattern: '^[0-9a-zA-Z]+$',
+                            maxLength: 10
+                        },
+                        EnableTrace: {
                             type: JsonSchemaType.BOOLEAN,
-                            enum: [true]
+                            description: 'Whether to enable tracing for the agent invocation.',
+                            default: false
                         }
-                    }
+                    },
+                    required: ['AgentId', 'AgentAliasId', 'EnableTrace'],
+                    additionalProperties: false
                 }
             },
-            required: ['KnowledgeBaseParams']
+            required: ['AgentType'],
+            additionalProperties: false
+        }
+    },
+    required: ['UseCaseType', 'UseCaseName'],
+    oneOf: [
+        {
+            // Text-based use case
+            properties: {
+                UseCaseType: { enum: [USE_CASE_TYPES.TEXT] }
+            },
+            required: ['LlmParams'],
+            oneOf: [
+                {
+                    // Non-RAG case
+                    properties: {
+                        LlmParams: {
+                            properties: {
+                                RAGEnabled: { enum: [false] }
+                            }
+                        },
+                        KnowledgeBaseParams: { 'not': {} }
+                    }
+                },
+                {
+                    // RAG-enabled case
+                    properties: {
+                        LlmParams: {
+                            properties: {
+                                RAGEnabled: { enum: [true] }
+                            }
+                        }
+                    },
+                    required: ['KnowledgeBaseParams']
+                }
+            ]
+        },
+        {
+            // Agent-based use case
+            properties: {
+                UseCaseType: { enum: [USE_CASE_TYPES.AGENT] },
+                KnowledgeBaseParams: { 'not': {} },
+                LlmParams: { 'not': {} }
+            },
+            required: ['AgentParams']
         }
     ],
-    required: ['UseCaseName', 'LlmParams'],
     additionalProperties: false
 };

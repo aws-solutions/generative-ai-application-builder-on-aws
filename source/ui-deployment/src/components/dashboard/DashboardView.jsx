@@ -26,7 +26,7 @@ import { DEFAULT_PREFERENCES, Preferences, parseStackName } from '../commons/tab
 import { listDeployedUseCases, statusIndicatorTypeSelector } from './deployments';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
 import { dateOptions } from '../useCaseDetails/common-components';
-import { CFN_STACK_STATUS_INDICATOR, ERROR_MESSAGES } from '../../utils/constants';
+import { CFN_STACK_STATUS_INDICATOR, ERROR_MESSAGES, USECASE_TYPES } from '../../utils/constants';
 
 function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
     const [selectedItems, setSelectedItems] = useState([]);
@@ -287,6 +287,12 @@ export default function DashboardView() {
             minWidth: 100
         },
         {
+            id: 'useCaseType',
+            header: 'Use Case Type',
+            cell: (item) => item.UseCaseType ?? USECASE_TYPES.TEXT,
+            minWidth: 100
+        },
+        {
             id: 'status',
             header: 'Application Status',
             cell: (item) => displayStackStatus(item),
@@ -301,7 +307,7 @@ export default function DashboardView() {
         {
             id: 'modelProvider',
             header: 'Model Provider',
-            cell: (item) => item.LlmParams.ModelProvider ?? 'N/A',
+            cell: (item) => item.LlmParams?.ModelProvider ?? 'N/A',
             minWidth: 100
         },
         {

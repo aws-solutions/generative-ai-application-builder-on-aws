@@ -15,14 +15,12 @@ import React from 'react';
 import { FormField, Input, InputProps } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../../interfaces';
 import { InfoLink } from '../../../../commons';
-import { TOOLS_CONTENT } from '../../../tools-content';
 import {
     MAX_ADDITIONAL_KENDRA_QUERY_CAPACITY,
     MIN_ADDITIONAL_KENDRA_QUERY_CAPACITY
 } from '../../../../../utils/constants';
 import { updateNumFieldsInError } from '../../../utils';
-
-const { knowledgeBase: knowledgeBaseToolsContent } = TOOLS_CONTENT;
+import { knowledgeBaseInfoPanel } from '../../helpers';
 
 interface KendraQueryCapacityProps extends BaseFormComponentProps {
     knowledgeBaseData: any;
@@ -57,7 +55,7 @@ export const KendraQueryCapacity = (props: KendraQueryCapacityProps) => {
             label={<>Kendra additional query capacity</>}
             info={
                 <InfoLink
-                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseToolsContent.kendraAdditionalQueryCapacity)}
+                    onFollow={() => props.setHelpPanelContent!(knowledgeBaseInfoPanel.kendraAdditionalQueryCapacity)}
                     ariaLabel={'Information about query capacity.'}
                 />
             }

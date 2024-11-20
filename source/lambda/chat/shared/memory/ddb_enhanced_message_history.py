@@ -21,9 +21,18 @@ from botocore.exceptions import ClientError
 from helper import get_service_resource
 from langchain.schema import _message_to_dict
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.messages import BaseMessage, messages_from_dict, messages_to_dict
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    ChatMessage,
+    FunctionMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+    messages_from_dict,
+    messages_to_dict,
+)
 from utils.constants import DDB_MESSAGE_TTL_ENV_VAR, DEFAULT_DDB_MESSAGE_TTL, TRACE_ID_ENV_VAR
-from utils.enum_types import ConversationMemoryTypes
 
 logger = Logger(utc=True)
 tracer = Tracer()
@@ -40,16 +49,22 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
         conversation_id (str): The key that is used to store the messages of a single chat session for a given user. Used as the sort key in the table.
     """
 
-    memory_type: ConversationMemoryTypes = ConversationMemoryTypes.DynamoDB.value
-
     def __init__(
-        self, table_name: str, user_id: str, conversation_id: str, max_history_length: Optional[int] = None
+        self,
+        table_name: str,
+        user_id: str,
+        conversation_id: str,
+        max_history_length: Optional[int] = None,
+        human_prefix: Optional[str] = "Human",
+        ai_prefix: Optional[str] = "AI",
     ) -> None:
         ddb_resource = get_service_resource("dynamodb")
         self.table = ddb_resource.Table(table_name)
         self.conversation_id = conversation_id
         self.user_id = user_id
         self.max_history_length = int(max_history_length) if max_history_length else None
+        self.human_prefix = human_prefix
+        self.ai_prefix = ai_prefix
 
     @property
     @tracer.capture_method(capture_response=True)
@@ -83,10 +98,46 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
             messages = messages_from_dict(items)
             return messages
 
+    def get_role_prepended_message(self, message: BaseMessage) -> BaseMessage:
+        """Convert a message to string with pre-pended role.
+        Modification of langchain_core.messages.get_buffer_string method
+
+        Args:
+            message: A BaseMessage who's content needs to be updated with its role
+
+        Returns:
+            A BaseMessage with the concatenated role as content of the BaseMessage
+
+        Raises:
+            ValueError: If an unsupported message type is encountered.
+        """
+        if isinstance(message, HumanMessage):
+            role = self.human_prefix
+        elif isinstance(message, AIMessage):
+            role = self.ai_prefix
+        elif isinstance(message, SystemMessage):
+            role = "System"
+        elif isinstance(message, FunctionMessage):
+            role = "Function"
+        elif isinstance(message, ToolMessage):
+            role = "Tool"
+        elif isinstance(message, ChatMessage):
+            role = message.role
+        else:
+            raise ValueError(f"Got unsupported message type: {message}")
+
+        constructed_message = f"{role}: {message.content}"
+        if isinstance(message, AIMessage) and "function_call" in message.additional_kwargs:
+            constructed_message += f"{message.additional_kwargs['function_call']}"
+
+        message.content = constructed_message
+        return message
+
     @tracer.capture_method
     def add_message(self, message: BaseMessage) -> None:
         """Append the message to the record in DynamoDB"""
-        from botocore.exceptions import ClientError
+
+        message = self.get_role_prepended_message(message)
 
         messages = messages_to_dict(self.messages)
         _message = _message_to_dict(message)

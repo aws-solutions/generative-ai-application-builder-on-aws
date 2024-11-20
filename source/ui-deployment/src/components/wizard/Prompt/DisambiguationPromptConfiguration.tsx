@@ -164,9 +164,9 @@ const disambiguationPromptTemplateInfoPanel = {
                 being sent to the knowledge base unchanged.
             </Box>
             <Box variant="p">
-                For example, with disambiguation enabled, follow up user query of <i>"How much does it cost"</i>, might
-                be disambiguated to <i>"How much does it cost renew my license plate"</i>, leading to a better search
-                query.
+                For example, with disambiguation enabled, a follow up user query of <i>"How much does it cost"</i>,
+                might be disambiguated to <i>"How much does it cost to renew my license plate"</i>, leading to a better
+                search query.
             </Box>
             <Box variant="p">
                 Prompts are a great way to customize and control the response behaviour of an LLM. Here are the

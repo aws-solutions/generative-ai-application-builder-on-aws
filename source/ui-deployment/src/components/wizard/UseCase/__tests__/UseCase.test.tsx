@@ -13,6 +13,7 @@
 
 import UseCase from '../UseCase';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
+import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 import { cleanup, screen } from '@testing-library/react';
 
 describe('UseCase', () => {
@@ -36,19 +37,13 @@ describe('UseCase', () => {
 
         const { cloudscapeWrapper } = renderWithProvider(
             <UseCase info={mockUseCaseInfo} {...mockFormComponentCallbacks()} />,
-            { route: '/wizardView' }
+            { route: USECASE_TYPE_ROUTE.TEXT }
         );
         expect(screen.getByTestId('use-case-name-field')).toBeDefined();
         expect(cloudscapeWrapper.findInput()?.getInputValue()).toEqual('fake-use-case');
 
         expect(screen.getByTestId('use-case-description-field')).toBeDefined();
         expect(cloudscapeWrapper.findTextarea()?.getTextareaValue()).toEqual('fake-use-case-description');
-
-        expect(screen.getByTestId('use-case-type-selection')).toBeDefined();
-        cloudscapeWrapper?.findSelect()?.openDropdown();
-        expect(
-            cloudscapeWrapper.findSelect()?.findDropdown().findSelectedOptions()[0].getElement().innerHTML
-        ).toContain('Chat');
 
         expect(screen.getByTestId('user-email-field')).toBeDefined();
         expect(cloudscapeWrapper.findInput('[data-testid="user-email-field-input"]')?.getInputValue()).toEqual(
@@ -59,7 +54,7 @@ describe('UseCase', () => {
         expect(
             cloudscapeWrapper
                 .findRadioGroup('[data-testid="deploy-ui-radio-group"]')
-                ?.findInputByValue('yes')
+                ?.findInputByValue('Yes')
                 ?.getElement().checked
         ).toBeTruthy();
     });

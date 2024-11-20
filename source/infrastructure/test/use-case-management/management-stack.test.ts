@@ -19,11 +19,10 @@ import {
     ARTIFACT_BUCKET_ENV_VAR,
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     CLIENT_ID_ENV_VAR,
-    COGNITO_DOMAIN_PREFIX_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
-    EMAIL_REGEX_PATTERN,
     IS_INTERNAL_USER_ENV_VAR,
+    OPTIONAL_EMAIL_REGEX_PATTERN,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
     WEBCONFIG_SSM_KEY_ENV_VAR
@@ -32,12 +31,17 @@ import {
 describe('When creating a use case management Stack', () => {
     let template: Template;
     let stack: cdk.Stack;
+    let oldTemplateOutputBucket: string;
     let oldDistBucket: string;
 
     beforeAll(() => {
         rawCdkJson.context['cdk-asset-bucket'] = 'asset-bucket';
-        oldDistBucket = process.env.TEMPLATE_OUTPUT_BUCKET ?? '';
+        oldTemplateOutputBucket = process.env.TEMPLATE_OUTPUT_BUCKET ?? '';
         delete process.env.TEMPLATE_OUTPUT_BUCKET;
+
+        oldDistBucket = process.env.DIST_OUTPUT_BUCKET ?? '';
+        delete process.env.DIST_OUTPUT_BUCKET;
+
         const app = new cdk.App({ context: rawCdkJson.context });
         stack = new UseCaseManagement(new cdk.Stack(app, 'ParentStack'), 'ManagementStack', {
             parameters: {
@@ -51,8 +55,12 @@ describe('When creating a use case management Stack', () => {
     });
 
     afterAll(() => {
-        if (oldDistBucket && oldDistBucket != '') {
-            process.env.TEMPLATE_OUTPUT_BUCKET = oldDistBucket;
+        if (oldTemplateOutputBucket && oldTemplateOutputBucket !== '') {
+            process.env.TEMPLATE_OUTPUT_BUCKET = oldTemplateOutputBucket;
+        }
+
+        if (oldDistBucket && oldDistBucket !== '') {
+            process.env.DIST_OUTPUT_BUCKET = oldDistBucket;
         }
     });
 
@@ -64,7 +72,7 @@ describe('When creating a use case management Stack', () => {
         template.hasParameter('DefaultUserEmail', {
             Type: 'String',
             Description: 'Email required to create the default user for the deployment platform',
-            AllowedPattern: EMAIL_REGEX_PATTERN,
+            AllowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             ConstraintDescription: 'Please provide a valid email'
         });
 
@@ -155,15 +163,32 @@ describe('When creating a use case management Stack', () => {
                         Ref: 'WebConfigSSMKey'
                     },
                     [COGNITO_POLICY_TABLE_ENV_VAR]: {
-                        Ref: Match.stringLikeRegexp(
-                            'RequestProcessorDeploymentPlatformCognitoSetupCognitoGroupPolicyStore*'
-                        )
+                        'Fn::If': [
+                            Match.stringLikeRegexp(
+                                'RequestProcessorDeploymentPlatformCognitoSetupCreateCognitoGroupPolicyTableCondition'
+                            ),
+                            {
+                                Ref: Match.stringLikeRegexp(
+                                    'RequestProcessorDeploymentPlatformCognitoSetupCognitoGroupPolicy'
+                                )
+                            },
+                            ''
+                        ]
                     },
                     [USER_POOL_ID_ENV_VAR]: {
-                        Ref: Match.stringLikeRegexp('RequestProcessorDeploymentPlatformCognitoSetupNewUserPool*')
+                        'Fn::If': [
+                            Match.stringLikeRegexp(
+                                'RequestProcessorDeploymentPlatformCognitoSetupCreateUserPoolCondition'
+                            ),
+                            {
+                                Ref: Match.stringLikeRegexp('RequestProcessorDeploymentPlatformCognitoSetupNewUserPool')
+                            },
+                            {
+                                Ref: 'ExistingCognitoUserPoolId'
+                            }
+                        ]
                     },
                     [IS_INTERNAL_USER_ENV_VAR]: Match.anyValue(),
-                    [COGNITO_DOMAIN_PREFIX_VAR]: Match.anyValue(),
                     [CLIENT_ID_ENV_VAR]: Match.anyValue()
                 }
             },
@@ -691,6 +716,30 @@ describe('When creating a use case management Stack', () => {
                                 'aws:CalledVia': ['cloudformation.amazonaws.com']
                             }
                         },
+                        Effect: 'Allow',
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        Ref: 'AWS::Partition'
+                                    },
+                                    ':cognito-idp:',
+                                    {
+                                        Ref: 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        Ref: 'AWS::AccountId'
+                                    },
+                                    ':userpool/*'
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        Action: 'cognito-idp:DescribeUserPool',
                         Effect: 'Allow',
                         Resource: {
                             'Fn::Join': [

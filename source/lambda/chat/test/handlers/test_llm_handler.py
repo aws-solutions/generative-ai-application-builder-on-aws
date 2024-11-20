@@ -18,13 +18,21 @@ from unittest.mock import patch
 
 import pytest
 from bedrock_handler import lambda_handler
-from utils.constants import CHAT_IDENTIFIER, CONVERSATION_ID_EVENT_KEY, END_CONVERSATION_TOKEN, RAG_CHAT_IDENTIFIER
+from utils.constants import (
+    CHAT_IDENTIFIER,
+    CONTEXT_KEY,
+    CONVERSATION_ID_EVENT_KEY,
+    END_CONVERSATION_TOKEN,
+    OUTPUT_KEY,
+    RAG_CHAT_IDENTIFIER,
+    REPHRASED_QUERY_KEY,
+)
 from utils.enum_types import KnowledgeBaseTypes
 
 from . import bedrock_source_doc_responses, kendra_source_doc_responses, mocked_kendra_docs
 
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
 
 
 @pytest.fixture
@@ -49,13 +57,30 @@ def lambda_context():
 
 
 @pytest.fixture
-def chat_event_with_array():
+def chat_event_with_array(rag_enabled):
+    if rag_enabled:
+        prompt = "\\n\\nHuman: You are a friendly AI assistant that is helpful, honest, and harmless. Use the context to answer questions. {context} \\n\\nHere is the current conversation:\\n{history}\\n\\n{input}\\n\\nAssistant:"
+    else:
+        prompt = "\\n\\nHuman: You are a friendly AI assistant that is helpful, honest, and harmless.\\n\\nHere is the current conversation:\\n{history}\\n\\n{input}\\n\\nAssistant:"
     yield {
         "Records": [
             {
                 "messageId": "fake-message-id-0",
                 "receiptHandle": "fake-receipt-handle",
-                "body": '{"requestContext": {"authorizer": {"UserId": "fake-user-id"}, "connectionId": "fake-connection-id"}, "message": {"action":"sendMessage","question":"fake_message","conversationId":"fake-conversation-id","promptTemplate":"\\n\\nHuman: You are a friendly AI assistant that is helpful, honest, and harmless.\\n\\nHere is the current conversation:\\n{history}\\n\\n{input}\\n\\nAssistant:"}}',
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {"UserId": "fake-user-id"},
+                            "connectionId": "fake-connection-id",
+                        },
+                        "message": {
+                            "action": "sendMessage",
+                            "question": "fake_message",
+                            "conversationId": "fake-conversation-id",
+                            "promptTemplate": prompt,
+                        },
+                    }
+                ),
                 "attributes": {
                     "ApproximateReceiveCount": "1",
                     "AWSTraceHeader": "Root=fake-tracer-id",
@@ -89,7 +114,20 @@ def chat_event_with_array():
             {
                 "messageId": "fake-message-id-1",
                 "receiptHandle": "fake-receipt-handle",
-                "body": '{"requestContext": {"authorizer": {"UserId": "fake-user-id"}, "connectionId": "fake-connection-id"}, "message": {"action":"sendMessage","question":"fake_message","conversationId":"fake-conversation-id","promptTemplate":"\\n\\nHuman: You are a friendly AI assistant that is helpful, honest, and harmless.\\n\\nHere is the current conversation:\\n{history}\\n\\n{input}\\n\\nAssistant:"}}',
+                "body": json.dumps(
+                    {
+                        "requestContext": {
+                            "authorizer": {"UserId": "fake-user-id"},
+                            "connectionId": "fake-connection-id",
+                        },
+                        "message": {
+                            "action": "sendMessage",
+                            "question": "fake_message",
+                            "conversationId": "fake-conversation-id",
+                            "promptTemplate": prompt,
+                        },
+                    }
+                ),
                 "attributes": {
                     "ApproximateReceiveCount": "1",
                     "AWSTraceHeader": "Root=fake-tracer-id",
@@ -129,7 +167,7 @@ def chat_event_with_array():
     [
         (
             CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            "I'm doing well, how are you?",
             BEDROCK_PROMPT,
             False,  # is_streaming
             False,  # rag_enabled
@@ -138,8 +176,21 @@ def chat_event_with_array():
             "amazon.model-xx",
         ),
         (
+            CHAT_IDENTIFIER,
+            "I'm doing well, how are you?",
+            BEDROCK_PROMPT,
+            True,  # is_streaming
+            False,  # rag_enabled
+            None,
+            False,  # return_source_docs
+            "amazon.model-xx",
+        ),
+        (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                REPHRASED_QUERY_KEY: "rephrased query",
+            },
             BEDROCK_RAG_PROMPT,
             False,  # is_streaming
             True,  # rag_enabled
@@ -149,7 +200,10 @@ def chat_event_with_array():
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            {"answer": "I'm doing well, how are you?"},
+            {
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                REPHRASED_QUERY_KEY: "rephrased query",
+            },
             BEDROCK_RAG_PROMPT,
             True,  # is_streaming
             True,  # rag_enabled
@@ -160,11 +214,26 @@ def chat_event_with_array():
         (
             RAG_CHAT_IDENTIFIER,
             {
-                "answer": "I'm doing well, how are you?",
-                "source_documents": mocked_kendra_docs,
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
             },
             BEDROCK_RAG_PROMPT,
             False,  # is_streaming
+            True,  # rag_enabled
+            KnowledgeBaseTypes.KENDRA.value,
+            True,  # return_source_docs
+            "amazon.model-xx",
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            {
+                OUTPUT_KEY: "I'm doing well, how are you?",
+                CONTEXT_KEY: mocked_kendra_docs,
+                REPHRASED_QUERY_KEY: "rephrased query",
+            },
+            BEDROCK_RAG_PROMPT,
+            True,  # is_streaming
             True,  # rag_enabled
             KnowledgeBaseTypes.KENDRA.value,
             True,  # return_source_docs
@@ -236,12 +305,11 @@ def test_lambda_timeout_behavior(
             apigateway_stubber.activate()
 
             with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
-                with patch("langchain.chains.ConversationChain.predict") as mocked_predict:
-                    with patch("langchain.chains.ConversationalRetrievalChain.invoke") as mocked_rag_predict:
-                        mocked_predict.return_value = "I'm doing well, how are you?"
-                        mocked_rag_predict.return_value = mocked_response
-                        mocked_retrieve_llm_config.return_value = bedrock_llm_config
-                        response = lambda_handler(chat_event_with_array, lambda_context)
+                with patch("langchain_core.runnables.RunnableWithMessageHistory.invoke") as mocked_predict:
+                    mocked_predict.return_value = mocked_response  # "I'm doing well, how are you?"
+                    # mocked_rag_predict.return_value = mocked_response
+                    mocked_retrieve_llm_config.return_value = bedrock_llm_config
+                    response = lambda_handler(chat_event_with_array, lambda_context)
 
-                        assert response["batchItemFailures"] is not None
-                        assert response["batchItemFailures"][0]["itemIdentifier"] == "fake-message-id-1"
+                    assert response["batchItemFailures"] is not None
+                    assert response["batchItemFailures"][0]["itemIdentifier"] == "fake-message-id-1"

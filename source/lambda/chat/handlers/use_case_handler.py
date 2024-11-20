@@ -85,18 +85,11 @@ class UseCaseHandler:
                     event_message,
                     request_context["authorizer"][USER_ID_EVENT_KEY],
                 )
-
-                source_docs_formatter = (
-                    llm_client.builder.knowledge_base.source_docs_formatter
-                    if llm_client.builder.knowledge_base
-                    else None
-                )
                 ai_response = llm_chat.generate(event_message["question"])
 
                 socket_handler = WebsocketHandler(
                     connection_id=connection_id,
                     conversation_id=llm_client.builder.conversation_id,
-                    source_docs_formatter=source_docs_formatter,
                 )
                 if not llm_client.builder.is_streaming:
                     socket_handler.post_response_to_connection(ai_response)

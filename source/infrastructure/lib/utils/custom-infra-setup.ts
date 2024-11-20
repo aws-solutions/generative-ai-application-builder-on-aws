@@ -151,7 +151,6 @@ export class CustomInfraSetup extends Construct {
         (logRetentionForSchedule.node.defaultChild as cdk.CfnCustomResource).cfnOptions.condition =
             props.sendAnonymousMetricsCondition;
 
-
         // eventbridge rule to the default event-bus to push anonymous metrics
         const rule = new events.Rule(this, 'MetricsPublishFrequency', {
             schedule: events.Schedule.expression(ANONYMOUS_METRICS_SCHEDULE)

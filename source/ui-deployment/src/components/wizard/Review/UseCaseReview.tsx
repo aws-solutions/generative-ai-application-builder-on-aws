@@ -11,10 +11,11 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { Box, ColumnLayout, Container, Header, SpaceBetween, Button } from '@cloudscape-design/components';
+import { ColumnLayout, Container, Header, SpaceBetween, Button } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
 import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
+import { getBooleanString } from '../utils';
 
 interface UseCaseReviewProps extends ReviewSectionProps {
     useCaseData: any;
@@ -39,7 +40,7 @@ export const UseCaseReview = (props: UseCaseReviewProps) => {
                 data-testid="review-use-case-details-container"
             >
                 <ColumnLayout columns={2} variant="text-grid" data-testid="review-use-case-details">
-                    <ValueWithLabel label="Use case">{props.useCaseData.useCase.label}</ValueWithLabel>
+                    <ValueWithLabel label="Use case type">{props.useCaseData.useCaseType}</ValueWithLabel>
 
                     <ValueWithLabel label="Use case name">{props.useCaseData.useCaseName}</ValueWithLabel>
 
@@ -53,7 +54,19 @@ export const UseCaseReview = (props: UseCaseReviewProps) => {
                         </ValueWithLabel>
                     )}
 
-                    <ValueWithLabel label="Deploy UI">{props.useCaseData.deployUI ? 'Yes' : 'No'}</ValueWithLabel>
+                    {props.useCaseData.existingUserPoolId !== '' && (
+                        <ValueWithLabel label="Cognito User Pool Id">
+                            {props.useCaseData.existingUserPoolId}
+                        </ValueWithLabel>
+                    )}
+
+                    {props.useCaseData.existingUserPoolClientId !== '' && (
+                        <ValueWithLabel label="Cognito User Pool Client Id">
+                            {props.useCaseData.existingUserPoolClientId}
+                        </ValueWithLabel>
+                    )}
+
+                    <ValueWithLabel label="Deploy UI">{getBooleanString(props.useCaseData.deployUI)}</ValueWithLabel>
                 </ColumnLayout>
             </Container>
         </SpaceBetween>

@@ -13,13 +13,12 @@
 ######################################################################################################################
 
 import pytest
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from llms.bedrock import BedrockLLM
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
-from shared.memory.ddb_chat_memory import DynamoDBChatMemory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
     CHAT_IDENTIFIER,
@@ -28,72 +27,101 @@ from utils.constants import (
     DEFAULT_REPHRASE_RAG_QUESTION,
     RAG_CHAT_IDENTIFIER,
 )
-from utils.enum_types import BedrockModelProviders
+from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{chat_history}\n\n{question}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+RESPONSE_IF_NO_DOCS_FOUND = "Sorry, the model cannot respond to your questions due to admin enforced constraints."
 DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
-TAGS_REPLACED_DISAMBIGUATION_PROMPT = DISAMBIGUATION_PROMPT.replace("{input}", "{question}").replace(
-    "{history}", "{chat_history}"
-)
 
 RAG_ENABLED = False
-model_id = "amazon.fake-model"
-provider_name = "Bedrock"
-
-llm_params = BedrockInputs(
-    **{
-        "conversation_memory": DynamoDBChatMemory(
-            DynamoDBChatMessageHistory(
-                table_name="fake-table", user_id="fake-user-id", conversation_id="fake-conversation-id"
-            )
-        ),
-        "knowledge_base": None,
-        "model": "google/flan-t5-xxl",
-        "model_params": {
-            "topP": {"Type": "float", "Value": "0.2"},
-            "maxTokenCount": {"Type": "integer", "Value": "100"},
-        },
-        "prompt_template": BEDROCK_PROMPT,
-        "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
-        "rephrase_question": DEFAULT_REPHRASE_RAG_QUESTION,
-        "disambiguation_prompt_template": None,
-        "disambiguation_prompt_enabled": None,
-        "streaming": False,
-        "verbose": False,
-        "temperature": 0.45,
-        "callbacks": None,
-    }
-)
+MODEL_ID = "amazon.fake-model"
+MODEL_PROVIDER = LLMProviderTypes.BEDROCK.value
 
 
 @pytest.fixture
-def chat(use_case, model_id, prompt, is_streaming, setup_environment, rag_enabled, bedrock_dynamodb_defaults_table):
-    llm_params.knowledge_base = None
-    llm_params.disambiguation_prompt_template = None
-    llm_params.disambiguation_prompt_enabled = None
-    chat = BedrockLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-        model_family=BedrockModelProviders.AMAZON.value,
-        rag_enabled=rag_enabled,
+def model_inputs(
+    disambiguation_enabled, disambiguation_prompt, return_source_docs, response_if_no_docs_found, is_streaming
+):
+    yield BedrockInputs(
+        **{
+            "conversation_history_cls": DynamoDBChatMessageHistory,
+            "conversation_history_params": {
+                "table_name": "fake-table",
+                "user_id": "fake-user-id",
+                "conversation_id": "fake-conversation-id",
+            },
+            "rag_enabled": False,
+            "knowledge_base": None,
+            "model": "amazon.fake-model",
+            "model_family": BedrockModelProviders.AMAZON.value,
+            "model_params": {
+                "topP": {"Type": "float", "Value": "0.9"},
+                "maxTokenCount": {"Type": "integer", "Value": "200"},
+            },
+            "prompt_template": BEDROCK_PROMPT,
+            "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
+            "disambiguation_prompt_template": None,
+            "disambiguation_prompt_enabled": None,
+            "rephrase_question": None,
+            "response_if_no_docs_found": None,
+            "return_source_docs": None,
+            "streaming": is_streaming,
+            "verbose": False,
+            "temperature": 0.25,
+            "callbacks": None,
+        }
     )
+
+
+@pytest.fixture
+def chat(
+    setup_environment,
+    bedrock_dynamodb_defaults_table,
+    use_case,
+    model_inputs,
+    model_id,
+    prompt,
+    is_streaming,
+    rag_enabled,
+):
+    model_inputs.knowledge_base = None
+    model_inputs.disambiguation_prompt_template = None
+    model_inputs.disambiguation_prompt_enabled = None
+    model_inputs.return_source_docs = None
+    model_inputs.rag_enabled = False
+    model_inputs.response_if_no_docs_found = None
+    model_inputs.prompt_template = prompt
+    model_inputs.is_streaming = is_streaming
+    model_inputs.model = model_id
+    model_inputs.rephrase_question = None
+    chat = BedrockLLM(model_inputs=model_inputs, model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, rag_enabled))
     yield chat
 
 
 @pytest.fixture
 def rag_chat(
+    setup_environment,
+    bedrock_dynamodb_defaults_table,
     use_case,
     model_id,
     prompt,
     is_streaming,
-    setup_environment,
     rag_enabled,
     return_source_docs,
-    bedrock_dynamodb_defaults_table,
     disambiguation_prompt,
+    model_inputs,
 ):
-    llm_params.knowledge_base = KendraKnowledgeBase(
+    model_inputs.rag_enabled = rag_enabled
+    model_inputs.is_streaming = is_streaming
+    model_inputs.return_source_docs = return_source_docs
+    model_inputs.disambiguation_prompt_template = disambiguation_prompt
+    model_inputs.disambiguation_prompt_enabled = True
+    model_inputs.response_if_no_docs_found = RESPONSE_IF_NO_DOCS_FOUND
+    model_inputs.prompt_template = prompt
+    model_inputs.model = model_id
+    model_inputs.rephrase_question = DEFAULT_REPHRASE_RAG_QUESTION
+    model_inputs.knowledge_base = KendraKnowledgeBase(
         {
             "NumberOfDocs": 2,
             "ReturnSourceDocs": return_source_docs,
@@ -105,24 +133,18 @@ def rag_chat(
             "UserContext": None,
         }
     )
-    llm_params.disambiguation_prompt_template = disambiguation_prompt
-    llm_params.disambiguation_prompt_enabled = True
     chat = BedrockRetrievalLLM(
-        llm_params=llm_params,
-        model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-        model_family=BedrockModelProviders.AMAZON,
-        return_source_docs=return_source_docs,
+        model_inputs=model_inputs, model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, rag_enabled)
     )
     yield chat
 
 
 @pytest.mark.parametrize(
-    "use_case, model_id, prompt, is_streaming, rag_enabled, return_source_docs, test_prompt, placeholders, expected_response, chat_fixture, disambiguation_prompt",
+    "use_case, model_id, is_streaming, rag_enabled, return_source_docs, prompt, placeholders, expected_response, chat_fixture, disambiguation_enabled, disambiguation_prompt, default_prompt, default_prompt_placeholders, response_if_no_docs_found",
     [
         (
             CHAT_IDENTIFIER,
-            model_id,
-            BEDROCK_PROMPT,
+            MODEL_ID,
             False,
             False,
             False,
@@ -131,29 +153,36 @@ def rag_chat(
             "{history} {input}",
             "chat",
             None,
+            None,
+            BEDROCK_PROMPT,
+            DEFAULT_PROMPT_PLACEHOLDERS,
+            None,
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            model_id,
-            BEDROCK_RAG_PROMPT,
+            MODEL_ID,
             False,
             True,
             False,
             "{history} {context} {input}",
             DEFAULT_PROMPT_RAG_PLACEHOLDERS,
-            "{chat_history} {context} {question}",
+            "{history} {context} {input}",
             "rag_chat",
+            True,
             DISAMBIGUATION_PROMPT,
+            BEDROCK_RAG_PROMPT,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
     ],
 )
 def test_placeholder_replacements(
     use_case,
     model_id,
+    model_inputs,
     prompt,
     is_streaming,
     setup_environment,
-    test_prompt,
     placeholders,
     rag_enabled,
     return_source_docs,
@@ -162,155 +191,174 @@ def test_placeholder_replacements(
     request,
     chat_fixture,
     disambiguation_prompt,
+    default_prompt,
+    default_prompt_placeholders,
+    disambiguation_enabled,
+    response_if_no_docs_found,
 ):
     chat = request.getfixturevalue(chat_fixture)
-    default_prompt = BEDROCK_RAG_PROMPT if rag_enabled else BEDROCK_PROMPT
-    default_placeholders = DEFAULT_PROMPT_RAG_PLACEHOLDERS if rag_enabled else DEFAULT_PROMPT_PLACEHOLDERS
-
-    assert chat.get_validated_prompt(test_prompt, placeholders, default_prompt, default_placeholders) == (
-        PromptTemplate(template=expected_response, input_variables=placeholders),
+    assert chat.get_validated_prompt(prompt, placeholders, default_prompt, default_prompt_placeholders) == (
+        ChatPromptTemplate.from_template(prompt),
         placeholders,
     )
 
 
 @pytest.mark.parametrize(
-    "use_case, model_id, test_prompt, expected_response, placeholders, prompt, is_streaming, return_source_docs, rag_enabled, chat_fixture, disambiguation_prompt",
+    "use_case, model_id, test_prompt, expected_response, prompt, placeholders, is_streaming, return_source_docs, rag_enabled, chat_fixture, disambiguation_prompt, disambiguation_enabled, response_if_no_docs_found",
     [
         (
             # correct prompt
             CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{history} {input}",
             "{history} {input}",
-            DEFAULT_PROMPT_PLACEHOLDERS,
             BEDROCK_PROMPT,
+            DEFAULT_PROMPT_PLACEHOLDERS,
             False,
             False,
             False,
             "chat",
+            None,
+            None,
             None,
         ),
         (
             # rag_enabled false, but passed {context} raises ValueError, defaulting to base prompt
             CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{history} {context} {input}",
             BEDROCK_PROMPT,
-            DEFAULT_PROMPT_PLACEHOLDERS,
             BEDROCK_PROMPT,
+            DEFAULT_PROMPT_PLACEHOLDERS,
             False,
             False,
             False,
             "chat",
+            None,
+            None,
             None,
         ),
         (
             # Passed incorrect tag `question`, defaulting to base prompt
             CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{history} {question}",
             BEDROCK_PROMPT,
-            DEFAULT_PROMPT_PLACEHOLDERS,
             BEDROCK_PROMPT,
+            DEFAULT_PROMPT_PLACEHOLDERS,
             False,
             False,
             False,
             "chat",
+            None,
+            None,
             None,
         ),
         (
             # Passed repeated tags `input`, raises ValueError, defaulting to base prompt
             CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{history} {input} {input}",
             BEDROCK_PROMPT,
-            DEFAULT_PROMPT_PLACEHOLDERS,
             BEDROCK_PROMPT,
+            DEFAULT_PROMPT_PLACEHOLDERS,
             False,
             False,
             False,
             "chat",
+            None,
+            None,
             None,
         ),
         (
             # invalid tag
             CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{history} {wrong_tag}",
             BEDROCK_PROMPT,
-            DEFAULT_PROMPT_PLACEHOLDERS,
             BEDROCK_PROMPT,
+            DEFAULT_PROMPT_PLACEHOLDERS,
             False,
             False,
             False,
             "chat",
             None,
+            None,
+            None,
         ),
         (
             # correct rag prompt
             RAG_CHAT_IDENTIFIER,
-            model_id,
-            "{chat_history} {context} {question}",
-            "{chat_history} {context} {question}",
-            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
-            BEDROCK_RAG_PROMPT,
-            False,
-            False,
-            True,
-            "rag_chat",
-            DISAMBIGUATION_PROMPT,
-        ),
-        (
-            # correct rag prompt
-            RAG_CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{history} {context} {input}",
-            "{chat_history} {context} {question}",
-            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+            "{history} {context} {input}",
             BEDROCK_RAG_PROMPT,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             False,
             False,
             True,
             "rag_chat",
             DISAMBIGUATION_PROMPT,
+            True,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
+        (
+            # correct rag prompt
+            RAG_CHAT_IDENTIFIER,
+            MODEL_ID,
+            "{history} {context} {input}",
+            "{history} {context} {input}",
+            BEDROCK_RAG_PROMPT,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+            False,
+            False,
+            True,
+            "rag_chat",
+            DISAMBIGUATION_PROMPT,
+            True,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
         (
             # Additional tags are not blocked
             RAG_CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{context} {history} {input} {additionaltag}",
-            "{context} {chat_history} {question} {additionaltag}",
-            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+            "{context} {history} {input} {additionaltag}",
             BEDROCK_RAG_PROMPT,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             False,
             False,
             True,
             "rag_chat",
             DISAMBIGUATION_PROMPT,
+            True,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
         (
             # Missing context for rag chat
             RAG_CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             "{history} {input}",
             BEDROCK_RAG_PROMPT,
-            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             BEDROCK_RAG_PROMPT,
+            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             False,
             False,
             True,
             "rag_chat",
             DISAMBIGUATION_PROMPT,
+            True,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
     ],
 )
 def test_get_validated_prompt(
     use_case,
     model_id,
+    test_prompt,
     prompt,
     is_streaming,
     setup_environment,
-    test_prompt,
     placeholders,
     return_source_docs,
     rag_enabled,
@@ -319,24 +367,44 @@ def test_get_validated_prompt(
     request,
     chat_fixture,
     disambiguation_prompt,
+    disambiguation_enabled,
+    response_if_no_docs_found,
 ):
-    chat = request.getfixturevalue(chat_fixture)
+    # test_prompt and prompt is differentiated because prompt goes into defaults and is used in case of failures
+    # test_prompt is passed into model_inputs
+
+    chat = request.getfixturevalue(chat_fixture)  # has prompt as prompt_template
+    chat.prompt_template = test_prompt
     default_prompt = BEDROCK_RAG_PROMPT if rag_enabled else BEDROCK_PROMPT
     default_placeholders = DEFAULT_PROMPT_RAG_PLACEHOLDERS if rag_enabled else DEFAULT_PROMPT_PLACEHOLDERS
+    chat.rag_enabled = rag_enabled
 
     assert chat.get_validated_prompt(test_prompt, placeholders, default_prompt, default_placeholders) == (
-        PromptTemplate(template=expected_response, input_variables=placeholders),
+        ChatPromptTemplate.from_template(expected_response),
         placeholders,
     )
 
 
 @pytest.mark.parametrize(
-    "use_case, model_id, prompt, is_streaming, return_source_docs, rag_enabled, params, expected_response, chat_fixture, disambiguation_prompt",
+    "use_case, model_id, prompt, is_streaming, return_source_docs, rag_enabled, params, expected_response, chat_fixture, disambiguation_prompt, disambiguation_enabled, response_if_no_docs_found",
     [
-        (CHAT_IDENTIFIER, model_id, BEDROCK_PROMPT, False, False, False, None, {"temperature": 0.45}, "chat", None),
+        (
+            CHAT_IDENTIFIER,
+            MODEL_ID,
+            BEDROCK_PROMPT,
+            False,
+            False,
+            False,
+            None,
+            {"temperature": 0.25},
+            "chat",
+            None,
+            None,
+            None,
+        ),
         (
             RAG_CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             BEDROCK_RAG_PROMPT,
             False,
             False,
@@ -345,9 +413,11 @@ def test_get_validated_prompt(
                 "topP": {"Type": "float", "Value": "0.2"},
                 "maxTokenCount": {"Type": "integer", "Value": "100"},
             },
-            {"maxTokenCount": 100, "topP": 0.2, "temperature": 0.45},
+            {"maxTokenCount": 100, "topP": 0.2, "temperature": 0.25},
             "rag_chat",
             DISAMBIGUATION_PROMPT,
+            True,
+            RESPONSE_IF_NO_DOCS_FOUND,
         ),
     ],
 )
@@ -365,6 +435,8 @@ def test_get_clean_model_params_success(
     chat_fixture,
     params,
     disambiguation_prompt,
+    disambiguation_enabled,
+    response_if_no_docs_found,
 ):
     chat = request.getfixturevalue(chat_fixture)
     assert chat.get_clean_model_params(params) == expected_response
@@ -376,7 +448,7 @@ def test_get_clean_model_params_success(
         (
             # incorrect prompt with repeated occurrences leads to default prompt being used
             CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             BEDROCK_PROMPT,
             False,
             False,
@@ -388,13 +460,13 @@ def test_get_clean_model_params_success(
         (
             # incorrect prompt with repeated occurrences leads to default prompt being used
             RAG_CHAT_IDENTIFIER,
-            model_id,
+            MODEL_ID,
             BEDROCK_RAG_PROMPT,
             False,
             False,
             True,
             DEFAULT_PROMPT_RAG_PLACEHOLDERS,
-            "{question} {question} {context} {chat_history}",
+            "{input} {input} {context} {history}",
             BEDROCK_RAG_PROMPT,
         ),
     ],
@@ -413,13 +485,15 @@ def test_exceptional_prompt_validations(
     expected_prompt,
     test_prompt_placeholders,
 ):
-    llm_params = BedrockInputs(
+    model_inputs = BedrockInputs(
         **{
-            "conversation_memory": DynamoDBChatMemory(
-                DynamoDBChatMessageHistory(
-                    table_name="fake-table", user_id="fake-user-id", conversation_id="fake-conversation-id"
-                )
-            ),
+            "conversation_history_cls": DynamoDBChatMessageHistory,
+            "conversation_history_params": {
+                "table_name": "fake-table",
+                "user_id": "fake-user-id",
+                "conversation_id": "fake-conversation-id",
+            },
+            "rag_enabled": False,
             "knowledge_base": None,
             "model": "amazon.fake-model",
             "model_params": {
@@ -435,11 +509,12 @@ def test_exceptional_prompt_validations(
             "verbose": False,
             "temperature": 0.45,
             "callbacks": None,
+            "model_family": BedrockModelProviders.AMAZON.value,
         }
     )
 
     if rag_enabled:
-        llm_params.knowledge_base = KendraKnowledgeBase(
+        model_inputs.knowledge_base = KendraKnowledgeBase(
             {
                 "NumberOfDocs": 2,
                 "ReturnSourceDocs": return_source_docs,
@@ -451,23 +526,17 @@ def test_exceptional_prompt_validations(
                 "UserContext": None,
             }
         )
-        llm_params.disambiguation_prompt_template = DISAMBIGUATION_PROMPT
+        model_inputs.disambiguation_prompt_template = DISAMBIGUATION_PROMPT
         chat = BedrockRetrievalLLM(
-            llm_params=llm_params,
-            model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-            model_family=BedrockModelProviders.AMAZON,
-            return_source_docs=return_source_docs,
+            model_inputs=model_inputs, model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, rag_enabled)
         )
-        assert chat.disambiguation_prompt_template.template == TAGS_REPLACED_DISAMBIGUATION_PROMPT
+        assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(DISAMBIGUATION_PROMPT)
 
     else:
-        llm_params.knowledge_base = None
-        llm_params.disambiguation_prompt_template = None
+        model_inputs.knowledge_base = None
+        model_inputs.disambiguation_prompt_template = None
         chat = BedrockLLM(
-            llm_params=llm_params,
-            model_defaults=ModelDefaults(provider_name, model_id, rag_enabled),
-            model_family=BedrockModelProviders.AMAZON.value,
-            rag_enabled=rag_enabled,
+            model_inputs=model_inputs, model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, rag_enabled)
         )
 
-    assert chat.prompt_template.template == expected_prompt
+    assert chat.prompt_template == ChatPromptTemplate.from_template(expected_prompt)

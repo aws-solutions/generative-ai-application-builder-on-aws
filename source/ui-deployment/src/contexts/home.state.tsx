@@ -11,7 +11,7 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-import { DEPLOYMENT_ACTIONS } from '../utils/constants';
+import { DEPLOYMENT_ACTIONS, USECASE_TYPES } from '../utils/constants';
 
 export interface HomeInitialState {
     authorized: boolean;
