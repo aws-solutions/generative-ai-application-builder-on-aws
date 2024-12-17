@@ -691,6 +691,7 @@ export const mapBedrockKnowledgeBaseParams = (selectedDeployment) => {
             ReturnSourceDocs: returnDocumentSource,
             KnowledgeBaseType: knowledgeBaseType,
             ScoreThreshold: scoreThreshold,
+            NoDocsFoundResponse: noDocsFoundResponse,
             BedrockKnowledgeBaseParams: {
                 BedrockKnowledgeBaseId: bedrockKnowledgeBaseId,
                 RetrievalFilter: retrievalFilter,
@@ -700,7 +701,11 @@ export const mapBedrockKnowledgeBaseParams = (selectedDeployment) => {
     } = selectedDeployment;
 
     const {
-        knowledgeBase: { scoreThreshold: defaultScoreThreshold, queryFilter: defaultQueryFilter }
+        knowledgeBase: {
+            scoreThreshold: defaultScoreThreshold,
+            noDocsFoundResponse: defaultNoDocsFoundResponse,
+            queryFilter: defaultQueryFilter
+        }
     } = DEFAULT_STEP_INFO;
 
     return {
@@ -715,7 +720,8 @@ export const mapBedrockKnowledgeBaseParams = (selectedDeployment) => {
         bedrockOverrideSearchType:
             bedrockOverrideSearchType === 'NONE'
                 ? null
-                : BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES.find((item) => item.value === bedrockOverrideSearchType)
+                : BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES.find((item) => item.value === bedrockOverrideSearchType),
+        noDocsFoundResponse: noDocsFoundResponse ?? defaultNoDocsFoundResponse
     };
 };
 

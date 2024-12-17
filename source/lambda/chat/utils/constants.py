@@ -105,7 +105,11 @@ DEFAULT_MODELS_MAP = {
     LLMProviderTypes.BEDROCK.value: DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY],
     LLMProviderTypes.SAGEMAKER.value: "default",
 }
-BETA_USE_CONVERSE_API_MODELS = ["cohere.command-r-v1:0", "cohere.command-r-plus-v1:0"]
+BETA_USE_CONVERSE_API_MODELS = [
+    "cohere.command-r-v1:0",
+    "cohere.command-r-plus-v1:0",
+    "mistral.mistral-large-2407-v1:0",
+]
 CHATBEDROCK_MODELS = [
     BedrockModelProviders.ANTHROPIC.value,
     BedrockModelProviders.AMAZON.value,

@@ -137,6 +137,7 @@ export const DEFAULT_STEP_INFO = {
         kendraIndexName: '',
         returnDocumentSource: false,
         bedrockKnowledgeBaseId: '',
+        bedrockOverrideSearchType: undefined,
         enableRoleBasedAccessControl: false,
         queryFilter: JSON.stringify({})
     },

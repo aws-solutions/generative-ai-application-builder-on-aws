@@ -1,19 +1,24 @@
 [tool.poetry]
 name = "langchain-layer"
-version = "2.1.0"
+version = "2.1.1"
 authors = [ "Amazon Web Services" ]
 description = "Layer for LangChain libraries"
 packages = [
     { include = "*.toml" },
     { include = "*.lock" },
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: Apache-2.0",
+]
+license = "Apache-2.0"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.12"
 numpy = "1.26.4"
-langchain = "0.3.4"
-langchain-core = "0.3.12"
-langchain-aws = "0.2.3"
+langchain = "0.3.8"
+langchain-core = "0.3.21"
+langchain-aws = "0.2.7"
 
 [build-system]
 requires = [ "poetry-core>=1.9.0" ]

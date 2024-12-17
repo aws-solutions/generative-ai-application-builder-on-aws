@@ -11,7 +11,7 @@
  *  and limitations under the License.                                                                                *
  *********************************************************************************************************************/
 
-import { Alert, Button, Container, StatusIndicatorProps } from '@cloudscape-design/components';
+import { Alert, Box, Button, Container, SpaceBetween, StatusIndicatorProps } from '@cloudscape-design/components';
 import { Auth } from 'aws-amplify';
 import { MutableRefObject, memo, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import HomeContext from '../home/home.context';
@@ -348,6 +348,13 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
         }
     };
 
+    const handleLoginRedirect = () => {
+        Auth.signOut().catch((error) => {
+            console.error(error);
+        });
+        
+    };
+
     let socketStatusType: StatusIndicatorProps.Type = 'loading';
     let socketStatusMessage = 'Connecting';
     switch (socketState) {
@@ -364,79 +371,93 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
             socketStatusMessage = 'Unable to connect. Please refresh page.';
     }
 
-    if (authorized) {
+    if (!authorized) {
         return (
-            <div className="flex-1" data-testid="chat-view">
-                {
-                    <>
-                        <div className="sticky top-0 z-10 flex justify-center bg-neutral-100 py-2">
-                            <Button
-                                iconName="settings"
-                                variant="icon"
-                                onClick={() => handleSettings(!showSettings)}
-                                data-testid="settings-button"
-                            />
-                            <Button
-                                iconName="refresh"
-                                variant="icon"
-                                onClick={onClearAll}
-                                data-testid="clear-convo-button"
-                            />
-                        </div>
-                        {showSettings && (
-                            <>
-                                <div className="mx-auto sm:max-w-[600px] p-4">
-                                    <PromptTemplate
-                                        onChangePrompt={(prompt: any) =>
-                                            homeDispatch({
-                                                field: 'promptTemplate',
-                                                value: prompt
-                                            })
-                                        }
-                                        handleShowPromptWindow={handleSettings}
-                                        showPromptWindow={showSettings}
-                                    />
-                                </div>
-                            </>
-                        )}
-                        {!!selectedConversation?.messages.length && selectedConversation?.messages.length > 0 && (
-                            <>
-                                <div className="chatbox">
-                                    <Container>
-                                        {selectedConversation?.messages.map((message: any, index: any) => (
-                                            <MemoizedChatMessage
-                                                key={index} //NOSONAR - typescript:S6479 - index value required
-                                                message={message}
-                                                messageIndex={index}
-                                            /> // NOSONAR - array index is a stable identifier
-                                        ))}
-                                    </Container>
-                                </div>
-                                <div className="h-[162px]" />
-                            </>
-                        )}
-                        <div className="chat-input">
-                            <ChatInput
-                                stopConversationRef={stopConversationRef}
-                                onSend={(message: any) => {
-                                    handleSend(message);
-                                }}
-                                socketStatusType={socketStatusType}
-                                socketStatusMessage={socketStatusMessage}
-                            />
-                        </div>
-                    </>
-                }
-            </div>
-        );
-    }
-    return (
-        <div>
             <Alert
                 statusIconAriaLabel="Error"
                 type="error"
-                header="Connection failed. Please ensure you have proper access to the deployment and are logged in with the correct credentials."
-            ></Alert>
+                header="Authentication Required"
+                data-testid="unauthorized-alert"
+            >
+                <SpaceBetween size="l">
+                    <Box textAlign="center">
+                        Please log in to access the chat interface. Ensure you have proper credentials 
+                        to use this feature.
+                    </Box>
+                    
+                    <Button
+                        variant="primary"
+                        onClick={handleLoginRedirect}
+                        data-testid="login-redirect-button"
+                    >
+                        Go to Login
+                    </Button>
+                </SpaceBetween>
+            </Alert>
+        );
+    }
+    return (
+        <div className="flex-1" data-testid="chat-view">
+            {
+                <>
+                    <div className="sticky top-0 z-10 flex justify-center bg-neutral-100 py-2">
+                    {useCaseConfig.UseCaseType !== USE_CASE_TYPES.AGENT && <Button
+                            iconName="settings"
+                            variant="icon"
+                            onClick={() => handleSettings(!showSettings)}
+                            data-testid="settings-button"
+                        />}
+                        <Button
+                            iconName="refresh"
+                            variant="icon"
+                            onClick={onClearAll}
+                            data-testid="clear-convo-button"
+                        />
+                    </div>
+                    {showSettings && (
+                        <>
+                            <div className="mx-auto sm:max-w-[600px] p-4">
+                                <PromptTemplate
+                                    onChangePrompt={(prompt: any) =>
+                                        homeDispatch({
+                                            field: 'promptTemplate',
+                                            value: prompt
+                                        })
+                                    }
+                                    handleShowPromptWindow={handleSettings}
+                                    showPromptWindow={showSettings}
+                                />
+                            </div>
+                        </>
+                    )}
+                    {!!selectedConversation?.messages.length && selectedConversation?.messages.length > 0 && (
+                        <>
+                            <div className="chatbox">
+                                <Container>
+                                    {selectedConversation?.messages.map((message: any, index: any) => (
+                                        <MemoizedChatMessage
+                                            key={index} //NOSONAR - typescript:S6479 - index value required
+                                            message={message}
+                                            messageIndex={index}
+                                        /> // NOSONAR - array index is a stable identifier
+                                    ))}
+                                </Container>
+                            </div>
+                            <div className="h-[162px]" />
+                        </>
+                    )}
+                    <div className="chat-input">
+                        <ChatInput
+                            stopConversationRef={stopConversationRef}
+                            onSend={(message: any) => {
+                                handleSend(message);
+                            }}
+                            socketStatusType={socketStatusType}
+                            socketStatusMessage={socketStatusMessage}
+                        />
+                    </div>
+                </>
+            }
         </div>
     );
 });

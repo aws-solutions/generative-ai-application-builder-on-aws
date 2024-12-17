@@ -407,6 +407,6 @@ class LLMChatClient(ABC):
         usecase_prompt_params["PromptTemplate"] = event_prompt if event_prompt else usecase_prompt_params.get("PromptTemplate")
 
         if usecase_llm_params.get("Verbose") is not None and usecase_llm_params["Verbose"] == True:
-            os.environ["LOG_LEVEL"] = "DEBUG"
-        
+            logger.setLevel("DEBUG")
+            
         # Child class adds its own implementation following this to get the appropriate model.

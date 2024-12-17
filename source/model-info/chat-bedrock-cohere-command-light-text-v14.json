@@ -2,7 +2,7 @@
     "UseCase": "Chat",
     "ModelProviderName": "Bedrock",
     "ModelName": "cohere.command-light-text-v14",
-    "AllowsStreaming": true,
+    "AllowsStreaming": false,
     "Prompt": "{history}\n\n{input}",
     "MaxTemperature": "1",
     "DefaultTemperature": "0.9",

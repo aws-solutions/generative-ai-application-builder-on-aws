@@ -11,7 +11,7 @@
  *  and limitations under the License.                                                                                *
  **********************************************************************************************************************/
 
-import { Alert, Box, Header, SpaceBetween } from '@cloudscape-design/components';
+import { Alert, Box, Header, Link, SpaceBetween } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 import ExistingUserPoolClientId from './ExistingUserPoolClientId';
 import ExistingUserPoolId from './ExistingUserPoolId';
@@ -59,7 +59,32 @@ export const isUserPoolClientIdValid = (userPoolClientId: string) => {
 export const UserPool = (props: UserPoolFieldProps) => {
     return (
         <Box margin={{ bottom: 'l' }}>
-            <Header variant="h3">User Pool Configuration</Header>
+            <Header data-testid="userpool-header" variant="h3">
+                User Pool Configuration
+            </Header>
+            <Alert data-testid="existing-userpool-alert">
+                If providing an existing user pool, please note:
+                <ul>
+                    <li>
+                        The admin user of this deployment dashboard will not have access to the use case if the Amazon
+                        Cognito user pool provided is different from the deployment dashboard’s user pool.
+                    </li>
+                    <li>
+                        Update <code>Allowed callback URLs</code> and <code>Allowed sign-out URLs</code> under{' '}
+                        <b>App clients --{'>'} Login Pages</b> with the Amazon CloudFront URLs for this use case once it
+                        is deployed. See the{' '}
+                        <Link
+                            external={false}
+                            href={`https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-client-apps.html#cognito-user-pools-app-idp-settings-about`}
+                            target="_blank"
+                            data-testid="app-client-docs-link"
+                        >
+                            App client terms
+                        </Link>{' '}
+                        for more information.
+                    </li>
+                </ul>
+            </Alert>
 
             {props.disabled && (
                 <Box variant="p" margin={{ 'bottom': 'l' }}>

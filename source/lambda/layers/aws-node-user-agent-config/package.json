@@ -1,6 +1,6 @@
 {
   "name": "aws-node-user-agent-config",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "AWS Nodejs SDK Config initialization layer",
   "main": "index.js",
   "scripts": {
@@ -12,12 +12,12 @@
     "code-linter": "./node_modules/eslint/bin/eslint.js . -c ../../.eslintrc.js --ext .js"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
-    "@types/node": "^22.5.0",
-    "eslint": "^9.9.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.1",
+    "eslint": "^9.16.0",
     "jest": "^29.7.0",
-    "prettier": "^3.3.3",
-    "ts-jest": "^29.2.4",
+    "prettier": "^3.4.2",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2"
   },
   "author": {
@@ -26,11 +26,11 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-lambda-powertools/logger": "^2.7.0",
-    "@aws-lambda-powertools/metrics": "^2.7.0",
-    "@aws-lambda-powertools/tracer": "^2.7.0",
+    "@aws-lambda-powertools/logger": "^2.11.0",
+    "@aws-lambda-powertools/metrics": "^2.11.0",
+    "@aws-lambda-powertools/tracer": "^2.11.0",
     "@middy/core": "^4.7.0",
-    "@types/lodash": "^4.17.7",
+    "@types/lodash": "^4.17.13",
     "lodash": "^4.17.21"
   }
 }
