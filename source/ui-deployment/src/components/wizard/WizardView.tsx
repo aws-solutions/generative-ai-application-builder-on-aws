@@ -201,6 +201,8 @@ const WizardView = (props: WizardViewProps) => {
     const onConfirmDeployInit = () => setShowConfirmDeployModal(true);
     const onConfirmDeployDiscard = () => setShowConfirmDeployModal(false);
 
+    const [isWizardNextStepLoading, setIsWizardNextStepLoading] = useState(false);
+
     const wizardSteps = useCase.steps.map((step) => ({
         title: step.title,
         info: (
@@ -215,7 +217,8 @@ const WizardView = (props: WizardViewProps) => {
                 onStepInfoChange(step.id, newStepState);
             },
             setHelpPanelContent: infoPanel.setContentAndOpen,
-            setActiveStepIndex: setActiveStepIndexAndCloseTools
+            setActiveStepIndex: setActiveStepIndexAndCloseTools,
+            handleWizardNextStepLoading: setIsWizardNextStepLoading
         }),
         isOptional:
             deploymentAction === DEPLOYMENT_ACTIONS.EDIT ||
@@ -283,6 +286,7 @@ const WizardView = (props: WizardViewProps) => {
                                     onNavigate={({ detail }) => onNavigate(detail)}
                                     onCancel={onCancel}
                                     onSubmit={onConfirmDeployInit}
+                                    isLoadingNextStep={isWizardNextStepLoading}
                                 />
                                 {showErrorAlert && (
                                     <Alert

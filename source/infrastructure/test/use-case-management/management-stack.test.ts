@@ -93,8 +93,8 @@ describe('When creating a use case management Stack', () => {
 
     it('should create a DLQ and attached it to the Lambda function', () => {
         template.hasResource('AWS::SQS::Queue', {
-            'Properties': {
-                'SqsManagedSseEnabled': true
+            Properties: {
+                KmsMasterKeyId: 'alias/aws/sqs'
             },
             UpdateReplacePolicy: 'Delete',
             DeletionPolicy: 'Delete',
@@ -122,6 +122,11 @@ describe('When creating a use case management Stack', () => {
                         },
                         Resource: {
                             'Fn::GetAtt': [dlqCapture.asString(), 'Arn']
+                        },
+                        Condition: {
+                            Bool: {
+                                'aws:SecureTransport': 'false'
+                            }
                         }
                     }
                 ]

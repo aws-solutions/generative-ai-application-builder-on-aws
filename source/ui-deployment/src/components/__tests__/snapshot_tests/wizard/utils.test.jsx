@@ -855,24 +855,25 @@ describe('When transforming the deployment data into the knowledgebase step of t
     });
 
     describe('mapBedrockKnowledgeBaseParams', () => {
-        it('should map Bedrock knowledge base parameters correctly', () => {
-            const selectedDeployment = {
-                LlmParams: {
-                    RAGEnabled: true
-                },
-                KnowledgeBaseParams: {
-                    NumberOfDocs: 20,
-                    ScoreThreshold: 0,
-                    ReturnSourceDocs: false,
-                    KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.bedrock,
-                    ScoreThreshold: 0.4,
-                    BedrockKnowledgeBaseParams: {
-                        BedrockKnowledgeBaseId: 'my-bedrock-index',
-                        RetrievalFilter: { field: 'value' }
-                    }
+        const selectedDeployment = {
+            LlmParams: {
+                RAGEnabled: true
+            },
+            KnowledgeBaseParams: {
+                NumberOfDocs: 20,
+                ScoreThreshold: 0,
+                ReturnSourceDocs: false,
+                KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.bedrock,
+                ScoreThreshold: 0.4,
+                BedrockKnowledgeBaseParams: {
+                    OverrideSearchType: 'HYBRID',
+                    BedrockKnowledgeBaseId: 'my-bedrock-index',
+                    RetrievalFilter: { field: 'value' }
                 }
-            };
+            }
+        };
 
+        it('should map Bedrock knowledge base parameters correctly', () => {
             const result = mapBedrockKnowledgeBaseParams(selectedDeployment);
 
             expect(result.isRagRequired).toBe(true);
@@ -885,6 +886,16 @@ describe('When transforming the deployment data into the knowledgebase step of t
             expect(result.queryFilter).toBe('{"field":"value"}');
             expect(result.returnDocumentSource).toBe(false);
             expect(result.scoreThreshold).toBe(0.4);
+            expect(result.bedrockOverrideSearchType).toEqual({
+                label: 'Hybrid',
+                value: 'HYBRID'
+            });
+        });
+
+        it('should map Bedrock knowledge base parameters correctly with noDocsFoundResponse', () => {
+            selectedDeployment.KnowledgeBaseParams.NoDocsFoundResponse = 'No documents found.';
+            const result = mapBedrockKnowledgeBaseParams(selectedDeployment);
+            expect(result.noDocsFoundResponse).toBe('No documents found.');
         });
     });
 

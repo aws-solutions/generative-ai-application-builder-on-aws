@@ -21,7 +21,7 @@ from llms.models.bedrock_params.anthropic import BedrockAnthropicV1LLMParams, Be
 from llms.models.bedrock_params.cohere import BedrockCohereCommandLLMParams, BedrockCohereTextLLMParams
 from llms.models.bedrock_params.llm import BedrockLLMParams
 from llms.models.bedrock_params.meta import BedrockMetaLLMParams
-from llms.models.bedrock_params.mistral import BedrockMistralLLMParams, BedrockMistralTextLLMParams
+from llms.models.bedrock_params.mistral import BedrockMistralLLMParams
 from utils.enum_types import BedrockModelProviders
 
 logger = Logger(utc=True)
@@ -52,8 +52,7 @@ class BedrockAdapterFactory:
                 "default": BedrockCohereTextLLMParams,
             },
             BedrockModelProviders.MISTRAL.value: {
-                "mistral.mistral-large-2407-v1:0": BedrockMistralLLMParams,
-                "default": BedrockMistralTextLLMParams,
+                "default": BedrockMistralLLMParams,
             },
         }
 

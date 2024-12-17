@@ -22,6 +22,7 @@ import { BaseStack, BaseStackProps } from '../lib/framework/base-stack';
 import { SageMakerChat } from '../lib/sagemaker-chat-stack';
 import { AppRegistry } from '../lib/utils/app-registry-aspects';
 import { LambdaAspects } from '../lib/utils/lambda-aspect';
+import { LambdaVersionCDKNagSuppression } from '../lib/utils/lambda-version-cdk-nag-suppression';
 import { LogGroupRetentionCheckAspect } from '../lib/utils/log-group-retention-check-aspect';
 
 const app = new cdk.App();
@@ -43,6 +44,7 @@ createStack(DeploymentPlatformStack, getDefaultBaseStackProps(DeploymentPlatform
 // adding cdk-nag checks
 cdk.Aspects.of(app).add(new AwsSolutionsChecks());
 cdk.Aspects.of(app).add(new LogGroupRetentionCheckAspect());
+cdk.Aspects.of(app).add(new LambdaVersionCDKNagSuppression());
 
 app.synth();
 

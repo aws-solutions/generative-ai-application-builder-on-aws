@@ -283,7 +283,8 @@ describe('When creating the custom resource infrastructure construct', () => {
                     POWERTOOLS_SERVICE_NAME: 'ANONYMOUS-CW-METRICS',
                     SOLUTION_ID: rawCdkJson.context.solution_id,
                     SOLUTION_VERSION: rawCdkJson.context.solution_version,
-                    LOG_LEVEL: Match.absent()
+                    LOG_LEVEL: Match.absent(),
+                    POWERTOOLS_LOG_LEVEL: Match.absent()
                 }
             }
         });

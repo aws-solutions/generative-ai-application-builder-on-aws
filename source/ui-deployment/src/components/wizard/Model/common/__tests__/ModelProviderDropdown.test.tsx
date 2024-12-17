@@ -17,22 +17,30 @@ import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
 import { cleanup } from '@testing-library/react';
 
 describe('ModelProviderDropdown', () => {
+    const mockHandleWizardNextStepLoading = vi.fn();
+
     afterEach(() => {
         vi.clearAllMocks();
         cleanup();
     });
 
-    test('renders', () => {
+    test('renders with model providers', () => {
         vi.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
-            isLoading: false,
+            isPending: false,
             isError: false,
             data: ['Bedrock', 'SageMaker']
         } as any);
+
         const mockModelData = {
             modelProvider: { label: 'Bedrock', value: 'Bedrock' }
         };
+
         const { cloudscapeWrapper } = renderWithProvider(
-            <ModelProviderDropdown {...mockFormComponentCallbacks()} modelData={mockModelData} />,
+            <ModelProviderDropdown
+                {...mockFormComponentCallbacks()}
+                modelData={mockModelData}
+                handleWizardNextStepLoading={mockHandleWizardNextStepLoading}
+            />,
             {
                 route: '/modelProvider'
             }
@@ -43,32 +51,59 @@ describe('ModelProviderDropdown', () => {
         expect(select?.findDropdown().findOptions().length).toBe(2);
         expect(select?.findDropdown().findOptionByValue('Bedrock')).toBeTruthy();
         expect(select?.findDropdown().findOptionByValue('SageMaker')).toBeTruthy();
+        expect(mockHandleWizardNextStepLoading).toHaveBeenLastCalledWith(false);
     });
 
-    test('invokes callback function on selection', () => {
+    test('shows loading state and updates wizard next button when query is pending', () => {
         vi.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
-            isLoading: false,
+            isPending: true,
             isError: false,
-            data: ['Bedrock', 'SageMaker']
+            data: null
         } as any);
-        const callbacks = mockFormComponentCallbacks();
+
         const mockModelData = {
-            modelProvider: { label: 'Bedrock', value: 'Bedrock' }
+            modelProvider: { label: '', value: '' }
         };
+
         const { cloudscapeWrapper } = renderWithProvider(
-            <ModelProviderDropdown {...callbacks} modelData={mockModelData} />,
+            <ModelProviderDropdown
+                {...mockFormComponentCallbacks()}
+                modelData={mockModelData}
+                handleWizardNextStepLoading={mockHandleWizardNextStepLoading}
+            />,
             {
                 route: '/modelProvider'
             }
         );
 
         const select = cloudscapeWrapper.findSelect();
-        select?.openDropdown();
-        select?.selectOptionByValue('SageMaker');
-        expect(callbacks.onChangeFn).toHaveBeenCalledTimes(1);
-        expect(callbacks.onChangeFn).toHaveBeenLastCalledWith({
-            modelName: '',
-            modelProvider: { label: 'SageMaker', value: 'SageMaker' }
-        });
+        expect(mockHandleWizardNextStepLoading).toHaveBeenCalledWith(true);
+    });
+
+    test('shows error state when query fails', () => {
+        vi.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
+            isPending: false,
+            isError: true,
+            error: new Error('Failed to fetch providers'),
+            data: null
+        } as any);
+
+        const mockModelData = {
+            modelProvider: { label: '', value: '' }
+        };
+
+        const { cloudscapeWrapper } = renderWithProvider(
+            <ModelProviderDropdown
+                {...mockFormComponentCallbacks()}
+                modelData={mockModelData}
+                handleWizardNextStepLoading={mockHandleWizardNextStepLoading}
+            />,
+            {
+                route: '/modelProvider'
+            }
+        );
+
+        const select = cloudscapeWrapper.findSelect();
+        expect(mockHandleWizardNextStepLoading).toHaveBeenLastCalledWith(false);
     });
 });

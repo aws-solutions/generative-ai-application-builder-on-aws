@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**********************************************************************************************************************
  *  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                *
  *                                                                                                                    *
@@ -9,27 +10,27 @@
  *  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES *
  *  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    *
  *  and limitations under the License.                                                                                *
- **********************************************************************************************************************/
+ *********************************************************************************************************************/
 
-import { SelectProps } from '@cloudscape-design/components';
-import React from 'react';
+import * as cdk from 'aws-cdk-lib';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NagSuppressions } from 'cdk-nag';
+import { IConstruct } from 'constructs';
 
 /**
- * Base interface that specifies the props for all form components for the pages of the wizard
+ * cdk-nag suppression class for lambda versioning
  */
-export interface BaseFormComponentProps {
-    onChangeFn: (detail: any) => void;
-    setNumFieldsInError: React.Dispatch<any>;
-    setHelpPanelContent?: (content: any) => void;
-    handleWizardNextStepLoading?: (isLoading: boolean) => void;
+export class LambdaVersionCDKNagSuppression implements cdk.IAspect {
+    public visit(node: IConstruct): void {
+        if (node instanceof lambda.Function) {
+            if (node.runtime.toString().toLowerCase().includes('python3.12')) {
+                NagSuppressions.addResourceSuppressions(node, [
+                    {
+                        id: 'AwsSolutions-L1',
+                        reason: 'The lambda function is using Python 3.12. Current version of the application is only tested until Python 3.12'
+                    }
+                ]);
+            }
+        }
+    }
 }
-
-export interface BaseToggleComponentProps {
-    setHelpPanelContent?: (content: any) => void;
-    onChangeFn: (detail: any) => void;
-    disabled?: boolean;
-    handleWizardNextStepLoading?: (isLoading: boolean) => void;
-}
-
-export type ModelProviderOption = SelectProps.Option;
-export type ModelNameOption = SelectProps.Option;

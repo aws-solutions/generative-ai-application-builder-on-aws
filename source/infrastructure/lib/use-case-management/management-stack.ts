@@ -286,7 +286,7 @@ export class UseCaseManagement extends BaseNestedStack {
         }
 
         const lambdaDlq = new sqs.Queue(this, 'UseCaseManagementDLQ', {
-            encryption: sqs.QueueEncryption.SQS_MANAGED,
+            encryption: sqs.QueueEncryption.KMS_MANAGED,
             enforceSSL: true
         });
 

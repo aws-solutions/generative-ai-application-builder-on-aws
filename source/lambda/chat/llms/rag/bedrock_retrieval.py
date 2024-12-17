@@ -25,12 +25,14 @@ from llms.models.model_provider_inputs import ModelProviderInputs
 from llms.rag.retrieval_llm import RetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import (
+    BETA_USE_CONVERSE_API_MODELS,
+    CHATBEDROCK_MODELS,
     DEFAULT_BEDROCK_MODEL_FAMILY,
     DEFAULT_BEDROCK_MODELS_MAP,
     TRACE_ID_ENV_VAR,
 )
 from utils.custom_exceptions import LLMBuildError, LLMInvocationError
-from utils.enum_types import BedrockModelProviders, CloudWatchMetrics, CloudWatchNamespaces
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client
 
 tracer = Tracer()
@@ -132,14 +134,15 @@ class BedrockRetrievalLLM(RetrievalLLM):
             "provider": self.model_family,
             "model_kwargs": self.model_params,
             "streaming": streaming,
-            "verbose": self.verbose,
         }
 
         if self.guardrails is not None:
             request_options["guardrails"] = self.guardrails
 
-        request_options["verbose"] = self.verbose
-        if self.model_family == BedrockModelProviders.ANTHROPIC:
+        if model in BETA_USE_CONVERSE_API_MODELS:
+            request_options["beta_use_converse_api"] = True
+
+        if self.model_family in CHATBEDROCK_MODELS or "beta_use_converse_api" in request_options:
             request_options["verbose"] = self.verbose
             return ChatBedrock(**request_options)
         else:
@@ -196,7 +199,9 @@ class BedrockRetrievalLLM(RetrievalLLM):
             f"Error occurred while invoking Bedrock model family '{self.model_family}' model '{self.model}'. "
         )
         try:
-            return super().generate(question)
+            response = super().generate(question)
+            logger.debug(f"Model response: {response}")
+            return response
         except ValueError as ve:
             error_message = error_message + str(ve)
             logger.error(

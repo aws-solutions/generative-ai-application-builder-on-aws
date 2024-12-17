@@ -23,11 +23,7 @@ from llms.models.model_provider_inputs import SageMakerInputs
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
 from llms.rag.retrieval_llm import RetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import (
-    SAGEMAKER_ENDPOINT_ARGS,
-    TEMPERATURE_PLACEHOLDER_STR,
-    TRACE_ID_ENV_VAR,
-)
+from utils.constants import SAGEMAKER_ENDPOINT_ARGS, TEMPERATURE_PLACEHOLDER_STR, TRACE_ID_ENV_VAR
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client
@@ -198,7 +194,9 @@ class SageMakerRetrievalLLM(RetrievalLLM):
         error_message = f"Error occurred while invoking SageMaker endpoint: '{self.sagemaker_endpoint_name}'. "
 
         try:
-            return super().generate(question)
+            response = super().generate(question)
+            logger.debug(f"Model response: {response}")
+            return response
         except ValueError as ve:
             error_message = error_message + str(ve)
             logger.error(

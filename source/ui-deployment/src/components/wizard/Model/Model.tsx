@@ -27,6 +27,7 @@ export interface ModelComponentsProps {
     setHelpPanelContent: (e: any) => void;
     setNumFieldsInError: React.Dispatch<any>;
     knowledgeBase: any;
+    handleWizardNextStepLoading?: (isLoading: boolean) => void;
 }
 
 const ModelComponents = ({
@@ -34,7 +35,8 @@ const ModelComponents = ({
     onChange,
     setHelpPanelContent,
     setNumFieldsInError,
-    knowledgeBase
+    knowledgeBase,
+    handleWizardNextStepLoading
 }: ModelComponentsProps) => {
     return (
         <form>
@@ -56,6 +58,7 @@ const ModelComponents = ({
                                     setNumFieldsInError={setNumFieldsInError}
                                     setHelpPanelContent={setHelpPanelContent}
                                     isRagEnabled={knowledgeBase.isRagRequired}
+                                    handleWizardNextStepLoading={handleWizardNextStepLoading}
                                 />
                             </ExpandableSection>
                         )
@@ -67,6 +70,7 @@ const ModelComponents = ({
                             onChangeFn={onChange}
                             setHelpPanelContent={setHelpPanelContent}
                             setNumFieldsInError={setNumFieldsInError}
+                            handleWizardNextStepLoading={handleWizardNextStepLoading}
                         />
 
                         {model.modelProvider.value !== '' && (
@@ -75,6 +79,7 @@ const ModelComponents = ({
                                 onChange={onChange}
                                 setHelpPanelContent={setHelpPanelContent}
                                 setNumFieldsInError={setNumFieldsInError}
+                                handleWizardNextStepLoading={handleWizardNextStepLoading}
                             />
                         )}
                     </SpaceBetween>
@@ -84,7 +89,12 @@ const ModelComponents = ({
     );
 };
 
-const Model = ({ info: { model, knowledgeBase }, setHelpPanelContent, onChange }: StepContentProps) => {
+const Model = ({
+    info: { model, knowledgeBase },
+    setHelpPanelContent,
+    onChange,
+    handleWizardNextStepLoading
+}: StepContentProps) => {
     const [numFieldsInError, setNumFieldsInError] = React.useState(0);
 
     const [requiredFields, setRequiredFields] = React.useState(initModelRequiredFields(model.modelProvider.value));
@@ -96,7 +106,8 @@ const Model = ({ info: { model, knowledgeBase }, setHelpPanelContent, onChange }
         setNumFieldsInError,
         requiredFields,
         setRequiredFields,
-        knowledgeBase
+        knowledgeBase,
+        handleWizardNextStepLoading
     };
 
     const isRequiredFieldsFilled = () => {
