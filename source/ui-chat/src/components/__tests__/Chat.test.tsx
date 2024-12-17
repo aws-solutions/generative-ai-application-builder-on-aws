@@ -446,10 +446,24 @@ describe('Chat UI Tests', () => {
                 mockServer.emit('error', new Error('Test error'));
             });
 
-            const errorMessage = screen.getByText(
-                'Connection failed. Please ensure you have proper access to the deployment and are logged in with the correct credentials.'
-            );
-            expect(errorMessage).toBeInTheDocument();
+            // Wait for and verify the authentication alert is shown
+            await waitFor(() => {
+                const authAlert = screen.getByTestId('unauthorized-alert');
+                expect(authAlert).toBeInTheDocument();
+
+                // Check for the message content using the container
+                expect(authAlert).toHaveTextContent('Authentication Required');
+                expect(authAlert).toHaveTextContent('Please log in to access the chat interface');
+
+                // Check for the login button
+                const loginButton = screen.getByTestId('login-redirect-button');
+                expect(loginButton).toBeInTheDocument();
+                expect(loginButton).toHaveTextContent('Go to Login');
+            });
+
+            // Test the button
+            const loginButton = screen.getByTestId('login-redirect-button');
+            expect(loginButton).toBeInTheDocument();
         });
 
         test('Handles socket close event', async () => {
@@ -473,6 +487,55 @@ describe('Chat UI Tests', () => {
                 );
                 expect(disconnectionMessage).toBeInTheDocument();
             });
+        });
+
+        // Test for when settings button should be visible (non-Agent use case)
+        test('Shows settings button for non-Agent use case', async () => {
+            const contextWithTextUseCase = {
+                ...contextValue,
+                state: {
+                    ...contextValue.state,
+                    useCaseConfig: {
+                        UseCaseType: USE_CASE_TYPES.TEXT
+                    }
+                }
+            };
+
+            await act(() => {
+                render(
+                    <HomeContext.Provider value={contextWithTextUseCase}>
+                        <Chat stopConversationRef={stopConversationRef} socketUrl={fakeSocketUrl} />
+                    </HomeContext.Provider>
+                );
+            });
+
+            const settingsButton = screen.getByTestId('settings-button');
+            expect(settingsButton).toBeInTheDocument();
+        });
+
+        // Test for when settings button should be hidden (Agent use case)
+        test('Hides settings button for Agent use case', async () => {
+            const contextWithAgentUseCase = {
+                ...contextValue,
+                state: {
+                    ...contextValue.state,
+                    useCaseConfig: {
+                        UseCaseType: USE_CASE_TYPES.AGENT
+                    }
+                }
+            };
+
+            await act(() => {
+                render(
+                    <HomeContext.Provider value={contextWithAgentUseCase}>
+                        <Chat stopConversationRef={stopConversationRef} socketUrl={fakeSocketUrl} />
+                    </HomeContext.Provider>
+                );
+            });
+
+            // Using queryByTestId instead of getByTestId because we expect the element to not exist
+            const settingsButton = screen.queryByTestId('settings-button');
+            expect(settingsButton).not.toBeInTheDocument();
         });
     });
 });

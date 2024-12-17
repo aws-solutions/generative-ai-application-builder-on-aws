@@ -16,7 +16,7 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-boto3 = "1.35.49"
+boto3 = "1.35.80"
 
 [tool.poetry.group.test.dependencies]
 moto = "5.0.18"

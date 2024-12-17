@@ -27,6 +27,7 @@ export interface ModelNameDropdownProps {
     modelNameFormDescription?: string;
     onChangeFn: (e: any) => void;
     setHelpPanelContent?: (e: any) => void;
+    handleWizardNextStepLoading?: (isLoading: boolean) => void;
 }
 
 export const ModelNameDropdown = (props: ModelNameDropdownProps) => {
@@ -34,7 +35,14 @@ export const ModelNameDropdown = (props: ModelNameDropdownProps) => {
     const [status, setStatus] = React.useState<DropdownStatusProps.StatusType>('pending');
 
     const providerName = props.modelData.modelProvider.value;
+
     const { isPending, isError, data, error } = useModelNameQuery(providerName);
+    // Handle loading state in useEffect
+    React.useEffect(() => {
+        if (props.handleWizardNextStepLoading) {
+            props.handleWizardNextStepLoading(isPending);
+        }
+    }, [isPending, props.handleWizardNextStepLoading]);
 
     const [modelNameSelectedOption, setModelNameSelectedOption] = React.useState(() => {
         // preserve modelname in form on edit

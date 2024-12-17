@@ -31,6 +31,14 @@ export const StreamingToggle = (props: StreamingToggleProps) => {
     const modelStreamingQueryResponse = useModelStreamingQuery(modelProviderValue, modelNameValue);
 
     const [toggleChecked, setToggleChecked] = React.useState(false);
+
+    // Handle loading state in useEffect
+    React.useEffect(() => {
+        if (props.handleWizardNextStepLoading) {
+            props.handleWizardNextStepLoading(modelStreamingQueryResponse.isPending);
+        }
+    }, [modelStreamingQueryResponse.isPending, props.handleWizardNextStepLoading]);
+
     const [isDisabled, setIsDisabled] = React.useState(() => {
         if (modelStreamingQueryResponse.isError) {
             console.error('Error in fetching model streaming defaults');
@@ -40,7 +48,6 @@ export const StreamingToggle = (props: StreamingToggleProps) => {
         if (modelStreamingQueryResponse.isSuccess) {
             return !modelStreamingQueryResponse.data;
         }
-
         return true; // default to disabled until data is fetched. This is to prevent flickering.
     });
 

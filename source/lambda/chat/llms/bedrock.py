@@ -136,7 +136,9 @@ class BedrockLLM(BaseLangChainModel):
             f"Error occurred while invoking Bedrock model family '{self.model_family}' model '{self.model}'. "
         )
         try:
-            return super().generate(question)
+            response = super().generate(question)
+            logger.debug(f"Model response: {response}")
+            return response
         except Exception as ex:
             error_message = error_message + str(ex)
             logger.error(

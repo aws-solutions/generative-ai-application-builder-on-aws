@@ -26,6 +26,7 @@ export interface StepContentProps {
     info: any;
     onChange: (e: any) => void;
     setHelpPanelContent: (e: any) => void;
+    handleWizardNextStepLoading?: (e: boolean) => void;
 }
 
 /**

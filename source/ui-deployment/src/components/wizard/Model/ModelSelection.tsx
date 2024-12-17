@@ -20,13 +20,15 @@ export interface ModelSelectionProps {
     onChange: (e: any) => void;
     setHelpPanelContent: (e: any) => void;
     setNumFieldsInError: React.Dispatch<any>;
+    handleWizardNextStepLoading?: (isLoading: boolean) => void;
 }
 
 export const ModelSelection = ({
     modelData,
     onChange,
     setHelpPanelContent,
-    setNumFieldsInError
+    setNumFieldsInError,
+    handleWizardNextStepLoading
 }: ModelSelectionProps) => {
     switch (modelData.modelProvider.value.toLowerCase()) {
         case MODEL_PROVIDER_NAME_MAP.Bedrock.toLowerCase():
@@ -36,6 +38,7 @@ export const ModelSelection = ({
                     onChangeFn={onChange}
                     setHelpPanelContent={setHelpPanelContent}
                     setNumFieldsInError={setNumFieldsInError}
+                    handleWizardNextStepLoading={handleWizardNextStepLoading}
                 />
             );
         case MODEL_PROVIDER_NAME_MAP.SageMaker.toLowerCase():

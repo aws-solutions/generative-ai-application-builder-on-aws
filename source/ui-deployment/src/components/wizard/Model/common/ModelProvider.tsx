@@ -46,6 +46,12 @@ export const ModelProviderDropdown = (props: ModelProviderDropdownProps) => {
 
     const modelProviderQueryResponse = useModelProvidersQuery();
 
+    React.useEffect(() => {
+        if (props.handleWizardNextStepLoading) {
+            props.handleWizardNextStepLoading(modelProviderQueryResponse.isPending);
+        }
+    }, [modelProviderQueryResponse.isPending, props.handleWizardNextStepLoading]);
+
     const onModelProviderChange = (detail: SelectProps.ChangeDetail) => {
         setSelectedModelProviderOption(detail.selectedOption);
         props.onChangeFn({

@@ -33,6 +33,7 @@ export interface KnowledgeBaseSettings extends BaseWizardProps {
     kendraIndexName: string;
     returnDocumentSource: boolean;
     bedrockKnowledgeBaseId: string;
+    bedrockOverrideSearchType: any;
     enableRoleBasedAccessControl: boolean;
     queryFilter: any;
 }
@@ -55,6 +56,7 @@ export class KnowledgeBaseStep extends BaseWizardStep {
         kendraIndexName: DEFAULT_STEP_INFO.knowledgeBase.kendraIndexName,
         returnDocumentSource: DEFAULT_STEP_INFO.knowledgeBase.returnDocumentSource,
         bedrockKnowledgeBaseId: DEFAULT_STEP_INFO.knowledgeBase.bedrockKnowledgeBaseId,
+        bedrockOverrideSearchType: DEFAULT_STEP_INFO.knowledgeBase.bedrockOverrideSearchType,
         enableRoleBasedAccessControl: DEFAULT_STEP_INFO.knowledgeBase.enableRoleBasedAccessControl,
         queryFilter: DEFAULT_STEP_INFO.knowledgeBase.queryFilter,
         inError: false
@@ -109,6 +111,7 @@ export class KnowledgeBaseStep extends BaseWizardStep {
             kendraIndexName: this.props.kendraIndexName,
             returnDocumentSource: this.props.returnDocumentSource,
             bedrockKnowledgeBaseId: this.props.bedrockKnowledgeBaseId,
+            bedrockOverrideSearchType: this.props.bedrockOverrideSearchType,
             enableRoleBasedAccessControl: this.props.enableRoleBasedAccessControl,
             queryFilter: this.props.queryFilter,
             inError: this.props.inError

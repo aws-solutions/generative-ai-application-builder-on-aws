@@ -477,37 +477,3 @@ def test_construct_chat_model_new_prompt(
 
     assert llm_client.use_case_config["LlmParams"]["PromptParams"]["PromptTemplate"] == PROMPT
     assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(PROMPT)
-
-
-@pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, rag_enabled, knowledge_base_type, return_source_docs, model_id",
-    [
-        (
-            CHAT_IDENTIFIER,
-            BASIC_PROMPT,
-            False,
-            False,
-            None,
-            False,
-            f"{BedrockModelProviders.ANTHROPIC.value}.fake-model",
-        )
-    ],
-)
-def test_construct_chat_model_new_prompt(
-    use_case,
-    rag_enabled,
-    model_id,
-    bedrock_llm_config,
-    setup_environment,
-    verbose_llm_client,
-    bedrock_dynamodb_defaults_table,
-    apigateway_stubber,
-):
-    chat_body = {
-        "action": "sendMessage",
-        "conversationId": "fake-conversation-id",
-        "question": "How are you?",
-        "promptTemplate": PROMPT,
-    }
-    verbose_llm_client.get_model(chat_body, "fake-user-uuid")
-    assert os.environ["LOG_LEVEL"] == "DEBUG"

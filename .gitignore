@@ -58,3 +58,7 @@ bak.*
 _bandit_temp.json
 RapidAi.code-workspace
 source/scripts/v2_migration/poetry.lock
+
+.temp_redpencil
+bom.json
+bom.xml
