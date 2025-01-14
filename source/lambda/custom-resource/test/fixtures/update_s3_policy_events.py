@@ -1,35 +1,23 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 
 import json
-import os
 
 import pytest
 from botocore.stub import Stubber
 from helper import get_service_client
-from operations.update_s3_policy import POLICY_SID
-
 from operations.operation_types import (
+    LOGGING_BUCKET_NAME,
+    PHYSICAL_RESOURCE_ID,
     RESOURCE,
     RESOURCE_PROPERTIES,
-    PHYSICAL_RESOURCE_ID,
-    UPDATE_BUCKET_POLICY,
     SOURCE_BUCKET_NAME,
     SOURCE_PREFIX,
-    LOGGING_BUCKET_NAME,
+    UPDATE_BUCKET_POLICY,
 )
+from operations.update_s3_policy import POLICY_SID
 
 
 @pytest.fixture

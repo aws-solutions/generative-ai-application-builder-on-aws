@@ -1,19 +1,7 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
-import json
-from test.fixtures.admin_policy_events import lambda_event, setup_ddb
 
 import botocore
 import mock
@@ -21,16 +9,17 @@ import pytest
 from lambda_func import handler
 from moto import mock_aws
 from operations.admin_policy import (
+    ADMIN_POLICY_SID,
+    POLICY_TABLE_NAME,
     RESOURCE,
     RESOURCE_PROPERTIES,
-    POLICY_TABLE_NAME,
-    ADMIN_POLICY_SID,
     create,
     delete,
     execute,
     verify_env_setup,
 )
 from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
+from test.fixtures.admin_policy_events import lambda_event, setup_ddb
 
 
 def test_when_operation_type_is_invalid(lambda_event, mock_lambda_context):

@@ -1,33 +1,23 @@
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+from test.fixtures.get_arns_for_inference_profile_events import lambda_event, setup_use_case_config
+from unittest.mock import MagicMock, patch
 
 import pytest
-from moto import mock_aws
-from botocore.exceptions import ClientError
-from unittest.mock import MagicMock, patch
-from test.fixtures.get_arns_for_inference_profile_events import lambda_event, setup_use_case_config
-
-from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
-from operations.get_arns_for_inference_profile import (
-    execute,
-    get_model_arns,
-    get_inference_identifier_from_ddb,
-    verify_env_setup,
-    USE_CASE_CONFIG_TABLE_NAME,
-    USE_CASE_CONFIG_RECORD_KEY,
-    LLM_CONFIG_RECORD_FIELD_NAME,
-)
 from boto3.dynamodb.types import TypeSerializer
+from botocore.exceptions import ClientError
+from moto import mock_aws
+from operations.get_arns_for_inference_profile import (
+    LLM_CONFIG_RECORD_FIELD_NAME,
+    USE_CASE_CONFIG_RECORD_KEY,
+    USE_CASE_CONFIG_TABLE_NAME,
+    execute,
+    get_inference_identifier_from_ddb,
+    get_model_arns,
+    verify_env_setup,
+)
+from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
 
 
 @pytest.fixture

@@ -1,30 +1,21 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
-from test.fixtures.get_compatible_azs_events import get_compatible_azs_event, describe_vpc_endpoint_services_response
+from test.fixtures.get_compatible_azs_events import describe_vpc_endpoint_services_response
 
-from botocore.exceptions import ClientError
 import mock
 import pytest
+from botocore.exceptions import ClientError
 from operations.get_compatible_azs import (
-    execute,
-    verify_env_setup,
-    get_compatible_azs,
-    find_common_azs,
     REQUIRED_SERVICE_NAMES,
+    execute,
+    find_common_azs,
+    get_compatible_azs,
+    verify_env_setup,
 )
-from operations.operation_types import RESOURCE_PROPERTIES, RESOURCE
+from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
+from test.fixtures.get_compatible_azs_events import get_compatible_azs_event, describe_vpc_endpoint_services_response
 
 
 def test_verify_env_setup_success(get_compatible_azs_event):

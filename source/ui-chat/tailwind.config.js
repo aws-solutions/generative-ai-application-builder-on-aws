@@ -1,4 +1,7 @@
 /* eslint-disable import/no-anonymous-default-export */
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 /** @type {import('tailwindcss').Config} */
 export default {
     content: [

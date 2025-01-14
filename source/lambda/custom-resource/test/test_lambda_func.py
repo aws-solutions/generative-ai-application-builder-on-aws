@@ -1,28 +1,16 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 
 import os
-from test.fixtures.copy_web_ui_events import lambda_event, web_ui_copy_setup, SAMPLE_JSON_VALUE
-
 
 import mock
 import pytest
 from lambda_func import UnSupportedOperationTypeException, get_function_for_resource, handler
 from operations import operation_types
 from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
-
+from test.fixtures.copy_web_ui_events import web_ui_copy_setup, lambda_event, SAMPLE_JSON_VALUE
 
 @pytest.fixture
 def patch_powertools():
