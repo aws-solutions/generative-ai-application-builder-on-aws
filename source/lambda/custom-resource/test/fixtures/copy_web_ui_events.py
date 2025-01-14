@@ -1,16 +1,6 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 import copy
 import json
@@ -21,19 +11,16 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import pytest
 from operations import operation_types
 from operations.copy_web_ui import (
-    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     DESTINATION_BUCKET_NAME,
+    IS_INTERNAL_USER_KEY,
     SOURCE_BUCKET_NAME,
     SOURCE_PREFIX,
     USE_CASE_CONFIG_RECORD_KEY,
+    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     USE_CASE_CONFIG_TABLE_NAME,
     WEBSITE_CONFIG_PARAM_KEY,
-    IS_INTERNAL_USER_KEY,
-    execute,
-    verify_env_setup,
 )
 from operations.operation_types import PHYSICAL_RESOURCE_ID, RESOURCE, RESOURCE_PROPERTIES
-
 
 SAMPLE_JSON_VALUE = {"Key1": "FakeValue1", "Key2": {"Key3": "FakeValue3"}}
 

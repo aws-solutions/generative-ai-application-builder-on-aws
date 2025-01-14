@@ -1,16 +1,6 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 import os
 
@@ -21,17 +11,17 @@ from custom_config import DEFAULT_APP_NAME
 from operations import (
     admin_policy,
     anonymous_metrics,
+    copy_model_info_to_ddb,
     copy_web_ui,
+    cw_log_retention,
+    gen_domain_prefix,
     gen_uuid,
+    get_arns_for_inference_profile,
+    get_compatible_azs,
     operation_types,
     update_s3_policy,
     use_case_policy,
     webconfig,
-    copy_model_info_to_ddb,
-    get_compatible_azs,
-    gen_domain_prefix,
-    cw_log_retention,
-    get_arns_for_inference_profile,
 )
 from operations.operation_types import FAILED, RESOURCE, RESOURCE_PROPERTIES
 

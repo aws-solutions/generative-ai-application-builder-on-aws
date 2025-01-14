@@ -1,32 +1,18 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
+
+import zipfile
 
 import botocore
-import zipfile
-from test.fixtures.copy_model_info_events import copy_to_ddb_event, setup_model_info, ddb_table
-
 import mock
 import pytest
-from moto import mock_aws
 from lambda_func import handler
-from operations.copy_model_info_to_ddb import DDB_TABLE_NAME, create, execute, verify_env_setup, delete_all_entries
-from operations.operation_types import (
-    RESOURCE_PROPERTIES,
-    SOURCE_BUCKET_NAME,
-    SOURCE_PREFIX,
-)
+from moto import mock_aws
+from operations.copy_model_info_to_ddb import DDB_TABLE_NAME, create, delete_all_entries, execute, verify_env_setup
+from operations.operation_types import RESOURCE_PROPERTIES, SOURCE_BUCKET_NAME, SOURCE_PREFIX
+from test.fixtures.copy_model_info_events import copy_to_ddb_event, setup_model_info, ddb_table
 
 
 def test_verify_env_setup_success(setup_model_info):

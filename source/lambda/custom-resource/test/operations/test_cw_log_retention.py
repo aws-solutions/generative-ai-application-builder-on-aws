@@ -1,27 +1,18 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
+
+from unittest import mock
 
 import pytest
-from unittest import mock
 from operations.cw_log_retention import (
     FUNCTION_NAME,
-    verify_env_setup,
-    update_retention_policy,
-    execute,
     create_log_group_if_not_exists,
+    execute,
     get_log_group_name,
+    update_retention_policy,
+    verify_env_setup,
 )
 from operations.operation_types import (
     FAILED,
@@ -29,11 +20,8 @@ from operations.operation_types import (
     RESOURCE,
     RESOURCE_PROPERTIES,
     SUCCESS,
-    CW_LOG_RETENTION,
 )
-from test.fixtures.cw_log_retention import (
-    lambda_event,
-)
+from test.fixtures.cw_log_retention import lambda_event
 
 
 @pytest.fixture
