@@ -587,6 +587,7 @@ This software includes third party software subject to the following copyrights:
 @vitejs/plugin-react under the MIT license.
 @vitest/coverage-v8 under the MIT license.
 @vitest/expect under the MIT license.
+@vitest/pretty-format under the MIT license.
 @vitest/runner under the MIT license.
 @vitest/snapshot under the MIT license.
 @vitest/spy under the MIT license.
@@ -1403,6 +1404,7 @@ through2 under the MIT license.
 tinybench under the MIT license.
 tinycolor2 under the MIT license.
 tinypool under the MIT license.
+tinyrainbow under the MIT license.
 tinyspy under the MIT license.
 tmpl under the BSD-3-Clause license.
 to-fast-properties under the MIT license.

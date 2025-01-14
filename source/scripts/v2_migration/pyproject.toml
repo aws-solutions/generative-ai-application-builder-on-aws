@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gaab-v2-migration"
-version = "1.0.0"
+version = "2.1.2"
 authors = [ "Amazon Web Services" ]
 description = "Migration script to convert v1.X use cases to v2.X"
 packages = [

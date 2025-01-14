@@ -1,27 +1,17 @@
 #!/usr/bin/env python
-######################################################################################################################
-#  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.                                                #
-#                                                                                                                    #
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance    #
-#  with the License. A copy of the License is located at                                                             #
-#                                                                                                                    #
-#      http://www.apache.org/licenses/LICENSE-2.0                                                                    #
-#                                                                                                                    #
-#  or in the 'license' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES #
-#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
-#  and limitations under the License.                                                                                #
-######################################################################################################################
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 import json
 import re
-from test.fixtures.gen_uuid_events import lambda_event
 
 import mock
-import operations
 import pytest
 from lambda_func import handler
 from operations.gen_uuid import execute, verify_env_setup
-from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES, PHYSICAL_RESOURCE_ID
+from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
+from test.fixtures.gen_uuid_events import lambda_event
+
 
 uuid_regex = re.compile("^[a-fA-F0-9]{8}$")
 
