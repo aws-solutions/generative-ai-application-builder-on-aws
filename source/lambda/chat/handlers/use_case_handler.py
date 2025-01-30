@@ -55,6 +55,7 @@ class UseCaseHandler:
         while loop_index < total_records:
             logger.debug(f"Processing record number {loop_index}")
             connection_id = None
+            conversation_id = None
             record = event["Records"][loop_index]
 
             try:
@@ -65,9 +66,10 @@ class UseCaseHandler:
                 llm_client = self.llm_client_type(
                     connection_id=connection_id,
                 )
+                conversation_id = llm_client.get_event_conversation_id(event_body)
                 llm_client.check_env()
-                event_body = llm_client.check_event(record)
-                event_message = event_body[MESSAGE_KEY]
+                updated_event_body = llm_client.check_event(event_body, conversation_id)
+                event_message = updated_event_body[MESSAGE_KEY]
                 llm_client.rag_enabled = llm_client.use_case_config.get("LlmParams", {}).get(
                     "RAGEnabled", DEFAULT_RAG_ENABLED_MODE
                 )
@@ -77,10 +79,7 @@ class UseCaseHandler:
                 )
                 ai_response = llm_chat.generate(event_message["question"])
 
-                socket_handler = WebsocketHandler(
-                    connection_id=connection_id,
-                    conversation_id=llm_client.builder.conversation_id,
-                )
+                socket_handler = WebsocketHandler(connection_id=connection_id, conversation_id=conversation_id)
                 if not llm_client.builder.is_streaming:
                     socket_handler.post_response_to_connection(ai_response)
                 socket_handler.post_token_to_connection(END_CONVERSATION_TOKEN)
@@ -97,7 +96,9 @@ class UseCaseHandler:
                 tracer_id = os.getenv(TRACE_ID_ENV_VAR)
                 chat_error = f"Chat service failed to respond. Please contact your administrator for support and quote the following trace id: {tracer_id}"
                 logger.error(f"An exception occurred in the processing of chat: {ex}", xray_trace_id=tracer_id)
-                error_handler = WebsocketErrorHandler(connection_id=connection_id, trace_id=tracer_id)
+                error_handler = WebsocketErrorHandler(
+                    connection_id=connection_id, trace_id=tracer_id, conversation_id=conversation_id
+                )
                 error_handler.post_token_to_connection(chat_error)
 
                 # append error records with the same connection id

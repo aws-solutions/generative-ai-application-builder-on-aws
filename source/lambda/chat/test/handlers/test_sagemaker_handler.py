@@ -393,6 +393,7 @@ def test_missing_llm_config_key(
                 "ConnectionId": "fake-connection-id",
                 "Data": json.dumps(
                     {
+                        "conversationId": "fake-conversation-id",
                         "errorMessage": "Chat service failed to respond. Please contact your administrator for support and quote the following trace id: fake-trace-id",
                         "traceId": "fake-trace-id",
                     }
@@ -405,7 +406,7 @@ def test_missing_llm_config_key(
             {},
             expected_params={
                 "ConnectionId": "fake-connection-id",
-                "Data": json.dumps({"data": END_CONVERSATION_TOKEN}),
+                "Data": json.dumps({"conversationId": "fake-conversation-id", "data": END_CONVERSATION_TOKEN}),
             },
         )
 

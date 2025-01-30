@@ -7,7 +7,12 @@ from typing import Optional
 
 from aws_lambda_powertools import Logger
 from helper import get_service_client
-from utils.constants import END_CONVERSATION_TOKEN, TRACE_ID_ENV_VAR, WEBSOCKET_CALLBACK_URL_ENV_VAR
+from utils.constants import (
+    CONVERSATION_ID_EVENT_KEY,
+    END_CONVERSATION_TOKEN,
+    TRACE_ID_ENV_VAR,
+    WEBSOCKET_CALLBACK_URL_ENV_VAR,
+)
 
 logger = Logger(utc=True)
 
@@ -27,11 +32,12 @@ class WebsocketErrorHandler:
         format_response(payload): Formats the payload in a format that the websocket accepts
     """
 
-    def __init__(self, connection_id: str, trace_id: Optional[str]) -> None:
+    def __init__(self, connection_id: str, conversation_id: str, trace_id: Optional[str]) -> None:
         self._connection_url = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
         self._connection_id = connection_id
         self._trace_id = trace_id
         self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self.connection_url)
+        self._conversation_id = conversation_id
 
     @property
     def connection_url(self) -> str:
@@ -81,4 +87,6 @@ class WebsocketErrorHandler:
         Args:
             kwargs: The keyword arguments which will be converted to a json string
         """
-        return json.dumps(kwargs)
+        response_dict = {CONVERSATION_ID_EVENT_KEY: self._conversation_id}
+        response_dict.update(kwargs)
+        return json.dumps(response_dict)
