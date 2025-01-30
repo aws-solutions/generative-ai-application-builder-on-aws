@@ -4,8 +4,9 @@
 
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import { Duration } from 'aws-cdk-lib';
 
-export const ANONYMOUS_METRICS_SCHEDULE = 'rate(1 day)';
+export const ANONYMOUS_METRICS_SCHEDULE = Duration.hours(3);
 
 export const PLACEHOLDER_EMAIL = 'placeholder@example.com';
 export const INTERNAL_EMAIL_DOMAIN = 'amazon';

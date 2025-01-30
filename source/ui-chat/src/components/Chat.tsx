@@ -17,9 +17,9 @@ import {
 import { saveConversation } from '../utils/conversation';
 import './Chat.css';
 import { ChatInput } from './ChatInput';
-import { MemoizedChatMessage } from './MemoizedChatMessage';
 import { PromptTemplate } from './PromptTemplate';
 import { ChatConfigType, AgentConfigType } from '../home/home.state';
+import { ChatMessage } from './ChatMessage';
 
 interface Props {
     stopConversationRef: MutableRefObject<boolean>;
@@ -212,24 +212,24 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                         if (isFirst) {
                             isFirst = false;
                             if (useCaseConfig.UseCaseType == USE_CASE_TYPES.TEXT) {
-                            const updatedMessages: MessageWithSource[] = [
-                                ...updatedConversation.messages,
-                                { role: 'assistant', content: chunkValue, sourceDocuments: initSourceDocuments }
-                            ];
-                            updatedConversation = {
-                                ...updatedConversation,
-                                messages: updatedMessages
-                            };
-                        } else {
-                            const updatedMessages: Message[] = [
-                                ...updatedConversation.messages,
-                                { role: 'assistant', content: chunkValue }
-                            ];
-                            updatedConversation = {
-                                ...updatedConversation,
-                                messages: updatedMessages
-                            };
-                        }
+                                const updatedMessages: MessageWithSource[] = [
+                                    ...updatedConversation.messages,
+                                    { role: 'assistant', content: chunkValue, sourceDocuments: initSourceDocuments }
+                                ];
+                                updatedConversation = {
+                                    ...updatedConversation,
+                                    messages: updatedMessages
+                                };
+                            } else {
+                                const updatedMessages: Message[] = [
+                                    ...updatedConversation.messages,
+                                    { role: 'assistant', content: chunkValue }
+                                ];
+                                updatedConversation = {
+                                    ...updatedConversation,
+                                    messages: updatedMessages
+                                };
+                            }
                             homeDispatch({
                                 field: 'selectedConversation',
                                 value: updatedConversation
@@ -425,7 +425,7 @@ export const Chat = memo(({ stopConversationRef, socketUrl }: Props) => { // NOS
                             <div className="chatbox">
                                 <Container>
                                     {selectedConversation?.messages.map((message: any, index: any) => (
-                                        <MemoizedChatMessage
+                                        <ChatMessage
                                             key={index} //NOSONAR - typescript:S6479 - index value required
                                             message={message}
                                             messageIndex={index}

@@ -51,8 +51,9 @@ class CloudWatchMetrics(str, Enum):
 
 
 METRICS_ENDPOINT = "https://metrics.awssolutionsbuilder.com/generic"
-PUBLISH_METRICS_TIME_PERIOD = 180
-PUBLISH_METRICS_DAYS = 1  # Equivalent (in number of days) to the runtime schedule defined by ANONYMOUS_METRICS_SCHEDULE
+PUBLISH_METRICS_PERIOD_IN_SECONDS = (
+    60 * 60 * 3
+)  # 3 hours. This is expected to match the runtime schedule defined by ANONYMOUS_METRICS_SCHEDULE
 
 SSM_CONFIG_KEY = "SSM_CONFIG_KEY"
 LLM_PARAMS = "LlmParams"
@@ -76,3 +77,6 @@ USE_CASE_CONFIG_TABLE_NAME = "USE_CASE_CONFIG_TABLE_NAME"
 USE_CASE_CONFIG_RECORD_KEY = "USE_CASE_CONFIG_RECORD_KEY"
 USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME = "key"
 USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME = "config"
+METRICS_TIMESTAMP_FORMAT = (
+    "%Y-%m-%d %H:%M:%S.%f"  # This is the required format for the metrics API. Any changes should be taken with care
+)

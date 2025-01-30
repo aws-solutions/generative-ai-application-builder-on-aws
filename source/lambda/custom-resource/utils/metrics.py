@@ -4,11 +4,11 @@
 
 import json
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import urllib3
 from aws_lambda_powertools import Logger, Tracer
-from utils.constants import METRICS_ENDPOINT
+from utils.constants import METRICS_ENDPOINT, METRICS_TIMESTAMP_FORMAT
 from utils.data import BuilderMetrics, DecimalEncoder
 
 logger = Logger(utc=True)
@@ -39,7 +39,7 @@ def push_builder_metrics(builder_metrics: BuilderMetrics):
             {
                 "Solution": builder_metrics.solution_id,
                 "Version": builder_metrics.version,
-                "TimeStamp": datetime.now(UTC).isoformat(),
+                "TimeStamp": datetime.now(timezone.utc).strftime(METRICS_TIMESTAMP_FORMAT),
                 "Data": builder_metrics.data,
                 "UUID": builder_metrics.uuid,
             },

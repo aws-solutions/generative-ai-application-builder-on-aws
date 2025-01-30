@@ -101,7 +101,7 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
             "Create",
             None,
             None,
-            None,
+            False,
             {
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
@@ -109,6 +109,10 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "UseCaseConfig": {
                     "UseCaseName": "test_use_case",
                     "LlmParams": {
+                        "PromptParams": {
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": False,
+                        },
                         "RAGEnabled": True,
                     },
                 },
@@ -172,6 +176,10 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "UseCaseConfig": {
                     "UseCaseName": "test_use_case",
                     "LlmParams": {
+                        "PromptParams": {
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": False,
+                        },
                         "RAGEnabled": True,
                     },
                 },
@@ -189,6 +197,10 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "UseCaseConfig": {
                     "UseCaseName": "test_use_case",
                     "LlmParams": {
+                        "PromptParams": {
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": False,
+                        },
                         "RAGEnabled": True,
                     },
                 },
@@ -206,6 +218,10 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "UseCaseConfig": {
                     "UseCaseName": "test_use_case",
                     "LlmParams": {
+                        "PromptParams": {
+                            "MaxInputTextLength": 1000.0,
+                            "UserPromptEditingEnabled": False,
+                        },
                         "RAGEnabled": True,
                     },
                 },

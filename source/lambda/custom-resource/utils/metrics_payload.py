@@ -6,11 +6,11 @@ import datetime
 import os
 from datetime import datetime, timedelta
 
-from helper import get_service_client
+from helper import get_session
 from utils.constants import (
     CLIENT_ID_ENV_VAR,
     KENDRA_INDEX_ID_ENV_VAR,
-    PUBLISH_METRICS_DAYS,
+    PUBLISH_METRICS_PERIOD_IN_SECONDS,
     REST_API_NAME_ENV_VAR,
     USE_CASE_UUID_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
@@ -18,8 +18,6 @@ from utils.constants import (
     CloudWatchMetrics,
     CloudWatchNamespaces,
 )
-
-PUBLISH_METRICS_PERIOD = PUBLISH_METRICS_DAYS * 24 * 60 * 60
 
 
 def get_cloudwatch_metrics_queries():
@@ -244,7 +242,7 @@ def get_cloudwatch_metrics_queries():
                 {
                     "Id": query_label_pair[0].replace(")", "").replace("(", "").lower(),
                     "Expression": query_label_pair[1],
-                    "Period": PUBLISH_METRICS_PERIOD,
+                    "Period": PUBLISH_METRICS_PERIOD_IN_SECONDS,
                     "Label": query_label_pair[0],
                 }
             ]
@@ -252,15 +250,15 @@ def get_cloudwatch_metrics_queries():
     return formatted_queries
 
 
-def get_metrics_payload(days):
+def get_metrics_payload(time_period_in_seconds):
     metric_data_queries = get_cloudwatch_metrics_queries()
 
     # fetch for (T-1) hours as CW metrics can be slow to trickle in
     today = datetime.today().replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
-    start_timestamp = datetime.timestamp(today - timedelta(days=days))
+    start_timestamp = datetime.timestamp(today - timedelta(seconds=time_period_in_seconds))
     end_timestamp = datetime.timestamp(today)
 
-    cloudwatch_client = get_service_client("cloudwatch")
+    cloudwatch_client = get_session().client("cloudwatch")
     metric_data = {}
 
     # fmt: off

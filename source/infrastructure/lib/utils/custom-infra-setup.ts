@@ -143,7 +143,7 @@ export class CustomInfraSetup extends Construct {
 
         // eventbridge rule to the default event-bus to push anonymous metrics
         const rule = new events.Rule(this, 'MetricsPublishFrequency', {
-            schedule: events.Schedule.expression(ANONYMOUS_METRICS_SCHEDULE)
+            schedule: events.Schedule.rate(ANONYMOUS_METRICS_SCHEDULE)
         });
         (rule.node.tryFindChild('Resource') as cdk.CfnCustomResource).cfnOptions.condition =
             props.sendAnonymousMetricsCondition;
