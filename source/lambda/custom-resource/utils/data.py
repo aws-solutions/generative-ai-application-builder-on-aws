@@ -10,6 +10,7 @@ from uuid import UUID
 
 import urllib3
 from aws_lambda_powertools import Logger, Tracer
+from utils.constants import METRICS_TIMESTAMP_FORMAT
 
 logger = Logger(utc=True)
 tracer = Tracer()
@@ -38,7 +39,7 @@ class BuilderMetrics:
         self.solution_id = solution_id
         self.version = version
         self.data = data if data else {}
-        self.timestamp = datetime.now(timezone.utc).isoformat()
+        self.timestamp = datetime.now(timezone.utc).strftime(METRICS_TIMESTAMP_FORMAT)
 
     def __post_init__(self):
         if not isinstance(self.solution_id, str):

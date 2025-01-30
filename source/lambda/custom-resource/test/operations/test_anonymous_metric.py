@@ -112,7 +112,7 @@ def test_sending_metric_missing_props(lambda_events, mock_lambda_context, reques
                 assert call_kwargs["url"] == METRICS_ENDPOINT
                 body = json.loads(call_kwargs["body"])
                 assert body["Solution"] == "SO0999"
-                assert body["TimeStamp"] == "2000-01-01T00:00:00+00:00"
+                assert body["TimeStamp"] == "2000-01-01 00:00:00.000000"
                 assert body.get("UUID") == "fakeuuid"
                 assert body[VERSION] == "v9.9.9"
                 assert body["Data"] == {}
@@ -172,7 +172,7 @@ def test_lambda_handler(lambda_events, mock_lambda_context, requestType, setup_c
                 assert call_kwargs["url"] == METRICS_ENDPOINT
                 body = json.loads(call_kwargs["body"])
                 assert body["Solution"] == "SO0999"
-                assert body["TimeStamp"] == "2000-01-01T00:00:00+00:00"
+                assert body["TimeStamp"] == "2000-01-01 00:00:00.000000"
                 assert body.get("UUID") == "fakeuuid"
                 assert body[VERSION] == "v9.9.9"
 
@@ -205,7 +205,7 @@ def test_lambda_handler_for_missing_props(lambda_events, mock_lambda_context, re
                 assert call_kwargs["url"] == METRICS_ENDPOINT
                 body = json.loads(call_kwargs["body"])
                 assert body["Solution"] == "SO0999"
-                assert body["TimeStamp"] == "2000-01-01T00:00:00+00:00"
+                assert body["TimeStamp"] == "2000-01-01 00:00:00.000000"
                 assert body.get("UUID") == "fakeuuid"
                 assert body[VERSION] == "v9.9.9"
                 assert body["Data"] == {}
