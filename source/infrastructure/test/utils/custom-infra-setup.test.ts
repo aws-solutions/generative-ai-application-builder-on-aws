@@ -282,7 +282,7 @@ describe('When creating the custom resource infrastructure construct', () => {
 
     it('Should create and attach the anonymous metrics event rule with scheduled expression', () => {
         template.hasResourceProperties('AWS::Events::Rule', {
-            ScheduleExpression: 'rate(1 day)',
+            ScheduleExpression: 'rate(3 hours)',
             State: 'ENABLED',
             Targets: [
                 {

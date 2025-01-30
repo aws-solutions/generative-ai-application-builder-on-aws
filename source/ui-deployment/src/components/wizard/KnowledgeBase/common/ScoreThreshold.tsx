@@ -33,12 +33,12 @@ export const ScoreThreshold = (props: ScoreThresholdProps) => {
         case KNOWLEDGE_BASE_PROVIDERS.bedrock:
             formFieldContent = <>{getBedrockKnowledgeBaseScoreFormFieldContent(props, handleScoreThresholdChange)}</>;
             formFieldDescription =
-                'The minimum relevency score required for a document to be used. Set to 0 to perform no filtering';
+                'The minimum relevance score required for a document to be used. Set to 0 to perform no filtering';
             formFieldConstraintText = 'The score threshold must be between 0.0 and 1.0';
             break;
         case KNOWLEDGE_BASE_PROVIDERS.kendra:
             formFieldContent = <>{getKendraScoreFormFieldContent(props, handleScoreThresholdChange)}</>;
-            formFieldDescription = 'The minimum relevency score required for a document to be used.';
+            formFieldDescription = 'The minimum relevance score required for a document to be used.';
             formFieldConstraintText = '';
             break;
         default:
@@ -129,7 +129,7 @@ const scoreThresholdInfoPanel = {
     content: (
         <div>
             <Box variant="p">
-                Set the minimum relevency score required for a document to be returned and used by the LLM. Setting to
+                Set the minimum relevance score required for a document to be returned and used by the LLM. Setting to
                 0/DISABLED will result in performing no filtering meaing that all documents returned by the query will
                 be used.
             </Box>

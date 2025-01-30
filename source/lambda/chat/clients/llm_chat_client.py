@@ -134,7 +134,7 @@ class LLMChatClient(ABC):
 
         return user_id
 
-    def _validate_event_body(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_event_body(self, event_body: Dict[str, Any]) -> None:
         """
         Validates the event body.
         Args:
@@ -144,7 +144,6 @@ class LLMChatClient(ABC):
         Raises:
             ValueError: If the event body is empty or not provided.
         """
-        event_body = event.get("body")
         if not event_body:
             error_message = "Event body is empty"
             logger.error(
@@ -152,9 +151,6 @@ class LLMChatClient(ABC):
                 xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
             )
             raise ValueError(error_message)
-
-        parsed_event_body = json.loads(event_body)
-        return parsed_event_body
 
     def _validate_user_query(self, event_body: Dict[str, Any]) -> List[str]:
         """
@@ -247,36 +243,36 @@ class LLMChatClient(ABC):
 
         return auth_token
 
-    def check_event(self, event: Dict[str, Any]) -> Dict:
+    def check_event(self, event_body: Dict[str, Any], conversation_id) -> Dict:
         """
-        Checks if the event it receives is as expected (checking for required fields),
-        and adds the user id into the event body (comes from requestContext from custom authorizer).
-        If the event body does not contain the conversation_id, it also generates and adds it in.
+        Checks if the event body contains all required fields and validates its contents.
+        Adds user ID, conversation ID, and auth token to the event body.
 
         Args:
-            event (Dict): the lambda event
+            event_body (Dict[str, Any]): The event body to validate and process
+            conversation_id: The conversation ID to be added to the event body
+
         Returns:
-            (Dict): Parsed event body that contains generated conversation_id if not present
+            Dict: The processed event body containing user ID, conversation ID, and auth token
+
         Raises:
-            ValueError: If the event it requires is not set.
+            ValueError: If any required fields are missing or validation fails
         """
         errors_list = []
-        parsed_event_body = self._validate_event_body(event)
-        user_id = self._validate_user_id(parsed_event_body)
-        auth_token = self._validate_auth_token(parsed_event_body)
-        errors_list.extend(self._validate_user_query(parsed_event_body[MESSAGE_KEY]))
-        errors_list.extend(self._validate_event_prompt(parsed_event_body[MESSAGE_KEY]))
+        self._validate_event_body(event_body)
+        user_id = self._validate_user_id(event_body)
+        auth_token = self._validate_auth_token(event_body)
+        errors_list.extend(self._validate_user_query(event_body[MESSAGE_KEY]))
+        errors_list.extend(self._validate_event_prompt(event_body[MESSAGE_KEY]))
 
         if errors_list:
             errors = "\n".join(errors_list)
             raise ValueError(errors)
 
-        parsed_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY] = self.get_event_conversation_id(
-            parsed_event_body[MESSAGE_KEY]
-        )
-        parsed_event_body[MESSAGE_KEY][USER_ID_EVENT_KEY] = user_id
-        parsed_event_body[AUTH_TOKEN_EVENT_KEY] = auth_token
-        return parsed_event_body
+        event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY] = conversation_id
+        event_body[MESSAGE_KEY][USER_ID_EVENT_KEY] = user_id
+        event_body[AUTH_TOKEN_EVENT_KEY] = auth_token
+        return event_body
 
     @tracer.capture_method(capture_response=True)
     def retrieve_use_case_config(self) -> Dict:
@@ -376,7 +372,7 @@ class LLMChatClient(ABC):
 
         Returns: None
         """
-        conversation_id = event_body.get(CONVERSATION_ID_EVENT_KEY)
+        conversation_id = event_body.get(MESSAGE_KEY, {}).get(CONVERSATION_ID_EVENT_KEY)
         if conversation_id is None or not conversation_id:
             return str(uuid4())
         return conversation_id

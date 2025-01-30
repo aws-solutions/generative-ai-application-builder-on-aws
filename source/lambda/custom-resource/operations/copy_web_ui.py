@@ -84,20 +84,21 @@ def create_config_string(
             "UseCaseName": config.get("UseCaseName"),
             "LlmParams": {
                 "RAGEnabled": config.get("LlmParams", {}).get("RAGEnabled", False),
+                "PromptParams": {
+                    "MaxInputTextLength": config.get("LlmParams", {}).get("PromptParams", {}).get("MaxInputTextLength"),
+                    "UserPromptEditingEnabled": config.get("LlmParams", {}).get("PromptParams", {}).get("UserPromptEditingEnabled"),
+                }
             },
         }
 
         # Only taking necessary values from the config for the chat UI when prompt editing is enabled, to avoid exposing customer data
         if config.get("LlmParams", {}).get("PromptParams", {}).get("UserPromptEditingEnabled"):
             ui_use_case_config["LlmParams"]["PromptParams"] = {
+                **ui_use_case_config["LlmParams"]["PromptParams"],
                 "PromptTemplate": config.get("LlmParams", {}).get("PromptParams", {}).get("PromptTemplate"),
                 "MaxPromptTemplateLength": config.get("LlmParams", {})
                 .get("PromptParams", {})
                 .get("MaxPromptTemplateLength"),
-                "MaxInputTextLength": config.get("LlmParams", {}).get("PromptParams", {}).get("MaxInputTextLength"),
-                "UserPromptEditingEnabled": config.get("LlmParams", {})
-                .get("PromptParams", {})
-                .get("UserPromptEditingEnabled"),
             }
 
         logger.info(f"create_config_string:config:: {ui_use_case_config}")

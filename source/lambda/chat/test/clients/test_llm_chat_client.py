@@ -66,23 +66,16 @@ def llm_client(rag_enabled, basic_llm_config_parsed):
     )
 
 
-def test_no_body(setup_environment, simple_llm_client):
-    with pytest.raises(ValueError) as error:
-        simple_llm_client.check_event({"connectionId": "fake-id"})
-
-    assert error.value.args[0] == "Event body is empty"
-
-
 def test_empty_body(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
-        simple_llm_client.check_event({"connectionId": "fake-id", "body": {}})
+        simple_llm_client.check_event({}, "fake-conversation-id")
 
     assert error.value.args[0] == "Event body is empty"
 
 
 def test_missing_user_id(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
-        simple_llm_client.check_event({"connectionId": "fake-id", "body": '{"some-key": "some-value"}'})
+        simple_llm_client.check_event({"connectionId": "fake-id", "body": '{"some-key": "some-value"}'}, "fake-conversation-id")
 
     assert error.value.args[0] == f"{USER_ID_EVENT_KEY} is missing from the requestContext"
 
@@ -91,16 +84,13 @@ def test_body_missing_required_fields(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-connection-id",
-                        },
-                        "message": {"some-key": "some-value"},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-connection-id",
+                },
+                "message": {"some-key": "some-value"},
+            },
+            "fake-conversation-id",
         )
 
     assert error.value.args[0] == f"{QUESTION_EVENT_KEY} is missing from the chat event"
@@ -111,16 +101,13 @@ def test_prompt_valid_length(simple_llm_client):
     with does_not_raise():
         simple_llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-id",
-                        },
-                        "message": {"question": "Hi", "promptTemplate": valid_prompt},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-id",
+                },
+                "message": {"question": "Hi", "promptTemplate": valid_prompt},
+            },
+            "fake-conversation-id",
         )
 
 
@@ -129,16 +116,13 @@ def test_empty_prompt(simple_llm_client, setup_environment):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-id",
-                        },
-                        "message": {"question": "Hi", "promptTemplate": empty_prompt},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-id",
+                },
+                "message": {"question": "Hi", "promptTemplate": empty_prompt},
+            },
+            "fake-conversation-id",
         )
 
         assert error.value.args[0] == "Event prompt shouldn't be empty."
@@ -149,16 +133,13 @@ def test_prompt_too_long(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-id",
-                        },
-                        "message": {"question": "Hi", "promptTemplate": invalid_prompt},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-id",
+                },
+                "message": {"question": "Hi", "promptTemplate": invalid_prompt},
+            },
+            "fake-conversation-id",
         )
 
     assert error.value.args[0] == "Prompt provided in the event shouldn't be greater than 1000 characters long."
@@ -169,16 +150,13 @@ def test_prompt_editing_not_allowed(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-id",
-                        },
-                        "message": {"question": ""},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-id",
+                },
+                "message": {"question": ""},
+            },
+            "fake-conversation-id",
         )
 
     assert error.value.args[0] == "User query provided in the event shouldn't be empty."
@@ -189,16 +167,13 @@ def test_question_too_long(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-id",
-                        },
-                        "message": {"question": invalid_question},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-id",
+                },
+                "message": {"question": invalid_question},
+            },
+            "fake-conversation-id",
         )
 
     assert error.value.args[0] == "User query provided in the event shouldn't be greater than 1000 characters long."
@@ -211,16 +186,13 @@ def test_multiple_length_issues(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
         simple_llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-id",
-                        },
-                        "message": {"question": invalid_question, "promptTemplate": invalid_prompt},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-id",
+                },
+                "message": {"question": invalid_question, "promptTemplate": invalid_prompt},
+            },
+            "fake-conversation-id",
         )
 
     assert (
@@ -296,16 +268,13 @@ def test_user_editing_not_allowed(
     with pytest.raises(ValueError) as error:
         llm_client.check_event(
             {
-                "body": json.dumps(
-                    {
-                        "requestContext": {
-                            "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
-                            "connectionId": "fake-id",
-                        },
-                        "message": {"question": question, "promptTemplate": prompt, "conversationId": "fake-id"},
-                    }
-                )
-            }
+                "requestContext": {
+                    "authorizer": {USER_ID_EVENT_KEY: "fake-user-id"},
+                    "connectionId": "fake-id",
+                },
+                "message": {"question": question, "promptTemplate": prompt, "conversationId": "fake-id"},
+            },
+            "fake-conversation-id",
         )
 
     assert error.value.args[0] == "Prompt provided in the event when this use case has been configured to forbid this."

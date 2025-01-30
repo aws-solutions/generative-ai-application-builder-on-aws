@@ -2,7 +2,7 @@ import { IG_DOCS } from '@/utils/constants';
 import { Box, SpaceBetween } from '@cloudscape-design/components';
 
 /**
- * Utility function to convert a numeric relevency score to a Kendra score
+ * Utility function to convert a numeric relevance score to a Kendra score
  * @param {number} score
  * @returns {string} Kendra score
  */
