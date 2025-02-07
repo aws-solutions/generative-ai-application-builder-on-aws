@@ -1,15 +1,15 @@
 {
   "name": "mock-react-app",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Mock Reactjs app used for unit testing constructs",
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@vitejs/plugin-react": "^4.3.1",
-    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.1",
     "identity-obj-proxy": "^3.0.0",
     "vite": "^5.2.13",
     "vite-tsconfig-paths": "^4.2.3",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.1"
   },
   "scripts": {
     "start": "vite",
