@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ext-idp-group-mapper"
-version = "2.1.3"
+version = "2.1.4"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation to change Cognito user groups to External Identity Provider groups in the JWT token"
 packages = [
