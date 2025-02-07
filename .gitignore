@@ -4,7 +4,7 @@ deployment/open-source
 
 **/coverage/
 **/coverage-reports/
-.coverage
+.coverage*
 
 node_modules/
 
@@ -48,7 +48,6 @@ target/
 *.jar
 source/infrastructure/test/mock-lambda-func/java-lambda/checkstyle-result.xml
 **/*dependency-reduced-pom.xml
-.coverage.*
 
 dist/
 *.log
@@ -57,7 +56,6 @@ bak.*
 *.ipynb*
 _bandit_temp.json
 RapidAi.code-workspace
-source/scripts/v2_migration/poetry.lock
 
 .temp_redpencil
 bom.json
