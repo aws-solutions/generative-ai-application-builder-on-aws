@@ -1,6 +1,6 @@
 {
   "name": "gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
     "@cloudscape-design/code-view": "3.0.16",
@@ -76,7 +76,8 @@
   },
   "overrides": {
     "fast-xml-parser": "^4.4.1",
-    "cookie": "^0.7.2"
+    "cookie": "^0.7.2",
+    "esbuild": "^0.25.0"
   },
   "type": "module"
 }

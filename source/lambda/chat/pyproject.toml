@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llm-chat-lambda"
-version = "2.1.4"
+version = "2.1.5"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation for chat feature"
 packages = [
@@ -17,6 +17,7 @@ license = "Apache-2.0"
 [tool.poetry.dependencies]
 python = "^3.12"
 jsonpath-ng = "^1.6.1"
+cryptography = "^44.0.1"
 
 [tool.poetry.group.test.dependencies]
 freezegun = "1.5.1"
