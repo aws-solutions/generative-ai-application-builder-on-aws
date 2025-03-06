@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom-resource"
-version = "2.1.4"
+version = "2.1.5"
 authors = [ "Amazon Web Services" ]
 description = "Perform specific operations triggered by AWS CloudFormation events"
 packages = [
@@ -16,6 +16,7 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = "^3.12"
+cryptography = "44.0.2"
 
 [tool.poetry.group.test.dependencies]
 freezegun = "1.5.1"
