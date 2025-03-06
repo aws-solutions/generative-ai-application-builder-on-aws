@@ -322,7 +322,9 @@ This software includes third party software subject to the following copyrights:
 @esbuild/linux-riscv64 under the MIT license.
 @esbuild/linux-s390x under the MIT license.
 @esbuild/linux-x64 under the MIT license.
+@esbuild/netbsd-arm64 under the MIT license.
 @esbuild/netbsd-x64 under the MIT license.
+@esbuild/openbsd-arm64 under the MIT license.
 @esbuild/openbsd-x64 under the MIT license.
 @esbuild/sunos-x64 under the MIT license.
 @esbuild/win32-arm64 under the MIT license.
@@ -917,6 +919,7 @@ header-case under the MIT license.
 hermes-estree under the MIT license.
 hermes-parser under the MIT license.
 highlight.js under the BSD-3-Clause license.
+highlightjs-vue under the BSD-3-Clause license.
 html-encoding-sniffer under the MIT license.
 html-escaper under the MIT license.
 html-url-attributes under the MIT license.

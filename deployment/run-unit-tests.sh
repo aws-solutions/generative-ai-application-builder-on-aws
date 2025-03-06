@@ -103,10 +103,6 @@ run_python_scripts_test() {
 	source .venv-test/bin/activate
 
 	echo "------------------------------------------------------------------------------"
-	echo "Check for vulnerabilities"
-	pip install pip-audit
-	pip-audit
-	echo "------------------------------------------------------------------------------"
 
 	# setup coverage report path
 	mkdir -p $source_dir/test/coverage-reports

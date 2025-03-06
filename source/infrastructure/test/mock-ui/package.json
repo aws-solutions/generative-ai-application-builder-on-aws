@@ -1,6 +1,6 @@
 {
   "name": "mock-react-app",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Mock Reactjs app used for unit testing constructs",
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
@@ -21,7 +21,8 @@
   },
   "overrides": {
     "nth-check": "^2.0.1",
-    "postcss": "^8.4.31"
+    "postcss": "^8.4.31",
+    "esbuild": "^0.25.0"
   },
   "license": "Apache-2.0",
   "author": {
