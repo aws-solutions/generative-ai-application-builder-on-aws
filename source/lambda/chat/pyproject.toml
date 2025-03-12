@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "llm-chat-lambda"
-version = "2.1.5"
+version = "2.1.6"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation for chat feature"
 packages = [
