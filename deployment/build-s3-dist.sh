@@ -30,7 +30,7 @@ set -e
 # Check to see if input has been provided:
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
     echo "Please provide all required parameters for the build script"
-    echo "For example: ./build-s3-dist.sh solutions trademarked-solution-name v2.1.6 template-bucket-name"
+    echo "For example: ./build-s3-dist.sh solutions trademarked-solution-name v2.1.7 template-bucket-name"
     exit 1
 fi
 
@@ -66,7 +66,7 @@ echo "--------------------------------------------------------------------------
 cd $source_dir/infrastructure
 
 # Important: CDK global version number
-cdk_version=$(node ../../deployment/get-cdk-version.js) # Note: grabs from node_modules/aws-cdk-lib/package.json
+cdk_version=$(node ../../deployment/get-cdk-version.js) # Note: grabs from node_modules/aws-cdk/package.json
 
 echo "------------------------------------------------------------------------------"
 echo "[Install] Installing CDK $cdk_version"

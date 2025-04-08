@@ -211,10 +211,10 @@ describe('When deployment platform stack is created', () => {
             const deploymentPlatformStack = stack as DeploymentPlatformStack;
 
             expect(Template.fromStack(deploymentPlatformStack.uiDistribution).toJSON()['Description']).toEqual(
-                `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${process.env.VERSION}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${process.env.VERSION}`
             );
             expect(Template.fromStack(deploymentPlatformStack.copyAssetsStack).toJSON()['Description']).toEqual(
-                `Custom resource that copies UI assets to S3 bucket - Version ${process.env.VERSION}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Custom resource that copies UI assets to S3 bucket - Version ${process.env.VERSION}`
             );
 
             expect(
@@ -222,7 +222,7 @@ describe('When deployment platform stack is created', () => {
                     'Description'
                 ]
             ).toEqual(
-                `Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${process.env.VERSION}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${process.env.VERSION}`
             );
 
             expect(
@@ -230,7 +230,7 @@ describe('When deployment platform stack is created', () => {
                     deploymentPlatformStack.deploymentPlatformStorageSetup.deploymentPlatformStorage
                 ).toJSON()['Description']
             ).toEqual(
-                `Nested Stack that creates the DynamoDB table to manage use cases - Version ${process.env.VERSION}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the DynamoDB table to manage use cases - Version ${process.env.VERSION}`
             );
         });
 

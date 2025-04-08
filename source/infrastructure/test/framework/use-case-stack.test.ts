@@ -225,22 +225,22 @@ describe('When Chat use case is created', () => {
             const chatStack = stack as BedrockChat;
 
             expect(Template.fromStack(chatStack.chatStorageSetup.chatStorage).toJSON()['Description']).toEqual(
-                `Nested Stack that creates the DynamoDB tables for the chat use case - Version ${version}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the DynamoDB tables for the chat use case - Version ${version}`
             );
 
             expect(
                 Template.fromStack(chatStack.knowledgeBaseSetup.kendraKnowledgeBase).toJSON()['Description']
-            ).toEqual(`Nested Stack that creates the Kendra Index - Version ${version}`);
+            ).toEqual(`(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the Kendra Index - Version ${version}`);
 
             expect(Template.fromStack(chatStack.uiDistribution).toJSON()['Description']).toEqual(
-                `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${version}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${version}`
             );
             expect(Template.fromStack(chatStack.copyAssetsStack).toJSON()['Description']).toEqual(
-                `Custom resource that copies UI assets to S3 bucket - Version ${version}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Custom resource that copies UI assets to S3 bucket - Version ${version}`
             );
 
             expect(Template.fromStack(chatStack.vpcSetup.nestedVPCStack).toJSON()['Description']).toEqual(
-                `Nested stack that deploys a VPC for the use case stack - Version ${version}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested stack that deploys a VPC for the use case stack - Version ${version}`
             );
         });
 

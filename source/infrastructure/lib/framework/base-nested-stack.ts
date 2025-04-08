@@ -25,7 +25,9 @@ export abstract class BaseNestedStack extends cdk.NestedStack {
     public readonly accessLoggingBucket: string;
 
     constructor(scope: Construct, id: string, props?: cdk.NestedStackProps) {
-        super(scope, id, props);
+        const solutionID = process.env.SOLUTION_ID ?? scope.node.tryGetContext('solution_id');
+        const solutionName = process.env.SOLUTION_NAME ?? scope.node.tryGetContext('solution_name');
+        super(scope, id, {...props, description: `(${solutionID}-Nested) - ${solutionName} - ${props?.description || ''}`});
         const stack = cdk.Stack.of(this);
         this.customResourceLambdaArn = new cdk.CfnParameter(stack, 'CustomResourceLambdaArn', {
             type: 'String',
