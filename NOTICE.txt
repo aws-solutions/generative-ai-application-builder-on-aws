@@ -1011,7 +1011,7 @@ jest-util under the MIT license.
 jest-validate under the MIT license.
 jest-watcher under the MIT license.
 jest-worker under the MIT license.
-Jinja2 under the 0BSD license.
+jinja2 under the 0BSD license.
 jiti under the MIT license.
 jmespath under the MIT license.
 joi under the BSD-3-Clause license.
@@ -1080,7 +1080,7 @@ make-error under the ISC license.
 makeerror under the BSD-3-Clause license.
 map-obj under the MIT license.
 markdown-table under the MIT license.
-MarkupSafe under the 0BSD license.
+markupsafe under the 0BSD license.
 marky under the Apache-2.0 license.
 mdast-util-find-and-replace under the MIT license.
 mdast-util-from-markdown under the MIT license.
@@ -1262,7 +1262,7 @@ pytest under the MIT license.
 pytest-cov under the MIT license.
 pytest-env under the MIT license.
 python-dateutil under the Dual License license(s).
-PyYAML under the MIT license.
+pyyaml under the MIT license.
 qrcode under the MIT license.
 querystring under the MIT license.
 querystringify under the MIT license.
@@ -1365,7 +1365,7 @@ source-map-js under the BSD-3-Clause license.
 source-map-support under the MIT license.
 space-separated-tokens under the MIT license.
 sprintf-js under the BSD-3-Clause license.
-SQLAlchemy under the MIT license.
+sqlalchemy under the MIT license.
 stack-chain under the MIT license.
 stack-utils under the MIT license.
 stackback under the MIT license.
@@ -1482,7 +1482,7 @@ webidl-conversions under the BSD-2-Clause license.
 webpack under the MIT license.
 webpack-sources under the MIT license.
 weekstart under the MIT license.
-Werkzeug under the 0BSD license.
+werkzeug under the 0BSD license.
 whatwg-encoding under the MIT license.
 whatwg-fetch under the MIT license.
 whatwg-mimetype under the MIT license.
@@ -1517,6 +1517,7 @@ yocto-queue under the MIT license.
 zen-observable under the MIT license.
 zen-observable-ts under the MIT license.
 zen-push under the MIT license.
+zstandard under the BSD license.
 zwitch under the MIT license.
 
 
@@ -1529,6 +1530,7 @@ Apache-2.0 - https://spdx.org/licenses/Apache-2.0.html
 BlueOak-1.0.0 - https://spdx.org/licenses/BlueOak-1.0.0.html
 BSD-2-Clause - https://spdx.org/licenses/BSD-2-Clause.html
 BSD-3-Clause - https://spdx.org/licenses/BSD-3-Clause.html
+CC0-1.0 - https://spdx.org/licenses/CC0-1.0.html
 CC-BY-4.0 - https://spdx.org/licenses/CC-BY-4.0.html
 ISC - https://spdx.org/licenses/ISC.html
 MIT - https://spdx.org/licenses/MIT.html

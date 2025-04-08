@@ -1,6 +1,6 @@
 {
   "name": "mock-react-app",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "description": "Mock Reactjs app used for unit testing constructs",
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
