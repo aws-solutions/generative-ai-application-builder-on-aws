@@ -77,7 +77,7 @@ function createStack(stack: typeof BaseStack, props?: BaseStackProps, isUseCase?
 function getDefaultBaseStackProps(stack: typeof BaseStack, isUseCase?: boolean): BaseStackProps {
     return {
         description: isUseCase
-            ? `(${solutionID})-${stack.name} - ${solutionName} - ${stack.name} - Version ${version}`
+            ? `(${solutionID}) - ${stack.name} - ${solutionName} - ${stack.name} - Version ${version}`
             : `(${solutionID}) - ${solutionName} - ${stack.name} - Version ${version}`,
         synthesizer: new cdk.DefaultStackSynthesizer({
             generateBootstrapVersionRule: false
