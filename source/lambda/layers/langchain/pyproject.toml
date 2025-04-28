@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "langchain-layer"
-version = "2.1.7"
+version = "2.1.8"
 authors = [ "Amazon Web Services" ]
 description = "Layer for LangChain libraries"
 packages = [
