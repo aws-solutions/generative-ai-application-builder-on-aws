@@ -8,12 +8,14 @@ from typing import Any, Dict, List, Optional
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
-from clients.factories.conversation_memory_factory import ConversationMemoryFactory
-from clients.factories.knowledge_base_factory import KnowledgeBaseFactory
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.chat_history import BaseChatMessageHistory
+
+from clients.factories.conversation_memory_factory import ConversationMemoryFactory
+from clients.factories.knowledge_base_factory import KnowledgeBaseFactory
 from llms.base_langchain import BaseLangChainModel
 from llms.models.model_provider_inputs import ModelProviderInputs
+from shared.callbacks.websocket_handler import WebsocketHandler
 from shared.callbacks.websocket_streaming_handler import WebsocketStreamingCallbackHandler
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.knowledge_base import KnowledgeBase
@@ -75,6 +77,7 @@ class LLMBuilder(ABC):
         use_case_config: Dict,
         connection_id: str,
         conversation_id: str,
+        message_id: str,
         rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE,
         user_context_token: Optional[str] = None,
     ) -> None:
@@ -82,6 +85,7 @@ class LLMBuilder(ABC):
         self.rag_enabled = rag_enabled
         self.connection_id = connection_id
         self.conversation_id = conversation_id
+        self.message_id = message_id
         self.user_context_token = user_context_token
         self.model_inputs = None
         self.model_defaults = None
@@ -92,6 +96,7 @@ class LLMBuilder(ABC):
         self.llm = None
         self.knowledge_base = None
         self.errors = []
+        self._prompt_placeholders = []
 
     @property
     def use_case_config(self) -> Dict[str, Any]:
@@ -265,6 +270,7 @@ class LLMBuilder(ABC):
             default_memory_config=self.model_defaults.memory_config,
             user_id=user_id,
             conversation_id=conversation_id,
+            message_id=self.message_id,
             errors=self.errors,
         )
 
@@ -281,6 +287,7 @@ class LLMBuilder(ABC):
                 WebsocketStreamingCallbackHandler(
                     connection_id=self.connection_id,
                     conversation_id=self.conversation_id,
+                    message_id=self.message_id,
                     source_docs_formatter=self.knowledge_base.source_docs_formatter if self.knowledge_base else None,
                     is_streaming=self.is_streaming,
                     rag_enabled=self.rag_enabled,
@@ -289,7 +296,7 @@ class LLMBuilder(ABC):
                 )
             ]
         else:
-            self.callbacks = None
+            self.callbacks = [WebsocketHandler(connection_id=self.connection_id, conversation_id=self.conversation_id, message_id=self.message_id)]
 
     def get_guardrails(self, model_config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if (
@@ -358,14 +365,6 @@ class LLMBuilder(ABC):
                     name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
                 )
                 raise ValueError(error_message)
-
-            prompt_placeholders = [
-                self.model_defaults.memory_config["history"],
-                self.model_defaults.memory_config["input"],
-            ]
-            if self.rag_enabled:
-                prompt_placeholders.append(self.model_defaults.memory_config["context"])
-
             self.model_inputs = ModelProviderInputs(
                 **{
                     "conversation_history_cls": self.conversation_history_cls,
@@ -375,7 +374,7 @@ class LLMBuilder(ABC):
                     "model": model,
                     "model_params": llm_params.get("ModelParams"),
                     "prompt_template": llm_params.get("PromptParams", {}).get("PromptTemplate"),
-                    "prompt_placeholders": prompt_placeholders,
+                    "prompt_placeholders": self.prompt_placeholders,
                     "disambiguation_prompt_template": llm_params.get("PromptParams", {}).get(
                         "DisambiguationPromptTemplate"
                     ),

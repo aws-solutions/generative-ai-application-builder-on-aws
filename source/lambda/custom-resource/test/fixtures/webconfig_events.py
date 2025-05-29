@@ -42,7 +42,7 @@ def setup_ssm(ssm, lambda_event):
         Name=ssm_key,
         Value=json.dumps(
             {
-                "ApiEndpoint": lambda_event[RESOURCE_PROPERTIES][API_ENDPOINT],
+                "RestApiEndpoint": lambda_event[RESOURCE_PROPERTIES][API_ENDPOINT],
                 "UserPoolId": lambda_event[RESOURCE_PROPERTIES][USER_POOL_ID],
                 "UserPoolClientId": lambda_event[RESOURCE_PROPERTIES][USER_POOL_CLIENT_ID],
                 "AwsRegion": os.environ["AWS_REGION"],
@@ -57,7 +57,7 @@ def setup_ssm(ssm, lambda_event):
     assert ssm.get_parameter(
         Name=lambda_event[RESOURCE_PROPERTIES][SSM_KEY], 
         WithDecryption=True)["Parameter"]["Value"] == json.dumps({
-            "ApiEndpoint": "https://non-existent/url/fakeapi",
+            "RestApiEndpoint": "https://non-existent/url/fakeapi",
             "UserPoolId": "fakepoolid",
             "UserPoolClientId": "fakeclientid",
             "AwsRegion": "us-east-1",

@@ -5,7 +5,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
-
+import * as rawCdkJson from '../../cdk.json';
 import { RestRequestProcessor } from '../../lib/api/rest-request-processor';
 import {
     CLIENT_ID_ENV_VAR,
@@ -13,52 +13,19 @@ import {
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
     USER_POOL_ID_ENV_VAR
 } from '../../lib/utils/constants';
+import { CognitoSetup, UserPoolClientProps, UserPoolProps } from '../../lib/auth/cognito-setup';
 
 describe('When deploying', () => {
     let template: Template;
     let jsonTemplate: any;
 
     beforeAll(() => {
-        const stack = new cdk.Stack();
-        const mockLambdaFuncProps = {
-            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
-            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
-            handler: 'index.handler'
-        };
-
-        const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
-
-        const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
-            type: 'String',
-            description:
-                'Select "No", if you do not want to deploy the UI web application. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
-            allowedValues: ['Yes', 'No'],
-            allowedPattern: '^Yes|No$',
-            default: 'Yes'
+        [template, jsonTemplate] = createTemplate({
+            defaultUserEmail: 'fake-user@example.com',
+            applicationTrademarkName: rawCdkJson.context.application_trademark_name,
+            userGroupName: 'admin',
+            customResourceLambdaArn: 'arn:aws:lambda:us-east-1:fake-account-id:function/fake-function'
         });
-
-        new RestRequestProcessor(stack, 'WebSocketEndpoint', {
-            useCaseManagementAPILambda: new lambda.Function(stack, 'chatLambda', mockLambdaFuncProps),
-            modelInfoAPILambda: new lambda.Function(stack, 'modelInfoLambda', mockLambdaFuncProps),
-            applicationTrademarkName: 'fake-name',
-            defaultUserEmail: 'testuser@example.com',
-            customResourceLambdaArn: crLambda.functionArn,
-            customResourceRoleArn: crLambda.role!.roleArn,
-            cognitoDomainPrefix: 'fake-prefix',
-            cloudFrontUrl: new cdk.CfnParameter(stack, 'CloudFrontUrl', {
-                type: 'String'
-            }).valueAsString,
-            deployWebApp: deployWebApp.valueAsString,
-            existingCognitoUserPoolId: new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolId', {
-                type: 'String'
-            }).valueAsString,
-            existingCognitoUserPoolClientId: new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClientId', {
-                type: 'String'
-            }).valueAsString
-        });
-
-        template = Template.fromStack(stack);
-        jsonTemplate = template.toJSON();
     });
 
     it('Should have lambdas for custom resource, management APIs, and Authorization', () => {
@@ -72,46 +39,26 @@ describe('When deploying', () => {
                 'Variables': {
                     [USER_POOL_ID_ENV_VAR]: {
                         'Fn::If': [
-                            Match.stringLikeRegexp(
-                                'WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'
-                            ),
+                            Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolCondition*'),
                             {
-                                'Ref': Match.anyValue()
-                            },
-                            {
-                                'Ref': 'ExistingCognitoUserPoolId'
+                                'Ref': Match.stringLikeRegexp('TestCognitoSetupNewUserPool*')
                             }
                         ]
                     },
                     [CLIENT_ID_ENV_VAR]: {
                         'Fn::If': [
-                            Match.stringLikeRegexp(
-                                'WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolClientCondition'
-                            ),
+                            Match.stringLikeRegexp('TestCognitoSetupCreateUserPoolClientCondition*'),
                             {
-                                'Fn::GetAtt': [
-                                    Match.stringLikeRegexp(
-                                        'WebSocketEndpointDeploymentPlatformCognitoSetupCfnAppClient'
-                                    ),
-                                    'ClientId'
-                                ]
-                            },
-                            {
-                                'Ref': 'ExistingCognitoUserPoolClientId'
+                                'Fn::GetAtt': [Match.stringLikeRegexp('TestCognitoSetupCfnAppClient*'), 'ClientId']
                             }
                         ]
                     },
                     [COGNITO_POLICY_TABLE_ENV_VAR]: {
                         'Fn::If': [
-                            Match.stringLikeRegexp(
-                                'WebSocketEndpointDeploymentPlatformCognitoSetupCreateCognitoGroupPolicyTableCondition'
-                            ),
+                            Match.stringLikeRegexp('TestCognitoSetupCreateCognitoGroupPolicyTableCondition*'),
                             {
-                                'Ref': Match.stringLikeRegexp(
-                                    'WebSocketEndpointDeploymentPlatformCognitoSetupCognitoGroupPolicyStore'
-                                )
-                            },
-                            ''
+                                'Ref': Match.stringLikeRegexp('TestCognitoSetupCognitoGroupPolicyStore*')
+                            }
                         ]
                     }
                 }
@@ -143,86 +90,150 @@ describe('When deploying', () => {
         });
     });
 
-    it('Should have cognito resources', () => {
-        let userPoolIdCapture = new Capture();
+    it('Should have an authorizer', () => {
+        template.hasResourceProperties('AWS::ApiGateway::Authorizer', {
+            AuthorizerResultTtlInSeconds: 0,
+            AuthorizerUri: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'arn:',
+                        {
+                            'Fn::Select': [
+                                1,
+                                {
+                                    'Fn::Split': [
+                                        ':',
+                                        {
+                                            'Fn::GetAtt': [
+                                                Match.stringLikeRegexp('WebSocketEndpointDeploymentRestAuthorizer*'),
+                                                'Arn'
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        ':apigateway:',
+                        {
+                            'Fn::Select': [
+                                3,
+                                {
+                                    'Fn::Split': [
+                                        ':',
+                                        {
+                                            'Fn::GetAtt': [
+                                                Match.stringLikeRegexp('WebSocketEndpointDeploymentRestAuthorizer*'),
+                                                'Arn'
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        ':lambda:path/2015-03-31/functions/',
+                        {
+                            'Fn::GetAtt': [Match.stringLikeRegexp('WebSocketEndpointDeploymentRestAuthorizer*'), 'Arn']
+                        },
+                        '/invocations'
+                    ]
+                ]
+            },
+            IdentitySource: 'method.request.header.Authorization',
+            Name: 'WebSocketEndpointRestCustomRequestAuthorizerF45383BD',
+            RestApiId: {
+                'Ref': Match.stringLikeRegexp(
+                    'WebSocketEndpointDeploymentRestEndpointDeploymentRestEndPointLambdaRestApi*'
+                )
+            },
+            Type: 'REQUEST'
+        });
+    });
 
-        template.hasResourceProperties('AWS::Cognito::UserPool', {
-            'UserPoolName': {
+    it('Should have a validator', () => {
+        template.hasResourceProperties('AWS::ApiGateway::RequestValidator', {
+            Name: {
                 'Fn::Join': [
                     '',
                     [
                         {
                             'Ref': 'AWS::StackName'
                         },
-                        '-UserPool'
+                        '-api-request-validator'
                     ]
                 ]
-            }
-        });
-        template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
-            'UserPoolId': {
-                'Fn::If': [
-                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
-                    {
-                        'Ref': userPoolIdCapture
-                    },
-                    {
-                        'Ref': 'ExistingCognitoUserPoolId'
-                    }
-                ]
-            }
-        });
-        template.hasResourceProperties('AWS::Cognito::UserPoolUser', {
-            'UserPoolId': {
-                'Fn::If': [
-                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
-                    {
-                        'Ref': userPoolIdCapture.asString()
-                    },
-                    {
-                        'Ref': 'ExistingCognitoUserPoolId'
-                    }
-                ]
             },
-            'DesiredDeliveryMediums': ['EMAIL'],
-            'ForceAliasCreation': false,
-            'UserAttributes': [
-                {
-                    'Name': 'email',
-                    'Value': 'testuser@example.com'
-                }
-            ],
-            'Username': 'testuser-admin'
-        });
-        template.hasResourceProperties('AWS::Cognito::UserPoolGroup', {
-            'UserPoolId': {
-                'Fn::If': [
-                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
-                    {
-                        'Ref': userPoolIdCapture.asString()
-                    },
-                    {
-                        'Ref': 'ExistingCognitoUserPoolId'
-                    }
-                ]
+            RestApiId: {
+                'Ref': Match.stringLikeRegexp(
+                    'WebSocketEndpointDeploymentRestEndpointDeploymentRestEndPointLambdaRestApi*'
+                )
             },
-            'GroupName': 'admin',
-            'Precedence': 1
-        });
-        template.hasResourceProperties('AWS::Cognito::UserPoolUserToGroupAttachment', {
-            'GroupName': 'admin',
-            'Username': 'testuser-admin',
-            'UserPoolId': {
-                'Fn::If': [
-                    Match.stringLikeRegexp('WebSocketEndpointDeploymentPlatformCognitoSetupCreateUserPoolCondition'),
-                    {
-                        'Ref': userPoolIdCapture.asString()
-                    },
-                    {
-                        'Ref': 'ExistingCognitoUserPoolId'
-                    }
-                ]
-            }
+            ValidateRequestBody: true,
+            ValidateRequestParameters: true
         });
     });
 });
+
+function createTemplate(props: Partial<UserPoolProps>): [cdk.assertions.Template, any] {
+    let stack = new cdk.Stack();
+    const mockLambdaFuncProps = {
+        code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+        runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+        handler: 'index.handler'
+    };
+
+    const cloudFrontUrl = new cdk.CfnParameter(stack, 'CloudFrontUrl', {
+        type: 'String'
+    });
+    const deployWebApp = new cdk.CfnParameter(stack, 'DeployWebInterface', {
+        type: 'String',
+        description:
+            'Select "No", if you do not want to deploy the UI web application. Selecting No, will only create the infrastructure to host the APIs, the authentication for the APIs, and backend processing',
+        allowedValues: ['Yes', 'No'],
+        default: 'Yes'
+    });
+
+    const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
+
+    const cognitoSetup = new CognitoSetup(stack, 'TestCognitoSetup', {
+        userPoolProps: {
+            ...props,
+            cognitoDomainPrefix: new cdk.CfnParameter(stack, 'CognitoDomainPrefix', {
+                type: 'String',
+                description:
+                    'If you would like to provide a domain for the Cognito User Pool Client, please enter a value. If a value is not provided, the deployment will generate one',
+                default: '',
+                allowedPattern: '^$|^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$',
+                constraintDescription:
+                    'The provided domain prefix is not a valid format. The domain prefix should be be of the following format "^[a-z0-9](?:[a-z0-9\\-]{0,61}[a-z0-9])?$"',
+                maxLength: 63
+            }).valueAsString
+        } as UserPoolProps,
+        userPoolClientProps: {
+            logoutUrl: cloudFrontUrl.valueAsString,
+            callbackUrl: cloudFrontUrl.valueAsString
+        } as UserPoolClientProps,
+        deployWebApp: deployWebApp.valueAsString
+    });
+
+    new RestRequestProcessor(stack, 'WebSocketEndpoint', {
+        useCaseManagementAPILambda: new lambda.Function(stack, 'chatLambda', mockLambdaFuncProps),
+        modelInfoAPILambda: new lambda.Function(stack, 'modelInfoLambda', mockLambdaFuncProps),
+        applicationTrademarkName: 'fake-name',
+        defaultUserEmail: 'testuser@example.com',
+        customResourceLambdaArn: crLambda.functionArn,
+        customResourceRoleArn: crLambda.role!.roleArn,
+        cognitoDomainPrefix: 'fake-prefix',
+        cloudFrontUrl: cloudFrontUrl.valueAsString,
+        deployWebApp: deployWebApp.valueAsString,
+        existingCognitoUserPoolId: new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolId', {
+            type: 'String'
+        }).valueAsString,
+        existingCognitoUserPoolClientId: new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClientId', {
+            type: 'String'
+        }).valueAsString,
+        cognitoSetup: cognitoSetup
+    });
+    const template = Template.fromStack(stack);
+    return [template, template.toJSON()];
+}

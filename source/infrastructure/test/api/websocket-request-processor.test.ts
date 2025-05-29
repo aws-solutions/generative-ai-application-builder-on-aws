@@ -49,7 +49,12 @@ describe('When deploying', () => {
             existingCognitoUserPoolClientId: 'fake123clientid',
             cloudFrontUrl: 'https://fakeurl',
             deployWebApp: deployWebApp.valueAsString,
-            lambdaRouteMapping: lambdaRouteMapping
+            lambdaRouteMapping: lambdaRouteMapping,
+            deployVPCCondition: new cdk.CfnCondition(stack, 'MockVPCCondition', {
+                expression: cdk.Fn.conditionEquals('true', 'true')
+            }),
+            privateSubnetIds: 'pid1, pid2',
+            securityGroupIds: 'sid1, sid2'
         });
 
         template = Template.fromStack(stack);
@@ -121,7 +126,19 @@ describe('When deploying', () => {
             },
             'Handler': 'websocket-authorizer.handler',
             'Runtime': COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
-            'Timeout': 900
+            'Timeout': 900,
+            'VpcConfig': {
+                'Fn::If': [
+                    'MockVPCCondition',
+                    {
+                        'SubnetIds': ['pid1', ' pid2'],
+                        'SecurityGroupIds': ['sid1', ' sid2']
+                    },
+                    {
+                        'Ref': 'AWS::NoValue'
+                    }
+                ]
+            }
         });
     });
 

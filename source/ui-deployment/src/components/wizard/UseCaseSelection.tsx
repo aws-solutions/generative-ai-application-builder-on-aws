@@ -55,6 +55,7 @@ const UseCaseSelection = () => {
             breadcrumbs={
                 <BreadcrumbGroup
                     expandAriaLabel="Show path"
+                    data-testid="use-case-selection-breadcrumb-group"
                     ariaLabel="Breadcrumbs"
                     items={[
                         { text: `${APP_TRADEMARK_NAME}`, href: '/' },
@@ -68,8 +69,9 @@ const UseCaseSelection = () => {
             }
             content={
                 <SpaceBetween size="l">
-                    <Header>What would you like to build?</Header>
+                    <Header data-testid="use-case-selection-header">What would you like to build?</Header>
                     <Cards
+                        data-testid="usecase-cards"
                         cardDefinition={{
                             header: (item) => `Create ${item.name} use case`,
                             sections: [
@@ -122,6 +124,7 @@ const UseCaseSelection = () => {
                         disabled={selectedItem.length == 0}
                         disabledReason="Select a use case type to deploy"
                         onClick={handleNextClick}
+                        data-testid="use-case-selection-next-btn"
                     >
                         Next
                     </Button>

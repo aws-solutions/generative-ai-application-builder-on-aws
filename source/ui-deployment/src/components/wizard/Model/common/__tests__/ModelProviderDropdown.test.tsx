@@ -4,7 +4,7 @@
 import * as QueryHooks from 'hooks/useQueries';
 import ModelProviderDropdown from '../ModelProvider';
 import { mockFormComponentCallbacks, renderWithProvider } from '@/utils';
-import { cleanup } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 
 describe('ModelProviderDropdown', () => {
     const mockHandleWizardNextStepLoading = vi.fn();
@@ -95,5 +95,63 @@ describe('ModelProviderDropdown', () => {
 
         const select = cloudscapeWrapper.findSelect();
         expect(mockHandleWizardNextStepLoading).toHaveBeenLastCalledWith(false);
+    });
+
+    test('renders Alert component with required information', () => {
+        vi.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
+            isPending: false,
+            isError: false,
+            data: ['Bedrock', 'SageMaker']
+        } as any);
+
+        const mockModelData = {
+            modelProvider: { label: 'Bedrock', value: 'Bedrock' }
+        };
+
+        const { cloudscapeWrapper } = renderWithProvider(
+            <ModelProviderDropdown
+                {...mockFormComponentCallbacks()}
+                modelData={mockModelData}
+                handleWizardNextStepLoading={mockHandleWizardNextStepLoading}
+            />,
+            {
+                route: '/modelProvider'
+            }
+        );
+
+        const alert = cloudscapeWrapper.findAlert('[data-testid="model-access-review-alert"]');
+        expect(alert).toBeDefined();
+        expect(alert?.getElement().textContent).toContain(
+            'Please review the information belowYou have enabled "Model Access" in the Amazon Bedrock console.The model is available in the AWS region where the use case is being deployed.'
+        );
+    });
+
+    test('disables the dropdown when in edit mode', () => {
+        vi.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
+            isPending: false,
+            isError: false,
+            data: ['Bedrock', 'SageMaker']
+        } as any);
+
+        const mockModelData = {
+            modelProvider: { label: 'Bedrock', value: 'Bedrock' }
+        };
+
+        const { cloudscapeWrapper } = renderWithProvider(
+            <ModelProviderDropdown
+                {...mockFormComponentCallbacks()}
+                modelData={mockModelData}
+                handleWizardNextStepLoading={mockHandleWizardNextStepLoading}
+            />,
+            {
+                route: '/modelProvider',
+                customState: {
+                    deploymentAction: 'EDIT'
+                }
+            }
+        );
+
+        const select = cloudscapeWrapper.findSelect();
+        expect(select?.isDisabled()).toBeTruthy();
     });
 });

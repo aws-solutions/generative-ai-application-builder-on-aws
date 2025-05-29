@@ -14,6 +14,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { API_NAME } from './utils/constants';
 import { UserContextProvider } from './UserContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // apply a color mode
 applyMode(Mode.Light);
@@ -24,8 +25,8 @@ export async function getRuntimeConfig() {
 }
 
 export function constructAmplifyConfig(config) {
-    if (config.ApiEndpoint.endsWith('/')) {
-        config.ApiEndpoint = config.ApiEndpoint.slice(0, -1);
+    if (config.RestApiEndpoint.endsWith('/')) {
+        config.RestApiEndpoint = config.RestApiEndpoint.slice(0, -1);
     }
 
     const amplifyConfig = {
@@ -50,7 +51,7 @@ export function constructAmplifyConfig(config) {
             endpoints: [
                 {
                     name: API_NAME,
-                    endpoint: config.ApiEndpoint,
+                    endpoint: config.RestApiEndpoint,
                     region: config.AwsRegion
                 }
             ]
@@ -59,6 +60,8 @@ export function constructAmplifyConfig(config) {
     return amplifyConfig;
 }
 
+const queryClient = new QueryClient();
+
 getRuntimeConfig().then(function (config) {
     const amplifyConfig = constructAmplifyConfig(config);
     const runtimeConfig = config;
@@ -66,11 +69,13 @@ getRuntimeConfig().then(function (config) {
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(
         <React.StrictMode>
-            <BrowserRouter>
-                <UserContextProvider>
-                    <App runtimeConfig={runtimeConfig} />
-                </UserContextProvider>
-            </BrowserRouter>
+            <QueryClientProvider client={queryClient}>
+                <BrowserRouter>
+                    <UserContextProvider>
+                        <App runtimeConfig={runtimeConfig} />
+                    </UserContextProvider>
+                </BrowserRouter>
+            </QueryClientProvider>
         </React.StrictMode>
     );
 });

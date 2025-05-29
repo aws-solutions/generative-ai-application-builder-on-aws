@@ -3,32 +3,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from unittest import mock
 
 import pytest
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables.base import RunnableBinding
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
+
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import (
-    DEFAULT_PROMPT_PLACEHOLDERS,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
-    DEFAULT_REPHRASE_RAG_QUESTION,
-    MODEL_INFO_TABLE_NAME_ENV_VAR,
-    RAG_CHAT_IDENTIFIER,
-)
-from utils.custom_exceptions import LLMBuildError
+from utils.constants import DEFAULT_REPHRASE_RAG_QUESTION, MODEL_INFO_TABLE_NAME_ENV_VAR, RAG_CHAT_IDENTIFIER
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 RAG_ENABLED = True
 MODEL_ID = "amazon.fake-model"
 MODEL_PROVIDER = LLMProviderTypes.BEDROCK.value
-BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context"]
+BEDROCK_RAG_PROMPT = """{context}\n\n{input}"""
 DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
 RESPONSE_IF_NO_DOCS_FOUND = "Sorry, the model cannot respond to your questions due to admin enforced constraints."
 MOCKED_SOURCE_DOCS = [
@@ -66,6 +59,7 @@ def model_inputs(
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": True,
             "knowledge_base": KendraKnowledgeBase(
@@ -86,7 +80,7 @@ def model_inputs(
                 "maxTokenCount": {"Type": "integer", "Value": "200"},
             },
             "prompt_template": BEDROCK_RAG_PROMPT,
-            "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
+            "prompt_placeholders": DEFAULT_PROMPT_RAG_PLACEHOLDERS,
             "disambiguation_prompt_template": disambiguation_prompt,
             "disambiguation_prompt_enabled": disambiguation_enabled,
             "rephrase_question": DEFAULT_REPHRASE_RAG_QUESTION,
@@ -201,10 +195,17 @@ def test_implement_error_not_raised(
         assert chat.conversation_history_params == {
             "table_name": "fake-table",
             "user_id": "fake-user-id",
+            "message_id": "fake-message-id",
             "conversation_id": "fake-conversation-id",
         }
-        assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
-        assert set(chat.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
+        assert chat.prompt_template == ChatPromptTemplate.from_messages(
+            [
+                ("system", prompt),
+                MessagesPlaceholder("history", optional=True),
+                ("human", "{input}"),
+            ]
+        )
+        assert set(chat.prompt_template.input_variables) == {"context", "input"}
         assert chat.model_params == {"temperature": 0.25, "maxTokenCount": 200, "topP": 0.9}
         assert chat.streaming == is_streaming
         assert chat.verbose == False
@@ -219,93 +220,10 @@ def test_implement_error_not_raised(
             assert chat.response_if_no_docs_found == response_if_no_docs_found
         assert chat.rephrase_question == DEFAULT_REPHRASE_RAG_QUESTION
 
-        runnable_type = RunnableBinding if is_streaming else RunnableWithMessageHistory
+        runnable_type = RunnableWithMessageHistory
         assert type(chat.runnable_with_history) == runnable_type
     except NotImplementedError as ex:
         raise Exception(ex)
-
-
-@pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
-    [
-        (
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            False,
-            False,
-            MODEL_ID,
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            True,
-            False,
-            MODEL_ID,
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            False,
-            True,
-            MODEL_ID,
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            BEDROCK_RAG_PROMPT,
-            True,
-            True,
-            MODEL_ID,
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-    ],
-)
-def test_exception_for_incorrect_model_params(
-    use_case,
-    prompt,
-    is_streaming,
-    model_id,
-    setup_environment,
-    model_inputs,
-    return_source_docs,
-    bedrock_dynamodb_defaults_table,
-    disambiguation_enabled,
-    disambiguation_prompt,
-    response_if_no_docs_found,
-):
-    with pytest.raises(LLMBuildError) as error:
-        with mock.patch(
-            "shared.knowledge.kendra_retriever.CustomKendraRetriever.get_relevant_documents"
-        ) as mocked_kendra_docs:
-            mocked_kendra_docs.return_value = [MOCKED_SOURCE_DOCS]
-            model_inputs.model_family = BedrockModelProviders.AMAZON.value
-            model_inputs.model_params = {"incorrect_param": {"Type": "integer", "Value": "512"}}
-
-            chat = BedrockRetrievalLLM(
-                model_inputs=model_inputs,
-                model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, RAG_ENABLED),
-            )
-            chat.generate("What is lambda?")
-
-    assert (
-        f"Error occurred while building Bedrock family '{model_inputs.model_family}' model '{MODEL_ID}'. "
-        "Ensure that the model params provided are correct and they match the model specification."
-        in error.value.args[0]
-    )
-    assert (
-        "Error: BedrockAmazonLLMParams.__init__() got an unexpected keyword argument 'incorrect_param'"
-        in error.value.args[0]
-    )
 
 
 @pytest.mark.parametrize(
@@ -385,10 +303,17 @@ def test_bedrock_model_variation(
     assert chat.conversation_history_params == {
         "table_name": "fake-table",
         "user_id": "fake-user-id",
+        "message_id": "fake-message-id",
         "conversation_id": "fake-conversation-id",
     }
-    assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
-    assert set(chat.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
+    assert chat.prompt_template == ChatPromptTemplate.from_messages(
+        [
+            ("system", prompt),
+            MessagesPlaceholder("history", optional=True),
+            ("human", "{input}"),
+        ]
+    )
+    assert set(chat.prompt_template.input_variables) == {"context", "input"}
     assert chat.model_params == {"temperature": 0.25, "max_tokens": 200, "top_p": 0.9}
     assert chat.streaming == is_streaming
     assert chat.verbose == False
@@ -402,7 +327,7 @@ def test_bedrock_model_variation(
     if response_if_no_docs_found is not None:
         assert chat.response_if_no_docs_found == response_if_no_docs_found
 
-    runnable_type = RunnableBinding if is_streaming else RunnableWithMessageHistory
+    runnable_type = RunnableWithMessageHistory
     assert type(chat.runnable_with_history) == runnable_type
 
 

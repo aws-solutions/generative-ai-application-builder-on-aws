@@ -5,15 +5,15 @@ import {
     DEFAULT_KENDRA_NUMBER_OF_DOCS,
     DEFAULT_SCORE_THRESHOLD,
     DEPLOYMENT_ACTIONS,
-    USECASE_TYPES
+    USECASE_TYPES,
+    BEDROCK_INFERENCE_TYPES
 } from '../../utils/constants';
 import {
     DEFAULT_STEP_INFO,
     KNOWLEDGE_BASE_PROVIDERS,
     KNOWLEDGE_BASE_TYPES,
     MODEL_PROVIDER_NAME_MAP,
-    BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES,
-    INFERENCE_PROFILE
+    BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES
 } from './steps-config';
 
 import 'ace-builds/css/ace.css';
@@ -25,6 +25,45 @@ import themeTomorrow from 'ace-builds/src-noconflict/theme-tomorrow_night_bright
 import extLanguageTools from 'ace-builds/src-noconflict/ext-language_tools?url';
 import workerJson from 'ace-builds/src-min-noconflict/worker-json?url';
 
+/**
+ * Maps UI inference type constants to API inference type constants.
+ * @param {string} uiInferenceType - The UI inference type constant
+ * @returns {string} The corresponding API inference type constant, defaults to 'QUICK_START'
+ */
+export const mapUItoAPIInferenceType = (uiInferenceType) => {
+    const mapping = {
+        [BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS]: 'QUICK_START',
+        [BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS]: 'OTHER_FOUNDATION',
+        [BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES]: 'INFERENCE_PROFILE',
+        [BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS]: 'PROVISIONED'
+    };
+
+    return mapping[uiInferenceType] || 'QUICK_START'; // Default to QUICK_START if mapping not found
+};
+
+/**
+ * Maps API inference type constants back to UI inference type constants.
+ * @param {string} apiInferenceType - The API inference type constant
+ * @returns {string} The corresponding UI inference type constant, defaults to QUICK_START_MODELS
+ */
+export const mapAPItoUIInferenceType = (apiInferenceType) => {
+    const mapping = {
+        'QUICK_START': BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS,
+        'OTHER_FOUNDATION': BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS,
+        'INFERENCE_PROFILE': BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES,
+        'PROVISIONED': BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS
+    };
+
+    return mapping[apiInferenceType] || BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS; // Default to QUICK_START_MODELS if mapping not found
+};
+
+/**
+ * Creates an onChange handler for form fields.
+ * @param {string} fieldType - The type of form field ('select', 'toggle', etc)
+ * @param {string} fieldKey - The key for the field value in the form state
+ * @param {Function} onChangeFn - Callback function to handle the change
+ * @returns {Function} Handler function that processes the field change event
+ */
 export const getFieldOnChange =
     (fieldType, fieldKey, onChangeFn) =>
     ({ detail: { selectedOption, value, checked } }) => {
@@ -41,8 +80,15 @@ export const getFieldOnChange =
         });
     };
 
-export const createDeployRequestPayload = (stepsInfo) => {
+/**
+ * Creates the payload for a deployment request.
+ * @param {Object} stepsInfo - Information from all wizard steps
+ * @param {Object} runtimeConfig - Runtime configuration settings
+ * @returns {Object} The formatted deployment request payload
+ */
+export const createDeployRequestPayload = (stepsInfo, runtimeConfig) => {
     let payload = {
+        ExistingRestApiId: extractRestApiId(runtimeConfig?.RestApiEndpoint) ?? '',
         ...createUseCaseInfoApiParams(stepsInfo.useCase),
         ...createVpcApiParams(stepsInfo.vpc),
         ...createAuthenticationApiParams(stepsInfo.useCase)
@@ -65,6 +111,30 @@ export const createDeployRequestPayload = (stepsInfo) => {
     return payload;
 };
 
+/**
+ * Extracts the REST API ID from an API endpoint URL.
+ * @param {string} apiEndpoint - The full API endpoint URL
+ * @returns {string|null} The extracted API ID or null if extraction fails
+ */
+const extractRestApiId = (apiEndpoint) => {
+    if (!apiEndpoint) return null;
+
+    try {
+        const url = new URL(apiEndpoint);
+        const hostname = url.hostname;
+        const apiId = hostname.split('.')[0];
+
+        return apiId;
+    } catch (error) {
+        console.error('Error parsing API endpoint:', error);
+        return null;
+    }
+};
+
+/**
+ * Recursively removes empty string values from an object.
+ * @param {Object} obj - The object to clean
+ */
 const removeEmptyString = (obj) => {
     for (const key in obj) {
         if (typeof obj[key] === 'object') {
@@ -75,16 +145,28 @@ const removeEmptyString = (obj) => {
     }
 };
 
+/**
+ * Converts a boolean value to a 'Yes'/'No' string.
+ * @param {boolean} flag - The boolean value to convert
+ * @returns {string} 'Yes' if true, 'No' if false
+ */
 export const getBooleanString = (flag) => {
     return flag ? 'Yes' : 'No';
 };
 
-export const createUpdateRequestPayload = (stepsInfo) => {
+/**
+ * Creates the payload for an update request.
+ * @param {Object} stepsInfo - Information from all wizard steps
+ * @returns {Object} The formatted update request payload
+ */
+export const createUpdateRequestPayload = (stepsInfo, runtimeConfig) => {
     const useCaseInfoParams = createUseCaseInfoApiParams(stepsInfo.useCase);
     delete useCaseInfoParams.UseCaseName;
     let payload = {
+        ExistingRestApiId: extractRestApiId(runtimeConfig?.RestApiEndpoint) ?? '',
         ...useCaseInfoParams,
-        ...updateVpcApiParams(stepsInfo.vpc)
+        ...updateVpcApiParams(stepsInfo.vpc),
+        ...updateFeedbackApiParams(stepsInfo.useCase)
     };
 
     if (stepsInfo.useCase.useCaseType === USECASE_TYPES.AGENT) {
@@ -112,12 +194,20 @@ export const createUpdateRequestPayload = (stepsInfo) => {
     return payload;
 };
 
+/**
+ * Creates API parameters for use case information.
+ * @param {Object} useCaseStepInfo - Use case configuration from wizard step
+ * @returns {Object} Formatted use case API parameters
+ */
 export const createUseCaseInfoApiParams = (useCaseStepInfo) => {
     const params = {
         UseCaseName: useCaseStepInfo.useCaseName,
         UseCaseDescription: useCaseStepInfo.useCaseDescription,
         UseCaseType: useCaseStepInfo.useCaseType ?? USECASE_TYPES.TEXT,
         DeployUI: useCaseStepInfo.deployUI,
+        FeedbackParams: {
+            FeedbackEnabled: useCaseStepInfo.feedbackEnabled
+        },
         ...(useCaseStepInfo.defaultUserEmail &&
             useCaseStepInfo.defaultUserEmail !== '' && {
                 DefaultUserEmail: useCaseStepInfo.defaultUserEmail
@@ -126,6 +216,11 @@ export const createUseCaseInfoApiParams = (useCaseStepInfo) => {
     return params;
 };
 
+/**
+ * Converts a list of strings to selection options format.
+ * @param {string[]} list - List of strings to convert
+ * @returns {Object[]} Array of {label, value} option objects
+ */
 export const stringListToSelectionOptions = (list) => {
     return list.map((item) => {
         return {
@@ -151,6 +246,24 @@ export const createConversationMemoryApiParams = (promptStepInfo) => {
     };
 };
 
+/**
+ * Formats a value based on its type for API consumption.
+ *
+ * @param {*} value - The value to format
+ * @param {string} type - The type of the value ('boolean' or 'list')
+ * @returns {string} The formatted value
+ *
+ * For boolean values:
+ * - Converts to lowercase
+ *
+ * For list values:
+ * - Ensures value is enclosed in square brackets
+ * - Adds opening bracket if missing
+ * - Adds closing bracket if missing
+ *
+ * For all other types:
+ * - Returns value unchanged
+ */
 export const formatValue = (value, type) => {
     let newValue = value;
     if (type === 'boolean') {
@@ -166,28 +279,93 @@ export const formatValue = (value, type) => {
     return newValue;
 };
 
+/**
+ * Creates Bedrock LLM parameters based on model step information and deployment action.
+ *
+ * @param {Object} modelStepInfo - The model step configuration information
+ * @param {string} modelStepInfo.bedrockInferenceType - The type of Bedrock inference (QUICK_START_MODELS, OTHER_FOUNDATION_MODELS, etc)
+ * @param {string} modelStepInfo.inferenceProfileId - ID of the inference profile if using INFERENCE_PROFILES type
+ * @param {string} modelStepInfo.modelArn - ARN of the provisioned model if using PROVISIONED_MODELS type
+ * @param {string} modelStepInfo.modelName - Name/ID of the model for quick start and foundation models
+ * @param {boolean} modelStepInfo.enableGuardrails - Whether guardrails are enabled
+ * @param {string} modelStepInfo.guardrailIdentifier - Identifier for the guardrail if enabled
+ * @param {string} modelStepInfo.guardrailVersion - Version of the guardrail if enabled
+ * @param {string} deploymentAction - The deployment action (CREATE or EDIT), defaults to CREATE
+ * @returns {Object} The configured Bedrock LLM parameters object containing:
+ *   - ModelProvider: The model provider name (Bedrock)
+ *   - BedrockLlmParams: Object containing:
+ *     - BedrockInferenceType: The API inference type
+ *     - ModelId/InferenceProfileId/ModelArn: The appropriate model identifier
+ *     - GuardrailIdentifier and GuardrailVersion if guardrails enabled
+ */
 export const createBedrockLlmParams = (modelStepInfo, deploymentAction = DEPLOYMENT_ACTIONS.CREATE) => {
+    const apiInferenceType = mapUItoAPIInferenceType(modelStepInfo.bedrockInferenceType);
+    const uiInferenceType = modelStepInfo.bedrockInferenceType;
+
+    // Base params that are always included
     const bedrockLlmParams = {
         ModelProvider: MODEL_PROVIDER_NAME_MAP.Bedrock,
         BedrockLlmParams: {
-            ...(modelStepInfo.modelName === INFERENCE_PROFILE
-                ? { InferenceProfileId: modelStepInfo.inferenceProfileId }
-                : { ModelId: modelStepInfo.modelName }),
-            ...(modelStepInfo.modelArn && { ModelArn: modelStepInfo.modelArn }),
-            ...(modelStepInfo.enableGuardrails && {
-                GuardrailIdentifier: modelStepInfo.guardrailIdentifier,
-                GuardrailVersion: modelStepInfo.guardrailVersion
-            }),
-            ...(!modelStepInfo.enableGuardrails &&
-                deploymentAction == DEPLOYMENT_ACTIONS.EDIT && {
-                    GuardrailIdentifier: null,
-                    GuardrailVersion: null
-                })
+            BedrockInferenceType: apiInferenceType
         }
     };
+
+    // Add model identifier based on inference type
+    const modelIdentifiers = {
+        [BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES]: {
+            InferenceProfileId: modelStepInfo.inferenceProfileId
+        },
+        [BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS]: {
+            ModelArn: modelStepInfo.modelArn
+        },
+        // for quick start models and other foundation models, the model name is the same as the model id
+        [BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS]: {
+            ModelId: modelStepInfo.modelName
+        },
+        [BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS]: {
+            ModelId: modelStepInfo.modelName
+        },
+        default: {
+            ModelId: modelStepInfo.modelName
+        }
+    };
+
+    const modelParams = modelIdentifiers[uiInferenceType] || modelIdentifiers.default;
+    Object.assign(bedrockLlmParams.BedrockLlmParams, modelParams);
+
+    // Determine guardrail parameters based on conditions
+    let guardrailParams = {};
+    if (modelStepInfo.enableGuardrails) {
+        guardrailParams = {
+            GuardrailIdentifier: modelStepInfo.guardrailIdentifier,
+            GuardrailVersion: modelStepInfo.guardrailVersion
+        };
+    } else if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
+        guardrailParams = {
+            GuardrailIdentifier: null,
+            GuardrailVersion: null
+        };
+    }
+
+    Object.assign(bedrockLlmParams.BedrockLlmParams, guardrailParams);
+
     return bedrockLlmParams;
 };
 
+/**
+ * Creates SageMaker LLM parameters object from model step information.
+ *
+ * @param {Object} modelStepInfo - Model step configuration information
+ * @param {string} modelStepInfo.sagemakerEndpointName - Name of the SageMaker endpoint
+ * @param {string} [modelStepInfo.sagemakerInputSchema] - JSON schema for model input payload
+ * @param {string} [modelStepInfo.sagemakerOutputSchema] - JSON path for model output
+ * @returns {Object} Object containing:
+ *   - ModelProvider: SageMaker provider name
+ *   - SageMakerLlmParams: Object containing:
+ *     - EndpointName: Name of SageMaker endpoint
+ *     - ModelInputPayloadSchema: Parsed input schema (if provided)
+ *     - ModelOutputJSONPath: Output JSON path (if provided)
+ */
 export const createSageMakerLlmParams = (modelStepInfo) => {
     let params = {
         ModelProvider: MODEL_PROVIDER_NAME_MAP.SageMaker,
@@ -204,6 +382,22 @@ export const createSageMakerLlmParams = (modelStepInfo) => {
     return params;
 };
 
+/**
+ * Creates prompt parameters object from prompt step information.
+ *
+ * @param {Object} promptStepInfo - Prompt step configuration information
+ * @param {string} promptStepInfo.promptTemplate - Template for the prompt
+ * @param {boolean} promptStepInfo.rephraseQuestion - Whether to rephrase questions
+ * @param {number} promptStepInfo.maxPromptTemplateLength - Maximum length for prompt template
+ * @param {number} promptStepInfo.maxInputTextLength - Maximum length for input text
+ * @param {boolean} promptStepInfo.userPromptEditingEnabled - Whether users can edit prompts
+ * @param {boolean} [promptStepInfo.disambiguationEnabled] - Whether disambiguation is enabled
+ * @param {string} [promptStepInfo.disambiguationPromptTemplate] - Template for disambiguation prompts
+ * @param {boolean} ragEnabled - Whether RAG (Retrieval Augmented Generation) is enabled
+ * @returns {Object} Object containing:
+ *   - PromptParams: Object containing prompt configuration parameters
+ *     - Includes disambiguation parameters if RAG is enabled
+ */
 export const createPromptParams = (promptStepInfo, ragEnabled) => {
     let params = {
         PromptParams: {
@@ -281,6 +475,25 @@ export const createLLMParamsApiParams = (
     return payload;
 };
 
+/**
+ * Creates Kendra knowledge base parameters for the API request.
+ *
+ * @param {Object} knowledgeBaseStepInfo - Knowledge base configuration information
+ * @param {string} knowledgeBaseStepInfo.existingKendraIndex - Whether using existing Kendra index ('Yes'/'No')
+ * @param {string} knowledgeBaseStepInfo.kendraIndexId - ID of existing Kendra index
+ * @param {boolean} knowledgeBaseStepInfo.enableRoleBasedAccessControl - Whether RBAC is enabled
+ * @param {string} knowledgeBaseStepInfo.queryFilter - Query filter JSON string
+ * @param {number} knowledgeBaseStepInfo.maxNumDocs - Maximum number of documents to return
+ * @param {number} knowledgeBaseStepInfo.scoreThreshold - Minimum relevance score threshold
+ * @param {string} knowledgeBaseStepInfo.noDocsFoundResponse - Response when no docs found
+ * @param {boolean} knowledgeBaseStepInfo.returnDocumentSource - Whether to return source docs
+ * @param {string} knowledgeBaseStepInfo.kendraIndexName - Name for new Kendra index
+ * @param {number} knowledgeBaseStepInfo.kendraAdditionalQueryCapacity - Additional query capacity units
+ * @param {number} knowledgeBaseStepInfo.kendraAdditionalStorageCapacity - Additional storage capacity units
+ * @param {Object} knowledgeBaseStepInfo.kendraEdition - Kendra edition configuration
+ * @param {string} deploymentAction - Deployment action type (CREATE/EDIT)
+ * @returns {Object} Formatted Kendra knowledge base parameters
+ */
 export const createKendraKnowledgeBaseParams = (
     knowledgeBaseStepInfo,
     deploymentAction = DEPLOYMENT_ACTIONS.CREATE
@@ -334,6 +547,19 @@ export const createKendraKnowledgeBaseParams = (
     };
 };
 
+/**
+ * Creates Bedrock knowledge base parameters for the API request.
+ *
+ * @param {Object} knowledgeBaseStepInfo - Knowledge base configuration information
+ * @param {string} knowledgeBaseStepInfo.bedrockKnowledgeBaseId - Bedrock knowledge base ID
+ * @param {Object} knowledgeBaseStepInfo.bedrockOverrideSearchType - Override search type configuration
+ * @param {string} knowledgeBaseStepInfo.queryFilter - Query filter JSON string
+ * @param {number} knowledgeBaseStepInfo.maxNumDocs - Maximum number of documents to return
+ * @param {number} knowledgeBaseStepInfo.scoreThreshold - Minimum relevance score threshold
+ * @param {string} knowledgeBaseStepInfo.noDocsFoundResponse - Response when no docs found
+ * @param {boolean} knowledgeBaseStepInfo.returnDocumentSource - Whether to return source docs
+ * @returns {Object} Formatted Bedrock knowledge base parameters
+ */
 export const createBedrockKnowledgeBaseParams = (knowledgeBaseStepInfo) => {
     const queryFilter = sanitizeQueryFilter(knowledgeBaseStepInfo.queryFilter);
     return {
@@ -354,6 +580,15 @@ export const createBedrockKnowledgeBaseParams = (knowledgeBaseStepInfo) => {
     };
 };
 
+/**
+ * Creates Bedrock agent parameters for the API request.
+ *
+ * @param {Object} agentStepInfo - Agent configuration information
+ * @param {string} agentStepInfo.bedrockAgentId - Bedrock agent ID
+ * @param {string} agentStepInfo.bedrockAgentAliasId - Bedrock agent alias ID
+ * @param {boolean} agentStepInfo.enableTrace - Whether to enable tracing
+ * @returns {Object} Formatted agent parameters
+ */
 export const createAgentApiParams = (agentStepInfo) => {
     return {
         AgentParams: {
@@ -476,6 +711,19 @@ export const updateVpcApiParams = (vpcStepInfo) => {
     }
 
     return {};
+};
+
+/**
+ * Construct the params for the feedback config for the api.
+ * @param {*} useCaseStepInfo Use case step wizard details
+ * @returns
+ */
+export const updateFeedbackApiParams = (useCaseStepInfo) => {
+    return {
+        FeedbackParams: {
+            FeedbackEnabled: useCaseStepInfo.feedbackEnabled
+        }
+    };
 };
 
 /**
@@ -656,7 +904,7 @@ export const mapKendraKnowledgeBaseParams = (selectedDeployment) => {
         isRagRequired: isRagEnabled,
         knowledgeBaseType: KNOWLEDGE_BASE_TYPES.find((item) => item.value === knowledgeBaseType),
         existingKendraIndex: 'Yes',
-        kendraIndexId: kendraIndexId,
+        kendraIndexId: kendraIndexId ?? '',
         maxNumDocs: maxNumDocs,
         enableRoleBasedAccessControl: rbacEnabled,
         queryFilter: attributeFilter ? JSON.stringify(attributeFilter) : defaultQueryFilter,
@@ -759,7 +1007,7 @@ export const mapPromptStepInfoFromDeployment = (selectedDeployment) => {
  */
 export const mapUseCaseStepInfoFromDeployment = (selectedDeployment) => {
     const {
-        Name: useCaseName,
+        UseCaseName: useCaseName,
         defaultUserEmail,
         Description: useCaseDescription,
         UseCaseType: useCaseType
@@ -777,6 +1025,7 @@ export const mapUseCaseStepInfoFromDeployment = (selectedDeployment) => {
         defaultUserEmail: defaultUserEmail !== 'placeholder@example.com' ? defaultUserEmail : '',
         useCaseDescription: useCaseDescription || '',
         deployUI: selectedDeployment.deployUI === 'Yes',
+        feedbackEnabled: selectedDeployment.FeedbackParams?.FeedbackEnabled || false,
         inError: false,
         useExistingUserPool: useExistingUserPool,
         existingUserPoolId: selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolId ?? '',
@@ -786,53 +1035,69 @@ export const mapUseCaseStepInfoFromDeployment = (selectedDeployment) => {
 };
 
 /**
+ * Determines the inference type based on deployment parameters
+ * @param {Object} bedrockLlmParams
+ * @returns {string} Inference type
+ */
+const determineInferenceType = (bedrockLlmParams) => {
+    if (!bedrockLlmParams?.BedrockInferenceType) {
+        if (bedrockLlmParams?.InferenceProfileId) {
+            return BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES;
+        }
+        if (bedrockLlmParams?.ModelArn) {
+            return BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS;
+        }
+        if (bedrockLlmParams?.ModelId) {
+            return BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS;
+        }
+        return BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS;
+    }
+    return mapAPItoUIInferenceType(bedrockLlmParams.BedrockInferenceType);
+};
+
+/**
+ * Gets model name from deployment params
+ * @param {Object} llmParams
+ * @param {string} defaultModelName
+ * @returns {string} Model name
+ */
+const getModelName = (llmParams, defaultModelName) => {
+    return llmParams?.BedrockLlmParams?.ModelId || llmParams?.SagemakerLlmParams?.EndpointName || defaultModelName;
+};
+
+/**
  * Maps the model parameters from the selected deployment object
  * to a new object with a specific structure.
  * @param {Object} selectedDeployment
- * @returns
+ * @returns {Object} Mapped model step info
  */
 export const mapModelStepInfoFromDeployment = (selectedDeployment, modelProvider) => {
-    let modelName;
+    const llmParams = selectedDeployment.LlmParams || {};
+    const bedrockLlmParams = llmParams.BedrockLlmParams || {};
+    const sagemakerLlmParams = llmParams.SageMakerLlmParams || {};
+    const defaultModelInfo = DEFAULT_STEP_INFO.model;
 
-    if (
-        selectedDeployment.LlmParams?.BedrockLlmParams?.InferenceProfileId &&
-        selectedDeployment.LlmParams.BedrockLlmParams.InferenceProfileId.length > 0
-    ) {
-        modelName = INFERENCE_PROFILE;
-    } else {
-        modelName =
-            selectedDeployment.LlmParams?.BedrockLlmParams?.ModelId ||
-            selectedDeployment.LlmParams.SagemakerLlmParams?.EndpointName;
-    }
     return {
-        modelProvider: modelProvider,
-        apiKey: DEFAULT_STEP_INFO.model.apiKey,
-        modelName: modelName,
-        provisionedModel: !!selectedDeployment.LlmParams.BedrockLlmParams?.ModelArn,
-        modelArn: selectedDeployment.LlmParams.BedrockLlmParams?.ModelArn ?? DEFAULT_STEP_INFO.model.modelArn,
-        enableGuardrails: !!selectedDeployment.LlmParams.BedrockLlmParams?.GuardrailIdentifier,
-        guardrailIdentifier:
-            selectedDeployment.LlmParams.BedrockLlmParams?.GuardrailIdentifier ??
-            DEFAULT_STEP_INFO.model.guardrailIdentifier,
-        guardrailVersion:
-            selectedDeployment.LlmParams.BedrockLlmParams?.GuardrailVersion ?? DEFAULT_STEP_INFO.model.guardrailVersion,
-        modelParameters: formatModelParamsForAttributeEditor(selectedDeployment.LlmParams.ModelParams),
+        modelProvider,
+        apiKey: defaultModelInfo.apiKey,
+        bedrockInferenceType: determineInferenceType(bedrockLlmParams),
+        modelName: getModelName(llmParams, defaultModelInfo.modelName),
+        provisionedModel: !!bedrockLlmParams.ModelArn,
+        modelArn: bedrockLlmParams.ModelArn ?? defaultModelInfo.modelArn,
+        enableGuardrails: !!bedrockLlmParams.GuardrailIdentifier,
+        guardrailIdentifier: bedrockLlmParams.GuardrailIdentifier ?? defaultModelInfo.guardrailIdentifier,
+        guardrailVersion: bedrockLlmParams.GuardrailVersion ?? defaultModelInfo.guardrailVersion,
+        modelParameters: formatModelParamsForAttributeEditor(llmParams.ModelParams || {}),
         inError: false,
-        temperature: parseFloat(selectedDeployment.LlmParams.Temperature),
-        verbose: selectedDeployment.LlmParams.Verbose,
-        streaming: selectedDeployment.LlmParams.Streaming,
-        sagemakerInputSchema: selectedDeployment.LlmParams.SageMakerLlmParams?.ModelInputPayloadSchema
-            ? JSON.stringify(selectedDeployment.LlmParams.SageMakerLlmParams?.ModelInputPayloadSchema)
-            : DEFAULT_STEP_INFO.model.sagemakerInputSchema,
-        sagemakerOutputSchema:
-            selectedDeployment.LlmParams.SageMakerLlmParams?.ModelOutputJSONPath ??
-            DEFAULT_STEP_INFO.model.sagemakerOutputSchema,
-        sagemakerEndpointName:
-            selectedDeployment.LlmParams.SageMakerLlmParams?.EndpointName ??
-            DEFAULT_STEP_INFO.model.sagemakerEndpointName,
-        inferenceProfileId:
-            selectedDeployment.LlmParams?.BedrockLlmParams?.InferenceProfileId ??
-            DEFAULT_STEP_INFO.model.inferenceProfileId
+        temperature: parseFloat(llmParams.Temperature || '0'),
+        verbose: llmParams.Verbose || false,
+        streaming: llmParams.Streaming || false,
+        sagemakerInputSchema: sagemakerLlmParams.ModelInputPayloadSchema
+            ? JSON.stringify(sagemakerLlmParams.ModelInputPayloadSchema)
+            : defaultModelInfo.sagemakerInputSchema,
+        sagemakerOutputSchema: sagemakerLlmParams.ModelOutputJSONPath ?? defaultModelInfo.sagemakerOutputSchema,
+        sagemakerEndpointName: sagemakerLlmParams.EndpointName ?? defaultModelInfo.sagemakerEndpointName,
+        inferenceProfileId: bedrockLlmParams.InferenceProfileId ?? defaultModelInfo.inferenceProfileId
     };
 };
 
@@ -877,7 +1142,7 @@ export const parseVpcInfoFromSelectedDeployment = (selectedDeployment) => {
 };
 
 const formatModelParamsForAttributeEditor = (modelParams) => {
-    if (Object.keys(modelParams).length === 0) {
+    if (!modelParams || Object.keys(modelParams).length === 0) {
         return [];
     }
 

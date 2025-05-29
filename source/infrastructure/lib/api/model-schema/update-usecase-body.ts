@@ -4,6 +4,7 @@
 import { JsonSchema, JsonSchemaType, JsonSchemaVersion } from 'aws-cdk-lib/aws-apigateway';
 import {
     AUTHENTICATION_PROVIDERS,
+    BEDROCK_INFERENCE_TYPES,
     CHAT_PROVIDERS,
     DEFAULT_CONVERSATION_MEMORY_TYPE,
     DEFAULT_ENABLE_RBAC,
@@ -18,6 +19,7 @@ import {
     MODEL_PARAM_TYPES,
     SUPPORTED_AGENT_TYPES,
     SUPPORTED_AUTHENTICATION_PROVIDERS,
+    SUPPORTED_BEDROCK_INFERENCE_TYPES,
     SUPPORTED_CHAT_PROVIDERS,
     SUPPORTED_CONVERSATION_MEMORY_TYPES,
     SUPPORTED_KNOWLEDGE_BASE_TYPES,
@@ -46,6 +48,23 @@ export const updateUseCaseBodySchema: JsonSchema = {
             type: JsonSchemaType.BOOLEAN,
             description: 'Deploy the CloudFront based UI for the use case',
             default: true
+        },
+        FeedbackParams: {
+            type: JsonSchemaType.OBJECT,
+            description: 'Parameters for the feedback capability for the use case.',
+            properties: {
+                FeedbackEnabled: {
+                    type: JsonSchemaType.BOOLEAN,
+                    description: 'Allow the feedback capability for the use case.',
+                    default: false
+                }
+            },
+            required: ['FeedbackEnabled'],
+            additionalProperties: false
+        },
+        ExistingRestApiId: {
+            type: JsonSchemaType.STRING,
+            description: 'Rest API ID which will be used to invoke UseCaseDetails (and Feedback, if enabled).'
         },
         VpcParams: {
             type: JsonSchemaType.OBJECT,
@@ -309,13 +328,21 @@ export const updateUseCaseBodySchema: JsonSchema = {
                             description:
                                 'Version of the guardrail to be used. Must be provided if GuardrailIdentifier is provided. See: https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_InvokeModel.html#API_runtime_InvokeModel_RequestSyntax',
                             pattern: '^(([1-9][0-9]{0,7})|(DRAFT))$'
+                        },
+                        BedrockInferenceType: {
+                            type: JsonSchemaType.STRING,
+                            description: 'The type of Bedrock inference to use. Required for Bedrock LLM params.',
+                            default: BEDROCK_INFERENCE_TYPES.QUICK_START,
+                            enum: SUPPORTED_BEDROCK_INFERENCE_TYPES
                         }
                     },
+                    required: ['BedrockInferenceType'],
                     // either provide ModelId or InferenceProfileId or neither
                     oneOf: [
                         {
                             required: ['ModelId'],
                             properties: {
+                                BedrockInferenceType: { enum: [BEDROCK_INFERENCE_TYPES.QUICK_START, BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION] },
                                 InferenceProfileId: {
                                     not: {}
                                 }
@@ -324,6 +351,7 @@ export const updateUseCaseBodySchema: JsonSchema = {
                         {
                             required: ['InferenceProfileId'],
                             properties: {
+                                BedrockInferenceType: { enum: [BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILE] },
                                 ModelId: {
                                     not: {}
                                 }
@@ -331,10 +359,19 @@ export const updateUseCaseBodySchema: JsonSchema = {
                         },
                         {
                             properties: {
+                                BedrockInferenceType: { enum: [BEDROCK_INFERENCE_TYPES.PROVISIONED] },
+                            },
+                            required: ['ModelArn']
+                        },
+                        {
+                            properties: {
                                 ModelId: {
                                     not: {}
                                 },
                                 InferenceProfileId: {
+                                    not: {}
+                                },
+                                ModelArn: {
                                     not: {}
                                 }
                             }

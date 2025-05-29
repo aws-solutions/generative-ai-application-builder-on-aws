@@ -47,7 +47,7 @@ describe('Testing use case validation for Text UseCases', () => {
                     param1: { Value: 'value1', Type: 'string' },
                     param2: { Value: 'value2', Type: 'string' }
                 },
-                PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                PromptParams: { PromptTemplate: '{context}' },
                 Streaming: true,
                 Temperature: 0.1,
                 RAGEnabled: true
@@ -101,7 +101,7 @@ describe('Testing use case validation for Text UseCases', () => {
                         param1: { Value: 'value1', Type: 'string' },
                         param2: { Value: 'value2', Type: 'string' }
                     },
-                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    PromptParams: { PromptTemplate: '{context}' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: true
@@ -128,7 +128,7 @@ describe('Testing use case validation for Text UseCases', () => {
                         'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                         'ModelName': 'fake-model',
                         'AllowsStreaming': false,
-                        'Prompt': 'Prompt2 {input}{history}',
+                        'Prompt': 'Prompt2',
                         'MaxTemperature': '100',
                         'DefaultTemperature': '0.1',
                         'MinTemperature': '0',
@@ -158,7 +158,7 @@ describe('Testing use case validation for Text UseCases', () => {
                         'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                         'ModelName': 'fake-model',
                         'AllowsStreaming': false,
-                        'Prompt': 'Prompt2 {input}{history}{context}',
+                        'Prompt': 'Prompt2 {context}',
                         'MaxTemperature': '100',
                         'DefaultTemperature': '0.1',
                         'MinTemperature': '0',
@@ -197,7 +197,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             param1: { Value: 'value1', Type: 'string' },
                             param2: { Value: 'value2', Type: 'string' }
                         },
-                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        PromptParams: { PromptTemplate: '{context}' },
                         Streaming: true,
                         Temperature: 0.1,
                         RAGEnabled: true
@@ -339,9 +339,7 @@ describe('Testing use case validation for Text UseCases', () => {
                 let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
                 expect(getItemCalls.length).toEqual(1);
                 expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
-                expect(result.configuration.LlmParams?.PromptParams?.PromptTemplate).toEqual(
-                    'Prompt2 {input}{history}'
-                );
+                expect(result.configuration.LlmParams?.PromptParams?.PromptTemplate).toEqual('Prompt2');
             });
 
             it('should validate a new RAG use case with no prompt provided', async () => {
@@ -384,13 +382,11 @@ describe('Testing use case validation for Text UseCases', () => {
                 let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
                 expect(getItemCalls.length).toEqual(1);
                 expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
-                expect(result.configuration.LlmParams?.PromptParams?.PromptTemplate).toEqual(
-                    'Prompt2 {input}{history}{context}'
-                );
+                expect(result.configuration.LlmParams?.PromptParams?.PromptTemplate).toEqual('Prompt2 {context}');
             });
 
-            it('should validate a new use case with a model input payload schema', async () => {
-                config = {
+            it('should validate a new use case with a model input payload schema - sagemaker with rag', async () => {
+                const modelParamConfig = {
                     UseCaseName: 'fake-use-case',
                     ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
                     KnowledgeBaseParams: {
@@ -400,35 +396,78 @@ describe('Testing use case validation for Text UseCases', () => {
                         KendraKnowledgeBaseParams: { ExistingKendraIndexId: 'fakeid' }
                     },
                     LlmParams: {
-                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: {
-                            ModelId: 'fake-model'
+                        ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
+                        SageMakerLlmParams: {
+                            ModelInputPayloadSchema: {
+                                'temperature': '<<temperature>>',
+                                'prompt': '<<prompt>>',
+                                'max_tokens': 10,
+                                'other_settings': [
+                                    { 'setting1': '<<param1>>' },
+                                    { 'setting2': '<<param2>>' },
+                                    { 'setting3': 1 }
+                                ]
+                            }
                         },
                         ModelParams: {
                             param1: { Value: 'value1', Type: 'string' },
                             param2: { Value: 'value2', Type: 'string' }
                         },
-                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}{context}' },
                         Streaming: true,
                         Temperature: 0.1,
                         RAGEnabled: true
                     }
                 };
-                let modelParamConfig = { ...config };
-                modelParamConfig.LlmParams.ModelProvider = CHAT_PROVIDERS.SAGEMAKER;
-                modelParamConfig.LlmParams.SageMakerLlmParams = {
-                    ModelInputPayloadSchema: {
-                        'temperature': '<<temperature>>',
-                        'prompt': '<<prompt>>',
-                        'max_tokens': 10,
-                        'other_settings': [
-                            { 'setting1': '<<param1>>' },
-                            { 'setting2': '<<param2>>' },
-                            { 'setting3': 1 }
-                        ]
+                const useCase = new UseCase(
+                    'fake-id',
+                    'fake-test',
+                    'Create a stack for test',
+                    cfnParameters,
+                    modelParamConfig,
+                    'test-user',
+                    'FakeProviderName',
+                    'Chat'
+                );
+                const result = await validator.validateNewUseCase(useCase.clone());
+
+                let getItemCalls = ddbMockedClient.commandCalls(GetItemCommand);
+                expect(getItemCalls.length).toEqual(1);
+                expect(getItemCalls[0].args[0].input.TableName).toEqual(modelInfoTableName);
+                expect(result).toEqual(useCase);
+                expect(result.configuration.LlmParams?.PromptParams?.PromptTemplate).toEqual(
+                    'Prompt2 {input}{history}{context}'
+                );
+            });
+
+            it('should validate a new use case with a model input payload schema - sagemaker without rag', async () => {
+                const modelParamConfig = {
+                    UseCaseName: 'fake-use-case',
+                    ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
+                        SageMakerLlmParams: {
+                            ModelInputPayloadSchema: {
+                                'temperature': '<<temperature>>',
+                                'prompt': '<<prompt>>',
+                                'max_tokens': 10,
+                                'other_settings': [
+                                    { 'setting1': '<<param1>>' },
+                                    { 'setting2': '<<param2>>' },
+                                    { 'setting3': 1 }
+                                ]
+                            }
+                        },
+                        ModelParams: {
+                            param1: { Value: 'value1', Type: 'string' },
+                            param2: { Value: 'value2', Type: 'string' }
+                        },
+                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}' },
+                        Streaming: true,
+                        Temperature: 0.1,
+                        RAGEnabled: false
                     }
                 };
-                delete modelParamConfig.LlmParams.BedrockLlmParams;
 
                 const useCase = new UseCase(
                     'fake-id',
@@ -464,8 +503,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             ModelId: 'fake-model'
                         },
                         PromptParams: {
-                            PromptTemplate:
-                                '{{example}} {input}{history}{context} some other {{example}} text, {{example json}}'
+                            PromptTemplate: '{{example}} {context} some other {{example}} text, {{example json}}'
                         },
                         Streaming: true,
                         Temperature: 0.1,
@@ -504,7 +542,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             param2: { Value: 'value2', Type: 'string' },
                             param3: { Value: 'value3', Type: 'string' }
                         },
-                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}{context}' }
+                        PromptParams: { PromptTemplate: 'Prompt2 {context}' }
                     }
                 };
 
@@ -527,7 +565,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             param2: { Value: 'value2', Type: 'string' },
                             param3: { Value: 'value3', Type: 'string' }
                         },
-                        PromptParams: { PromptTemplate: 'Prompt2 {input}{history}{context}' },
+                        PromptParams: { PromptTemplate: 'Prompt2 {context}' },
                         Streaming: true,
                         Temperature: 0.1,
                         RAGEnabled: true
@@ -577,7 +615,7 @@ describe('Testing use case validation for Text UseCases', () => {
                         ModelParams: {
                             param3: { Value: 'value3', Type: 'string' }
                         },
-                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        PromptParams: { PromptTemplate: '{context}' },
                         Streaming: true,
                         Temperature: 0.1,
                         RAGEnabled: true
@@ -623,7 +661,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             ModelId: 'fake-model'
                         },
                         ModelParams: {},
-                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        PromptParams: { PromptTemplate: '{context}' },
                         RAGEnabled: true,
                         Streaming: true,
                         Temperature: 0.1
@@ -800,8 +838,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             param3: { Value: 'value3', Type: 'string' }
                         },
                         PromptParams: {
-                            PromptTemplate:
-                                '{{example}} {input}{history}{context} some other {{example}} text, {{example json}}'
+                            PromptTemplate: '{{example}} {context} some other {{example}} text, {{example json}}'
                         }
                     }
                 };
@@ -849,7 +886,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             param1: { Value: 'value1', Type: 'string' },
                             param2: { Value: 'value2', Type: 'string' }
                         },
-                        PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                        PromptParams: { PromptTemplate: '{context}' },
                         Streaming: true,
                         Temperature: 0.1,
                         RAGEnabled: true
@@ -887,7 +924,7 @@ describe('Testing use case validation for Text UseCases', () => {
                     'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                     'ModelName': 'fake-model',
                     'AllowsStreaming': false,
-                    'Prompt': 'Prompt2 {input}{history}',
+                    'Prompt': 'Prompt2',
                     'MaxTemperature': '100',
                     'DefaultTemperature': '0.1',
                     'MinTemperature': '0',
@@ -1066,7 +1103,7 @@ describe('Testing use case validation for Text UseCases', () => {
                     'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                     'ModelName': 'fake-model',
                     'AllowsStreaming': false,
-                    'Prompt': 'Prompt2 {input}{history}{context}',
+                    'Prompt': 'Prompt2 {context}',
                     'MaxTemperature': '100',
                     'DefaultTemperature': '0.1',
                     'MinTemperature': '0',
@@ -1095,7 +1132,19 @@ describe('Testing use case validation for Text UseCases', () => {
                     ReturnSourceDocs: true
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
+                    ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
+                    SageMakerLlmParams: {
+                        ModelInputPayloadSchema: {
+                            'temperature': '<<temperature>>',
+                            'prompt': '<<prompt>>',
+                            'max_tokens': 10,
+                            'other_settings': [
+                                { 'setting1': '<<param1>>' },
+                                { 'setting2': '<<param2>>' },
+                                { 'setting3': 1 }
+                            ]
+                        }
+                    },
                     ModelInputPayloadSchema: {
                         'temperature': '<<temperature>>',
                         'prompt': '<<prompt>>',
@@ -1106,7 +1155,7 @@ describe('Testing use case validation for Text UseCases', () => {
                             { 'setting3': 1 }
                         ]
                     },
-                    PromptParams: { PromptTemplate: '{input}{history}' },
+                    PromptParams: { PromptTemplate: 'You are a helpful AI assistant.' },
                     Streaming: true,
                     Temperature: 0.1
                 }
@@ -1146,6 +1195,7 @@ describe('Testing use case validation for Text UseCases', () => {
                 },
                 LlmParams: {
                     ModelId: 'fake-model',
+                    ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
                     ModelParams: {
                         param1: { Value: 'value1', Type: 'string' },
                         param2: { Value: 'value2', Type: 'string' }
@@ -1198,8 +1248,9 @@ describe('Testing use case validation for Text UseCases', () => {
                     ReturnSourceDocs: true
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
-                    PromptParams: { PromptTemplate: '{input}{history}' },
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
+                    PromptParams: { PromptTemplate: 'You are a helpful AI assistant.' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: true
@@ -1229,6 +1280,59 @@ describe('Testing use case validation for Text UseCases', () => {
             );
         });
 
+        it('should fail on a new use case with a bad prompt template for non rag', async () => {
+            let modelParamConfig = {
+                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
+                },
+                LlmParams: {
+                    ModelProvider: CHAT_PROVIDERS.SAGEMAKER,
+                    ModelParams: {
+                        param1: { Value: 'value1', Type: 'string' },
+                        param2: { Value: 'value2', Type: 'string' }
+                    },
+                    ModelInputPayloadSchema: {
+                        'temperature': '<<temperature>>',
+                        'prompt': '<<prompt>>',
+                        'max_tokens': '<<max_tokens>>',
+                        'other_settings': [
+                            { 'setting1': '<<param1>>' },
+                            { 'setting2': '<<param2>>' },
+                            { 'setting3': 1 }
+                        ]
+                    },
+                    PromptParams: { PromptTemplate: 'You are a helpful AI assistant.{history}' },
+                    Streaming: true,
+                    Temperature: 0.1
+                }
+            };
+
+            expect(
+                await validator
+                    .validateNewUseCase(
+                        new UseCase(
+                            'fake-id',
+                            'fake-test',
+                            'Create a stack for test',
+                            cfnParameters,
+                            modelParamConfig,
+                            'test-user',
+                            'FakeProviderName',
+                            'Chat'
+                        )
+                    )
+                    .catch((error) => {
+                        expect(error).toBeInstanceOf(Error);
+                        expect(error.message).toEqual(
+                            "Provided prompt template does not have the required placeholder '{input}'."
+                        );
+                    })
+            );
+        });
+
         it('should fail on a new use case with a bad disambiguation prompt template for rag', async () => {
             let modelParamConfig = {
                 ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
@@ -1238,7 +1342,8 @@ describe('Testing use case validation for Text UseCases', () => {
                     ReturnSourceDocs: true
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
                     PromptParams: {
                         PromptTemplate: '{input}{history}{context}',
                         DisambiguationEnabled: true,
@@ -1273,50 +1378,22 @@ describe('Testing use case validation for Text UseCases', () => {
             );
         });
 
-        it('should fail on a new use case with a bad prompt template for non rag', async () => {
-            let modelParamConfig = {
-                ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
-                LlmParams: {
-                    ModelId: 'fake-model',
-                    PromptParams: { PromptTemplate: '{input}' },
-                    Streaming: true,
-                    Temperature: 0.1,
-                    RAGEnabled: false
-                }
-            };
-
-            expect(
-                await validator
-                    .validateNewUseCase(
-                        new UseCase(
-                            'fake-id',
-                            'fake-test',
-                            'Create a stack for test',
-                            cfnParameters,
-                            modelParamConfig,
-                            'test-user',
-                            'FakeProviderName',
-                            'Chat'
-                        )
-                    )
-                    .catch((error) => {
-                        expect(error).toBeInstanceOf(Error);
-                        expect(error.message).toEqual(
-                            "Provided prompt template does not have the required placeholder '{history}'."
-                        );
-                    })
-            );
-        });
-
         it('should fail on a new use case if prompt template contains a duplicate placeholder', async () => {
             let modelParamConfig = {
                 ConversationMemoryParams: { ConversationMemoryType: 'DynamoDB' },
+                KnowledgeBaseParams: {
+                    KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
+                    NumberOfDocs: 5,
+                    ReturnSourceDocs: true
+                },
                 LlmParams: {
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
                     ModelId: 'fake-model',
-                    PromptParams: { PromptTemplate: '{input}{history}{input}' },
+                    PromptParams: { PromptTemplate: '{context}{context}' },
                     Streaming: true,
                     Temperature: 0.1,
-                    RAGEnabled: false
+                    RAGEnabled: true
                 }
             };
 
@@ -1337,7 +1414,7 @@ describe('Testing use case validation for Text UseCases', () => {
                     .catch((error) => {
                         expect(error).toBeInstanceOf(Error);
                         expect(error.message).toEqual(
-                            "Placeholder '{input}' should appear only once in the prompt template."
+                            "Placeholder '{context}' should appear only once in the prompt template."
                         );
                     })
             );
@@ -1352,9 +1429,10 @@ describe('Testing use case validation for Text UseCases', () => {
                     ReturnSourceDocs: true
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
                     PromptParams: {
-                        PromptTemplate: '{input}{history}{context}',
+                        PromptTemplate: '{context}',
                         DisambiguationEnabled: true,
                         DisambiguationPromptTemplate: '{input}{history}{history}'
                     },
@@ -1396,9 +1474,10 @@ describe('Testing use case validation for Text UseCases', () => {
                     ReturnSourceDocs: true
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
                     PromptParams: {
-                        PromptTemplate: '{input}{history}{context}'
+                        PromptTemplate: '{context}'
                     },
                     Streaming: true,
                     Temperature: 0.1,
@@ -1406,19 +1485,21 @@ describe('Testing use case validation for Text UseCases', () => {
                 }
             };
             const badPromptTemplates = [
-                { template: '{{input}{history}{context}', badCharacter: '{' },
-                { template: '{input}{history}{context}}', badCharacter: '}' },
+                { template: '{{context}', badCharacter: '{' },
+                { template: '{context}}', badCharacter: '}' },
                 {
-                    template: '{input} some other text {{escaped braces}} {history}{context} {unescaped braces}',
+                    template: 'some other text {{escaped braces}} {context} {unescaped braces}',
                     badCharacter: '{'
                 },
                 {
-                    template: '{input} some other text {  {history}{context} {{unescaped braces}}',
+                    template: 'some other text {  {context} {{unescaped braces}}',
                     badCharacter: '{'
                 },
-                { template: '{input} some other text {history}{context} }', badCharacter: '}' },
-                { template: '}{input} some other text {history}{context}', badCharacter: '}' },
-                { template: '{input} some other text {history}{context}{', badCharacter: '{' }
+                { template: 'some other text {context} }', badCharacter: '}' },
+                { template: '}some other text {context}', badCharacter: '}' },
+                { template: 'some other text {context}{', badCharacter: '{' },
+                { template: '{context} {input}', badCharacter: '{' },
+                { template: '{context} {history}', badCharacter: '{' }
             ];
 
             for (let i = 0; i < badPromptTemplates.length; i++) {
@@ -1456,8 +1537,9 @@ describe('Testing use case validation for Text UseCases', () => {
                     ReturnSourceDocs: true
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
-                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
+                    PromptParams: { PromptTemplate: '{context}' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: true
@@ -1497,8 +1579,9 @@ describe('Testing use case validation for Text UseCases', () => {
                     KendraKnowledgeBaseParams: {}
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
-                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
+                    PromptParams: { PromptTemplate: '{context}' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: true
@@ -1538,8 +1621,9 @@ describe('Testing use case validation for Text UseCases', () => {
                     BedrockKnowledgeBaseParams: {}
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
-                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
+                    PromptParams: { PromptTemplate: '{context}' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: true
@@ -1576,8 +1660,9 @@ describe('Testing use case validation for Text UseCases', () => {
                     KnowledgeBaseType: 'Garbage'
                 },
                 LlmParams: {
-                    ModelId: 'fake-model',
-                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                    BedrockLlmParams: { ModelName: 'fake-model', ModelId: 'fake-model' },
+                    PromptParams: { PromptTemplate: '{context}' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: true
@@ -1753,6 +1838,81 @@ describe('TextUseCaseValidator', () => {
         expect(resolvedUseCase).toEqual(expectedConfig);
     });
 });
+
+describe('resolveKnowledgeBaseParamsOnUpdate', () => {
+    it('should remove NoDocsFoundResponse when it exists in merged config but not in update config', () => {
+        const mergedConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            UseCaseName: 'fake-use-case',
+            KnowledgeBaseParams: {
+                NoDocsFoundResponse: 'Original response',
+                OtherParam: 'keep-me'
+            }
+        };
+        const updateConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            KnowledgeBaseParams: {
+                OtherParam: 'keep-me'
+            }
+        };
+
+        const expectedConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            UseCaseName: 'fake-use-case',
+            KnowledgeBaseParams: {
+                OtherParam: 'keep-me'
+            }
+        };
+
+        const resolvedConfig = TextUseCaseValidator.resolveKnowledgeBaseParamsOnUpdate(updateConfig, mergedConfig);
+        expect(resolvedConfig).toEqual(expectedConfig);
+    });
+
+    it('should keep NoDocsFoundResponse when it exists in both configs', () => {
+        const mergedConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            KnowledgeBaseParams: {
+                NoDocsFoundResponse: 'New response'
+            }
+        };
+        const updateConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            KnowledgeBaseParams: {
+                NoDocsFoundResponse: 'New response'
+            }
+        };
+
+        const expectedConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            KnowledgeBaseParams: {
+                NoDocsFoundResponse: 'New response'
+            }
+        };
+
+        const resolvedConfig = TextUseCaseValidator.resolveKnowledgeBaseParamsOnUpdate(updateConfig, mergedConfig);
+        expect(resolvedConfig).toEqual(expectedConfig);
+    });
+
+    it('should handle missing KnowledgeBaseParams gracefully', () => {
+        const mergedConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            UseCaseName: 'fake-use-case'
+        };
+        const updateConfig = {
+            UseCaseType: UseCaseTypes.CHAT
+        };
+
+        const expectedConfig = {
+            UseCaseType: UseCaseTypes.CHAT,
+            UseCaseName: 'fake-use-case'
+        };
+
+        const resolvedConfig = TextUseCaseValidator.resolveKnowledgeBaseParamsOnUpdate(updateConfig, mergedConfig);
+        expect(resolvedConfig).toEqual(expectedConfig);
+    });
+});
+
+    
 
 describe('Testing use case validation for Agent UseCases', () => {
     let config: any;

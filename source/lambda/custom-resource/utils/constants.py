@@ -12,14 +12,17 @@ class CloudWatchNamespaces(str, Enum):
     API_GATEWAY_WEBSOCKETS = "AWS/ApiGatewayWebSockets"
     COGNITO = "AWS/Cognito"
     AWS_KENDRA = "AWS/Kendra"
+    AWS_BEDROCK = "AWS/Bedrock"
     LANGCHAIN_LLM = "Langchain/LLM"
     USE_CASE_DEPLOYMENTS = "Solution/UseCaseDeployments"
     COLD_STARTS = "Solution/ColdStarts"
+    FEEDBACK_MANAGEMENT = "Solution/FeedbackManagement"
 
 
 class CloudWatchMetrics(str, Enum):
     """Supported Cloudwatch Metrics"""
 
+    # API Gateway Metrics
     REST_ENDPOINT_TOTAL_HITS = "Count"
     REST_ENDPOINT_CACHE_HITS = "CacheHitCount"
     REST_ENDPOINT_CACHE_MISSES = "CacheMissCount"
@@ -29,8 +32,12 @@ class CloudWatchMetrics(str, Enum):
     WEBSOCKET_LATENCY = "IntegrationLatency"
     WEBSOCKET_CLIENT_ERRORS = "ClientError"
     WEBSOCKET_EXECUTION_ERRORS = "ExecutionError"
+
+    # Cognito Metrics
     COGNITO_SIGN_IN_SUCCESSES = "SignInSuccesses"
     COGNITO_SIGN_UP_SUCCESSES = "SignUpSuccesses"
+
+    # LLM Query Processing Metrics
     LANGCHAIN_QUERY = "LangchainQueries"
     LANGCHAIN_FAILURES = "LangchainFailures"
     LANGCHAIN_QUERY_PROCESSING_TIME = "LangchainQueryProcessingTime"
@@ -40,6 +47,17 @@ class CloudWatchMetrics(str, Enum):
     KENDRA_QUERY_PROCESSING_TIME = "KendraProcessingTime"
     KENDRA_FAILURES = "KendraFailures"
     KENDRA_NO_HITS = "KendraNoHits"
+    LLM_INPUT_TOKEN_COUNT = "InputTokenCount"
+    LLM_OUTPUT_TOKEN_COUNT = "OutputTokenCount"
+    SAGEMAKER_MODEL_INVOCATION_FAILURE = "SagemakerModelInvocationFailures"
+    BEDROCK_KNOWLEDGE_BASE_RETRIEVE = "BedrockKnowledgeBaseRetrieve"
+    BEDROCK_KNOWLEDGE_BASE_RETRIEVE_TIME = "BedrockKnowledgeBaseRetrieveTime"
+    BEDROCK_KNOWLEDGE_BASE_FETCHED_DOCUMENTS = "BedrockKnowledgeBaseFetchedDocuments"
+    BEDROCK_KNOWLEDGE_BASE_FAILURES = "BedrockKnowledgeBaseFailures"
+    BEDROCK_KNOWLEDGE_BASE_NO_HITS = "BedrockKnowledgeBaseRetrieveNoHits"
+    BEDROCK_MODEL_INVOCATION_FAILURE = "BedrockModelInvocationFailures"
+
+    # Use Case Deployments
     UC_INITIATION_SUCCESS = "UCInitiationSuccess"
     UC_INITIATION_FAILURE = "UCInitiationFailure"
     UC_UPDATE_SUCCESS = "UCUpdateSuccess"
@@ -49,6 +67,17 @@ class CloudWatchMetrics(str, Enum):
     UC_DESCRIBE_SUCCESS = "UCDescribeSuccess"
     UC_DESCRIBE_FAILURE = "UCDescribeFailure"
 
+    # Feedback Metrics
+    FEEDBACK_ENABLED_COUNT = "FeedbackEnabled"
+    FEEDBACK_REJECTION_COUNT = "FeedbackRejectionCount"
+    FEEDBACK_SUBMITTED_COUNT = "FeedbackSubmittedCount"
+    FEEDBACK_PROCESSING_ERROR_COUNT = "FeedbackProcessingErrorCount"
+    FEEDBACK_STORAGE_ERROR_COUNT = "FeedbackStorageErrorCount"
+    INACCURATE_FEEDBACK_COUNT = "InaccurateFeedbackCount"
+    INCOMPLETE_OR_INSUFFICIENT_FEEDBACK_COUNT = "IncompleteOrInsufficientFeedbackCount"
+    HARMFUL_FEEDBACK_COUNT = "HarmfulFeedbackCount"
+    OTHER_NEGATIVE_FEEDBACK_COUNT = "OtherNegativeFeedbackCount"
+
 
 METRICS_ENDPOINT = "https://metrics.awssolutionsbuilder.com/generic"
 PUBLISH_METRICS_PERIOD_IN_SECONDS = (
@@ -56,15 +85,29 @@ PUBLISH_METRICS_PERIOD_IN_SECONDS = (
 )  # 3 hours. This is expected to match the runtime schedule defined by ANONYMOUS_METRICS_SCHEDULE
 
 SSM_CONFIG_KEY = "SSM_CONFIG_KEY"
+USE_CASE_TYPE = "UseCaseType"
+KNOWLEDGE_BASE_TYPE = "KnowledgeBaseType"
 LLM_PARAMS = "LlmParams"
+AUTH_PARAMS = "AuthenticationParams"
+AGENT_PARAMS = "AgentParams"
 PROMPT_PARAMS = "PromptParams"
+KNOWLEDGE_BASE_PARAMS = "KnowledgeBaseParams"
 PROMPT_TEMPLATE = "PromptTemplate"
 DISAMBIGUATION_PROMPT_TEMPLATE = "DisambiguationPromptTemplate"
 NEW_KENDRA_INDEX_CREATED = "NEW_KENDRA_INDEX_CREATED"
 KENDRA_EDITION = "KENDRA_EDITION"
 RAG_ENABLED = "RAG_ENABLED"
+FEEDBACK_ENABLED = "FEEDBACK_ENABLED"
+FEEDBACK_PARAMS = "FeedbackParams"
+CLIENT_OWNED_USER_POOL = "ClientOwnedUserPool"
+DEPLOY_UI = "DeployUI"
+UC_DEPLOYMENT_SOURCE = "UC_DEPLOYMENT_SOURCE"
 MODEL_PROVIDER_NAME = "MODEL_PROVIDER_NAME"
 MODEL_PROVIDER = "ModelProvider"
+UC_DEPLOYMENT_SOURCE = "UC_DEPLOYMENT_SOURCE"
+PROVISIONED_MODEL_ENABLED = "ProvisionedModelEnabled"
+GUARDRAIL_ENABLED = "GuardrailEnabled"
+EXISTING_REST_API_ID = "ExistingRestApiId"
 PROMPT_TEMPLATE = "PromptTemplate"
 USE_CASE_UUID_ENV_VAR = "USE_CASE_UUID"
 KENDRA_INDEX_ID_ENV_VAR = "KENDRA_INDEX_ID"
@@ -80,3 +123,4 @@ USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME = "config"
 METRICS_TIMESTAMP_FORMAT = (
     "%Y-%m-%d %H:%M:%S.%f"  # This is the required format for the metrics API. Any changes should be taken with care
 )
+DEFAULT_API_GATEWAY_STAGE = "prod"

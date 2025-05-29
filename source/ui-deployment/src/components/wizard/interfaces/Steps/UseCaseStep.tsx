@@ -14,6 +14,7 @@ export interface UseCaseSettings extends BaseWizardProps {
     useCaseDescription: string;
     defaultUserEmail: string;
     deployUI: boolean;
+    feedbackEnabled: boolean;
     useCaseType: string;
     useExistingUserPool: boolean;
     existingUserPoolId: string;
@@ -30,6 +31,7 @@ export class UseCaseStep extends BaseWizardStep {
         useCaseDescription: DEFAULT_STEP_INFO.useCase.useCaseDescription,
         defaultUserEmail: DEFAULT_STEP_INFO.useCase.defaultUserEmail,
         deployUI: DEFAULT_STEP_INFO.useCase.deployUI,
+        feedbackEnabled: DEFAULT_STEP_INFO.useCase.feedbackEnabled,
         useExistingUserPool: DEFAULT_STEP_INFO.useCase.useExistingUserPool,
         existingUserPoolId: DEFAULT_STEP_INFO.useCase.existingUserPoolId,
         useExistingUserPoolClient: DEFAULT_STEP_INFO.useCase.useExistingUserPoolClient,
@@ -64,6 +66,7 @@ export class UseCaseStep extends BaseWizardStep {
             defaultUserEmail: this.props.defaultUserEmail,
             useCaseDescription: this.props.useCaseDescription,
             deployUI: this.props.deployUI,
+            feedbackEnabled: this.props.feedbackEnabled,
             useExistingUserPool: this.props.useExistingUserPool,
             existingUserPoolId: this.props.existingUserPoolId,
             useExistingUserPoolClient: this.props.useExistingUserPoolClient,

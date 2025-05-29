@@ -1,5 +1,5 @@
 {
-  "name": "cdk-solution-helper",
+  "name": "@amzn/cdk-solution-helper",
   "version": "0.1.0",
   "description": "This script performs token replacement as part of the build pipeline",
   "license": "Apache-2.0",

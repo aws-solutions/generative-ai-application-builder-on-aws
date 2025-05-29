@@ -21,8 +21,8 @@ from langchain_core.output_parsers import BaseOutputParser, StrOutputParser
 from langchain_core.prompts import BasePromptTemplate, ChatPromptTemplate, format_document
 from langchain_core.retrievers import BaseRetriever, RetrieverLike, RetrieverOutput, RetrieverOutputLike
 from langchain_core.runnables import ConfigurableFieldSpec, Runnable, RunnableBranch, RunnablePassthrough
-from langchain_core.runnables.base import RunnableBinding
 from langchain_core.runnables.history import RunnableWithMessageHistory
+
 from llms.base_langchain import BaseLangChainModel
 from llms.models.model_provider_inputs import ModelProviderInputs
 from shared.defaults.model_defaults import ModelDefaults
@@ -34,6 +34,7 @@ from utils.constants import (
     HISTORY_KEY,
     INPUT_KEY,
     LLM_RESPONSE_KEY,
+    MESSAGE_ID_KEY,
     RAG_CONVERSATION_TRACER_KEY,
     REPHRASED_QUERY_KEY,
     SOURCE_DOCUMENTS_OUTPUT_KEY,
@@ -64,13 +65,12 @@ class RetrievalLLM(BaseLangChainModel):
         - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
         - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
         - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
-        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
-        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
-        placeholders. In case of errors, falls back on default values.
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, llm_provider, rag_enabled): Generates the ChatPromptTemplate using the provided prompt template and
+          placeholders. In case of errors, raises ValueError
         - get_llm(): Returns the underlying LLM object that is used by the runnable. Each child class must provide its own implementation.
         - get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM. Each child class must provide its own implementation based on the model parameters it supports.
-        - get_validated_disambiguation_prompt(disambiguation_prompt_template, default_disambiguation_prompt_template,
-        disambiguation_prompt_template_placeholders, disambiguation_prompt_enabled): Generates the ChatPromptTemplate used for disambiguating the question using conversation history. It uses the provided prompt template and placeholders. In case of errors, falls back on default values.
+        - get_validated_disambiguation_prompt(disambiguation_prompt_template, disambiguation_prompt_placeholders, disambiguation_prompt_enabled): Generates the ChatPromptTemplate used for disambiguating the question using conversation history.
+          It uses the provided prompt template and placeholders. In case of errors, it raises ValueError
         - save_to_session_history(human_message, ai_response): Saves the conversation history to the conversation memory.
         - enhanced_create_history_aware_retriever(llm, retriever, prompt): create_history_aware_retriever enhancement that allows passing of the intermediate rephrased question into the output using RunnablePassthrough
         - enhanced_create_stuff_documents_chain(llm, prompt, rephrased_question, output_parser, document_prompt, document_separator, document_variable_name): create_stuff_documents_chain enhancement that allows rephrased question to be passed as an input to the LLM instead.
@@ -94,6 +94,7 @@ class RetrievalLLM(BaseLangChainModel):
         # Child classes set these variables
         self.disambiguation_llm = None
         self.runnable_with_history = None
+        self._prompt_placeholders = model_inputs.prompt_placeholders
 
     @property
     def knowledge_base(self) -> KnowledgeBase:
@@ -143,7 +144,6 @@ class RetrievalLLM(BaseLangChainModel):
     def disambiguation_prompt_template(self, disambiguation_prompt_template) -> None:
         self._disambiguation_prompt_template = self.get_validated_disambiguation_prompt(
             disambiguation_prompt_template,
-            self.model_defaults.disambiguation_prompt,
             DISAMBIGUATION_PROMPT_PLACEHOLDERS,
             self.disambiguation_prompt_enabled,
         )
@@ -315,13 +315,13 @@ class RetrievalLLM(BaseLangChainModel):
 
         return retrieval_chain.with_config(run_name="retrieval_chain")
 
-    def get_runnable(self) -> Union[RunnableWithMessageHistory, RunnableBinding]:
+    def get_runnable(self) -> RunnableWithMessageHistory:
         """
-        Creates a `RunnableWithMessageHistory` (for non-streaming) or `RunnableBinding` (for streaming case) runnable that is connected to a conversation memory and the specified prompt
+        Creates a `RunnableWithMessageHistory` runnable that is connected to a conversation memory and the specified prompt
         Args: None
 
         Returns:
-            RunnableWithMessageHistory/RunnableBinding: A runnable that manages chat message history
+            RunnableWithMessageHistory: A runnable that manages chat message history
         """
 
         if self.disambiguation_prompt_enabled:
@@ -344,6 +344,7 @@ class RetrievalLLM(BaseLangChainModel):
             rephrased_question = None
 
         qa_chain = self.enhanced_create_stuff_documents_chain(self.llm, self.prompt_template, rephrased_question)
+        qa_chain = qa_chain.with_config(RunnableConfig(callbacks=self.callbacks))
         conversation_qa_chain = self.enhanced_create_retrieval_chain(retriever, qa_chain, rephrased_question)
 
         with_message_history = RunnableWithMessageHistory(
@@ -369,11 +370,16 @@ class RetrievalLLM(BaseLangChainModel):
                     default="",
                     is_shared=True,
                 ),
+                ConfigurableFieldSpec(
+                    id=MESSAGE_ID_KEY,
+                    annotation=str,
+                    name="Message ID",
+                    description="Unique identifier for the message.",
+                    default="",
+                    is_shared=True,
+                ),
             ],
         )
-
-        if self.streaming:
-            with_message_history = with_message_history.with_config(RunnableConfig(callbacks=self.callbacks))
 
         return with_message_history
 
@@ -402,8 +408,9 @@ class RetrievalLLM(BaseLangChainModel):
 
         invoke_configuration = {
             "configurable": {
-                "conversation_id": self.conversation_history_params["conversation_id"],
-                "user_id": self.conversation_history_params["user_id"],
+                CONVERSATION_ID_KEY: self.conversation_history_params[CONVERSATION_ID_KEY],
+                USER_ID_KEY: self.conversation_history_params[USER_ID_KEY],
+                MESSAGE_ID_KEY: self.conversation_history_params[MESSAGE_ID_KEY],
             }
         }
 
@@ -411,9 +418,23 @@ class RetrievalLLM(BaseLangChainModel):
             subsegment.put_annotation("library", "langchain")
             subsegment.put_annotation("operation", RAG_CONVERSATION_TRACER_KEY)
             metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_QUERY.value, unit=MetricUnit.Count, value=1)
+            metrics.flush_metrics()
             response = {}
             start_time = time.time()
-            model_response = self.runnable_with_history.invoke({INPUT_KEY: question}, invoke_configuration)
+            if self.streaming:
+                # The stream() method returns a generator that lazily produces response chunks.
+                # We join these chunks into a single string because:
+                # 1. Generators use lazy evaluation - they only produce values when requested
+                # 2. Without joining, the generator would remain unconsumed and the full response wouldn't materialize
+                model_response_generator = self.runnable_with_history.stream(
+                    {INPUT_KEY: question}, invoke_configuration
+                )
+                model_response = {}
+                for response_part in model_response_generator:
+                    model_response += response_part
+
+            else:
+                model_response = self.runnable_with_history.invoke({INPUT_KEY: question}, invoke_configuration)
             end_time = time.time()
             response[LLM_RESPONSE_KEY] = model_response[LLM_RESPONSE_KEY].strip()
 
@@ -435,14 +456,14 @@ class RetrievalLLM(BaseLangChainModel):
                 unit=MetricUnit.Seconds,
                 value=(end_time - start_time),
             )
+            metrics.flush_metrics()
             logger.debug(f"LLM response: {response[LLM_RESPONSE_KEY]}")
             return response
 
     def get_validated_disambiguation_prompt(
         self,
         disambiguation_prompt_template: Optional[str],
-        default_disambiguation_prompt_template: str,
-        disambiguation_prompt_template_placeholders: Optional[List[str]] = DISAMBIGUATION_PROMPT_PLACEHOLDERS,
+        disambiguation_prompt_template_placeholders: Optional[List[str]],
         disambiguation_prompt_enabled: bool = DEFAULT_DISAMBIGUATION_ENABLED_MODE,
     ) -> Union[ChatPromptTemplate, None]:
         """
@@ -471,20 +492,15 @@ class RetrievalLLM(BaseLangChainModel):
                     disambiguation_prompt_template, disambiguation_prompt_template_placeholders
                 )
                 prompt_template_text = disambiguation_prompt_template
+                return ChatPromptTemplate.from_template(prompt_template_text)
 
             else:
-                message = f"Disambiguation prompt template not provided. Falling back to default disambiguation prompt template."
-                logger.warning(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-                prompt_template_text = default_disambiguation_prompt_template
-
-        except ValueError as ex:
-            logger.error(
-                f"Prompt validation failed: {ex}. Falling back to default disambiguation prompt template.",
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-            )
-            metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
-            prompt_template_text = default_disambiguation_prompt_template
+                message = f"Disambiguation prompt template not provided."
+                logger.error(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+                metrics.add_metric(
+                    name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
+                )
+                raise ValueError(message)
 
         finally:
             metrics.flush_metrics()
-        return ChatPromptTemplate.from_template(prompt_template_text)

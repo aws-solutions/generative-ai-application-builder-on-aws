@@ -82,6 +82,9 @@
       ],
       "@smithy/types": [
         "../layers/aws-sdk-lib/node_modules/@smithy/types"
+      ],
+      "@aws-sdk/client-api-gateway": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-api-gateway"
       ]
     },
   }

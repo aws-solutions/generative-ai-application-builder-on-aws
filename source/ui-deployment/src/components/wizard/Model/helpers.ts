@@ -2,12 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SelectProps } from '@cloudscape-design/components';
-import {
-    CROSS_REGION_INFERENCE,
-    INFERENCE_PROFILE,
-    MODEL_ADVANCED_PARAMETERS_TYPE,
-    MODEL_PROVIDER_NAME_MAP
-} from '../steps-config';
+import { INFERENCE_PROFILE, MODEL_ADVANCED_PARAMETERS_TYPE, MODEL_PROVIDER_NAME_MAP } from '../steps-config';
+import { BEDROCK_INFERENCE_TYPES } from '@/utils/constants';
 
 export interface FormattedModelParamsAttribute {
     key: string;
@@ -131,35 +127,60 @@ export const formatModelParamsForAttributeEditor = (
     return formattedItems;
 };
 
-export const formatModelNamesList = (modelNames: string[], modelProvider: string): SelectProps.Option[] => {
+export interface ModelInfo {
+    ModelName: string;
+    DisplayName?: string;
+    Description?: string;
+}
+
+export const formatModelNamesList = (modelData: any, modelProvider: string): SelectProps.Option[] => {
+    // Handle both array of strings and array of objects
+    let modelInfoArray: ModelInfo[] = [];
+    
+    if (Array.isArray(modelData)) {
+        if (modelData.length > 0) {
+            if (typeof modelData[0] === 'string') {
+                // Convert old format (array of strings) to ModelInfo objects
+                modelInfoArray = modelData.map((modelName: string) => ({
+                    ModelName: modelName
+                }));
+            } else {
+                // New format - array of objects with ModelName, DisplayName, Description
+                modelInfoArray = modelData;
+            }
+        }
+    } else {
+        // Handle any other format by converting to array
+        modelInfoArray = Object.values(modelData || {});
+    }
+    
     if (modelProvider === MODEL_PROVIDER_NAME_MAP.Bedrock) {
         const supportedModelOptions: SupportedModelOptions = {};
-        modelNames.forEach((model: string) => {
-            if (model === INFERENCE_PROFILE) {
-                supportedModelOptions[CROSS_REGION_INFERENCE] = {
-                    label: CROSS_REGION_INFERENCE,
-                    options: [{ label: 'select inference profile...', value: model }]
-                };
-                return;
-            }
-            const provider = model.split('.')[0];
-            if (!supportedModelOptions[provider]) {
-                supportedModelOptions[provider] = { label: provider, options: [] };
-            }
-            supportedModelOptions[provider].options.push({ label: model, value: model });
-        });
+        modelInfoArray
+            .filter((modelInfo) => modelInfo.ModelName !== INFERENCE_PROFILE)
+            .forEach((modelInfo: ModelInfo) => {
+                const provider = modelInfo.ModelName.split('.')[0];
+                const capitalizedProvider = provider.charAt(0).toUpperCase() + provider.slice(1);
+                if (!supportedModelOptions[provider]) {
+                    supportedModelOptions[provider] = { label: capitalizedProvider, options: [] };
+                }
+                supportedModelOptions[provider].options.push({ 
+                    label: modelInfo.DisplayName || modelInfo.ModelName, 
+                    value: modelInfo.ModelName,
+                    description: modelInfo.Description || ''
+                });
+            });
 
         // sorting to place inference profile at the beginning of model dropdown list
         return Object.values(supportedModelOptions).sort((a, b) => {
-            if (a.label === CROSS_REGION_INFERENCE) return -1;
-            if (b.label === CROSS_REGION_INFERENCE) return 1;
             return a.label.localeCompare(b.label);
         });
     }
-    return modelNames.map((modelName: string): SelectProps.Option => {
+    return modelInfoArray.map((modelInfo: ModelInfo): SelectProps.Option => {
         return {
-            label: modelName,
-            value: modelName
+            label: modelInfo.DisplayName || modelInfo.ModelName,
+            value: modelInfo.ModelName,
+            description: modelInfo.Description || ''
         };
     });
 };
@@ -183,36 +204,45 @@ export const initModelRequiredFields = (modelProvider: string) => {
 };
 
 /**
- *
- * @param modelProvider Value of model provider selected in the dropdown
- * @param provisionedModel Whether the model is provisioned or not
+ * Get required fields based on model name, provisioned model status, and Bedrock inference type
+ * @param bedrockInferenceType The selected Bedrock inference type
+ * @returns Array of required field names
  */
-const getRequiredFields = (modelName: string, provisionedModel: boolean): string[] => {
-    if (modelName === INFERENCE_PROFILE) {
-        return ['modelName', 'inferenceProfileId'];
+const getRequiredFields = (bedrockInferenceType?: string): string[] => {
+    if (bedrockInferenceType) {
+        switch (bedrockInferenceType) {
+            case BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS:
+                return ['modelName'];
+            case BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS:
+                return ['modelName'];
+            case BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES:
+                return ['inferenceProfileId'];
+            case BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS:
+                return ['modelArn'];
+            default:
+                return ['modelName'];
+        }
     }
-    if (provisionedModel) {
-        return ['modelName', 'modelArn'];
-    }
+
     return ['modelName'];
 };
 
 /**
- *
+ * Updates the required fields based on the selected model provider and configuration
  * @param modelProvider Value of model provider selected in the dropdown
- * @param provisionedModel Whether the model is provisioned or not
- * @param setRequiredFieldsFn Function to update react state
+ * @param enableGuardrails Whether guardrails are enabled for the model
+ * @param bedrockInferenceType The selected Bedrock inference type
+ * @param setRequiredFieldsFn Function to update react state with required fields
  */
 export const updateRequiredFields = (
     modelProvider: string,
-    provisionedModel: boolean,
     enableGuardrails: boolean,
-    modelName: string,
+    bedrockInferenceType: string | undefined,
     setRequiredFieldsFn: React.Dispatch<React.SetStateAction<string[]>>
 ) => {
     switch (modelProvider) {
         case MODEL_PROVIDER_NAME_MAP.Bedrock:
-            const baseRequiredFields = getRequiredFields(modelName, provisionedModel);
+            const baseRequiredFields = getRequiredFields(bedrockInferenceType);
             if (enableGuardrails) {
                 setRequiredFieldsFn([...baseRequiredFields, 'guardrailIdentifier', 'guardrailVersion']);
             } else {
@@ -225,7 +255,7 @@ export const updateRequiredFields = (
             break;
 
         default:
-            setRequiredFieldsFn(['apiKey', 'modelName']);
+            setRequiredFieldsFn(['modelName']);
             break;
     }
 };

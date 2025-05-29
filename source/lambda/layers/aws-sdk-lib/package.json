@@ -1,8 +1,9 @@
 {
-  "name": "aws-sdk-layer",
-  "version": "2.1.9",
+  "name": "@amzn/aws-sdk-layer",
+  "version": "3.0.0",
   "description": "AWS Javascript SDK v3 layer",
   "dependencies": {
+    "@aws-sdk/client-api-gateway": "^3.775.0",
     "@aws-sdk/client-cloudformation": "^3.699.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.708.0",
     "@aws-sdk/client-dynamodb": "^3.705.0",

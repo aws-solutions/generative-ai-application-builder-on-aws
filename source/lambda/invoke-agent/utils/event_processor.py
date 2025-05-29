@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from aws_lambda_powertools import Logger, Tracer
 from helper import get_cognito_jwt_verifier
+
 from utils.constants import (
     AUTH_TOKEN_KEY,
     CONNECTION_ID_KEY,
@@ -15,6 +16,7 @@ from utils.constants import (
     INPUT_TEXT_KEY,
     MESSAGE_KEY,
     REQUEST_CONTEXT_KEY,
+    USER_ID_KEY,
 )
 
 logger = Logger(utc=True)
@@ -129,6 +131,20 @@ class EventProcessor:
             return str(uuid4())
         return conversation_id
 
+    def get_user_id(self) -> Optional[str]:
+        """
+        Retrieve the user ID from the event.
+
+        Returns:
+            str: The user ID
+        """
+        user_id = self.event_body.get(REQUEST_CONTEXT_KEY, {}).get("authorizer", {}).get("UserId")
+        if user_id is None:
+            logger.error("User ID not found in event")
+            raise InvalidEventError("User ID not found in event")
+        else:
+            return user_id
+
     def _validate_auth_token(self, auth_token: str) -> None:
         """
         Validate the Cognito JWT token using the configured verifier.
@@ -166,7 +182,7 @@ class EventProcessor:
 
         Returns:
             Dict: A dictionary containing the connection ID, conversation ID,
-            input text, and auth token (if present).
+            input text, user ID and auth token (if present)
 
         Raises:
             EventProcessorError: If any error occurs during event processing.
@@ -176,6 +192,7 @@ class EventProcessor:
                 CONNECTION_ID_KEY: self.get_connection_id(),
                 CONVERSATION_ID_KEY: self.get_conversation_id(),
                 INPUT_TEXT_KEY: self.get_input_text(),
+                USER_ID_KEY: self.get_user_id(),
             }
 
             if auth_token := self.get_auth_token():

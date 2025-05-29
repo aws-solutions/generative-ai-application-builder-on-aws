@@ -6,6 +6,7 @@ import { logMetrics } from '@aws-lambda-powertools/metrics/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import middy from '@middy/core';
 import { APIGatewayEvent } from 'aws-lambda';
+import { APIGatewayClient, GetResourcesCommand } from "@aws-sdk/client-api-gateway";
 import {
     CaseCommand,
     CreateUseCaseCommand,
@@ -13,7 +14,9 @@ import {
     ListUseCasesCommand,
     PermanentlyDeleteUseCaseCommand,
     Status,
-    UpdateUseCaseCommand
+    UpdateUseCaseCommand,
+    GetUseCaseCommand
+    
 } from './command';
 import { ListUseCasesAdapter } from './model/list-use-cases';
 import { UseCase } from './model/use-case';
@@ -24,6 +27,7 @@ import RequestValidationError from './utils/error';
 import { ChatUseCaseDeploymentAdapter, ChatUseCaseInfoAdapter } from './model/chat-use-case-adapter';
 import { AgentUseCaseDeploymentAdapter } from './model/agent-use-case-adapter';
 import { UseCaseTypeFromApiEvent } from './utils/constants';
+import { GetUseCaseAdapter } from './model/get-use-case';
 
 const commands: Map<string, CaseCommand> = new Map<string, CaseCommand>();
 commands.set('create', new CreateUseCaseCommand());
@@ -31,37 +35,80 @@ commands.set('update', new UpdateUseCaseCommand());
 commands.set('delete', new DeleteUseCaseCommand());
 commands.set('permanentlyDelete', new PermanentlyDeleteUseCaseCommand());
 commands.set('list', new ListUseCasesCommand());
+commands.set('get', new GetUseCaseCommand());
 
-export const lambdaHandler = async (event: APIGatewayEvent) => {
-    checkEnv();
+const routeMap = new Map([
+    ['GET:/deployments', 'list'],
+    ['POST:/deployments', 'create'],
+    ['GET:/deployments/{useCaseId}', 'get'],
+    ['PATCH:/deployments/{useCaseId}', 'update'],
+    ['DELETE:/deployments/{useCaseId}', 'delete']
+]);
 
-    let stackAction: string;
-
-    // Routing the request to the correct action
-    if (event.resource == '/deployments' && event.httpMethod == 'GET') {
-        stackAction = 'list';
-    } else if (event.resource == '/deployments' && event.httpMethod == 'POST') {
-        stackAction = 'create';
-    } else if (event.resource == '/deployments/{useCaseId}' && event.httpMethod == 'PATCH') {
-        stackAction = 'update';
-    } else if (event.resource == '/deployments/{useCaseId}' && event.httpMethod == 'DELETE') {
-        if (event.queryStringParameters?.permanent === 'true') {
-            stackAction = 'permanentlyDelete';
-        } else {
-            stackAction = 'delete';
-        }
-    } else {
+const getStackAction = (event: APIGatewayEvent): string => {
+    const routeKey = `${event.httpMethod}:${event.resource}`;
+    const baseAction = routeMap.get(routeKey);
+    
+    if (!baseAction) {
         logger.error(`Invalid HTTP method: ${event.httpMethod}, at resource: ${event.resource}`);
         throw new Error(`Invalid HTTP method: ${event.httpMethod}, at resource: ${event.resource}`);
     }
 
+    // Special case for permanent delete
+    if (baseAction === 'delete' && event.queryStringParameters?.permanent === 'true') {
+        return 'permanentlyDelete';
+    }
+
+    return baseAction;
+};
+
+async function getRootResourceId(apiId: string): Promise<string> {
+    logger.debug('Retrieving root resource ID', { apiId });
+    const client = new APIGatewayClient({});
+    
+    try {
+        const response = await client.send(
+            new GetResourcesCommand({
+                restApiId: apiId
+            })
+        );
+
+        const rootResource = response.items?.find(resource => resource.path === '/');
+        
+        if (!rootResource?.id) {
+            const error = 'Could not find root resource';
+            logger.error(error, { apiId });
+            throw new Error(error);
+        }
+
+        logger.debug('Successfully retrieved root resource ID', { 
+            apiId, 
+            rootResourceId: rootResource.id 
+        });
+
+        return rootResource.id;
+    } catch (error) {
+        logger.error('Error retrieving root resource ID', { 
+            apiId, 
+            error: error as Error 
+        });
+        throw error;
+    }
+}
+
+
+export const lambdaHandler = async (event: APIGatewayEvent) => {
+    checkEnv();
+
+    const stackAction = getStackAction(event);
     const command = commands.get(stackAction);
+    
     if (!command) {
         logger.error(`Invalid action: ${stackAction}`);
         throw new Error(`Invalid action: ${stackAction}`);
     }
     try {
-        const response = await command.execute(adaptEvent(event, stackAction));
+        const response = await command.execute(await adaptEvent(event, stackAction));
 
         // as create stack and update stack failures don't throw error, but returns a Failure response
         // to render a 500 request in the UI the following error is
@@ -93,23 +140,32 @@ export const handleError = (error: unknown, stackAction: string) => {
     });
 };
 
-export const adaptEvent = (event: APIGatewayEvent, stackAction: string): UseCase | ListUseCasesAdapter => {
+export const adaptEvent = async (event: APIGatewayEvent, stackAction: string): Promise<UseCase | ListUseCasesAdapter | GetUseCaseAdapter> => {
     if (stackAction === 'list') {
         return new ListUseCasesAdapter(event);
     } else if (stackAction === 'delete' || stackAction === 'permanentlyDelete') {
         return new ChatUseCaseInfoAdapter(event);
+    }
+    else if (stackAction === 'get') {
+        return new GetUseCaseAdapter(event);
     }
 
     // Parse the event body
     const eventBody = JSON.parse(event.body || '{}');
     const useCaseType = eventBody.UseCaseType;
 
+    // Only get root resource ID when ExistingRestApiId is provided
+    let rootResourceId;
+    if (eventBody.ExistingRestApiId) {
+        rootResourceId = await getRootResourceId(eventBody.ExistingRestApiId);
+    }
+
     // Create the appropriate adapter based on UseCaseType
     switch (useCaseType) {
         case UseCaseTypeFromApiEvent.TEXT:
-            return new ChatUseCaseDeploymentAdapter(event);
+            return new ChatUseCaseDeploymentAdapter(event, rootResourceId);
         case UseCaseTypeFromApiEvent.AGENT:
-            return new AgentUseCaseDeploymentAdapter(event);
+            return new AgentUseCaseDeploymentAdapter(event, rootResourceId);
         default:
             throw new Error(`Unsupported UseCaseType: ${useCaseType}`);
     }

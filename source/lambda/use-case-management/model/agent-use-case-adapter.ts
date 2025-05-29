@@ -10,6 +10,7 @@ import {
     CfnParameterKeys,
     COGNITO_POLICY_TABLE_ENV_VAR,
     IS_INTERNAL_USER_ENV_VAR,
+    STACK_DEPLOYMENT_SOURCE_USE_CASE,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     UseCaseTypes,
     USER_POOL_ID_ENV_VAR
@@ -18,8 +19,11 @@ import { AgentUseCaseConfiguration } from './types';
 import { UseCase } from './use-case';
 
 export class AgentUseCaseDeploymentAdapter extends UseCase {
-    constructor(event: APIGatewayEvent) {
+    constructor(event: APIGatewayEvent, apiRootResourceId?: string) {
         const jsonBody = JSON.parse(event.body!);
+        if (apiRootResourceId) {
+            jsonBody.ExistingApiRootResourceId = apiRootResourceId;
+        }
 
         const useCaseId: string = event.pathParameters?.useCaseId ?? crypto.randomUUID();
         const cfnParameters = AgentUseCaseDeploymentAdapter.createCfnParameters(jsonBody, useCaseId);
@@ -98,6 +102,26 @@ export class AgentUseCaseDeploymentAdapter extends UseCase {
             eventBody.VpcParams?.ExistingSecurityGroupIds
         );
 
+        AgentUseCaseDeploymentAdapter.setBooleanParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.FeedbackEnabled,
+            eventBody.FeedbackParams?.FeedbackEnabled
+        );
+
+        if (!eventBody.AuthenticationParams?.CognitoParams?.ExistingUserPoolId) {
+            AgentUseCaseDeploymentAdapter.setParameterIfExists(
+                cfnParameters,
+                CfnParameterKeys.ExistingRestApiId,
+                eventBody.ExistingRestApiId
+            );
+
+            AgentUseCaseDeploymentAdapter.setParameterIfExists(
+                cfnParameters,
+                CfnParameterKeys.ExistingApiRootResourceId,
+                eventBody.ExistingApiRootResourceId
+            );
+        }
+
         cfnParameters.set(
             CfnParameterKeys.UseCaseConfigRecordKey,
             UseCase.generateUseCaseConfigRecordKey(shortUUID, recordKeySuffixUUID)
@@ -143,7 +167,8 @@ export class AgentUseCaseDeploymentAdapter extends UseCase {
             CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
             process.env[COGNITO_POLICY_TABLE_ENV_VAR]!
         );
-        cfnParameters.set(CfnParameterKeys.UseCaseUUID, `${shortUUID}`);
+        cfnParameters.set(CfnParameterKeys.UseCaseUUID, `${useCaseId}`);
+        cfnParameters.set(CfnParameterKeys.StackDeploymentSource, STACK_DEPLOYMENT_SOURCE_USE_CASE);
 
         return cfnParameters;
     }
@@ -160,7 +185,11 @@ export class AgentUseCaseDeploymentAdapter extends UseCase {
                 }
             },
             AuthenticationParams: eventBody.AuthenticationParams,
-            IsInternalUser: process.env[IS_INTERNAL_USER_ENV_VAR]!
+            IsInternalUser: process.env[IS_INTERNAL_USER_ENV_VAR]!,
+            FeedbackParams: {
+                FeedbackEnabled: eventBody.FeedbackParams?.FeedbackEnabled,
+                ...(eventBody.FeedbackParams?.FeedbackEnabled && { CustomMappings: {} })
+            }
         };
 
         return config;

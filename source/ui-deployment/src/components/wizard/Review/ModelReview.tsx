@@ -13,7 +13,8 @@ import {
 } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { INFERENCE_PROFILE, MODEL_PROVIDER_NAME_MAP, WIZARD_PAGE_INDEX } from '../steps-config';
-import { createBox, escapedNewLineToLineBreakTag, ValueWithLabel } from '../../useCaseDetails/common-components';
+import { BEDROCK_INFERENCE_TYPES } from '@/utils/constants';
+import { createBox, escapedNewLineToLineBreakTag, ValueWithLabel } from '@/utils';
 import { useComponentId } from '../../commons/use-component-id';
 
 import { ModelParams } from '../Model/AdvancedModelSettings';
@@ -123,10 +124,10 @@ export const ModelReview = (props: ModelReviewProps) => {
                                     </>
                                 )}
                                 <ValueWithLabel label="Verbose">
-                                    {props.modelData.verbose ? 'on' : 'off'}
+                                    {props.modelData.verbose ? 'On' : 'Off'}
                                 </ValueWithLabel>
                                 <ValueWithLabel label="Streaming">
-                                    {props.modelData.streaming ? 'on' : 'off'}
+                                    {props.modelData.streaming ? 'On' : 'Off'}
                                 </ValueWithLabel>
                             </ColumnLayout>
                         </ExpandableSection>
@@ -135,18 +136,47 @@ export const ModelReview = (props: ModelReviewProps) => {
                 >
                     <ColumnLayout columns={2} variant="text-grid">
                         <ValueWithLabel label="Model provider">{props.modelData.modelProvider.label}</ValueWithLabel>
-                        {props.modelData.modelProvider.value !== MODEL_PROVIDER_NAME_MAP.SageMaker &&
-                            (props.modelData.modelName === INFERENCE_PROFILE ? (
+
+                        {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock && (
+                            <ValueWithLabel label="Inference type">
+                                {props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS &&
+                                    'Quick Start Models'}
+                                {props.modelData.bedrockInferenceType ===
+                                    BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS && 'Other Foundation Models'}
+                                {props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES &&
+                                    'Inference Profiles'}
+                                {props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS &&
+                                    'Provisioned Models'}
+                            </ValueWithLabel>
+                        )}
+
+                        {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock &&
+                            props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS && (
+                                <ValueWithLabel label="Model name">{props.modelData.modelName}</ValueWithLabel>
+                            )}
+
+                        {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock &&
+                            props.modelData.bedrockInferenceType ===
+                                BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS && (
+                                <ValueWithLabel label="Model ID">{props.modelData.modelName}</ValueWithLabel>
+                            )}
+
+                        {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock &&
+                            props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES && (
                                 <ValueWithLabel label="Inference profile ID">
                                     {props.modelData.inferenceProfileId}
                                 </ValueWithLabel>
-                            ) : (
-                                <ValueWithLabel label="Model name">{props.modelData.modelName}</ValueWithLabel>
-                            ))}
+                            )}
 
-                        {props.modelData.provisionedModel && (
-                            <ValueWithLabel label="Model ARN">{props.modelData.modelArn}</ValueWithLabel>
-                        )}
+                        {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock &&
+                            props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS && (
+                                <ValueWithLabel label="Model ARN">{props.modelData.modelArn}</ValueWithLabel>
+                            )}
+
+                        {props.modelData.modelProvider.value !== MODEL_PROVIDER_NAME_MAP.Bedrock &&
+                            props.modelData.modelProvider.value !== MODEL_PROVIDER_NAME_MAP.SageMaker && (
+                                <ValueWithLabel label="Model name">{props.modelData.modelName}</ValueWithLabel>
+                            )}
 
                         {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.SageMaker && (
                             <ValueWithLabel label="SageMaker endpoint name">

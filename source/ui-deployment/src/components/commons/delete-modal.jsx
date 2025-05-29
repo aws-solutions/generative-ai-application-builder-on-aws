@@ -78,7 +78,7 @@ export function DeleteDeploymentModal({ deployment, visible, onDiscard, onDelete
                     }
                     data-testid="delete-deployment-modal"
                 >
-                    {deployment.StackId && (
+                    {deployment.useCaseUUID && (
                         <SpaceBetween size="m">
                             <Box variant="span">
                                 Delete deployment{' '}

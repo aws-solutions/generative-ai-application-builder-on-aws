@@ -6,6 +6,7 @@ import { checkValidationSucceeded, checkValidationFailed } from './utils';
 import { Validator } from 'jsonschema';
 import {
     AUTHENTICATION_PROVIDERS,
+    BEDROCK_INFERENCE_TYPES,
     CHAT_PROVIDERS,
     CONVERSATION_MEMORY_TYPES,
     KNOWLEDGE_BASE_TYPES,
@@ -34,7 +35,8 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            ModelId: 'fakemodel'
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     }
                 };
@@ -47,8 +49,8 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            ModelId: 'fakemodel',
-                            ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111'
+                            ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.PROVISIONED
                         }
                     }
                 };
@@ -61,7 +63,8 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            InferenceProfileId: 'fakeprofile'
+                            InferenceProfileId: 'fakeprofile',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILE
                         }
                     }
                 };
@@ -76,7 +79,8 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelId: 'fakemodel',
                             GuardrailIdentifier: 'fakeid',
-                            GuardrailVersion: 'DRAFT'
+                            GuardrailVersion: 'DRAFT',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     }
                 };
@@ -90,7 +94,8 @@ describe('Testing API schema validation', () => {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
                             ModelId: 'fakemodel',
-                            GuardrailIdentifier: null
+                            GuardrailIdentifier: null,
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     }
                 };
@@ -105,7 +110,8 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelId: 'fakemodel',
                             GuardrailIdentifier: null,
-                            GuardrailVersion: null
+                            GuardrailVersion: null,
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     }
                 };
@@ -119,7 +125,8 @@ describe('Testing API schema validation', () => {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
                             ModelId: 'fakemodel',
-                            GuardrailVersion: null
+                            GuardrailVersion: null,
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     }
                 };
@@ -201,6 +208,42 @@ describe('Testing API schema validation', () => {
                             ModelId: 'fakemodel',
                             GuardrailIdentifier: '_garbage',
                             GuardrailVersion: 'DRAFT'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Test Bedrock deployment, FeedbackEnabled passes', () => {
+                const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    FeedbackParams: {
+                        FeedbackEnabled: true
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel',
+                            GuardrailIdentifier: null,
+                            GuardrailVersion: null,
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+            it('Test Bedrock deployment, FeedbackParams additional fields fail', () => {
+                const payload = {
+                    UseCaseType: USE_CASE_TYPES.AGENT,
+                    FeedbackParams: {
+                        FeedbackEnabled: true,
+                        FeedbackParameters: { 'key': 'value' }
+                    },
+                    AgentParams: {
+                        BedrockAgentParams: {
+                            AgentId: 'agent123',
+                            AgentAliasId: 'alias456'
                         }
                     }
                 };
@@ -707,7 +750,10 @@ describe('Testing API schema validation', () => {
                 UseCaseType: USE_CASE_TYPES.TEXT,
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START 
+                     }
                 },
                 DefaultUserEmail: 'testuser@example.com'
             };
@@ -733,7 +779,10 @@ describe('Testing API schema validation', () => {
                 UseCaseType: USE_CASE_TYPES.TEXT,
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START 
+                     }
                 },
                 ConversationMemoryParams: {
                     ConversationMemoryType: CONVERSATION_MEMORY_TYPES.DYNAMODB,
@@ -782,7 +831,10 @@ describe('Testing API schema validation', () => {
             const payload = {
                 UseCaseType: USE_CASE_TYPES.TEXT,
                 LlmParams: {
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START 
+                     }
                 },
                 ConversationMemoryParams: {
                     ConversationMemoryType: CONVERSATION_MEMORY_TYPES.DYNAMODB
@@ -953,6 +1005,39 @@ describe('Testing API schema validation', () => {
             };
             checkValidationFailed(validator.validate(payload, schema));
         });
+    });
+
+    it('Test Agent deployment, FeedbackEnabled passes', () => {
+        const payload = {
+            UseCaseType: USE_CASE_TYPES.AGENT,
+            FeedbackParams: {
+                FeedbackEnabled: true
+            },
+            AgentParams: {
+                BedrockAgentParams: {
+                    AgentId: 'agent123',
+                    AgentAliasId: 'alias456'
+                }
+            }
+        };
+        checkValidationSucceeded(validator.validate(payload, schema));
+    });
+
+    it('Test Agent deployment, FeedbackParams additional fields fail', () => {
+        const payload = {
+            UseCaseType: USE_CASE_TYPES.AGENT,
+            FeedbackParams: {
+                FeedbackEnabled: true,
+                FeedbackParameters: { 'key': 'value' }
+            },
+            AgentParams: {
+                BedrockAgentParams: {
+                    AgentId: 'agent123',
+                    AgentAliasId: 'alias456'
+                }
+            }
+        };
+        checkValidationFailed(validator.validate(payload, schema));
     });
 
     describe('AuthenticationParams Validation', () => {

@@ -2,27 +2,26 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 import os
 from unittest import mock
 
 import pytest
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables.base import RunnableBinding
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 from llms.bedrock import BedrockLLM
 from llms.models.model_provider_inputs import BedrockInputs
 from shared.defaults.model_defaults import ModelDefaults
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import CHAT_IDENTIFIER, DEFAULT_PROMPT_PLACEHOLDERS, MODEL_INFO_TABLE_NAME_ENV_VAR
+from utils.constants import CHAT_IDENTIFIER, MODEL_INFO_TABLE_NAME_ENV_VAR
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 DEFAULT_TEMPERATURE = 0.0
 RAG_ENABLED = False
-BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
+BEDROCK_PROMPT = """test prompt"""
+DEFAULT_PROMPT_PLACEHOLDERS = []
 MODEL_PROVIDER = LLMProviderTypes.BEDROCK.value
-MODEL_ID = "amazon.model-xx"
+MODEL_ID = "amazon.fake-model"
 PROVISIONED_ARN = "arn:aws:bedrock:us-east-1:123456789012:provisioned-model/z8g9xzoxoxmw"
 model_inputs = BedrockInputs(
     **{
@@ -31,13 +30,16 @@ model_inputs = BedrockInputs(
             "table_name": "fake-table",
             "user_id": "fake-user-id",
             "conversation_id": "fake-conversation-id",
+            "message_id": "fake-message-id",
         },
         "rag_enabled": False,
         "model": MODEL_ID,
         "model_family": BedrockModelProviders.AMAZON.value,
         "model_params": {
             "topP": {"Type": "float", "Value": "0.2"},
-            "maxTokenCount": {"Type": "integer", "Value": "512"},
+            "maxTokens": {"Type": "integer", "Value": "512"},
+            "stopSequences": {"Type": "list", "Value": '["Human:"]'},
+            "modelSpecific": {"Type": "string", "Value": "test"},
         },
         "prompt_template": BEDROCK_PROMPT,
         "prompt_placeholders": DEFAULT_PROMPT_PLACEHOLDERS,
@@ -114,10 +116,10 @@ def temp_bedrock_dynamodb_defaults_table(
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, model_id, chat_fixture, expected_runnable_type",
+    "use_case, prompt, is_streaming, model_id, chat_fixture",
     [
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, MODEL_ID, "streamless_chat", RunnableWithMessageHistory),
-        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, MODEL_ID, "streaming_chat", RunnableBinding),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, MODEL_ID, "streamless_chat"),
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, True, MODEL_ID, "streaming_chat"),
     ],
 )
 def test_implement_error_not_raised(
@@ -128,24 +130,34 @@ def test_implement_error_not_raised(
     request,
     setup_environment,
     bedrock_dynamodb_defaults_table,
-    expected_runnable_type,
 ):
     chat = request.getfixturevalue(chat_fixture)
     try:
-        assert chat.model == "amazon.model-xx"
+        assert chat.model == "amazon.fake-model"
         assert chat.model_arn is None
-        assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_PROMPT)
-        assert chat.prompt_template.input_variables == DEFAULT_PROMPT_PLACEHOLDERS
-        assert chat.model_params == {"temperature": 0.0, "maxTokenCount": 512, "topP": 0.2}
-        assert chat.streaming == is_streaming
+        assert chat.prompt_template == ChatPromptTemplate.from_messages(
+            [
+                ("system", prompt),
+                MessagesPlaceholder("history", optional=True),
+                ("human", "{input}"),
+            ]
+        )
+        assert chat.prompt_template.input_variables == ["input"]
+        assert chat.model_params == {
+            "temperature": 0.0,
+            "maxTokens": 512,
+            "topP": 0.2,
+            "stopSequences": ["Human:"],
+            "modelSpecific": "test",
+        }
         assert chat.verbose == False
         assert chat.conversation_history_cls == DynamoDBChatMessageHistory
         assert chat.conversation_history_params == {
             "table_name": "fake-table",
             "user_id": "fake-user-id",
             "conversation_id": "fake-conversation-id",
+            "message_id": "fake-message-id"
         }
-        assert type(chat.runnable_with_history) == expected_runnable_type
     except NotImplementedError as ex:
         raise Exception(ex)
 
@@ -165,8 +177,14 @@ def test_implement_error_not_raised(
 )
 def test_generate(use_case, prompt, is_streaming, chat_fixture, request, bedrock_dynamodb_defaults_table):
     model = request.getfixturevalue(chat_fixture)
+    # bedrock non-RAG has been moved to Converse class which will use the stream method
+    if is_streaming:
+        method_name = "stream"
+    else:
+        method_name = "invoke"
     with mock.patch(
-        "langchain_core.runnables.RunnableWithMessageHistory.invoke", return_value="I'm doing well, how are you?"
+        f"langchain_core.runnables.RunnableWithMessageHistory.{method_name}",
+        return_value="I'm doing well, how are you?",
     ):
         assert model.generate("Hi there") == {"answer": "I'm doing well, how are you?"}
 
@@ -187,26 +205,20 @@ def test_exception_for_failed_model_response(
     use_case, prompt, is_streaming, model_id, setup_environment, bedrock_stubber, bedrock_dynamodb_defaults_table
 ):
     bedrock_stubber.add_client_error(
-        "invoke_model",
+        "converse",
         service_error_code="InternalServerError",
         service_message="some-error",
         expected_params={
-            "accept": "application/json",
-            "body": json.dumps(
+            "additionalModelRequestFields": {"modelSpecific": "test"},
+            "inferenceConfig": {"temperature": 0.0, "topP": 0.2, "maxTokens": 512, "stopSequences": ["Human:"]},
+            "messages": [
                 {
-                    "inputText": "\n\nUser: "
-                    + BEDROCK_PROMPT.replace("{history}", "[]").replace(
-                        "{input}", "What is the weather in Seattle?\n\nBot:"
-                    ),
-                    "textGenerationConfig": {
-                        "maxTokenCount": 512,
-                        "topP": 0.2,
-                        "temperature": 0.0,
-                    },
+                    "content": [{"text": "What is the weather in Seattle?"}],
+                    "role": "user",
                 }
-            ),
-            "contentType": "application/json",
+            ],
             "modelId": model_id,
+            "system": [{"text": BEDROCK_PROMPT.replace("{input}", "What is the weather in Seattle?")}],
         },
     )
 
@@ -220,7 +232,7 @@ def test_exception_for_failed_model_response(
 
     assert error.value.args[0] == (
         f"Error occurred while invoking Bedrock model family 'amazon' model '{model_id}'. "
-        "An error occurred (InternalServerError) when calling the InvokeModel operation: some-error"
+        "An error occurred (InternalServerError) when calling the Converse operation: some-error"
     )
 
 

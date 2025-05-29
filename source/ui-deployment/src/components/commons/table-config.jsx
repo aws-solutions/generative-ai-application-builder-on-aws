@@ -21,7 +21,7 @@ export const serverSideErrorsStore = new Map();
 
 const CONTENT_DISPLAY_OPTIONS = [
     { id: 'name', label: 'Name', alwaysVisible: true },
-    { id: 'stackId', label: 'Deployment Stack ID' },
+    { id: 'stackId', label: 'Use Case ID' },
     { id: 'useCaseType', label: 'Use Case Type' },
     { id: 'status', label: 'CloudFormation Deployment Status' },
     { id: 'modelProvider', label: 'Model Provider' },

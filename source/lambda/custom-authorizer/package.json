@@ -1,6 +1,6 @@
 {
-  "name": "custom-authorizer",
-  "version": "2.1.9",
+  "name": "@amzn/custom-authorizer",
+  "version": "3.0.0",
   "description": "This lambda function is used as a custom REQUEST authorizer for APIs",
   "main": "rest-handler.ts",
   "scripts": {
@@ -21,7 +21,8 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "aws-jwt-verify": "^4.0.1"
+    "aws-jwt-verify": "^4.0.1",
+    "jwt-decode": "^4.0.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -29,7 +30,6 @@
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "aws-sdk-client-mock": "^4.1.0",
-    "aws-sdk-mock": "^6.2.0",
     "eslint": "^9.16.0",
     "jest": "^29.7.0",
     "prettier": "^3.4.2",

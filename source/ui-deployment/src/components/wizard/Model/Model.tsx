@@ -124,7 +124,11 @@ const Model = ({
 
     // prettier-ignore
     React.useEffect(() => { //NOSONAR - no need to refactor, it is already broken down into separate functions
-        updateRequiredFields(model.modelProvider.value, model.provisionedModel, model.enableGuardrails, model.modelName, setRequiredFields);
+        updateRequiredFields(
+            model.modelProvider.value,
+            model.enableGuardrails,
+            model.bedrockInferenceType, 
+            setRequiredFields);
         updateError();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
@@ -140,7 +144,9 @@ const Model = ({
         model.sagemakerOutputSchema,
         model.provisionedModel,
         model.enableGuardrails,
-        model.inferenceProfileId
+        model.inferenceProfileId,
+        model.modelArn,
+        model.bedrockInferenceType
     ]);
 
     return (

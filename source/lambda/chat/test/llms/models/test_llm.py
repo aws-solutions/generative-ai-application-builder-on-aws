@@ -4,6 +4,7 @@
 
 import pytest
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+
 from llms.models.model_provider_inputs import BedrockInputs, ModelProviderInputs, SageMakerInputs
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
@@ -50,6 +51,7 @@ test_model_params = {"topP": 0.2, "temperature": 0}
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": False,
             "model": test_model_id,
@@ -60,6 +62,7 @@ test_model_params = {"topP": 0.2, "temperature": 0}
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": False,
             "knowledge_base": test_knowledge_base,
@@ -136,6 +139,7 @@ def test_llm_inputs_with_valid_inputs(setup_environment):
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": False,
             "model_arn": "arn:aws:bedrock:us-east-1:123456789012:provisioned-model/z8g9xzoxoxmw",
@@ -172,6 +176,7 @@ def test_llm_inputs_with_valid_inputs(setup_environment):
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": False,
             "knowledge_base": test_knowledge_base,
@@ -203,6 +208,7 @@ def test_bedrock_schema_valid_inputs(input_schema):
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": False,
             "sagemaker_endpoint_name": "fake-endpoint",
@@ -216,10 +222,11 @@ def test_bedrock_schema_valid_inputs(input_schema):
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": False,
             "knowledge_base": test_knowledge_base,
-            "model": "default",
+            "model": DEFAULT_SAGEMAKER_MODEL_ID,
             "sagemaker_endpoint_name": "fake-endpoint",
             "input_schema": {"some": "schema"},
             "response_jsonpath": "$.value",
@@ -264,7 +271,11 @@ def test_sagemaker_schema_valid_inputs(input_schema):
         (
             {
                 "conversation_history_cls": DynamoDBChatMessageHistory,
-                "conversation_history_params": {"conversation_id": "fake-id", "user_id": "fake-user-id"},
+                "conversation_history_params": {
+                    "conversation_id": "fake-id",
+                    "user_id": "fake-user-id",
+                    "message_id": "fake-message-id",
+                },
                 "rag_enabled": None,
                 "model": test_model_id,
             },
@@ -273,7 +284,11 @@ def test_sagemaker_schema_valid_inputs(input_schema):
         (
             {
                 "conversation_history_cls": DynamoDBChatMessageHistory,
-                "conversation_history_params": {"conversation_id": "fake-id", "user_id": "fake-user-id"},
+                "conversation_history_params": {
+                    "conversation_id": "fake-id",
+                    "user_id": "fake-user-id",
+                    "message_id": "fake-message-id",
+                },
                 "rag_enabled": True,
                 "model": test_model_id,
             },
@@ -308,7 +323,7 @@ def test_bedrock_llm_inputs_with_invalid_model_arn():
 
 
 def test_bedrock_llm_inputs_with_missing_required_param():
-    with pytest.raises(TypeError) as exc:
+    with pytest.raises(ValueError) as exc:
         BedrockInputs(
             conversation_history_cls=DynamoDBChatMessageHistory,
             conversation_history_params={
@@ -319,7 +334,7 @@ def test_bedrock_llm_inputs_with_missing_required_param():
             rag_enabled=False,
             model_arn="invalid-arn",
         )
-    assert str(exc.value) == "BedrockInputs.__init__() missing 1 required keyword-only argument: 'model_family'"
+    assert str(exc.value) == "ModelId must be provided when ModelArn is provided to fetch default values for the model."
 
 
 def test_bedrock_llm_id_and_arn_both_missing():

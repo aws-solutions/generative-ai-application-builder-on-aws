@@ -13,12 +13,13 @@ import { CustomDashboard, CustomDashboardProps, DashboardType } from '../metrics
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 import { DeploymentPlatformDashboard } from '../metrics/deployment-platform-dashboard';
-import { UseCaseDashboard } from '../metrics/use-case-dashboard';
+import { CustomUseCaseDashboardProps, UseCaseDashboard } from '../metrics/use-case-dashboard';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
 import { WEB_CONFIG_PREFIX } from '../utils/constants';
 import { CustomInfraSetup } from '../utils/custom-infra-setup';
 import { SolutionHelper } from '../utils/solution-helper';
-
+import { CognitoSetup } from '../auth/cognito-setup';
+import { WebSocketApi } from 'aws-cdk-lib/aws-apigatewayv2';
 /**
  * The interface which defines the configuration that should be stored in SSM parameter store
  */
@@ -26,7 +27,12 @@ export interface WebConfigProps {
     /**
      * The REST Api endpoint as deployed by infrastructure
      */
-    apiEndpoint: string;
+    websockApiEndpoint?: string;
+
+    /**
+     * The use case REST API endpoint
+     */
+    restApiEndpoint: string;
 
     /**
      * The UserPoolId of the Cognito user pool created by infrastructure during deployment
@@ -68,6 +74,16 @@ export interface WebConfigProps {
      * Condition to determine if webapp should be deployed
      */
     deployWebAppCondition: cdk.CfnCondition;
+
+    /**
+     * ID of the use case
+     */
+    useCaseUUID?: string;
+
+    /**
+     * LLM Config Table Key
+     */
+    useCaseConfigKey?: string;
 }
 
 export interface ApplicationProps {
@@ -156,6 +172,7 @@ export class ApplicationSetup extends Construct {
             removalPolicy: cdk.RemovalPolicy.RETAIN,
             enforceSSL: true
         });
+        this.accessLoggingBucket.policy?.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
         const customInfraSetup = new CustomInfraSetup(this, 'InfraSetup', {
             solutionID: props.solutionID,
@@ -186,7 +203,10 @@ export class ApplicationSetup extends Construct {
         ]);
     }
 
-    public addCustomDashboard(props: CustomDashboardProps, dashboardType: DashboardType): cloudwatch.Dashboard {
+    public addCustomDashboard(
+        props: CustomDashboardProps | CustomUseCaseDashboardProps,
+        dashboardType: DashboardType
+    ): cloudwatch.Dashboard {
         const deployCustomDashboardCondition = new cdk.CfnCondition(cdk.Stack.of(this), 'DeployCustomDashboard', {
             expression: cdk.Fn.conditionEquals(cdk.Fn.findInMap('FeaturesToDeploy', 'Deploy', 'CustomDashboard'), 'Yes')
         });
@@ -194,10 +214,10 @@ export class ApplicationSetup extends Construct {
 
         switch (dashboardType) {
             case DashboardType.UseCase:
-                customDashboard = new UseCaseDashboard(this, 'Ops', props);
+                customDashboard = new UseCaseDashboard(this, 'Ops', props as CustomUseCaseDashboardProps);
                 break;
             case DashboardType.DeploymentPlatform:
-                customDashboard = new DeploymentPlatformDashboard(this, 'Ops', props);
+                customDashboard = new DeploymentPlatformDashboard(this, 'Ops', props as CustomDashboardProps);
                 break;
             default:
                 throw new Error('Invalid dashboard type');
@@ -246,11 +266,14 @@ export class ApplicationSetup extends Construct {
             properties: {
                 Resource: 'WEBCONFIG',
                 SSMKey: ssmKey,
-                ApiEndpoint: props.apiEndpoint,
                 UserPoolId: props.userPoolId,
                 UserPoolClientId: props.userPoolClientId,
                 CognitoRedirectUrl: props.cognitoRedirectUrl,
                 IsInternalUser: cdk.Fn.conditionIf(props.isInternalUserCondition.logicalId, true, false),
+                RestApiEndpoint: props.restApiEndpoint,
+                UseCaseConfigKey: props.useCaseConfigKey,
+                ...(props.websockApiEndpoint && { WebsocketApiEndpoint: props.websockApiEndpoint }),
+                ...(props.useCaseUUID && { UseCaseId: props.useCaseUUID }),
                 ...props.additionalProperties
             }
         });
@@ -298,6 +321,43 @@ export class ApplicationSetup extends Construct {
                 ]
             }
         ]);
+    }
+
+    public createCognitoUserGroupPolicy(
+        cognitoSetup: CognitoSetup,
+        customResourceLambda: lambda.IFunction,
+        webSocketEndpoint: WebSocketApi,
+        useCaseConfigKey: string,
+        restApiId: string,
+        feedbackEnabled: string,
+        useCaseUUID: string
+    ): cdk.CustomResource {
+        let properties: any = {
+            Resource: 'USE_CASE_POLICY',
+            GROUP_NAME: cognitoSetup.userPoolGroup.groupName!,
+            WEBSOCKET_API_ARN: `arn:${cdk.Aws.PARTITION}:execute-api:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${webSocketEndpoint.apiId}/*/*`,
+            DETAILS_API_ARN: `arn:${cdk.Aws.PARTITION}:execute-api:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${restApiId}/*/GET/details/${useCaseConfigKey}`,
+            POLICY_TABLE_NAME: cognitoSetup.getCognitoGroupPolicyTable(this).tableName
+        };
+
+        if (cdk.Fn.conditionEquals(feedbackEnabled, 'Yes')) {
+            properties = {
+                ...properties,
+                FEEDBACK_API_ARN: `arn:${cdk.Aws.PARTITION}:execute-api:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${restApiId}/*/POST/feedback/${useCaseUUID}`
+            };
+        }
+
+        const cognitoUserGroupPolicyCustomResource = new cdk.CustomResource(this, 'CognitoUseCaseGroupPolicy', {
+            resourceType: 'Custom::CognitoUseCaseGroupPolicy',
+            serviceToken: customResourceLambda.functionArn,
+            properties: properties
+        });
+
+        const grant = cognitoSetup.getCognitoGroupPolicyTable(this).grantReadWriteData(customResourceLambda);
+        cognitoUserGroupPolicyCustomResource.node.addDependency(cognitoSetup.getCognitoGroupPolicyTable(this));
+        cognitoUserGroupPolicyCustomResource.node.addDependency(grant);
+
+        return cognitoUserGroupPolicyCustomResource;
     }
 
     /**

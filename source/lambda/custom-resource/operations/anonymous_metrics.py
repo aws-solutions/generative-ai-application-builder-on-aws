@@ -9,24 +9,33 @@ from copy import copy
 
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
-from cfn_response import send_response
 from helper import get_service_resource
+
+from cfn_response import send_response
 from operations import operation_types
 from operations.operation_types import FAILED, PHYSICAL_RESOURCE_ID, RESOURCE, RESOURCE_PROPERTIES, SUCCESS
 from utils.constants import (
-    DISAMBIGUATION_PROMPT_TEMPLATE,
+    AGENT_PARAMS,
+    AUTH_PARAMS,
+    CLIENT_OWNED_USER_POOL,
+    DEPLOY_UI,
+    FEEDBACK_PARAMS,
+    GUARDRAIL_ENABLED,
     KENDRA_EDITION,
+    KNOWLEDGE_BASE_PARAMS,
     LLM_PARAMS,
     NEW_KENDRA_INDEX_CREATED,
-    PROMPT_PARAMS,
-    PROMPT_TEMPLATE,
+    PROVISIONED_MODEL_ENABLED,
     RAG_ENABLED,
+    UC_DEPLOYMENT_SOURCE,
     USE_CASE_CONFIG_RECORD_KEY,
     USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     USE_CASE_CONFIG_TABLE_NAME,
+    USE_CASE_TYPE,
     UUID,
 )
 from utils.data import BuilderMetrics
+from utils.metrics_schema import MetricsSchema
 from utils.metrics import push_builder_metrics
 
 SOLUTION_ID = "SolutionId"
@@ -62,39 +71,6 @@ def verify_env_setup(event):
         err_msg = f"Either 'SolutionId' or 'Version' has not been passed. Hence the operation cannot be performed."
         logger.error(f"{err_msg}. Here are the resource properties received {json.dumps(event[RESOURCE_PROPERTIES])}")
         raise ValueError(err_msg)
-
-
-@tracer.capture_method
-def sanitize_data(data):
-    """This method removes keys; ServiceToken, Resource, SolutionId, UUID (if present), Version from under ResourceProperties.
-    Some of these values are to be send separately as anonymized values
-
-    Args:
-        resource_properties ({}): The JSON body or dict received as part of event[ResourceProperties]
-
-    Returns:
-        {}: A sanitized version in JSON format that should can be published to capture metrics
-    """
-    # Remove ServiceToken (lambda arn) to avoid sending AccountId
-    data.pop("ServiceToken", None)
-    data.pop(RESOURCE, None)
-
-    # Solution ID and unique ID are sent separately
-    data.pop(SOLUTION_ID, None)
-    data.pop(UUID, None)
-    data.pop(VERSION, None)
-
-    # Removing the prompt templates to not expose proprietary data in the logs
-    prompt_params = data.get(LLM_PARAMS, {}).get(PROMPT_PARAMS)
-    if prompt_params is not None:
-        prompt_params.pop(PROMPT_TEMPLATE, None)
-        prompt_params.pop(DISAMBIGUATION_PROMPT_TEMPLATE, None)
-
-    # config key is not needed in metrics
-    data.pop(USE_CASE_CONFIG_TABLE_NAME, None)
-    data.pop(USE_CASE_CONFIG_RECORD_KEY, None)
-
-    return data
 
 
 @tracer.capture_method
@@ -141,6 +117,41 @@ def get_use_case_config(table_name: str, key: str, retries=3, retry_interval=5):
     return {}
 
 
+def update_metrics_data(metrics_data, config: dict):
+    """This method updates the metrics data with the use case configuration
+
+    Args:
+        metrics_data (dict): The metrics data to be updated
+        config (dict): The use case configuration to be used to update the metrics data
+    """
+
+    metrics_data[AUTH_PARAMS] = config.get(AUTH_PARAMS, {})
+    metrics_data[AGENT_PARAMS] = config.get(AGENT_PARAMS, {})
+    metrics_data[FEEDBACK_PARAMS] = config.get(FEEDBACK_PARAMS, {})
+    metrics_data[KNOWLEDGE_BASE_PARAMS] = config.get(KNOWLEDGE_BASE_PARAMS, {})
+    metrics_data[LLM_PARAMS] = config.get(LLM_PARAMS, {})
+    metrics_data[DEPLOY_UI] = config.get(DEPLOY_UI, None)
+    metrics_data[USE_CASE_TYPE] = config[USE_CASE_TYPE]
+
+    bedrock_llm_params = metrics_data[LLM_PARAMS].get("BedrockLlmParams", {})
+    bedrock_llm_params[GUARDRAIL_ENABLED] = bool(
+        bedrock_llm_params
+        and bedrock_llm_params.get("GuardrailIdentifier")
+        and bedrock_llm_params.get("GuardrailVersion")
+    )
+
+    # Collecting whether Provisioned Model is provided
+    bedrock_llm_params[PROVISIONED_MODEL_ENABLED] = bool(bedrock_llm_params and bedrock_llm_params.get("ModelArn"))
+
+    cognito_params = metrics_data[AUTH_PARAMS].get("CognitoParams", {})
+
+    # Updating Auth Params, to make sure we know if user is providing their own user pool or not
+    metrics_data[AUTH_PARAMS][CLIENT_OWNED_USER_POOL] = bool(
+        cognito_params and cognito_params.get("ExistingUserPoolId")
+    )
+    return metrics_data
+
+
 @tracer.capture_method
 def execute(event, context):
     """This method implementation is to support sending anonymous metric to aws solution builder endpoint. On 'Create', 'Update', and 'Delete'
@@ -167,20 +178,29 @@ def execute(event, context):
 
         # WORKFLOW_CONFIG_NAME and DEPLOY_KENDRA_INDEX information is only sent as a part of Create/Update events
         if event["RequestType"] == "Delete":
-            metrics_data.pop(NEW_KENDRA_INDEX_CREATED, None)
-            metrics_data.pop(KENDRA_EDITION, None)
-            metrics_data.pop(RAG_ENABLED, None)
+            for metric in [
+                NEW_KENDRA_INDEX_CREATED,
+                KENDRA_EDITION,
+                RAG_ENABLED,
+                UC_DEPLOYMENT_SOURCE,
+            ]:
+                metrics_data.pop(metric, None)
 
-        config_table = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_TABLE_NAME)
-        config_key = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_RECORD_KEY)
+        config_table = metrics_data.pop(USE_CASE_CONFIG_TABLE_NAME, None)
+        config_key = metrics_data.pop(USE_CASE_CONFIG_RECORD_KEY, None)
+
         if event["RequestType"] != "Delete" and config_table and config_key:
             chat_model_config = get_use_case_config(
                 config_table,
                 config_key,
             )
-            metrics_data[LLM_PARAMS] = chat_model_config.get(LLM_PARAMS, {})
+            # Updating the metrics data with data from use case config table
+            metrics_data = update_metrics_data(metrics_data, chat_model_config)
 
-        metrics_data = sanitize_data(metrics_data)
+        # Using a custom schema validator to confirm the schema of builder_metrics,
+        # if a value in our metrics_data is not in our allow list schema
+        # it would be excluded from our metrics_payload data
+        metrics_data = MetricsSchema(metrics_data).model_dump(remove_empty=True)
 
         builder_metrics = BuilderMetrics(
             event[RESOURCE_PROPERTIES][UUID],

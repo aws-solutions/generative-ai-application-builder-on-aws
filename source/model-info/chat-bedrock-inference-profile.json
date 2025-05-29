@@ -3,7 +3,7 @@
   "ModelProviderName": "Bedrock",
   "ModelName": "inference-profile",
   "AllowsStreaming": true,
-  "Prompt": "{history}\n\n{input}",
+  "Prompt": "You are a friendly AI assistant that is helpful, honest, and harmless.",
   "MaxTemperature": "1",
   "DefaultTemperature": "0.5",
   "MinTemperature": "0",

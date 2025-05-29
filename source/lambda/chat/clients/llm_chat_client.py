@@ -10,8 +10,9 @@ from uuid import uuid4
 
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
-from clients.builders.llm_builder import LLMBuilder
 from helper import get_service_resource
+
+from clients.builders.llm_builder import LLMBuilder
 from llms.base_langchain import BaseLangChainModel
 from utils.constants import (
     AUTH_TOKEN_EVENT_KEY,
@@ -223,24 +224,15 @@ class LLMChatClient(ABC):
 
         return []
 
-    def _validate_auth_token(self, event: Dict[str, Any]) -> Union[str, None]:
+    def _get_auth_token(self, event: Dict[str, Any]) -> Union[str, None]:
         """
-        Validates the auth token.
+        Gets the auth token from the event.
         Args:
             event (str): the lambda event
         Returns:
-            (Dict) parsed event body
-        Raises:
-            ValueError: If the auth token is empty or not provided.
+            (str) auth token
         """
         auth_token = event.get("message", {}).get(AUTH_TOKEN_EVENT_KEY, None)
-        if not auth_token:
-            error_message = f"{AUTH_TOKEN_EVENT_KEY} is missing from the event."
-            logger.warning(
-                error_message,
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-            )
-
         return auth_token
 
     def check_event(self, event_body: Dict[str, Any], conversation_id) -> Dict:
@@ -261,7 +253,7 @@ class LLMChatClient(ABC):
         errors_list = []
         self._validate_event_body(event_body)
         user_id = self._validate_user_id(event_body)
-        auth_token = self._validate_auth_token(event_body)
+        auth_token = self._get_auth_token(event_body)
         errors_list.extend(self._validate_user_query(event_body[MESSAGE_KEY]))
         errors_list.extend(self._validate_event_prompt(event_body[MESSAGE_KEY]))
 

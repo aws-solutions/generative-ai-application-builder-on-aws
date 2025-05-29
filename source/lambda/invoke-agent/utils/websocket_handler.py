@@ -19,10 +19,12 @@ logger = Logger(utc=True)
 
 class WebSocketHandler:
     def __init__(self, connection_id: str, conversation_id: str, client: Any = None):
-        """
+        """Initialize a WebSocket handler.
 
         Args:
-            connection_id (str): _description_
+            connection_id (str): The WebSocket connection ID
+            conversation_id (str): The conversation ID for this WebSocket connection
+            client (Any, optional): The API Gateway management client. Defaults to None.
         """
         self._connection_id = connection_id
         self._conversation_id = conversation_id
@@ -32,41 +34,89 @@ class WebSocketHandler:
 
     @property
     def connection_id(self) -> str:
+        """Get the WebSocket connection ID.
+
+        Returns:
+            str: The WebSocket connection ID
+        """
         return self._connection_id
 
     def _check_env_variables(self) -> None:
-        """
-        Check if the required environment variables are set.
-        Raises an KeyError if WEBSOCKET_CALLBACK_URL is not set.
+        """Check if the required environment variables are set.
+        
+        Raises:
+            KeyError: If WEBSOCKET_CALLBACK_URL environment variable is not set
         """
         self.connection_url = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
         if not self.connection_url:
             logger.error(f"Missing required environment variable: {WEBSOCKET_CALLBACK_URL_ENV_VAR}")
             raise KeyError(f"The environment variable {WEBSOCKET_CALLBACK_URL_ENV_VAR} is not set.")
 
-    def send_message(self, response: str) -> None:
-        """
-        Sends the message response to the client and then sends the END_CONVERSATION_TOKEN.
+    def send_complete_response(self, response: str, message_id: str = None) -> None:
+        """Send the complete response to the client and then send the END_CONVERSATION_TOKEN.
 
         Args:
-            response (str): The response to send to the client.
+            response (str): The response to send to the client
+            message_id (str, optional): The message ID to include in the response
+
+        Raises:
+            Exception: If there is an error sending the response
         """
         try:
-            self._post_to_connection(response)
-            self._post_to_connection(END_CONVERSATION_TOKEN)
+            self._post_to_connection(response, message_id=message_id)
+            self._post_to_connection(END_CONVERSATION_TOKEN, message_id=message_id)
         except Exception as ex:
             logger.error(
-                f"Error sending message to connection {self._connection_id}: {ex}",
+                f"Error sending complete response to connection {self._connection_id}: {ex}",
+                xray_trace_id=self._trace_id,
+            )
+            raise ex
+
+    def send_streaming_chunk(self, chunk: str, message_id: str = None) -> None:
+        """Send a streaming chunk to the client.
+
+        Args:
+            chunk (str): The chunk of data to send to the client
+            message_id (str, optional): The message ID to include in the response
+
+        Raises:
+            Exception: If there is an error sending the chunk
+        """
+        try:
+            self._post_to_connection(chunk, message_id=message_id)
+        except Exception as ex:
+            logger.error(
+                f"Error sending streaming chunk to connection {self._connection_id}: {ex}",
+                xray_trace_id=self._trace_id,
+            )
+            raise ex
+
+    def end_streaming(self, message_id: str = None) -> None:
+        """Send the END_CONVERSATION_TOKEN to signal the end of a streaming response.
+
+        Args:
+            message_id (str, optional): The message ID to include in the response
+
+        Raises:
+            Exception: If there is an error sending the end token
+        """
+        try:
+            self._post_to_connection(END_CONVERSATION_TOKEN, message_id=message_id)
+        except Exception as ex:
+            logger.error(
+                f"Error sending end streaming token to connection {self._connection_id}: {ex}",
                 xray_trace_id=self._trace_id,
             )
             raise ex
 
     def send_error_message(self, error: Exception) -> None:
-        """
-        Send a masked error message to the specified WebSocket connection.
+        """Send a masked error message to the specified WebSocket connection.
 
         Args:
-            error (Exception): The error object to process.
+            error (Exception): The error object to process and mask before sending
+
+        Raises:
+            Exception: If there is an error sending the error message
         """
         try:
             # Log the full error
@@ -84,19 +134,22 @@ class WebSocketHandler:
             )
             raise ex
 
-    def _post_to_connection(self, message: str, is_error: bool = False) -> None:
-        """
-        Posts a message to the specified WebSocket connection.
+    def _post_to_connection(self, message: str, is_error: bool = False, message_id: str = None) -> None:
+        """Post a message to the specified WebSocket connection.
 
         Args:
-            message (str): The message to post.
+            message (str): The message to post
             is_error (bool, optional): Whether this is an error message. Defaults to False.
+            message_id (str, optional): The message ID to include in the response. Defaults to None.
+
+        Raises:
+            Exception: If there is an error posting the message
         """
         try:
             if is_error:
                 formatted_response = self._format_response(errorMessage=message, traceId=self._trace_id)
             else:
-                formatted_response = self._format_response(data=message)
+                formatted_response = self._format_response(data=message, messageId=message_id)
 
             self._client.post_to_connection(ConnectionId=self._connection_id, Data=formatted_response)
         except Exception as ex:
@@ -108,8 +161,7 @@ class WebSocketHandler:
             raise ex
 
     def _format_response(self, **kwargs: Any) -> str:
-        """
-        Formats the payload in a format that the websocket accepts.
+        """Format the payload in a format that the websocket accepts.
 
         This method can handle both regular data messages and error messages.
         For regular messages, use the 'data' key.
@@ -117,10 +169,10 @@ class WebSocketHandler:
 
         Args:
             **kwargs: Keyword arguments containing either 'data' for regular messages,
-                      or 'errorMessage' and 'traceId' for error messages.
+                     or 'errorMessage' and 'traceId' for error messages.
 
         Returns:
-            str: JSON-formatted string containing the formatted response.
+            str: JSON-formatted string containing the formatted response
         """
         response_dict = {CONVERSATION_ID_KEY: self._conversation_id}
         response_dict.update(kwargs)

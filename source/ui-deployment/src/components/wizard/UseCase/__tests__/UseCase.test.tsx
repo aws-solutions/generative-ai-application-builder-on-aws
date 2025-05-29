@@ -47,5 +47,13 @@ describe('UseCase', () => {
                 ?.findInputByValue('Yes')
                 ?.getElement().checked
         ).toBeTruthy();
+
+        expect(screen.getByTestId('enable-feedback-radio-group')).toBeDefined();
+        expect(
+            cloudscapeWrapper
+                .findRadioGroup('[data-testid="enable-feedback-radio-group"]')
+                ?.findInputByValue('No')
+                ?.getElement().checked
+        ).toBeTruthy();
     });
 });

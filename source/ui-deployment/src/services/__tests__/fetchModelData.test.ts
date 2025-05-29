@@ -109,12 +109,26 @@ describe('When fetching model ids using API', () => {
     };
 
     const mockModelIds = [
-        'ai21.j2-ultra',
-        'ai21.j2-mid',
-        'amazon.titan-text-express-v1',
-        'anthropic.claude-v1',
-        'anthropic.claude-v2',
-        'anthropic.claude-instant-v1'
+        { 
+            ModelName: 'amazon.titan-text-express-v1',
+            DisplayName: 'Amazon Titan Text Express',
+            Description: 'Amazon Titan Text Express model'
+        },
+        { 
+            ModelName: 'anthropic.claude-v1',
+            DisplayName: 'Claude v1',
+            Description: 'Anthropic Claude v1 model'
+        },
+        { 
+            ModelName: 'anthropic.claude-v2',
+            DisplayName: 'Claude v2',
+            Description: 'Anthropic Claude v2 model'
+        },
+        { 
+            ModelName: 'anthropic.claude-instant-v1',
+            DisplayName: 'Claude Instant v1',
+            Description: 'Anthropic Claude Instant v1 model'
+        }
     ];
 
     beforeEach(() => {
@@ -138,6 +152,19 @@ describe('When fetching model ids using API', () => {
         });
 
         expect(data).toEqual(mockModelIds);
+    });
+
+    test('should handle legacy string array format', async () => {
+        const legacyModelIds = [
+            'amazon.titan-text-express-v1',
+            'anthropic.claude-v1',
+            'anthropic.claude-v2',
+            'anthropic.claude-instant-v1'
+        ];
+        mockAPI.get.mockResolvedValueOnce(legacyModelIds);
+
+        const data = await fetchModelIds({ useCaseType: 'Chat', providerName: 'Bedrock' });
+        expect(data).toEqual(legacyModelIds);
     });
 
     test('should throw an error if providerName is undefined', async () => {

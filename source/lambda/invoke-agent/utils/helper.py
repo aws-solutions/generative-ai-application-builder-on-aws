@@ -1,7 +1,11 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import json
+from datetime import datetime
+
 from aws_lambda_powertools import Logger, Metrics, Tracer
+
 from utils import METRICS_SERVICE_NAME, CloudWatchNamespaces
 
 logger = Logger(utc=True)
@@ -41,3 +45,29 @@ def get_metrics_client(namespace: CloudWatchNamespaces) -> Metrics:
         _metrics_namespaces[namespace] = Metrics(namespace=namespace.value, service=METRICS_SERVICE_NAME)
 
     return _metrics_namespaces[namespace]
+
+
+def json_serializer(obj):
+    """
+    Custom JSON serializer that handles datetime objects and other non-JSON serializable objects.
+
+    Args:
+        obj: The object to serialize.
+
+    Returns:
+        str or obj: ISO format string if obj is a datetime, original object if JSON serializable,
+                    or string representation for non-serializable objects.
+    """
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    # For any other non-serializable objects, convert to string
+    try:
+        # First attempt to let json handle it normally
+        json.dumps(obj)
+        return obj
+    except Exception as ex:
+        # If that fails, convert to string representation
+        logger.info(
+            f"Serializing failed for object: {obj}. Exception: {ex}. Converting the object into string for JSON dumps..."
+        )
+        return str(obj)

@@ -1,12 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import { BEDROCK_INFERENCE_TYPES } from '@/utils/constants';
+
 export const sampleDeployUseCaseFormData = {
     'useCase': {
         'useCaseType': 'Text',
         'useCaseName': 'test-use-case',
         'useCaseDescription': 'test use case description',
         'deployUI': true,
+        'feedbackEnabled': false,
         'inError': true
     },
     'knowledgeBase': {
@@ -35,6 +38,7 @@ export const sampleDeployUseCaseFormData = {
             'value': 'Bedrock'
         },
         'modelName': 'fake-model',
+        'bedrockInferenceType': BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS,
         'modelParameters': [
             {
                 'key': 'fake-param',

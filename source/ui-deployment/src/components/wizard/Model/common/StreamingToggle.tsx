@@ -18,7 +18,12 @@ export const StreamingToggle = (props: StreamingToggleProps) => {
     const modelProviderValue = props.modelProvider.value!;
     const modelNameValue = props.modelName;
 
-    const modelStreamingQueryResponse = useModelStreamingQuery(modelProviderValue, modelNameValue);
+    const modelStreamingQueryResponse = useModelStreamingQuery(
+        modelProviderValue,
+        modelNameValue,
+        props.modelData?.bedrockInferenceType,
+        undefined
+    );
 
     const [toggleChecked, setToggleChecked] = React.useState(false);
 

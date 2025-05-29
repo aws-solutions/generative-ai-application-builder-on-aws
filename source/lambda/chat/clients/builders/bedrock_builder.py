@@ -2,15 +2,17 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Dict, Optional
+import os
+from typing import Dict, List, Optional
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
+
 from clients.builders.llm_builder import LLMBuilder
 from llms.bedrock import BedrockLLM
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
-from utils.constants import DEFAULT_RAG_ENABLED_MODE
+from utils.constants import DEFAULT_RAG_ENABLED_MODE, TRACE_ID_ENV_VAR
 from utils.enum_types import BedrockModelProviders, CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import get_metrics_client
 
@@ -57,6 +59,7 @@ class BedrockBuilder(LLMBuilder):
         use_case_config: Dict,
         connection_id: str,
         conversation_id: str,
+        message_id: str,
         rag_enabled: Optional[bool] = None,
         user_context_token: Optional[str] = None,
     ) -> None:
@@ -64,9 +67,17 @@ class BedrockBuilder(LLMBuilder):
             use_case_config=use_case_config,
             connection_id=connection_id,
             conversation_id=conversation_id,
+            message_id=message_id,
             rag_enabled=rag_enabled if (rag_enabled is not None) else DEFAULT_RAG_ENABLED_MODE,
             user_context_token=user_context_token,
         )
+
+    @property
+    def prompt_placeholders(self) -> List[str]:
+        self._prompt_placeholders = []
+        if self.rag_enabled:
+            self._prompt_placeholders.append(self.model_defaults.memory_config["context"])
+        return self._prompt_placeholders
 
     def get_model_provider(self, part: int) -> BedrockModelProviders:
         """
@@ -76,7 +87,7 @@ class BedrockBuilder(LLMBuilder):
             return BedrockModelProviders[self.model_inputs.model.split(".")[part].upper()].value
         except ValueError as ve:
             error = f"Error occurred while retrieving ModelId from the Use Case DynamoDB config or extracting model family from the provided ModelId: {ve}"
-            logger.error(error)
+            logger.error(error, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
             metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
             raise ValueError(error)
         finally:

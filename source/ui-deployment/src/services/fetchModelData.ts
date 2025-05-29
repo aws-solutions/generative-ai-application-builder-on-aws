@@ -4,7 +4,7 @@
 import { API } from 'aws-amplify';
 import { API_NAME, DEFAULT_MODEL_ID } from '../utils/constants';
 import { generateToken } from '../utils';
-import { USE_CASE_OPTIONS } from '@/components/wizard/steps-config';
+import { MODEL_PROVIDER_NAME_MAP, USE_CASE_OPTIONS } from '@/components/wizard/steps-config';
 
 interface ModelInfoRouteParams {
     useCaseType?: string;
@@ -21,10 +21,13 @@ export const encodeQueryParams = (params: ModelInfoRouteParams): ModelInfoRouteP
 };
 
 export const setDefaultQueryParams = (params: ModelInfoRouteParams): ModelInfoRouteParams => {
+    // For SageMaker, we need to use a default model ID
+    const shouldUseDefaultModelId = params.providerName === MODEL_PROVIDER_NAME_MAP.SageMaker;
+
     return {
         useCaseType: params.useCaseType ? params.useCaseType : USE_CASE_OPTIONS[0].value,
         providerName: params.providerName ? params.providerName : undefined,
-        modelId: params.modelId ? params.modelId : DEFAULT_MODEL_ID
+        modelId: params.modelId ? params.modelId : (shouldUseDefaultModelId ? DEFAULT_MODEL_ID : undefined)
     } as ModelInfoRouteParams;
 };
 
@@ -68,11 +71,28 @@ export const fetchModelIds = async (params: ModelInfoRouteParams) => {
     const { providerName, useCaseType } = encodeQueryParams(params);
 
     const token = await generateToken();
-    return await API.get(API_NAME, fetchModelInfoApiRoutes.modelIds.route({ useCaseType, providerName }), {
+    const response = await API.get(API_NAME, fetchModelInfoApiRoutes.modelIds.route({ useCaseType, providerName }), {
         headers: {
             Authorization: token
         }
     });
+    
+    // Handle both the old format (array of strings) and new format (array of objects)
+    if (Array.isArray(response) && response.length > 0) {
+        if (typeof response[0] === 'string') {
+            // Old format - array of strings
+            return response;
+        } else if (typeof response[0] === 'object') {
+            // New format - array of objects with ModelName, DisplayName, Description
+            return response.map((item) => ({
+                ModelName: item.ModelName,
+                DisplayName: item.DisplayName || item.ModelName,
+                Description: item.Description || ''
+            }));
+        }
+    }
+    
+    return response;
 };
 
 export const fetchModelDefaults = async (params: ModelInfoRouteParams) => {

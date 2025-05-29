@@ -30,7 +30,7 @@ describe('When creating a VPC for Bedrock stack', () => {
                             'cloudformation:DescribeStackResource',
                             'cloudformation:DescribeStackResources',
                             'cloudformation:ListStacks',
-                            'cloudformation:TagResource'
+                            'cloudformation:*TagResource'
                         ],
                         Effect: 'Allow',
                         Principal: {

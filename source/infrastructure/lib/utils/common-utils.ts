@@ -183,19 +183,20 @@ export function getJavaLayerLocalBundling(entry: string): ILocalBundling {
  * @param asset {s3_asset.Asset} - The bundled asset that represents the email templates/sample documents to be copied
  * @param customResourceLambda {lambda.Function}- the lambda function to which a s3:GetObject policy action would be attached
  *
- * @returns - JSON containing the properties to be passed to the custom resource invocation.
+ * @returns - JSON containing the properties to be passed to the custom resource invocation and the AssetRead policy.
  */
 export function getResourceProperties(
     scope: Construct,
     asset: s3_asset.Asset,
     customResourceLambda?: lambda.Function,
     customResourceRole?: iam.IRole
-): { [key: string]: any } {
+): { properties: { [key: string]: any }, policy: iam.Policy } {
     let assetReadPolicy: iam.Policy;
     let resourcePropertiesJson;
 
     if (process.env.DIST_OUTPUT_BUCKET) {
         assetReadPolicy = new iam.Policy(scope, 'AssetRead', {
+            roles: [customResourceLambda?.role || customResourceRole] as iam.Role[],
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
@@ -219,6 +220,7 @@ export function getResourceProperties(
         };
     } else {
         assetReadPolicy = new iam.Policy(scope, 'AssetRead', {
+            roles: [customResourceLambda?.role || customResourceRole] as iam.Role[],
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
@@ -234,12 +236,6 @@ export function getResourceProperties(
         };
     }
 
-    if (customResourceLambda) {
-        assetReadPolicy.attachToRole(customResourceLambda.role as iam.Role);
-    } else if (customResourceRole) {
-        assetReadPolicy.attachToRole(customResourceRole);
-    }
-
     NagSuppressions.addResourceSuppressions(
         assetReadPolicy,
         [
@@ -251,13 +247,10 @@ export function getResourceProperties(
         true
     );
 
-    if (customResourceLambda) {
-        assetReadPolicy.attachToRole(customResourceLambda.role as iam.Role);
-    } else if (customResourceRole) {
-        assetReadPolicy.attachToRole(customResourceRole);
+    return {
+        properties: resourcePropertiesJson,
+        policy: assetReadPolicy
     }
-
-    return resourcePropertiesJson;
 }
 /**
  * Generates the CFN template URL to add it to the IAM policy condition. The intent is to restrict the policy to only
@@ -271,10 +264,15 @@ export function generateCfnTemplateUrl(construct: Construct): string[] {
     if (process.env.DIST_OUTPUT_BUCKET) {
         templateUrls.push('https://%%TEMPLATE_BUCKET_NAME%%.s3.amazonaws.com/%%SOLUTION_NAME%%/*/*.template');
     } else {
-        const cdkAssetBucketName = construct.node.tryGetContext('cdk-asset-bucket');
+        const contextBucketName = construct.node.tryGetContext('cdk-asset-bucket');
+        const stack = cdk.Stack.of(construct);
+
+        const bucketName =
+            contextBucketName ||
+            `cdk-${cdk.DefaultStackSynthesizer.DEFAULT_QUALIFIER}-assets-${stack.account}-${stack.region}`;
         // this is most likely a `cdk deploy`.
-        templateUrls.push(`https://${cdkAssetBucketName}.s3.amazonaws.com/*.json`);
-        templateUrls.push(`https://s3.*.amazonaws.com/${cdkAssetBucketName}/*.json`);
+        templateUrls.push(`https://${bucketName}.s3.amazonaws.com/*.json`);
+        templateUrls.push(`https://s3.*.amazonaws.com/${bucketName}/*.json`);
     }
 
     return templateUrls;
@@ -353,6 +351,34 @@ export function createBasicLambdaCWPolicyDocument(): iam.PolicyDocument {
 }
 
 /**
+ * Method to add VPC configuration to lambda functions for a comma-separated string type SubnetIds and Security Groups
+ * @param lambdaFunction
+ * @param deployVPCCondition
+ * @param subnetIds
+ * @param securityGroupIds
+ */
+export function createVpcConfigForLambda(
+    lambdaFunction: lambda.Function,
+    deployVPCCondition: cdk.CfnCondition,
+    subnetIds: string,
+    securityGroupIds: string
+) {
+    const cfnLambdaFunction = lambdaFunction.node.defaultChild as lambda.CfnFunction;
+
+    // Add VPC configuration using property override
+    cfnLambdaFunction.addPropertyOverride('VpcConfig', {
+        'Fn::If': [
+            deployVPCCondition.logicalId,
+            {
+                SubnetIds: cdk.Fn.split(',', subnetIds),
+                SecurityGroupIds: cdk.Fn.split(',', securityGroupIds)
+            },
+            cdk.Aws.NO_VALUE
+        ]
+    });
+}
+
+/**
  * A utility method to generate default lambda role. This method will also add suppressions for
  * cloudwatch policy
  *
@@ -370,8 +396,7 @@ export function createDefaultLambdaRole(scope: Construct, id: string, deployVpcC
                         new iam.PolicyStatement({
                             actions: [
                                 'ec2:CreateNetworkInterface',
-                                'ec2:AssignPrivateIpAddresses',
-                                'ec2:UnassignPrivateIpAddresses'
+                                'ec2:*ssignPrivateIpAddresses' // Assign|Unassign PrivateIpAddresses
                             ],
                             effect: iam.Effect.ALLOW,
                             resources: [
@@ -383,8 +408,7 @@ export function createDefaultLambdaRole(scope: Construct, id: string, deployVpcC
                         new iam.PolicyStatement({
                             actions: [
                                 'ec2:DescribeNetworkInterfaces',
-                                'ec2:DeleteNetworkInterface',
-                                'ec2:DetachNetworkInterface'
+                                'ec2:De*NetworkInterface' // Delete|Detach NetworkInterface
                             ],
                             effect: iam.Effect.ALLOW,
                             // any more restrictive the policy does not have affect and the Lambda function does not
@@ -410,6 +434,16 @@ export function createDefaultLambdaRole(scope: Construct, id: string, deployVpcC
             reason: 'Lambda function has the required permission to write CloudWatch Log streams. It uses custom policy instead of arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole with tighter permissions.',
             appliesTo: [
                 'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/*:log-stream:*'
+            ]
+        }
+    ]);
+    NagSuppressions.addResourceSuppressions(role, [
+        {
+            id: 'AwsSolutions-IAM5',
+            reason: 'Even though the resource is "*", the actions have been scoped down only to the ones required by the solution',
+            appliesTo: [
+                'Action::ec2:*ssignPrivateIpAddresses', // Assign|Unassign PrivateIpAddresses
+                'Action::ec2:De*NetworkInterface' // Delete|Detach NetworkInterface
             ]
         }
     ]);

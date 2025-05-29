@@ -9,14 +9,20 @@ import * as cfn_guard from '../utils/cfn-guard-suppressions';
 
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
-import { DynamoDBAttributes } from '../utils/constants';
+import { DynamoDBAttributes, USE_CASE_TYPES } from '../utils/constants';
 import { ModelInfoStorage, ModelInfoStorageProps } from './model-info-storage';
 
 export interface UseCaseModelInfoStorageProps extends ModelInfoStorageProps {
     /**
-     * Name of the table which stores info/defaults for models. If not provided (passed an empty string), the table will be created.
+     * Name of the table which stores info/defaults for models.
+     * If not provided (passed an empty string) and if the useCaseType is 'Text', the table will be created.
      */
     existingModelInfoTableName: string;
+
+    /**
+     * The UseCaseType. The value is provided as 'Agent' or 'Text'
+     */
+    useCaseType: string;
 }
 
 /**
@@ -27,7 +33,10 @@ export class UseCaseModelInfoStorage extends ModelInfoStorage {
         super(scope, id, props);
 
         const createModelInfoTableCondition = new cdk.CfnCondition(this, 'CreateModelInfoTableCondition', {
-            expression: cdk.Fn.conditionEquals(props.existingModelInfoTableName, '')
+            expression: cdk.Fn.conditionAnd(
+                cdk.Fn.conditionEquals(props.useCaseType, USE_CASE_TYPES.TEXT),
+                cdk.Fn.conditionEquals(props.existingModelInfoTableName, '')
+            )
         });
 
         // conditionally deploy a new table

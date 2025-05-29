@@ -19,7 +19,9 @@ tracer = Tracer()
 # Required keys in the incoming event object
 GROUP_NAME = "GROUP_NAME"
 POLICY_TABLE_NAME = "POLICY_TABLE_NAME"
-API_ARN = "API_ARN"
+WEBSOCKET_API_ARN = "WEBSOCKET_API_ARN"
+DETAILS_API_ARN = "DETAILS_API_ARN"
+FEEDBACK_API_ARN = "FEEDBACK_API_ARN"
 
 
 class InvalidPrincipalException(Exception):
@@ -43,10 +45,11 @@ def verify_env_setup(event):
 
     if (
         event[RESOURCE_PROPERTIES].get(GROUP_NAME, None) in ["", None]
-        or event[RESOURCE_PROPERTIES].get(API_ARN, None) in ["", None]
+        or event[RESOURCE_PROPERTIES].get(WEBSOCKET_API_ARN, None) in ["", None]
         or event[RESOURCE_PROPERTIES].get(POLICY_TABLE_NAME, None) in ["", None]
+        or event[RESOURCE_PROPERTIES].get(DETAILS_API_ARN, None) in ["", None]
     ):
-        err_msg = f"Either {GROUP_NAME} or {API_ARN} or {POLICY_TABLE_NAME} has not been passed. Hence operation cannot be performed"
+        err_msg = f"Either {GROUP_NAME} or {WEBSOCKET_API_ARN} or {DETAILS_API_ARN} or {POLICY_TABLE_NAME} has not been passed. Hence operation cannot be performed"
         logger.error(f"{err_msg}. Here are the resource properties received: {json.dumps(event[RESOURCE_PROPERTIES])}")
         raise ValueError(err_msg)
 
@@ -67,31 +70,61 @@ def create(event, context, retries=3, retry_interval=5):
         botocore.exceptions.ClientError: If the service call to put/create resource policy in DynamoDB fails
     """
     group_name = event[RESOURCE_PROPERTIES][GROUP_NAME]
-    api_arn = event[RESOURCE_PROPERTIES][API_ARN]
+    websocket_api_arn = event[RESOURCE_PROPERTIES][WEBSOCKET_API_ARN]
+    details_api_arn = event[RESOURCE_PROPERTIES][DETAILS_API_ARN]
+    feedback_api_arn = event[RESOURCE_PROPERTIES].get(FEEDBACK_API_ARN)
 
     ddb = get_service_resource("dynamodb")
 
     while retries > 0:
         try:
+            execute_api_action = "execute-api:Invoke"
+
             # Policy for this group is put in policy table (put overwrites existing, so this applies for updates as well)
-            new_policy_statement = {
+            websocket_policy_statement = {
                 "Sid": f"{group_name}-policy-statement",
                 "Effect": "Allow",
-                "Action": "execute-api:Invoke",
+                "Action": execute_api_action,
                 "Resource": [
-                    f"{api_arn}",
+                    f"{websocket_api_arn}",
                 ],
             }
+
+            details_policy_statement = {
+                "Sid": f"{group_name}-details-policy-statement",
+                "Effect": "Allow",
+                "Action": execute_api_action,
+                "Resource": [
+                    f"{details_api_arn}",
+                ],
+            }
+
+            statement = [websocket_policy_statement, details_policy_statement]
+
+            if feedback_api_arn:
+                feedback_policy_statement = {
+                    "Sid": f"{group_name}-feedback-policy-statement",
+                    "Effect": "Allow",
+                    "Action": execute_api_action,
+                    "Resource": [
+                        f"{feedback_api_arn}",
+                    ],
+                }
+                statement.append(feedback_policy_statement)
+
             table = ddb.Table(event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME])
             table.put_item(
                 Item={
                     "group": group_name,
-                    "policy": {"Version": "2012-10-17", "Statement": [new_policy_statement]},
+                    "policy": {
+                        "Version": "2012-10-17",
+                        "Statement": statement,
+                    },
                 }
             )
 
             # Policy for the admin group updated to allow invoking this new API
-            admin_policy = _create_updated_admin_policy(group_name, new_policy_statement, table)
+            admin_policy = _create_updated_admin_policy(statement, table)
             table.put_item(Item={"group": "admin", "policy": admin_policy})
             break
 
@@ -105,41 +138,39 @@ def create(event, context, retries=3, retry_interval=5):
                 time.sleep(retry_interval)
 
 
-def _create_updated_admin_policy(group_name, new_policy_statement, table):
-    """creates the policy statement in the admin policy allowing access to the newly created group.
-    If the given policy statement already exists, we replace it. If the admin policy does not exist, creates one.
+def _create_updated_admin_policy(new_policy_statements, table):
+    """creates the policy statements in the admin policy allowing access to the newly created group.
+    If any of the given policy statements already exist, we replace them. If the admin policy does not exist, creates one.
 
     Args:
-        group_name (str): name of the user group the admin will get access to.
-        new_policy_statement (Object): Policy statement to be added
+        new_policy_statements (list): List of policy statements to be added
         table (Table): table to retrieve admin policy from
 
     Returns:
-        _type_: _description_
+        dict: The updated admin policy
     """
     admin_policy = {}
     try:
         admin_policy = table.get_item(Key={"group": "admin"})["Item"]["policy"]
-        group_statement_existed = False
-        # checking if a policy statement for the given group exists already. If yes, replace it with the new one.
-        for idx, statement in enumerate(admin_policy["Statement"]):
-            if statement["Sid"] == f"{group_name}-policy-statement":
-                logger.info(f"Policy statement for {group_name} already exists on the admin group. Replacing.")
-                group_statement_existed = True
-                admin_policy["Statement"][idx] = new_policy_statement
-                break
-        if not group_statement_existed:
-            admin_policy["Statement"].append(new_policy_statement)
+        statement_ids_to_replace = {statement["Sid"] for statement in new_policy_statements}
+
+        admin_policy["Statement"] = [
+            statement for statement in admin_policy["Statement"] if statement["Sid"] not in statement_ids_to_replace
+        ]
+
+        admin_policy["Statement"].extend(new_policy_statements)
+
     except KeyError:
         logger.info("No policy found for the admin group. Creating one.")
-        admin_policy = {"Version": "2012-10-17", "Statement": [new_policy_statement]}
+        admin_policy = {"Version": "2012-10-17", "Statement": new_policy_statements}
+
     return admin_policy
 
 
 @tracer.capture_method
 def delete(event, context):
-    """This method provides implementation for the 'Delete vent for CloudFormation Custom Resource creation. As part of the delete event, the resource
-    policy will lbe deleted
+    """This method provides implementation for the 'Delete' event for CloudFormation Custom Resource creation. As part of the delete event, the resource
+    policy will be deleted
 
     Args:
         event (LambdaEvent): An event object received by the lambda function that is passed by AWS services when invoking the function's handler
@@ -153,23 +184,37 @@ def delete(event, context):
     ddb = get_service_resource("dynamodb")
 
     try:
-        # deleting the group policy
         table = ddb.Table(event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME])
         table.delete_item(Key={"group": group_name})
 
-        # Removing the policy statement from the admin group policy
         try:
             admin_policy = table.get_item(Key={"group": "admin"})["Item"]["policy"]
+
+            logger.info(f"Current admin policy statements: {json.dumps(admin_policy['Statement'])}")
+
+            statement_patterns = [
+                f"{group_name}-policy-statement",
+                f"{group_name}-details-policy-statement",
+                f"{group_name}-feedback-policy-statement",
+            ]
+
+            original_length = len(admin_policy["Statement"])
             admin_policy["Statement"] = [
                 statement
                 for statement in admin_policy["Statement"]
-                if statement["Sid"] != f"{group_name}-policy-statement"
+                if not any(pattern in statement["Sid"] for pattern in statement_patterns)
             ]
+
+            new_length = len(admin_policy["Statement"])
+            logger.info(f"Removed {original_length - new_length} statements")
+            logger.info(f"Updated admin policy statements: {json.dumps(admin_policy['Statement'])}")
+
             table.put_item(Item={"group": "admin", "policy": admin_policy})
 
         except KeyError:
             logger.info("No policy found for the admin group. Skipping deletion.")
             return
+
     except ddb.meta.client.exceptions.ResourceNotFoundException as error:
         logger.warning(f"Policy table {event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME]} not found. Skipping deletion.")
         return

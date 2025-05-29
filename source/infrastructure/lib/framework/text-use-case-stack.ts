@@ -31,6 +31,7 @@ import {
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     SUPPORTED_KNOWLEDGE_BASE_TYPES,
     USER_POOL_ID_ENV_VAR,
+    USE_CASE_TYPES,
     WEBSOCKET_API_ID_ENV_VAR
 } from '../utils/constants';
 import { UseCaseParameters, UseCaseStack } from './use-case-stack';
@@ -340,7 +341,7 @@ export abstract class TextUseCase extends UseCaseStack {
         });
 
         this.knowledgeBaseSetup = new KnowledgeBaseSetup(this, 'KnowledgeBaseSetup', {
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
+            useCaseUUID: this.stackParameters.useCaseShortId,
             existingKendraIndexId: this.stackParameters.existingKendraIndexId.valueAsString,
             newKendraIndexName: this.stackParameters.newKendraIndexName.valueAsString,
             newKendraQueryCapacityUnits: this.stackParameters.newKendraQueryCapacityUnits.valueAsNumber,
@@ -353,7 +354,8 @@ export abstract class TextUseCase extends UseCaseStack {
         });
 
         this.chatStorageSetup = new ChatStorageSetup(this, 'ChatStorageSetup', {
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
+            useCaseUUID: this.stackParameters.useCaseShortId,
+            useCaseType: USE_CASE_TYPES.TEXT,
             existingModelInfoTableName: this.stackParameters.existingModelInfoTableName.valueAsString,
             newModelInfoTableCondition: this.newModelInfoTableCondition,
             customResourceLambda: this.applicationSetup.customResourceLambda,
@@ -361,6 +363,10 @@ export abstract class TextUseCase extends UseCaseStack {
             accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             ...this.baseStackProps
         });
+
+        if (process.env.DIST_OUTPUT_BUCKET) {
+            generateSourceCodeMapping(this.chatStorageSetup.chatStorage, props.solutionName, props.solutionVersion);
+        }
 
         this.setRagPermissions(ragEnabledCondition);
 
@@ -387,9 +393,24 @@ export abstract class TextUseCase extends UseCaseStack {
             value: this.knowledgeBaseSetup.kendraIndexId
         });
 
-        if (process.env.DIST_OUTPUT_BUCKET) {
-            generateSourceCodeMapping(this.chatStorageSetup.chatStorage, props.solutionName, props.solutionVersion);
-        }
+        const updateLlmConfigCustomResource = new cdk.CustomResource(this, 'UpdateLlmConfig', {
+            resourceType: 'Custom::UpdateLlmConfig',
+            serviceToken: this.applicationSetup.customResourceLambda.functionArn,
+            properties: {
+                Resource: 'UPDATE_LLM_CONFIG',
+                USE_CASE_CONFIG_TABLE_NAME: this.stackParameters.useCaseConfigTableName.valueAsString,
+                USE_CASE_CONFIG_RECORD_KEY: this.stackParameters.useCaseConfigRecordKey.valueAsString,
+                USE_CASE_UUID: this.stackParameters.useCaseUUID,
+                CONVERSATION_TABLE_NAME: this.chatStorageSetup.chatStorage.conversationTable.tableName
+            }
+        });
+
+        const feedbackEnabledCondition = new cdk.CfnCondition(this, 'FeedbackEnabledCondition', {
+            expression: cdk.Fn.conditionEquals(this.stackParameters.feedbackEnabled, 'Yes')
+        });
+
+        (updateLlmConfigCustomResource.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            feedbackEnabledCondition;
 
         this.kendraIndexCreatedCondition = cdk.Fn.conditionIf(deployKendraIndexCondition.logicalId, 'Yes', 'No');
     }
@@ -402,9 +423,10 @@ export abstract class TextUseCase extends UseCaseStack {
             }),
             USE_CASE_CONFIG_RECORD_KEY: this.stackParameters.useCaseConfigRecordKey.valueAsString,
             USE_CASE_CONFIG_TABLE_NAME: this.stackParameters.useCaseConfigTableName.valueAsString,
-            UUID: this.stackParameters.useCaseUUID.valueAsString,
+            UUID: this.stackParameters.useCaseUUID,
             VPC_ENABLED: this.vpcEnabled.valueAsString,
-            CREATE_VPC: this.createNewVpc.valueAsString
+            CREATE_VPC: this.createNewVpc.valueAsString,
+            UC_DEPLOYMENT_SOURCE: this.stackParameters.stackDeploymentSource
         });
         (
             this.applicationSetup.solutionHelper.node

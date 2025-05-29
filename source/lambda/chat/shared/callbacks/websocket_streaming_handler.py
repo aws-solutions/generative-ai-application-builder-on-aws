@@ -8,12 +8,16 @@ from uuid import UUID
 
 import botocore
 from aws_lambda_powertools import Logger
+from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain_core.messages import BaseMessage
+from langchain_core.messages.ai import AIMessageChunk
+
 from utils.constants import (
     CONTEXT_KEY,
     CONVERSATION_ID_EVENT_KEY,
+    MESSAGE_ID_EVENT_KEY,
     OUTPUT_KEY,
     PAYLOAD_DATA_KEY,
     PAYLOAD_SOURCE_DOCUMENT_KEY,
@@ -22,8 +26,11 @@ from utils.constants import (
     TRACE_ID_ENV_VAR,
     WEBSOCKET_CALLBACK_URL_ENV_VAR,
 )
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
+from utils.helpers import get_metrics_client
 
 logger = Logger(utc=True)
+metrics = get_metrics_client(CloudWatchNamespaces.AWS_BEDROCK)
 
 
 class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
@@ -52,6 +59,7 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
     _connection_url: Optional[str] = None
     _connection_id: Optional[str] = None
     _conversation_id: Optional[str] = None
+    _message_id: Optional[str] = None
     _is_streaming: bool = False
     _client: botocore.client = None
     _source_documents_formatter: Callable = None
@@ -60,6 +68,7 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         self,
         connection_id: str,
         conversation_id: str,
+        message_id: str,
         source_docs_formatter: Callable,
         is_streaming: bool = False,
         rag_enabled: bool = False,
@@ -70,6 +79,7 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         self._connection_id = connection_id
         self._conversation_id = conversation_id
         self._is_streaming = is_streaming
+        self._message_id = message_id
         self._client = get_service_client("apigatewaymanagementapi", endpoint_url=self.connection_url)
         self._source_documents_formatter = source_docs_formatter
         self._response_if_no_docs_found = response_if_no_docs_found
@@ -95,6 +105,10 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
     @property
     def conversation_id(self) -> str:
         return self._conversation_id
+
+    @property
+    def message_id(self) -> str:
+        return self._message_id
 
     @property
     def client(self) -> str:
@@ -162,12 +176,73 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         """
         Executes when the llm creates a new token.
         It is used to send tokens to the client connected, as a post request, to the websocket using the aws-sdk.
-
+        It also publishes token usage and llm stop reason metrics to cloudwatch
         Args:
             token (str): Token to send to the client.
         """
-        self.post_token_to_connection(token)
-        self.has_streamed = True
+        for content in token:
+            # at this moment, Chat UI only supports the rendering of text, so stream that back
+            if content.get("type") == "text":
+                self.post_token_to_connection(content["text"])
+                self.has_streamed = True
+
+        chunk = kwargs.get("chunk")
+        self._update_cw_dashboard(chunk)
+
+    def _update_cw_dashboard(self, generation: AIMessageChunk):
+        if generation and hasattr(generation, "message"):
+            response_metadata = getattr(generation.message, "response_metadata", {}) or {}
+            usage_metadata = getattr(generation.message, "usage_metadata", {}) or {}
+
+            stop_reason = response_metadata.get("stopReason", "")
+            input_tokens = usage_metadata.get("input_tokens", 0)
+            output_tokens = usage_metadata.get("output_tokens", 0)
+            total_tokens = usage_metadata.get("total_tokens", 0)
+
+            token_metrics = {
+                CloudWatchMetrics.LLM_INPUT_TOKEN_COUNT.value: input_tokens,
+                CloudWatchMetrics.LLM_OUTPUT_TOKEN_COUNT.value: output_tokens,
+                CloudWatchMetrics.LLM_TOTAL_TOKEN_COUNT.value: total_tokens,
+            }
+
+            for metric_name, token_count in token_metrics.items():
+                if token_count:
+                    metrics.add_metric(name=metric_name, unit=MetricUnit.Count, value=int(token_count))
+            metrics.flush_metrics()
+
+            if stop_reason:
+                stop_reason_pascal_format = "".join(word.capitalize() for word in stop_reason.split("_"))
+                metrics.add_dimension(name="StopReasonType", value=stop_reason_pascal_format)
+                metrics.add_metric(name=CloudWatchMetrics.LLM_STOP_REASON.value, unit=MetricUnit.Count, value=1)
+            metrics.flush_metrics()
+
+    def _handle_fallback_or_output_response(self, outputs: Dict) -> None:
+        """
+        Handles sending either a fallback response when no documents are found or the regular output response.
+
+        This function checks all of:
+        1. No response has been streamed yet
+        2. A non-llm fallback response is configured
+        3. Context key exists in the outputs
+        4. Either:
+            a: An output key exists
+            b: There are no values in the context (implying no sources were found in the Knowledge Base)
+
+        If these conditions are met, it sends the fallback response (when no context exists), or the output response (if it exists) to the client.
+
+        Args:
+            outputs (Dict): The outputs dictionary from the chain
+        """
+        if (
+            not self.has_streamed
+            and self.response_if_no_docs_found is not None
+            and CONTEXT_KEY in outputs
+            and (OUTPUT_KEY in outputs or not outputs[CONTEXT_KEY])
+        ):
+            self.post_token_to_connection(
+                self.response_if_no_docs_found if not outputs[CONTEXT_KEY] else outputs[OUTPUT_KEY], PAYLOAD_DATA_KEY
+            )
+            self.has_streamed = True
 
     def send_references(self, source_documents: List):
         if self.has_streamed_references:
@@ -187,31 +262,23 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
     ) -> None:
         """Run when chain ends running."""
 
-        if isinstance(outputs, dict):
-            if (
-                not self.has_streamed
-                and OUTPUT_KEY in outputs
-                and CONTEXT_KEY in outputs
-                and self.response_if_no_docs_found is not None
-            ):
-                if not outputs[CONTEXT_KEY]:
-                    self.post_token_to_connection(self.response_if_no_docs_found, PAYLOAD_DATA_KEY)
-                else:
-                    self.post_token_to_connection(outputs[OUTPUT_KEY], PAYLOAD_DATA_KEY)
-                self.has_streamed = True
+        if not isinstance(outputs, dict):
+            return
 
-            if (
-                not self.has_streamed_references
-                and self.return_source_docs
-                and CONTEXT_KEY in outputs
-                and len(outputs[CONTEXT_KEY])
-            ):
-                self.send_references(outputs[SOURCE_DOCUMENTS_RECEIVED_KEY])
-                self.has_streamed_references = True
+        self._handle_fallback_or_output_response(outputs)
 
-            if not self.streamed_rephrase_query and REPHRASED_QUERY_KEY in outputs:
-                self.post_token_to_connection(outputs[REPHRASED_QUERY_KEY], REPHRASED_QUERY_KEY)
-                self.streamed_rephrase_query = True
+        if (
+            not self.has_streamed_references
+            and self.return_source_docs
+            and CONTEXT_KEY in outputs
+            and len(outputs[CONTEXT_KEY])
+        ):
+            self.send_references(outputs[SOURCE_DOCUMENTS_RECEIVED_KEY])
+            self.has_streamed_references = True
+
+        if not self.streamed_rephrase_query and REPHRASED_QUERY_KEY in outputs:
+            self.post_token_to_connection(outputs[REPHRASED_QUERY_KEY], REPHRASED_QUERY_KEY)
+            self.streamed_rephrase_query = True
 
     def on_llm_error(self, error: Exception, **kwargs: any) -> None:
         """
@@ -230,4 +297,10 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         Args:
             payload (str): The value of the PAYLOAD_KEY key in the websocket payload
         """
-        return json.dumps({payload_key: payload, CONVERSATION_ID_EVENT_KEY: self.conversation_id})
+        return json.dumps(
+            {
+                payload_key: payload,
+                CONVERSATION_ID_EVENT_KEY: self.conversation_id,
+                MESSAGE_ID_EVENT_KEY: self.message_id,
+            }
+        )

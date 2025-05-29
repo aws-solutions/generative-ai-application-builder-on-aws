@@ -102,28 +102,6 @@ def create(event, context):
 
 
 @tracer.capture_method
-def delete(event, context):
-    """This method provides implementation for the Delete event for CloudFormation Custom Resource creation. As part of the delete event, the resource
-    item in the policy table for the admin group will be deleted
-
-    Args:
-        event (LambdaEvent): An event object received by the lambda function that is passed by AWS services when invoking the function's handler
-        context (LambdaContext): A context object received by the lambda function that is passed by AWS services when invoking the function's handler
-
-    Raises:
-        botocore.exceptions.ClientError: If the service call to delete resource policy for CloudWatch logs fails
-    """
-    ddb = get_service_resource("dynamodb")
-    try:
-        table = ddb.Table(event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME])
-        table.delete_item(Key={"group": ADMIN_GROUP_NAME})
-
-    except botocore.exceptions.ClientError as error:
-        logger.error(f"Error occurred when deleting item in policy table, error is {error}")
-        raise error
-
-
-@tracer.capture_method
 def execute(event, context):
     """This sub-module implements creation of resource policies for API access to deployed use cases. Policies for a given group are maintained in the
     DynamoDB policy table. When this custom resource is invoked for a new deployment, a policy is created for the newly created group which grants
@@ -144,8 +122,6 @@ def execute(event, context):
 
         if event["RequestType"] == "Create" or event["RequestType"] == "Update":
             create(event, context)
-        elif event["RequestType"] == "Delete":
-            delete(event, context)
 
         send_response(event, context, SUCCESS, {}, physical_resource_id)
     except Exception as ex:

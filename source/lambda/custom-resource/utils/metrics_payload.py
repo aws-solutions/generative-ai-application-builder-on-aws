@@ -7,11 +7,10 @@ import os
 from datetime import datetime, timedelta
 
 from helper import get_session
+
 from utils.constants import (
     CLIENT_ID_ENV_VAR,
-    KENDRA_INDEX_ID_ENV_VAR,
     PUBLISH_METRICS_PERIOD_IN_SECONDS,
-    REST_API_NAME_ENV_VAR,
     USE_CASE_UUID_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
     WEBSOCKET_API_ID_ENV_VAR,
@@ -23,60 +22,15 @@ from utils.constants import (
 def get_cloudwatch_metrics_queries():
     USE_CASE_UUID = os.getenv(USE_CASE_UUID_ENV_VAR)
     if USE_CASE_UUID:
-        METRICS_SERVICE_NAME = f"GAABUseCase-{USE_CASE_UUID}"
+        METRICS_SERVICE_NAME = f"GAABUseCase-{USE_CASE_UUID.split('-')[0]}"
     else:
         METRICS_SERVICE_NAME = None
-    KENDRA_INDEX_ID = os.getenv(KENDRA_INDEX_ID_ENV_VAR)
     WEBSOCKET_API_NAME = os.getenv(WEBSOCKET_API_ID_ENV_VAR)
     USER_POOL_ID = os.getenv(USER_POOL_ID_ENV_VAR)
     USER_CLIENT_ID = os.getenv(CLIENT_ID_ENV_VAR)
-    USE_CASE_MANAGEMENT_SERVICE = "UseCaseManagement"
-    REST_API_NAME = os.getenv(REST_API_NAME_ENV_VAR)
-
-    usecase_metrics_queries = [
-        (
-            f"COUNT({CloudWatchMetrics.UC_INITIATION_SUCCESS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_INITIATION_SUCCESS.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.UC_INITIATION_FAILURE.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_INITIATION_FAILURE.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.UC_UPDATE_SUCCESS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_UPDATE_SUCCESS.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.UC_UPDATE_FAILURE.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_UPDATE_FAILURE.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.UC_DELETION_SUCCESS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_DELETION_SUCCESS.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.UC_DELETION_FAILURE.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_DELETION_FAILURE.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.UC_DESCRIBE_SUCCESS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_DESCRIBE_SUCCESS.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.UC_DESCRIBE_FAILURE.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.UC_DESCRIBE_FAILURE.value}) FROM SCHEMA("{CloudWatchNamespaces.USE_CASE_DEPLOYMENTS.value}", service) WHERE service = '{USE_CASE_MANAGEMENT_SERVICE}'""",
-        ),
-    ]
+    FEEDBACK_ENABLED = True if os.getenv("FEEDBACK_ENABLED", "No") == "Yes" else False
 
     langchain_metrics_queries = [
-        (
-            f"AVG({CloudWatchMetrics.LANGCHAIN_QUERY_PROCESSING_TIME.value})",
-            f"""SELECT AVG({CloudWatchMetrics.LANGCHAIN_QUERY_PROCESSING_TIME.value}) FROM SCHEMA("{CloudWatchNamespaces.LANGCHAIN_LLM.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value}) FROM SCHEMA("{CloudWatchNamespaces.LANGCHAIN_LLM.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
-        ),
         (
             f"COUNT({CloudWatchMetrics.LANGCHAIN_FAILURES.value})",
             f"""SELECT COUNT({CloudWatchMetrics.LANGCHAIN_FAILURES.value}) FROM SCHEMA("{CloudWatchNamespaces.LANGCHAIN_LLM.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
@@ -90,121 +44,26 @@ def get_cloudwatch_metrics_queries():
     kendra_metrics_queries = [
         (
             f"MAX({CloudWatchMetrics.KENDRA_FAILURES.value})",
-            f"""SELECT MAX({CloudWatchMetrics.KENDRA_FAILURES.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
+            f"""SELECT MAX({CloudWatchMetrics.KENDRA_FAILURES.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
         ),
         (
             f"AVG({CloudWatchMetrics.KENDRA_FAILURES.value})",
-            f"""SELECT AVG({CloudWatchMetrics.KENDRA_FAILURES.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
+            f"""SELECT AVG({CloudWatchMetrics.KENDRA_FAILURES.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
         ),
         (
             f"COUNT({CloudWatchMetrics.KENDRA_QUERY.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.KENDRA_QUERY.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.KENDRA_FETCHED_DOCUMENTS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.KENDRA_FETCHED_DOCUMENTS.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.KENDRA_FETCHED_DOCUMENTS.value})",
-            f"""SELECT AVG({CloudWatchMetrics.KENDRA_FETCHED_DOCUMENTS.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.KENDRA_NO_HITS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.KENDRA_NO_HITS.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.KENDRA_NO_HITS.value})",
-            f"""SELECT AVG({CloudWatchMetrics.KENDRA_NO_HITS.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
-        ),
-        (
-            f"MAX({CloudWatchMetrics.KENDRA_QUERY_PROCESSING_TIME.value})",
-            f"""SELECT MAX({CloudWatchMetrics.KENDRA_QUERY_PROCESSING_TIME.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
-        ),
-        (
-            f"MAX({CloudWatchMetrics.KENDRA_QUERY_PROCESSING_TIME.value})",
-            f"""SELECT AVG({CloudWatchMetrics.KENDRA_QUERY_PROCESSING_TIME.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", IndexId) WHERE IndexId = '{KENDRA_INDEX_ID}'""",
+            f"""SELECT COUNT({CloudWatchMetrics.KENDRA_QUERY.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_KENDRA.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
         ),
     ]
 
     websocket_metrics_queries = [
         (
-            f"COUNT({CloudWatchMetrics.WEBSOCKET_CONNECTS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.WEBSOCKET_CONNECTS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
             f"COUNT({CloudWatchMetrics.WEBSOCKET_MESSAGES.value})",
             f"""SELECT COUNT({CloudWatchMetrics.WEBSOCKET_MESSAGES.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.WEBSOCKET_CLIENT_ERRORS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.WEBSOCKET_CLIENT_ERRORS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
-            f"MAX({CloudWatchMetrics.WEBSOCKET_CLIENT_ERRORS.value})",
-            f"""SELECT MAX({CloudWatchMetrics.WEBSOCKET_CLIENT_ERRORS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.WEBSOCKET_CLIENT_ERRORS.value})",
-            f"""SELECT AVG({CloudWatchMetrics.WEBSOCKET_CLIENT_ERRORS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.WEBSOCKET_EXECUTION_ERRORS.value})",
-            f"""SELECT AVG({CloudWatchMetrics.WEBSOCKET_EXECUTION_ERRORS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
-            f"MAX({CloudWatchMetrics.WEBSOCKET_EXECUTION_ERRORS.value})",
-            f"""SELECT MAX({CloudWatchMetrics.WEBSOCKET_EXECUTION_ERRORS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
-            f"MAX({CloudWatchMetrics.WEBSOCKET_LATENCY.value})",
-            f"""SELECT MAX({CloudWatchMetrics.WEBSOCKET_LATENCY.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-        (
-            f"MAX({CloudWatchMetrics.WEBSOCKET_LATENCY.value})",
-            f"""SELECT AVG({CloudWatchMetrics.WEBSOCKET_LATENCY.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiId) WHERE ApiId = '{WEBSOCKET_API_NAME}'""",
-        ),
-    ]
-
-    restapi_metrics_queries = [
-        (
-            f"COUNT({CloudWatchMetrics.REST_ENDPOINT_CACHE_HITS.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.REST_ENDPOINT_CACHE_HITS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiName) WHERE ApiName = '{REST_API_NAME}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.REST_ENDPOINT_CACHE_HITS.value})",
-            f"""SELECT AVG({CloudWatchMetrics.REST_ENDPOINT_CACHE_HITS.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiName) WHERE ApiName = '{REST_API_NAME}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.REST_ENDPOINT_CACHE_MISSES.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.REST_ENDPOINT_CACHE_MISSES.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiName) WHERE ApiName = '{REST_API_NAME}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.REST_ENDPOINT_CACHE_MISSES.value})",
-            f"""SELECT AVG({CloudWatchMetrics.REST_ENDPOINT_CACHE_MISSES.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiName) WHERE ApiName = '{REST_API_NAME}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.REST_ENDPOINT_CACHE_MISSES.value})",
-            f"""SELECT AVG({CloudWatchMetrics.REST_ENDPOINT_CACHE_MISSES.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiName) WHERE ApiName = '{REST_API_NAME}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.REST_ENDPOINT_LATENCY.value})",
-            f"""SELECT AVG({CloudWatchMetrics.REST_ENDPOINT_LATENCY.value}) FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiName) WHERE ApiName = '{REST_API_NAME}'""",
-        ),
-        (
-            f"COUNT({CloudWatchMetrics.REST_ENDPOINT_TOTAL_HITS.value})",
-            f"""SELECT COUNT("{CloudWatchMetrics.REST_ENDPOINT_TOTAL_HITS.value}") FROM SCHEMA("{CloudWatchNamespaces.API_GATEWAY.value}", ApiName) WHERE ApiName = '{REST_API_NAME}'""",
         ),
     ]
 
     cognito_usecase_metrics_queries = [
-        (
-            f"COUNT({CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES.value})",
-            f"""SELECT COUNT({CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES.value}) FROM SCHEMA("AWS/Cognito", UserPool,UserPoolClient) WHERE UserPool = '{USER_POOL_ID}' AND UserPoolClient = '{USER_CLIENT_ID}'""",
-        ),
-        (
-            f"AVG({CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES.value})",
-            f"""SELECT AVG({CloudWatchMetrics.COGNITO_SIGN_IN_SUCCESSES.value}) FROM SCHEMA("AWS/Cognito", UserPool,UserPoolClient) WHERE UserPool = '{USER_POOL_ID}' AND UserPoolClient = '{USER_CLIENT_ID}'""",
-        ),
         (
             f"COUNT({CloudWatchMetrics.COGNITO_SIGN_UP_SUCCESSES.value})",
             f"""SELECT COUNT({CloudWatchMetrics.COGNITO_SIGN_UP_SUCCESSES.value}) FROM SCHEMA("AWS/Cognito", UserPool,UserPoolClient) WHERE UserPool = '{USER_POOL_ID}' AND UserPoolClient = '{USER_CLIENT_ID}'""",
@@ -226,15 +85,33 @@ def get_cloudwatch_metrics_queries():
         ),
     ]
 
+    bedrock_metrics_queries = [
+        (
+            f"SUM({CloudWatchMetrics.LLM_INPUT_TOKEN_COUNT.value})",
+            f"""SELECT SUM({CloudWatchMetrics.LLM_INPUT_TOKEN_COUNT.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_BEDROCK.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
+        ),
+        (
+            f"SUM({CloudWatchMetrics.LLM_OUTPUT_TOKEN_COUNT.value})",
+            f"""SELECT SUM({CloudWatchMetrics.LLM_OUTPUT_TOKEN_COUNT.value}) FROM SCHEMA("{CloudWatchNamespaces.AWS_BEDROCK.value}", service) WHERE service = '{METRICS_SERVICE_NAME}'""",
+        ),
+    ]
+
+    feedback_metrics_queries = [
+        (
+            CloudWatchMetrics.FEEDBACK_SUBMITTED_COUNT.value,
+            f"""SELECT COUNT({CloudWatchMetrics.FEEDBACK_SUBMITTED_COUNT.value}) FROM "Solution/FeedbackManagement" WHERE UseCaseId = '{USE_CASE_UUID}'""",
+        )
+    ]
+
     queries = []
     formatted_queries = []
-    queries += usecase_metrics_queries
     queries += langchain_metrics_queries if METRICS_SERVICE_NAME else []
-    queries += kendra_metrics_queries if KENDRA_INDEX_ID else []
+    queries += kendra_metrics_queries if METRICS_SERVICE_NAME else []
     queries += websocket_metrics_queries if WEBSOCKET_API_NAME else []
-    queries += restapi_metrics_queries if REST_API_NAME else []
     queries += cognito_admin_metrics_queries if USER_POOL_ID else []
     queries += cognito_usecase_metrics_queries if USER_POOL_ID and USER_CLIENT_ID else []
+    queries += bedrock_metrics_queries if METRICS_SERVICE_NAME else []
+    queries += feedback_metrics_queries if FEEDBACK_ENABLED and USE_CASE_UUID else []
 
     for query_label_pair in queries:
         formatted_queries.append(

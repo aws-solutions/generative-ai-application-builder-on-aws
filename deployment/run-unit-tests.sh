@@ -219,6 +219,13 @@ run_ui_project_test() {
 	mv coverage $coverage_report_path
 }
 
+timer() {
+	start=$(date +%s)
+	"$@"  # Executes all arguments as a command
+	end=$(date +%s)
+	echo "Time elapsed: $((end - start)) seconds - $@"
+}
+
 # switch to source directory to run the test
 cd ../source
 
@@ -248,13 +255,13 @@ cd $source_dir
 echo "---------------------------------------"
 echo "Use Case Management UI"
 echo "---------------------------------------"
-run_ui_project_test ui-deployment
+timer run_ui_project_test ui-deployment
 
 echo "---------------------------------------"
 echo "Chat Use Case UI"
 echo "---------------------------------------"
 
-run_ui_project_test ui-chat
+timer run_ui_project_test ui-chat
 
 echo "---------------------------------------"
 echo "Running unit test for lambda layers"
@@ -264,37 +271,39 @@ cd $source_dir
 
 # install TS node libraries in the layers as required for local unit testing
 cd lambda/layers/aws-sdk-lib
-npm ci
+timer npm ci
 
 cd $source_dir
-install_lambda_layer layers/aws_boto3 "Boto3 SDK Layer"
-install_lambda_layer layers/langchain "LangChain Layer"
-run_python_lambda_test layers/custom_boto3_init "Python User Agent Config Lambda Layer"
-run_javascript_lambda_test layers/aws-node-user-agent-config "Typescript User Agent Config Layer"
+timer install_lambda_layer layers/aws_boto3 "Boto3 SDK Layer"
+timer install_lambda_layer layers/langchain "LangChain Layer"
+timer run_python_lambda_test layers/custom_boto3_init "Python User Agent Config Lambda Layer"
+timer run_javascript_lambda_test layers/aws-node-user-agent-config "Typescript User Agent Config Layer"
 
 echo "---------------------------------------"
 echo "Running unit test for lambda functions"
 echo "---------------------------------------"
 
-run_python_lambda_test chat "Chat Use Case"
-run_python_lambda_test invoke-agent "Bedrock Agent"
-run_javascript_lambda_test custom-authorizer "Custom Authorizer"
-run_python_lambda_test custom-resource "Custom Resource"
-run_python_lambda_test ext-idp-group-mapper "IDP Group Mapper for Cognito JWT pre-token generation"
-run_javascript_lambda_test model-info "Backing function for Model Info API"
-run_javascript_lambda_test use-case-management "Deployment Platform Use Case Management Lambda"
-run_javascript_lambda_test websocket-connectors "Websocket Connector Lambda"
+timer run_python_lambda_test chat "Chat Use Case"
+timer run_python_lambda_test invoke-agent "Bedrock Agent"
+timer run_javascript_lambda_test custom-authorizer "Custom Authorizer"
+timer run_python_lambda_test custom-resource "Custom Resource"
+timer run_python_lambda_test ext-idp-group-mapper "IDP Group Mapper for Cognito JWT pre-token generation"
+timer run_javascript_lambda_test model-info "Backing function for Model Info API"
+timer run_javascript_lambda_test feedback-management "Feedback Management Lambda"
+timer run_javascript_lambda_test use-case-details "Use Case Details Lambda"
+timer run_javascript_lambda_test use-case-management "Deployment Platform Use Case Management Lambda"
+timer run_javascript_lambda_test websocket-connectors "Websocket Connector Lambda"
 
 echo "_______________________________________"
 echo "Running unit test for scripts"
 echo "_______________________________________"
-run_python_scripts_test v2_migration "Migration script for use cases to move from 1.x to 2.x and higher"
+timer run_python_scripts_test v2_migration "Migration script for use cases to move from 1.x to 2.x and higher"
 
 echo "---------------------------------------"
 echo "Running CDK infrastructure unit and integration tests"
 echo "---------------------------------------"
 
-run_cdk_project_test "CDK - Generative AI Application Builder on AWS"
+timer run_cdk_project_test "CDK - Generative AI Application Builder on AWS"
 
 echo "---------------------------------------"
 echo "Executing Unit Tests Complete"

@@ -1,0 +1,23 @@
+{
+    "UseCase": "Chat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "amazon.nova-pro-v1:0",
+    "DisplayName": "Nova Pro",
+    "Description": "Nova Pro is a multimodal understanding foundation model. It is multilingual and can reason over text, images and videos.",
+    "AllowsStreaming": true,
+    "Prompt": "You are a friendly AI assistant that is helpful, honest, and harmless.",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "0.5",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "history",
+        "input": "input",
+        "context": null,
+        "ai_prefix": "Bot",
+        "human_prefix": "User",
+        "output": null
+    },
+    "MaxPromptSize": 562500,
+    "MaxChatMessageSize": 562500
+}

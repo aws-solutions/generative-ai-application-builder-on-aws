@@ -67,6 +67,7 @@ export const DisambiguationPromptConfiguration = (props: DisambiguationPromptCon
                                 disabled={
                                     props.disambiguationPromptTemplate === props.defaultDisambiguationPromptTemplate
                                 }
+                                data-testid={`${props['data-testid']}-reset-button`}
                             >
                                 Reset to default
                             </Button>
@@ -91,6 +92,7 @@ export const DisambiguationPromptConfiguration = (props: DisambiguationPromptCon
                     info={
                         <InfoLink onFollow={() => props.setHelpPanelContent!(disambiguationPromptTemplateInfoPanel)} />
                     }
+                    data-testid={`${props['data-testid']}-enable-disambiguation-field`}
                 >
                     <RadioGroup
                         onChange={({ detail }) => {
@@ -101,6 +103,7 @@ export const DisambiguationPromptConfiguration = (props: DisambiguationPromptCon
                             { value: 'true', label: 'Yes' },
                             { value: 'false', label: 'No' }
                         ]}
+                        data-testid={`${props['data-testid']}-enable-disambiguation-radio`}
                     ></RadioGroup>
                 </FormField>
 
@@ -112,6 +115,7 @@ export const DisambiguationPromptConfiguration = (props: DisambiguationPromptCon
                     }
                     errorText={disambiguationPromptError}
                     stretch={true}
+                    data-testid={`${props['data-testid']}-prompt-template-field`}
                 >
                     <Textarea
                         rows={20}
@@ -119,6 +123,7 @@ export const DisambiguationPromptConfiguration = (props: DisambiguationPromptCon
                         value={props.disambiguationPromptTemplate}
                         disabled={!props.disambiguationEnabled}
                         spellcheck={true}
+                        data-testid={`${props['data-testid']}-prompt-template-textarea`}
                     />
                 </FormField>
             </SpaceBetween>

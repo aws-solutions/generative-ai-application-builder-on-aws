@@ -22,7 +22,7 @@ To run the gaab_v2_migration.py script and migrate your configuration data, foll
 
 1. Ensure you have the following installed on your system:
 
-    - [Python >= 3.11, <=3.12.1](https://www.python.org/)
+    - [Python 3.13.x](https://www.python.org/)
         - _Note: normal python installations should include support for `ensurepip` and `pip`; however, if running in an environment without these packages you will need to manually install them (e.g. a minimal docker image). See [pip's installation guide](https://pip.pypa.io/en/stable/installation/) for details._
     - [Poetry](https://python-poetry.org/docs/)
         - Can be installed with `pip install poetry`

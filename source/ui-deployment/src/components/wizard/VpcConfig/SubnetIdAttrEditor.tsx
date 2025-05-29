@@ -8,7 +8,8 @@ import {
     ModelParamsEditorDefinition,
     VpcFormFieldProps,
     isSubnetIdValid,
-    vpcToolsContent
+    vpcToolsContent,
+    hasDuplicateAttrItems
 } from './helpers';
 import InputControl from '../Model/AdvancedModelSettings/InputControl';
 import { MAX_NUM_SUBNETS } from '../steps-config';
@@ -34,7 +35,26 @@ const createDefinition = ({ items, setItems, isEditDisabled }: any): ModelParams
                 />
             ),
             errorText: (item: any) => {
-                return isSubnetIdValid(item.key) ? null : 'Must start with "subnet-" and be of valid length';
+                if (!isSubnetIdValid(item.key)) {
+                    return 'Must start with "subnet-" and be of valid length';
+                }
+                
+                // Check for duplicates
+                if (item.key) {
+                    const keyCount = new Map<string, number>();
+                    items.forEach((i: any) => {
+                        if (i.key) {
+                            keyCount.set(i.key, (keyCount.get(i.key) || 0) + 1);
+                        }
+                    });
+                    
+                    const count = keyCount.get(item.key) || 0;
+                    if (count > 1) {
+                        return 'Subnet ID must be unique';
+                    }
+                }
+                
+                return null;
             }
         }
     ];
@@ -42,6 +62,7 @@ const createDefinition = ({ items, setItems, isEditDisabled }: any): ModelParams
 
 export const SubnetIdAttrEditor = (props: VpcFormFieldProps) => {
     const [items, setItems] = React.useState<SubnetIdItemsArray>(props.vpcData.subnetIds);
+    const [hasDuplicates, setHasDuplicates] = React.useState<boolean>(false);
 
     const handleAddParam = () => {
         if (items.length >= MAX_NUM_SUBNETS) {
@@ -57,7 +78,13 @@ export const SubnetIdAttrEditor = (props: VpcFormFieldProps) => {
     };
 
     React.useEffect(() => {
-        props.onChangeFn({ subnetIds: items });
+        const duplicatesExist = hasDuplicateAttrItems(items);
+        setHasDuplicates(duplicatesExist);
+        
+        // Only update parent if there are no duplicates
+        if (!duplicatesExist) {
+            props.onChangeFn({ subnetIds: items });
+        }
     }, [items]);
 
     const isEditDisabled = props.disabled ?? false;
@@ -71,9 +98,10 @@ export const SubnetIdAttrEditor = (props: VpcFormFieldProps) => {
                 </span>
             }
             data-testid="subnet-ids-field"
-            description="The subnet IDs to be used with the VPC"
+            description="The subnet IDs to be used with the VPC. Each subnet ID must be unique."
             stretch
             info={<InfoLink onFollow={() => props.setHelpPanelContent!(vpcToolsContent.byoVpc)} />}
+            errorText={hasDuplicates ? "Duplicate subnet IDs are not allowed" : undefined}
         >
             <AttributeEditor
                 onAddButtonClick={handleAddParam}

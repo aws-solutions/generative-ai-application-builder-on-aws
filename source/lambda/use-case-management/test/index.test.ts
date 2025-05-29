@@ -18,6 +18,7 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import { APIGatewayEvent } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
+import { APIGatewayClient, GetResourcesCommand } from '@aws-sdk/client-api-gateway';
 import {
     ARTIFACT_BUCKET_ENV_VAR,
     CHAT_PROVIDERS,
@@ -45,6 +46,7 @@ import {
 describe('When invoking the lambda function', () => {
     let cfnMockedClient: any;
     let ddbMockedClient: any;
+    let apiGatewayMockedClient: any;
 
     beforeAll(() => {
         process.env.AWS_SDK_USER_AGENT = `{ "customUserAgent": "AWSSOLUTION/SO0276/v2.1.0" }`;
@@ -61,11 +63,13 @@ describe('When invoking the lambda function', () => {
 
         cfnMockedClient = mockClient(CloudFormationClient);
         ddbMockedClient = mockClient(DynamoDBClient);
+        apiGatewayMockedClient = mockClient(APIGatewayClient);
     });
 
     afterEach(() => {
         cfnMockedClient.reset();
         ddbMockedClient.reset();
+        apiGatewayMockedClient.reset();
     });
     describe('on success', () => {
         beforeEach(() => {
@@ -126,7 +130,7 @@ describe('When invoking the lambda function', () => {
                         'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                         'ModelName': 'fake-model',
                         'AllowsStreaming': false,
-                        'Prompt': 'Prompt2 {input}{history}{context}',
+                        'Prompt': 'Prompt2 {context}',
                         'MaxTemperature': '100',
                         'DefaultTemperature': '0.1',
                         'MinTemperature': '0',
@@ -143,6 +147,14 @@ describe('When invoking the lambda function', () => {
                         'MaxChatMessageSize': 2500
                     })
                 });
+            apiGatewayMockedClient.on(GetResourcesCommand).resolves({
+                items: [
+                    {
+                        id: 'abc123',
+                        path: '/'
+                    }
+                ]
+            });
         });
 
         it('should create a stack and update ddb for create action', async () => {
@@ -189,7 +201,7 @@ describe('When invoking the lambda function', () => {
                     'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                     'ModelName': 'fake-model',
                     'AllowsStreaming': false,
-                    'Prompt': 'Prompt2 {input}{history}{context}',
+                    'Prompt': 'Prompt2 {context}',
                     'MaxTemperature': '100',
                     'DefaultTemperature': '0.1',
                     'MinTemperature': '0',
@@ -245,7 +257,7 @@ describe('When invoking the lambda function', () => {
                     'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                     'ModelName': 'fake-model',
                     'AllowsStreaming': false,
-                    'Prompt': 'Prompt2 {input}{history}{context}',
+                    'Prompt': 'Prompt2 {context}',
                     'MaxTemperature': '100',
                     'DefaultTemperature': '0.1',
                     'MinTemperature': '0',
@@ -304,6 +316,7 @@ describe('When invoking the lambda function', () => {
                         },
                         'Name': { 'S': 'test-1' },
                         'UseCaseId': { 'S': '11111111-fake-id' },
+                        'useCaseUUID': { 'S': 'fake-uuid' },
                         'UseCaseConfigRecordKey': { 'S': 'fake-uuid' }
                     },
                     {
@@ -315,6 +328,7 @@ describe('When invoking the lambda function', () => {
                         },
                         'Name': { 'S': 'test-2' },
                         'UseCaseId': { 'S': '11111111-fake-id' },
+                        'useCaseUUID': { 'S': 'fake-uuid' },
                         'UseCaseConfigRecordKey': { 'S': 'fake-uuid-2' }
                     }
                 ],
@@ -337,9 +351,10 @@ describe('When invoking the lambda function', () => {
                     Item: marshall({
                         key: 'mockUseCaseConfigRecordKey',
                         config: {
-                            ConversationMemoryParams: {
-                                ConversationMemoryType: 'DDBMemoryType'
-                            }
+                            LlmParams: {
+                                ModelProvider: 'Bedrock'
+                            },
+                            UseCaseType: 'text'
                         }
                     })
                 });
@@ -355,6 +370,10 @@ describe('When invoking the lambda function', () => {
                             {
                                 ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                                 ParameterValue: 'fake-id'
+                            },
+                            {
+                                ParameterKey: CfnParameterKeys.UseCaseUUID,
+                                ParameterValue: 'fake-uuid'
                             }
                         ],
                         Outputs: [
@@ -375,36 +394,24 @@ describe('When invoking the lambda function', () => {
                 'body': JSON.stringify({
                     'deployments': [
                         {
-                            'Description': 'test case 2',
-                            'CreatedBy': 'fake-user-id',
-                            'CreatedDate': '2024-07-22T20:32:00Z',
-                            'StackId':
-                                'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-2',
                             'Name': 'test-2',
                             'UseCaseId': '11111111-fake-id',
-                            'UseCaseConfigRecordKey': 'fake-uuid-2',
+                            'CreatedDate': '2024-07-22T20:32:00Z',
+                            'useCaseUUID': 'fake-uuid',
                             'status': 'CREATE_COMPLETE',
-                            'webConfigKey': 'mock-webconfig-ssm-parameter-key',
                             'cloudFrontWebUrl': 'mock-cloudfront-url',
-                            'ConversationMemoryParams': {
-                                'ConversationMemoryType': 'DDBMemoryType'
-                            }
+                            'ModelProvider': 'Bedrock',
+                            'UseCaseType': 'text'
                         },
                         {
-                            'Description': 'test case 1',
-                            'CreatedBy': 'fake-user-id',
-                            'CreatedDate': '2024-07-22T20:31:00Z',
-                            'StackId':
-                                'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-1',
                             'Name': 'test-1',
                             'UseCaseId': '11111111-fake-id',
-                            'UseCaseConfigRecordKey': 'fake-uuid',
+                            'CreatedDate': '2024-07-22T20:31:00Z',
+                            'useCaseUUID': 'fake-uuid',
                             'status': 'CREATE_COMPLETE',
-                            'webConfigKey': 'mock-webconfig-ssm-parameter-key',
                             'cloudFrontWebUrl': 'mock-cloudfront-url',
-                            'ConversationMemoryParams': {
-                                'ConversationMemoryType': 'DDBMemoryType'
-                            }
+                            'ModelProvider': 'Bedrock',
+                            'UseCaseType': 'text'
                         }
                     ],
                     'numUseCases': 2
@@ -418,6 +425,99 @@ describe('When invoking the lambda function', () => {
                 },
                 'isBase64Encoded': false,
                 'statusCode': 200
+            });
+        });
+
+        it('should create a stack and update ddb for create action with ExistingRestApiId', async () => {
+            const lambda = await import('../index');
+
+            const eventWithRestApiId = {
+                ...createUseCaseApiEvent,
+                body: JSON.stringify({
+                    ...JSON.parse(createUseCaseApiEvent.body),
+                    ExistingRestApiId: 'api123'
+                })
+            };
+
+            expect(await lambda.lambdaHandler(eventWithRestApiId as unknown as APIGatewayEvent)).toEqual({
+                'body': 'SUCCESS',
+                'headers': {
+                    'Access-Control-Allow-Credentials': true,
+                    'Access-Control-Allow-Headers': 'Origin,X-Requested-With,Content-Type,Accept',
+                    'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                'isBase64Encoded': false,
+                'statusCode': 200
+            });
+
+            // Verify the API Gateway client was called correctly
+            expect(apiGatewayMockedClient.calls()).toHaveLength(1);
+            const getResourcesCall = apiGatewayMockedClient.calls()[0];
+            expect(getResourcesCall.args[0].input).toEqual({
+                restApiId: 'api123'
+            });
+        });
+
+        it('should handle API Gateway errors gracefully', async () => {
+            const lambda = await import('../index');
+
+            // Mock API Gateway to throw an error
+            apiGatewayMockedClient.on(GetResourcesCommand).rejects(new Error('API Gateway Error'));
+
+            const eventWithRestApiId = {
+                ...createUseCaseApiEvent,
+                body: JSON.stringify({
+                    ...JSON.parse(createUseCaseApiEvent.body),
+                    ExistingRestApiId: 'api123'
+                })
+            };
+
+            expect(await lambda.lambdaHandler(eventWithRestApiId as unknown as APIGatewayEvent)).toEqual({
+                'body': 'Internal Error - Please contact support and quote the following trace id: undefined',
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'text/plain',
+                    '_X_AMZN_TRACE_ID': undefined,
+                    'x-amzn-ErrorType': 'CustomExecutionError'
+                },
+                'isBase64Encoded': false,
+                'statusCode': '400'
+            });
+        });
+
+        it('should handle missing root resource', async () => {
+            const lambda = await import('../index');
+
+            // Mock API Gateway to return no root resource
+            apiGatewayMockedClient.on(GetResourcesCommand).resolves({
+                items: [
+                    {
+                        id: 'abc123',
+                        path: '/other'
+                    }
+                ]
+            });
+
+            const eventWithRestApiId = {
+                ...createUseCaseApiEvent,
+                body: JSON.stringify({
+                    ...JSON.parse(createUseCaseApiEvent.body),
+                    ExistingRestApiId: 'api123'
+                })
+            };
+
+            expect(await lambda.lambdaHandler(eventWithRestApiId as unknown as APIGatewayEvent)).toEqual({
+                'body': 'Internal Error - Please contact support and quote the following trace id: undefined',
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'text/plain',
+                    '_X_AMZN_TRACE_ID': undefined,
+                    'x-amzn-ErrorType': 'CustomExecutionError'
+                },
+                'isBase64Encoded': false,
+                'statusCode': '400'
             });
         });
     });
@@ -456,5 +556,6 @@ describe('When invoking the lambda function', () => {
 
         cfnMockedClient.restore();
         ddbMockedClient.restore();
+        apiGatewayMockedClient.restore();
     });
 });

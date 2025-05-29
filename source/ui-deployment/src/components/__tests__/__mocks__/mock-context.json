@@ -97,8 +97,8 @@
         "AiPrefix": "ai",
         "ChatHistoryLength": 10
       },
+      "ModelProvider": "SageMaker",
       "LlmParams": {
-        "ModelProvider": "SageMaker",
         "SageMakerLlmParams": {
           "EndpointName": "fake-endpoint",
           "ModelInputPayloadSchema": {
@@ -165,8 +165,8 @@
         "NumberOfDocs": 4,
         "ReturnSourceDocs": false
       },
+      "ModelProvider": "Bedrock",
       "LlmParams": {
-        "ModelProvider": "Bedrock",
         "BedrockLlmParams": {
           "InferenceProfileId": "fake-inference-profile-id"
         },
@@ -246,8 +246,8 @@
         "AiPrefix": "ai",
         "ChatHistoryLength": 10
       },
+      "ModelProvider": "Bedrock",
       "LlmParams": {
-        "ModelProvider": "Bedrock",
         "BedrockLlmParams": {
           "ModelId": "claude-v1"
         },
@@ -294,8 +294,8 @@
         "AiPrefix": "ai",
         "ChatHistoryLength": 10
       },
+      "ModelProvider": "Bedrock",
       "LlmParams": {
-        "ModelProvider": "Bedrock",
         "BedrockLlmParams": {
           "ModelId": "claude-v1"
         },
@@ -340,8 +340,8 @@
         "AiPrefix": "ai",
         "ChatHistoryLength": 10
       },
+      "ModelProvider": "Bedrock",
       "LlmParams": {
-        "ModelProvider": "Bedrock",
         "BedrockLlmParams": {
           "ModelId": "claude-v1"
         },
@@ -386,8 +386,8 @@
         "AiPrefix": "ai",
         "ChatHistoryLength": 10
       },
+      "ModelProvider": "Bedrock",
       "LlmParams": {
-        "ModelProvider": "Bedrock",
         "BedrockLlmParams": {
           "ModelId": "claude-v1"
         },
@@ -444,8 +444,8 @@
           "BedrockKnowledgeBaseId": "LDLOMVBROT"
         }
       },
+      "ModelProvider": "Bedrock",
       "LlmParams": {
-        "ModelProvider": "Bedrock",
         "BedrockLlmParams": {
           "ModelId": "anthropic.claude-instant-v1"
         },

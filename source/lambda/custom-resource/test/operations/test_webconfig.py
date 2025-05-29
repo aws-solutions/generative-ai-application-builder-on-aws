@@ -89,7 +89,7 @@ def test_create_success(setup_cognito, mock_lambda_context):
     # fmt: on
 
     assert json.loads(web_config_value) == {
-        "ApiEndpoint": "https://non-existent/url/fakeapi",
+        "RestApiEndpoint": "https://non-existent/url/fakeapi",
         "UserPoolId": lambda_event[RESOURCE_PROPERTIES][USER_POOL_ID],
         "UserPoolClientId": "fakeclientid",
         "AwsRegion": "us-east-1",
@@ -163,6 +163,6 @@ def test_execute_failure(monkeypatch, lambda_event, mock_lambda_context, request
         mocked_PoolManager.request.assert_called_once_with(
             method="PUT",
             url="https://fakeurl/doesnotexist",
-            headers={"content-type": "", "content-length": "315"},
-            body='{"Status": "FAILED", "Reason": "Any of SSMKey, ApiEndpoint, UserPoolId, UserPoolClientId has not been passed. Operation cannot be performed", "PhysicalResourceId": "/gaab/old/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
+            headers={"content-type": "", "content-length": "319"},
+            body='{"Status": "FAILED", "Reason": "Any of SSMKey, RestApiEndpoint, UserPoolId, UserPoolClientId has not been passed. Operation cannot be performed", "PhysicalResourceId": "/gaab/old/keypath", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
         )

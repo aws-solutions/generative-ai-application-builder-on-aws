@@ -8,7 +8,6 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Alert, AppLayout, TopNavigation, Spinner } from '@cloudscape-design/components';
 import DashboardView from './components/dashboard/DashboardView';
 import WizardView from './components/wizard/WizardView';
-import UseCaseView from './components/useCaseDetails/UseCaseView';
 import { APP_TRADEMARK_NAME, USECASE_TYPE_ROUTE } from './utils/constants';
 import { useCreateReducer } from './hooks/useCreateReducer';
 import { initialState, insertRuntimeConfig } from './contexts/home.state';
@@ -19,6 +18,7 @@ import { UserContext } from './UserContext';
 import { TextUseCaseType } from './components/wizard/interfaces/UseCaseTypes/Text';
 import { AgentUseCaseType } from './components/wizard/interfaces/UseCaseTypes/Agent';
 import UseCaseSelection from './components/wizard/UseCaseSelection';
+import UseCaseView from './components/useCaseDetails/UseCaseView';
 
 function App({ runtimeConfig }) {
     const intiStateWithConfig = insertRuntimeConfig(initialState, runtimeConfig);
@@ -122,7 +122,7 @@ function App({ runtimeConfig }) {
                                             path={USECASE_TYPE_ROUTE.AGENT}
                                             element={<WizardView useCase={new AgentUseCaseType()} />}
                                         />
-                                        <Route path="/deployment-details" element={<UseCaseView />} />
+                                        <Route path="/deployment-details/:useCaseId" element={<UseCaseView />} />
                                         <Route path="/change-password" element={<ChangePasswordView />} />
                                         <Route path="*" element={<Navigate to="/" />} />
                                     </Routes>

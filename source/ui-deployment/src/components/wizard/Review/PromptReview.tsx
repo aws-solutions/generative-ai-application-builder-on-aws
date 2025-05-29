@@ -1,5 +1,5 @@
 import { Button, Container, Header, SpaceBetween } from '@cloudscape-design/components';
-import { PromptDetails } from '@/components/useCaseDetails/PromptDetails';
+import { PromptDetails } from '@/components/useCaseDetails/prompt/PromptDetails';
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { createConversationMemoryApiParams, createLLMParamsApiParams } from '../utils';
 import { WIZARD_PAGE_INDEX } from '../steps-config';

@@ -8,9 +8,11 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
-from clients.builders.bedrock_builder import BedrockBuilder
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+from clients.builders.bedrock_builder import BedrockBuilder
 from llms.bedrock import BedrockLLM
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
@@ -19,10 +21,6 @@ from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
     CONVERSATION_TABLE_NAME_ENV_VAR,
-    DEFAULT_BEDROCK_MODEL_FAMILY,
-    DEFAULT_BEDROCK_MODELS_MAP,
-    DEFAULT_PROMPT_PLACEHOLDERS,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     KENDRA_INDEX_ID_ENV_VAR,
     MESSAGE_KEY,
     RAG_CHAT_IDENTIFIER,
@@ -30,8 +28,11 @@ from utils.constants import (
 )
 from utils.enum_types import KnowledgeBaseTypes, LLMProviderTypes
 
-BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+model_id = "amazon.fake-model"
+BEDROCK_PROMPT = """{input}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{input}"""
+DEFAULT_PROMPT_PLACEHOLDERS = []
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context"]
 MEMORY_CONFIG = {
     CHAT_IDENTIFIER: {
         "history": "history",
@@ -46,9 +47,6 @@ MEMORY_CONFIG = {
         "output": "answer",
     },
 }
-
-
-model_id = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
 
 
 @pytest.mark.parametrize(
@@ -146,6 +144,7 @@ def test_set_llm(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
     user_id = chat_event_body.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
@@ -163,14 +162,20 @@ def test_set_llm(
             builder.set_llm()
     else:
         with patch(
-            "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
-            return_value=AsyncIteratorCallbackHandler(),
+            "clients.builders.llm_builder.WebsocketHandler",
+            return_value=BaseCallbackHandler(),
         ):
             builder.set_llm()
 
     assert type(builder.llm) == llm_type
     assert builder.llm.model == model_id
-    assert builder.llm.prompt_template == ChatPromptTemplate.from_template(prompt)
+    assert builder.llm.prompt_template == ChatPromptTemplate.from_messages(
+        [
+            ("system", prompt),
+            MessagesPlaceholder("history", optional=True),
+            ("human", "{input}"),
+        ]
+    )
     assert builder.llm.model_params["temperature"] == 0.2
     assert builder.llm.streaming == config["LlmParams"]["Streaming"]
     assert builder.llm.verbose == config["LlmParams"]["Verbose"]
@@ -179,6 +184,7 @@ def test_set_llm(
     assert builder.conversation_history_cls == DynamoDBChatMessageHistory
     assert builder.conversation_history_params == {
         "conversation_id": "fake-conversation-id",
+        "message_id": "fake-message-id",
         "max_history_length": 10,
         "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
         "user_id": "fake-user-id",
@@ -187,10 +193,7 @@ def test_set_llm(
     }
     assert type(builder.model_inputs) == BedrockInputs
 
-    if is_streaming:
-        assert builder.callbacks
-    else:
-        assert builder.callbacks is None
+    assert builder.callbacks
 
 
 @pytest.mark.parametrize(
@@ -221,6 +224,7 @@ def test_set_llm_throws_error_missing_memory(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
 
     chat_event_body = json.loads(chat_event["Records"][0]["body"])
@@ -230,6 +234,9 @@ def test_set_llm_throws_error_missing_memory(
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
             builder.set_llm()
@@ -264,6 +271,7 @@ def test_set_llm_with_errors(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
     builder.errors = ["some-error-1", "some-error-2"]
     builder.set_model_defaults(LLMProviderTypes.BEDROCK, model_id)
@@ -272,6 +280,9 @@ def test_set_llm_with_errors(
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
             builder.set_llm()
@@ -300,6 +311,7 @@ def test_set_llm_with_missing_config_fields(bedrock_llm_config, model_id, return
         rag_enabled=False,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
 
     with pytest.raises(ValueError) as error:
@@ -377,6 +389,7 @@ def test_returned_bedrock_model(
         conversation_id="fake-conversation-id",
         use_case_config=config,
         rag_enabled=rag_enabled,
+        message_id="fake-message-id",
     )
     user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
@@ -386,6 +399,9 @@ def test_returned_bedrock_model(
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
     ):
         builder.set_llm()
         assert type(builder.llm) == model
@@ -458,6 +474,7 @@ def test_returned_bedrock_provisioned_model(
         conversation_id="fake-conversation-id",
         use_case_config=config,
         rag_enabled=rag_enabled,
+        message_id="fake-message-id",
     )
     user_id = chat_event.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
@@ -467,6 +484,9 @@ def test_returned_bedrock_provisioned_model(
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
     ):
         builder.set_llm()
         assert type(builder.llm) == model
@@ -515,6 +535,7 @@ def test_inference_profile_id(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
     user_id = chat_event_body.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
@@ -523,11 +544,25 @@ def test_inference_profile_id(
     builder.validate_event_input_sizes(chat_event_body[MESSAGE_KEY])
     builder.set_knowledge_base()
     builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
-    builder.set_llm()
+    with patch(
+        "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
+        return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
+    ):
+        builder.set_llm()
 
     assert type(builder.llm) == llm_type
     assert builder.llm.model == model_id
-    assert builder.llm.prompt_template == ChatPromptTemplate.from_template(prompt)
+    assert builder.llm.prompt_template == ChatPromptTemplate.from_messages(
+        [
+            ("system", prompt),
+            MessagesPlaceholder("history", optional=True),
+            ("human", "{input}"),
+        ]
+    )
+    assert builder.llm.prompt_placeholders == placeholders
     assert builder.llm.model_params["temperature"] == 0.2
     assert builder.llm.streaming == config["LlmParams"]["Streaming"]
     assert builder.llm.verbose == config["LlmParams"]["Verbose"]
@@ -536,6 +571,7 @@ def test_inference_profile_id(
     assert builder.conversation_history_cls == DynamoDBChatMessageHistory
     assert builder.conversation_history_params == {
         "conversation_id": "fake-conversation-id",
+        "message_id": "fake-message-id",
         "max_history_length": 10,
         "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
         "user_id": "fake-user-id",

@@ -5,9 +5,17 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { Construct } from 'constructs';
 import { BaseStackProps } from '../framework/base-stack';
 import { UseCaseManagement } from './management-stack';
+import { FeedbackSetupStack } from '../feedback/feedback-setup-stack';
+import * as api from 'aws-cdk-lib/aws-apigateway';
+import { RestRequestProcessor } from '../api/rest-request-processor';
+import { UseCaseRestEndpointSetup } from '../api/use-case-rest-endpoint-setup';
+import { StackDeploymentSource } from '../utils/constants';
+
+import { Table } from 'aws-cdk-lib/aws-dynamodb';
 
 export interface UseCaseManagementProps extends BaseStackProps {
     /**
@@ -69,6 +77,11 @@ export interface UseCaseManagementProps extends BaseStackProps {
      * If provided, will use the provided UserPoolClient instead of creating a new one.
      */
     existingCognitoUserPoolClientId: string;
+
+    /**
+     * LLM Config table of the application
+     */
+    llmConfigTable: Table;
 }
 
 /**
@@ -83,9 +96,29 @@ export class UseCaseManagementSetup extends Construct {
     private scope: Construct;
 
     /**
-     * Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.)
+     * Nested Stack that creates the resources for use case management (UseCaseManagement and Model Info lambdas)
      */
     public readonly useCaseManagement: UseCaseManagement;
+
+    /**
+     * Nested Stack that creates the resources for feedback (API routes, processing lambda, S3 bucket, etc.)
+     */
+    public readonly feedbackSetupStack: FeedbackSetupStack;
+
+    /**
+     * The API being served to allow use case management
+     */
+    public readonly restApi: api.RestApi;
+
+    /**
+     * Cognito UserPool for users
+     */
+    public readonly userPool: cognito.IUserPool;
+
+    /**
+     * Cognito UserPoolClient for client apps requesting sign-in.
+     */
+    public readonly userPoolClient: cognito.IUserPoolClient;
 
     constructor(scope: Construct, id: string, props: UseCaseManagementProps) {
         super(scope, id);
@@ -107,7 +140,79 @@ export class UseCaseManagementSetup extends Construct {
                 ExistingCognitoUserPoolId: props.existingCognitoUserPoolId,
                 ExistingCognitoUserPoolClientId: props.existingCognitoUserPoolClientId
             },
-            description: `Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${props.solutionVersion}`
+            description: `Nested Stack that creates the resources for use case management (lambdas) - Version ${props.solutionVersion}`
         });
+
+        this.userPool = this.useCaseManagement.cognitoSetup.getUserPool(this);
+        this.userPoolClient = this.useCaseManagement.cognitoSetup.getUserPoolClient(this);
+
+        // Create deployments REST API related resources with useCaseManagementApiLambda as the backing lambda
+        const requestProcessor = new RestRequestProcessor(this, 'RequestProcessor', {
+            useCaseManagementAPILambda: this.useCaseManagement.useCaseManagementApiLambda,
+            modelInfoAPILambda: this.useCaseManagement.modelInfoApiLambda,
+            defaultUserEmail: props.defaultUserEmail,
+            applicationTrademarkName: props.applicationTrademarkName,
+            customResourceLambdaArn: props.customInfra.functionArn,
+            customResourceRoleArn: props.customInfra.role!.roleArn,
+            cognitoDomainPrefix: props.cognitoDomainPrefix,
+            cloudFrontUrl: props.cloudFrontUrl,
+            deployWebApp: props.deployWebApp,
+            existingCognitoUserPoolId: props.existingCognitoUserPoolId,
+            existingCognitoUserPoolClientId: props.existingCognitoUserPoolClientId,
+            cognitoSetup: this.useCaseManagement.cognitoSetup
+        });
+
+        this.restApi = requestProcessor.deploymentRestEndpoint.restApi as api.RestApi;
+
+        const createApiResourcesCondition = new cdk.CfnCondition(this, 'CreateApiResourcesCondition', {
+            expression: cdk.Fn.conditionEquals('true', 'false')
+        });
+
+        // Add UseCaseDetails and other chat interface-based API routes
+        new UseCaseRestEndpointSetup(this, 'UseCaseEndpointSetup', {
+            existingApiId: this.restApi.restApiId,
+            existingApiRootResourceId: this.restApi.restApiRootResourceId,
+            existingRequestAuthorizer: requestProcessor.requestAuthorizer,
+            existingRequestAuthorizerLambdaArn: requestProcessor.authorizerLambda.functionArn,
+            existingRequestValidatorId: requestProcessor.deploymentRestEndpoint.requestValidator.requestValidatorId,
+            customResourceLambda: props.customInfra,
+            deployVPCCondition: this.useCaseManagement.deployVPCCondition,
+            createApiResourcesCondition: createApiResourcesCondition,
+            privateSubnetIds: props.privateSubnetIds!,
+            securityGroupIds: props.securityGroupIds!,
+            llmConfigTable: props.llmConfigTable.tableName,
+            stackDeploymentSource: StackDeploymentSource.DEPLOYMENT_PLATFORM
+        });
+
+        new cdk.CfnCondition(cdk.Stack.of(scope), 'CreateFeedbackResources', {
+            expression: cdk.Fn.conditionEquals('true', 'true')
+        });
+
+        // Add feedback based API routes backed by the Feedback Lambda
+        this.feedbackSetupStack = new FeedbackSetupStack(this, 'FeedbackSetupStack', {
+            parameters: {
+                ExistingPrivateSubnetIds: props.privateSubnetIds!,
+                ExistingSecurityGroupIds: props.securityGroupIds!,
+                CustomResourceLambdaArn: props.customInfra.functionArn,
+                CustomResourceRoleArn: props.customInfra.role!.roleArn,
+                AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn,
+                FeedbackEnabled: 'Yes',
+                ExistingRestApiId: this.restApi.restApiId,
+                ExistingApiRootResourceId: this.restApi.restApiRootResourceId,
+                StackDeploymentSource: StackDeploymentSource.DEPLOYMENT_PLATFORM
+            },
+            restApi: this.restApi,
+            methodOptions: {
+                authorizer: {
+                    authorizerId: requestProcessor.requestAuthorizer.authorizerId,
+                    authorizationType: api.AuthorizationType.CUSTOM
+                } as api.RequestAuthorizer,
+                requestValidator: requestProcessor.requestValidator
+            } as api.MethodOptions,
+            dlq: this.useCaseManagement.dlq,
+            description: `Nested Stack that creates the Feedback Resources - Version ${props.solutionVersion}`
+        });
+
+        
     }
 }

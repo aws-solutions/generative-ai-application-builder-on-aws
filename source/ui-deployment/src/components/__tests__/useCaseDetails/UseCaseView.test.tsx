@@ -6,28 +6,48 @@ import { Dispatch } from 'react';
 
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
 import '@testing-library/jest-dom';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import HomeContext from '../../../contexts/home.context';
+import { cleanup, screen } from '@testing-library/react';
 import { HomeInitialState } from '../../../contexts/home.state';
 import { ActionType } from '../../../hooks/useCreateReducer';
 import UseCaseView from '../../useCaseDetails/UseCaseView';
 
-import {
-    baseMock,
-    selectedRAGEnabledWithKendra,
-    selectedRAGEnabledWithBedrock,
-    selectedSageMakerProvider,
-    agentMock
-} from '../__mocks__/mock-context-variants.js';
+import { baseMock } from '../__mocks__/mock-context-variants.js';
 
 import { createCfnLink } from '../../commons/table-config';
-import { mockReactMarkdown, renderWithProvider } from '@/utils';
+import { createVpcLink, mockReactMarkdown, renderWithMultipleRoutes, renderWithProvider } from '@/utils';
 import { act } from 'react-test-renderer';
 import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
 import { USECASE_TYPE_ROUTE } from '@/utils/constants';
-import { createAgentLink } from '@/components/useCaseDetails/AgentDetails';
-import { createVpcLink } from '@/components/useCaseDetails/common-components';
+import { createAgentLink } from '@/components/useCaseDetails/agent/AgentDetails';
+import { useUseCaseDetailsQuery } from '@/hooks/useQueries';
+import {
+    agentDetailsApiResponse,
+    bedrockKnowledgeBaseResponse,
+    kendraKnowledgeBaseResponse,
+    nonRagResponse,
+    nonRagWithVpc,
+    sagemakerNonRagResponse
+} from '../__mocks__/mock-details-api-response';
+
+vi.mock('@/hooks/useQueries', async () => {
+    const actual = await vi.importActual('@/hooks/useQueries');
+    return {
+        ...actual,
+        useUseCaseDetailsQuery: vi.fn()
+    };
+});
+
+function mockUseCaseDetailsQuery(data: any) {
+    vi.mocked(useUseCaseDetailsQuery).mockReturnValue({
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+        data: data,
+        refetch: vi.fn(),
+        status: 'success'
+    } as any);
+}
 
 describe('UseCaseView', () => {
     let WizardView: any;
@@ -41,12 +61,35 @@ describe('UseCaseView', () => {
         WizardView = (await import('../../wizard/WizardView')).default;
     });
 
+    beforeEach(() => {
+        mockUseCaseDetailsQuery(nonRagResponse);
+    });
+
     afterEach(() => {
+        vi.resetAllMocks();
         cleanup();
+    });
+    
+    test('Shows error alert when there is an error loading data', async () => {
+        vi.mocked(useUseCaseDetailsQuery).mockReturnValue({
+            isLoading: false,
+            isError: true,
+            isSuccess: false,
+            error: new Error('Failed to load'),
+            data: null,
+            refetch: vi.fn(),
+            status: 'error'
+        } as any);
+        
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details/:useCaseId' });
+        
+        const errorAlert = screen.getByTestId('use-case-view-error');
+        expect(errorAlert).toBeDefined();
+        expect(errorAlert).toHaveTextContent('Unable to load deployment details.');
     });
 
     test('The initial state is correct', async () => {
-        renderWithProvider(<UseCaseView />, { route: '/deployment-details' });
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details/:useCaseId' });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
@@ -56,7 +99,7 @@ describe('UseCaseView', () => {
     });
 
     test('General config container is rendered correctly', async () => {
-        renderWithProvider(<UseCaseView />, { route: '/deployment-details' });
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details/:useCaseId' });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
@@ -64,9 +107,9 @@ describe('UseCaseView', () => {
         const modelTab = screen.getByTestId('deployment-details-container');
         expect(modelTab).toBeDefined();
 
-        expect(screen.getByRole('link', { name: baseMock.selectedDeployment.cloudFrontWebUrl })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: nonRagResponse.cloudFrontWebUrl })).toHaveAttribute(
             'href',
-            baseMock.selectedDeployment.cloudFrontWebUrl
+            nonRagResponse.cloudFrontWebUrl
         );
 
         createWrapper(screen.getByTestId('cfn-link-with-modal')).findLink()?.click();
@@ -77,18 +120,17 @@ describe('UseCaseView', () => {
         );
 
         expect(openCfnLinkButton).toBeDefined();
-        expect(openCfnLinkButton?.getElement().getAttribute('href')).toEqual(
-            createCfnLink(baseMock.selectedDeployment.StackId)
-        );
+        expect(openCfnLinkButton?.getElement().getAttribute('href')).toEqual(createCfnLink(nonRagResponse.StackId));
     });
 
     test('General config container is rendered with VPC ID link', async () => {
-        baseMock.selectedDeployment.vpcEnabled = 'Yes';
-        baseMock.selectedDeployment.vpcId = 'vpc-fakeVpc';
-        renderWithProvider(<UseCaseView />, { route: '/deployment-details' });
+        mockUseCaseDetailsQuery(nonRagWithVpc);
+        // Render the component
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details/:useCaseId' });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
+
         const vpcLink = screen.getByTestId('vpc-link-with-modal');
         expect(vpcLink).toBeDefined();
 
@@ -101,14 +143,15 @@ describe('UseCaseView', () => {
             '[data-testid="external-link-warning-modal-open-button"]'
         );
 
+        // Verify the button exists and has the correct href
         expect(openVpcLinkButton).toBeDefined();
         expect(openVpcLinkButton?.getElement().getAttribute('href')).toEqual(
-            createVpcLink(baseMock.runtimeConfig.AwsRegion, baseMock.selectedDeployment.vpcId)
+            createVpcLink(baseMock.runtimeConfig.AwsRegion, 'fake-11111111')
         );
     });
 
     test('Model details tab is rendered for Bedrock', async () => {
-        renderWithProvider(<UseCaseView />, { route: '/deployment-details' });
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details/:useCaseId' });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
@@ -121,7 +164,11 @@ describe('UseCaseView', () => {
     });
 
     test('Model details tab is rendered for SageMaker', async () => {
-        renderWithProvider(<UseCaseView />, { customState: selectedSageMakerProvider, route: '/deployment-details' });
+        mockUseCaseDetailsQuery(sagemakerNonRagResponse);
+        renderWithProvider(<UseCaseView />, {
+            // customState: selectedSageMakerProvider,
+            route: '/deployment-details/:useCaseId'
+        });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
@@ -134,7 +181,7 @@ describe('UseCaseView', () => {
     });
 
     test('KB details tab renders when RAG is disabled', async () => {
-        renderWithProvider(<UseCaseView />, { route: '/deployment-details' });
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details/:useCaseId' });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
@@ -146,53 +193,47 @@ describe('UseCaseView', () => {
         const kbTab = screen.getByTestId('kb-disabled-tab');
         expect(kbTab).toBeDefined();
     });
+
     test('KB details tab renders when Kendra RAG is enabled', async () => {
-        renderWithProvider(<UseCaseView />, {
-            customState: selectedRAGEnabledWithKendra,
-            route: '/deployment-details'
+        mockUseCaseDetailsQuery(kendraKnowledgeBaseResponse);
+
+        const { debug } = renderWithProvider(<UseCaseView />, {
+            route: '/deployment-details/:useCaseId'
         });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
 
-        act(() => {
-            createWrapper(element).findTabs()?.findTabLinkById('knowledgeBase')?.click();
-        });
+        createWrapper(element).findTabs()?.findTabLinkById('knowledgeBase')?.click();
 
-        const kbTab = screen.getByTestId('kb-details-tab');
+        const kbTab = screen.getByTestId('knowledge-base-details-container');
         expect(kbTab).toBeDefined();
-
-        const kbSettingsTab = screen.getByTestId('kb-settings-tab');
-        expect(kbSettingsTab).toBeDefined();
     });
 
     test('KB details tab renders when Bedrock RAG is enabled', async () => {
+        mockUseCaseDetailsQuery(bedrockKnowledgeBaseResponse);
+
         renderWithProvider(<UseCaseView />, {
-            customState: selectedRAGEnabledWithBedrock,
-            route: '/deployment-details'
+            route: '/deployment-details/:useCaseId'
         });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
 
-        act(() => {
-            createWrapper(element).findTabs()?.findTabLinkById('knowledgeBase')?.click();
-        });
+        createWrapper(element).findTabs()?.findTabLinkById('knowledgeBase')?.click();
 
-        const kbTab = screen.getByTestId('kb-details-tab');
+        const kbTab = screen.getByTestId('knowledge-base-details-container');
         expect(kbTab).toBeDefined();
-
-        const kbSettingsTab = screen.getByTestId('kb-settings-tab');
-        expect(kbSettingsTab).toBeDefined();
     });
 
     test('Agent details tab is rendered for agent use case', async () => {
-        renderWithProvider(<UseCaseView />, { customState: agentMock, route: '/deployment-details' });
+        mockUseCaseDetailsQuery(agentDetailsApiResponse);
+        renderWithProvider(<UseCaseView />, { route: '/deployment-details/:useCaseId' });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
 
-        const modelTab = screen.getByTestId('agent-details-tab');
+        const modelTab = screen.getByTestId('agent-details-container');
         expect(modelTab).toBeDefined();
 
         createWrapper(screen.getByTestId('agent-link-with-modal')).findLink()?.click();
@@ -205,8 +246,8 @@ describe('UseCaseView', () => {
         expect(openAgentLinkButton).toBeDefined();
         expect(openAgentLinkButton?.getElement().getAttribute('href')).toEqual(
             createAgentLink(
-                baseMock.selectedDeployment.StackId,
-                baseMock.selectedDeployment.AgentParams.BedrockAgentParams.AgentId
+                agentDetailsApiResponse.StackId,
+                agentDetailsApiResponse.AgentParams.BedrockAgentParams.AgentId
             )
         );
     });
@@ -224,20 +265,22 @@ describe('Navigating to edit/clone from UseCaseView', () => {
         WizardView = (await import('../../wizard/WizardView')).default;
     });
 
+    beforeEach(async () => {
+        mockUseCaseDetailsQuery(bedrockKnowledgeBaseResponse);
+    });
+
     test('The edit wizard is correctly rendered', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/deployment-details']}>
-                    <Routes>
-                        <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route
-                            path={USECASE_TYPE_ROUTE.TEXT}
-                            element={<WizardView useCase={new TextUseCaseType()} />}
-                        />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/deployment-details/:useCaseId',
+            routes: [
+                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> },
+                {
+                    path: `${USECASE_TYPE_ROUTE.TEXT}`,
+                    element: <WizardView useCase={new TextUseCaseType()} />
+                }
+            ],
+            customState: contextValue.state
+        });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
@@ -252,25 +295,21 @@ describe('Navigating to edit/clone from UseCaseView', () => {
         // step 1
         expect(wizardWrapper?.findMenuNavigationLink(1, 'active')).not.toBeNull();
 
-        act(() => {
-            wizardWrapper?.findPrimaryButton().click();
-        });
+        wizardWrapper?.findPrimaryButton().click();
     });
 
     test('The clone wizard is correctly rendered', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/deployment-details']}>
-                    <Routes>
-                        <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route
-                            path={USECASE_TYPE_ROUTE.TEXT}
-                            element={<WizardView useCase={new TextUseCaseType()} />}
-                        />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/deployment-details/:useCaseId',
+            routes: [
+                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> },
+                {
+                    path: `${USECASE_TYPE_ROUTE.TEXT}`,
+                    element: <WizardView useCase={new TextUseCaseType()} />
+                }
+            ],
+            customState: contextValue.state
+        });
 
         const element = screen.getByTestId('use-case-view');
         expect(element).toBeDefined();
@@ -285,9 +324,27 @@ describe('Navigating to edit/clone from UseCaseView', () => {
         // step 1
         expect(wizardWrapper?.findMenuNavigationLink(1, 'active')).not.toBeNull();
         wizardWrapper?.findPrimaryButton().click();
+    });
 
-        act(() => {
-            wizardWrapper?.findPrimaryButton().click();
+    test('Delete button is disabled when status is CREATE_IN_PROGRESS', async () => {
+        mockUseCaseDetailsQuery({
+            ...bedrockKnowledgeBaseResponse,
+            Status: 'CREATE_IN_PROGRESS'
         });
+        renderWithMultipleRoutes({
+            initialRoute: '/deployment-details/:useCaseId',
+            routes: [
+                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> },
+                {
+                    path: `${USECASE_TYPE_ROUTE.TEXT}`,
+                    element: <WizardView useCase={new TextUseCaseType()} />
+                }
+            ],
+            customState: contextValue.state
+        });
+
+        const element = screen.getByTestId('use-case-view');
+        expect(element).toBeDefined();
+        expect(createWrapper(element).findButton('[data-testid="use-case-view-delete-btn"]')?.isDisabled()).toBe(true);
     });
 });

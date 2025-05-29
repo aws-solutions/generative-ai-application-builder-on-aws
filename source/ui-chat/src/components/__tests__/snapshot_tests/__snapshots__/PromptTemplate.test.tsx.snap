@@ -1,5 +1,0 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
-
-exports[`Chat > Does not show prompt window if showPromptWindow is false 1`] = `<div />`;
-
-exports[`Chat > Snapshot test for prompt template 1`] = `<div />`;

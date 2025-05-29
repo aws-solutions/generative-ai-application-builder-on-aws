@@ -8,7 +8,8 @@ import {
     ModelParamsEditorDefinition,
     VpcFormFieldProps,
     isSecurityGroupValid,
-    vpcToolsContent
+    vpcToolsContent,
+    hasDuplicateAttrItems
 } from './helpers';
 import InputControl from '../Model/AdvancedModelSettings/InputControl';
 import { MAX_NUM_SECURITY_GROUPS } from '../steps-config';
@@ -34,7 +35,26 @@ const createDefinition = ({ items, setItems, isEditDisabled }: any): ModelParams
                 />
             ),
             errorText: (item: any) => {
-                return isSecurityGroupValid(item.key) ? null : 'Must start with "sg-" and be of valid length';
+                if (!isSecurityGroupValid(item.key)) {
+                    return 'Must start with "sg-" and be of valid length';
+                }
+                
+                // Check for duplicates
+                if (item.key) {
+                    const keyCount = new Map<string, number>();
+                    items.forEach((i: any) => {
+                        if (i.key) {
+                            keyCount.set(i.key, (keyCount.get(i.key) || 0) + 1);
+                        }
+                    });
+                    
+                    const count = keyCount.get(item.key) || 0;
+                    if (count > 1) {
+                        return 'Security Group ID must be unique';
+                    }
+                }
+                
+                return null;
             }
         }
     ];
@@ -42,6 +62,7 @@ const createDefinition = ({ items, setItems, isEditDisabled }: any): ModelParams
 
 export const SecurityGroupAttrEditor = (props: VpcFormFieldProps) => {
     const [items, setItems] = React.useState<SecurityGroupItemsArray>(props.vpcData.securityGroupIds);
+    const [hasDuplicates, setHasDuplicates] = React.useState<boolean>(false);
 
     const handleAddParam = () => {
         if (items.length >= MAX_NUM_SECURITY_GROUPS) {
@@ -57,7 +78,13 @@ export const SecurityGroupAttrEditor = (props: VpcFormFieldProps) => {
     };
 
     React.useEffect(() => {
-        props.onChangeFn({ securityGroupIds: items });
+        const duplicatesExist = hasDuplicateAttrItems(items);
+        setHasDuplicates(duplicatesExist);
+        
+        // Only update parent if there are no duplicates
+        if (!duplicatesExist) {
+            props.onChangeFn({ securityGroupIds: items });
+        }
     }, [items]);
 
     const isEditDisabled = props.disabled ?? false;
@@ -71,9 +98,10 @@ export const SecurityGroupAttrEditor = (props: VpcFormFieldProps) => {
                 </span>
             }
             data-testid="security-groups-field"
-            description="The Security Group IDs to be used with the VPC"
+            description="The Security Group IDs to be used with the VPC. Each security group ID must be unique."
             stretch
             info={<InfoLink onFollow={() => props.setHelpPanelContent!(vpcToolsContent.byoVpc)} />}
+            errorText={hasDuplicates ? "Duplicate security group IDs are not allowed" : undefined}
         >
             <AttributeEditor
                 onAddButtonClick={handleAddParam}

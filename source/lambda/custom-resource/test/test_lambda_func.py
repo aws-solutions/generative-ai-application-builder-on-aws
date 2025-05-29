@@ -19,7 +19,7 @@ def patch_powertools():
     os.environ["STACK_NAME"] = "fake_stack_name"
 
 
-@pytest.mark.parametrize("resource", [operation_types.COPY_TEMPLATE, "NOT_SUPPORTED_OPERATION"])
+@pytest.mark.parametrize("resource", [operation_types.COPY_WEB_UI, operation_types.UPDATE_LLM_CONFIG, "NOT_SUPPORTED_OPERATION"])
 def test_get_function_for_operation(resource):
     if resource == "NOT_SUPPORTED_OPERATION":
         with pytest.raises(UnSupportedOperationTypeException):
@@ -56,12 +56,3 @@ def test_handler_for_error(s3, web_ui_copy_setup, mock_lambda_context, patch_pow
     mpatch.setitem(event_obj[RESOURCE_PROPERTIES], RESOURCE, "NOT_A_VALID_OPERATION")
     with pytest.raises(Exception):
         assert None == handler(event_obj, mock_lambda_context)
-
-
-@pytest.mark.parametrize("resource", [operation_types.COPY_WEB_UI, "NOT_SUPPORTED_OPERATION"])
-def test_get_function_for_operation(resource):
-    if resource == "NOT_SUPPORTED_OPERATION":
-        with pytest.raises(UnSupportedOperationTypeException):
-            get_function_for_resource(resource)
-    else:
-        assert callable(get_function_for_resource(resource)) is True

@@ -6,13 +6,15 @@ from typing import Any, Dict
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.typing import LambdaContext
+
 from invoker.bedrock_agent_invoker import BedrockAgentInvoker
 from utils import EventProcessor, WebSocketHandler, get_metrics_client
 from utils.constants import (
     CONNECTION_ID_KEY,
     CONVERSATION_ID_KEY,
     INPUT_TEXT_KEY,
-    LAMBA_REMAINING_TIME_THRESHOLD_MS,
+    LAMBDA_REMAINING_TIME_THRESHOLD_MS,
+    USER_ID_KEY,
     CloudWatchNamespaces,
 )
 
@@ -32,13 +34,11 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict:
     batch_item_failures = set()  # Use a set to avoid duplicates
     sqs_batch_response = {}
 
-    websocket_handler: WebSocketHandler = None
-
     index = 0
     while index < len(records):
         record = records[index]
 
-        if context.get_remaining_time_in_millis() < LAMBA_REMAINING_TIME_THRESHOLD_MS:
+        if context.get_remaining_time_in_millis() < LAMBDA_REMAINING_TIME_THRESHOLD_MS:
             batch_item_failures.update(r["messageId"] for r in records[index:])
             break
 
@@ -46,20 +46,20 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict:
         connection_id = processed_event[CONNECTION_ID_KEY]
         conversation_id = processed_event[CONVERSATION_ID_KEY]
         input_text = processed_event[INPUT_TEXT_KEY]
-
-        if websocket_handler is None or websocket_handler.connection_id != connection_id:
-            websocket_handler = WebSocketHandler(connection_id=connection_id, conversation_id=conversation_id)
+        user_id = processed_event[USER_ID_KEY]
 
         try:
-            bedrock_agent_invoker = BedrockAgentInvoker(conversation_id=conversation_id)
-            response = bedrock_agent_invoker.invoke_agent(input_text=input_text)
+            bedrock_agent_invoker = BedrockAgentInvoker(
+                conversation_id=conversation_id, connection_id=connection_id, user_id=user_id
+            )
 
-            # only send the output_text to the client
-            websocket_handler.send_message(response.get("output_text", ""))
+            bedrock_agent_invoker.invoke_agent(input_text=input_text)
 
             processed_records += 1
             index += 1  # Move to the next record only if successful
         except Exception as ex:
+            # Create a WebSocket handler for sending the error
+            websocket_handler = WebSocketHandler(connection_id=connection_id, conversation_id=conversation_id)
             websocket_handler.send_error_message(ex)
 
             # Add current and subsequent records with the same connection_id to failures

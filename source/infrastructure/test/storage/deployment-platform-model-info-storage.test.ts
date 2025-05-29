@@ -76,7 +76,7 @@ describe('Creating a conditional model store', () => {
                     Ref: Match.stringLikeRegexp('TestSetupModelInfoStore*')
                 }
             },
-            DependsOn: [Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*')],
+            DependsOn: [Match.stringLikeRegexp('TestSetupAssetRead*'), Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*')],
             UpdateReplacePolicy: 'Delete',
             DeletionPolicy: 'Delete'
         });

@@ -16,6 +16,7 @@ import { IG_DOCS } from '@/utils/constants';
 import { InfoLink } from '@/components/commons';
 import { BaseFormComponentProps } from '../interfaces';
 import { ConfirmUnsavedChangesModal } from '@/components/commons/confirm-unsaved-changes-modal';
+import { MODEL_PROVIDER_NAME_MAP } from '../steps-config';
 
 export interface PromptHistoryConfigurationProps extends BaseFormComponentProps {
     defaultChatHistoryLength?: number;
@@ -24,8 +25,12 @@ export interface PromptHistoryConfigurationProps extends BaseFormComponentProps 
     humanPrefix: string;
     defaultAiPrefix?: string;
     aiPrefix: string;
+    modelProvider: string;
     setHistoryConfigurationInError: React.Dispatch<React.SetStateAction<boolean>>;
     'data-testid'?: string;
+    // Additional props to support conditional rendering
+    isRag?: boolean;
+    disambiguationEnabled?: boolean;
 }
 
 export const PromptHistoryConfiguration = (props: PromptHistoryConfigurationProps) => {
@@ -33,6 +38,24 @@ export const PromptHistoryConfiguration = (props: PromptHistoryConfigurationProp
     let chatHistoryLengthError = validateUserInputNumber(props.chatHistoryLength);
     let humanPrefixError = validateUserInputPrefix(props.humanPrefix);
     let aiPrefixError = validateUserInputPrefix(props.aiPrefix);
+
+    // Determine if we should show the prefix fields based on model provider and RAG configuration
+    const shouldShowPrefixFields = () => {
+        if (props.modelProvider === MODEL_PROVIDER_NAME_MAP.SageMaker) {
+            return true; // Always show for SageMaker
+        } else if (props.modelProvider === MODEL_PROVIDER_NAME_MAP.Bedrock) {
+            return props.isRag === true; // Only show for Bedrock if RAG is enabled
+        }
+        return true; // Default fallback
+    };
+
+    // Determine if prefix fields should be disabled
+    const arePrefixFieldsDisabled = () => {
+        if (props.modelProvider === MODEL_PROVIDER_NAME_MAP.Bedrock && props.isRag === true) {
+            return props.disambiguationEnabled === false; // Disable if disambiguation is disabled for Bedrock with RAG
+        }
+        return false; // Default is enabled
+    };
 
     //propagate error to parent component on any changes to the error messages
     React.useEffect(() => {
@@ -85,6 +108,7 @@ export const PromptHistoryConfiguration = (props: PromptHistoryConfigurationProp
                                     props.humanPrefix === props.defaultHumanPrefix &&
                                     props.aiPrefix === props.defaultAiPrefix
                                 }
+                                data-testid={`${props['data-testid']}-reset-button`}
                             >
                                 Reset to default
                             </Button>
@@ -109,40 +133,52 @@ export const PromptHistoryConfiguration = (props: PromptHistoryConfigurationProp
                     info={<InfoLink onFollow={() => props.setHelpPanelContent!(sizeOfTrailingHistoryInfoPanel)} />}
                     errorText={chatHistoryLengthError}
                     constraintText="Recommendation is to use an even number to prevent truncation of user messages."
+                    data-testid={`${props['data-testid']}-history-length-field`}
                 >
                     <Input
                         type="number"
                         onChange={({ detail }) => handleChatHistoryLengthChange(detail)}
                         value={props.chatHistoryLength?.toString()}
                         name="history-length"
+                        data-testid={`${props['data-testid']}-history-length-input`}
                     />
                 </FormField>
 
-                <FormField
-                    label="Human Prefix"
-                    description="The prefix used in the history for messages sent by the user."
-                    info={<InfoLink onFollow={() => props.setHelpPanelContent!(humanPrefixInfoPanel)} />}
-                    errorText={humanPrefixError}
-                >
-                    <Input
-                        onChange={({ detail }) => handleHumanPrefixChange(detail)}
-                        value={props.humanPrefix?.toString()}
-                        name="human-prefix"
-                    />
-                </FormField>
+                {shouldShowPrefixFields() && (
+                    <>
+                        <FormField
+                            label="Human Prefix"
+                            description="The prefix used in the history for messages sent by the user."
+                            info={<InfoLink onFollow={() => props.setHelpPanelContent!(humanPrefixInfoPanel)} />}
+                            errorText={humanPrefixError}
+                            data-testid={`${props['data-testid']}-human-prefix-field`}
+                        >
+                            <Input
+                                onChange={({ detail }) => handleHumanPrefixChange(detail)}
+                                value={props.humanPrefix?.toString()}
+                                name="human-prefix"
+                                disabled={arePrefixFieldsDisabled()}
+                                data-testid={`${props['data-testid']}-human-prefix-input`}
+                            />
+                        </FormField>
 
-                <FormField
-                    label="AI Prefix"
-                    description="The prefix used in the history for messages returned by the LLM."
-                    info={<InfoLink onFollow={() => props.setHelpPanelContent!(aiPrefixInfoPanel)} />}
-                    errorText={aiPrefixError}
-                >
-                    <Input
-                        onChange={({ detail }) => handleAiPrefixChange(detail)}
-                        value={props.aiPrefix?.toString()}
-                        name="ai-prefix"
-                    />
-                </FormField>
+                        <FormField
+                            label="AI Prefix"
+                            description="The prefix used in the history for messages returned by the LLM."
+                            info={<InfoLink onFollow={() => props.setHelpPanelContent!(aiPrefixInfoPanel)} />}
+                            errorText={aiPrefixError}
+                            data-testid={`${props['data-testid']}-ai-prefix-field`}
+                        >
+                            <Input
+                                onChange={({ detail }) => handleAiPrefixChange(detail)}
+                                value={props.aiPrefix?.toString()}
+                                name="ai-prefix"
+                                disabled={arePrefixFieldsDisabled()}
+                                data-testid={`${props['data-testid']}-ai-prefix-input`}
+                            />
+                        </FormField>
+                    </>
+                )}
             </SpaceBetween>
         </Container>
     );

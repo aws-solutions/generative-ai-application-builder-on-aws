@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-// SPDX-License-Identifier: Apache-2.0
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.// SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import { Construct } from 'constructs';
+import { FeedbackSetupStack } from '../feedback/feedback-setup-stack';
+import * as api from 'aws-cdk-lib/aws-apigateway';
 
 import { NagSuppressions } from 'cdk-nag';
 import { WebsocketRequestProcessor } from '../api/websocket-request-processor';
@@ -16,7 +18,11 @@ import { CopyUIAssets } from '../s3web/copy-ui-assets-nested-stack';
 import { UIDistribution } from '../s3web/ui-distribution-nested-stack';
 import { UIInfrastructureBuilder } from '../ui/ui-infrastructure-builder';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
-import { createCustomResourceForLambdaLogRetention, generateSourceCodeMapping } from '../utils/common-utils';
+import {
+    createCustomResourceForLambdaLogRetention,
+    generateSourceCodeMapping,
+    createVpcConfigForLambda
+} from '../utils/common-utils';
 import {
     CHAT_PROVIDERS,
     CLIENT_ID_ENV_VAR,
@@ -25,20 +31,28 @@ import {
     PLACEHOLDER_EMAIL,
     UIAssetFolders,
     USER_POOL_ID_ENV_VAR,
+    FEEDBACK_ENABLED_ENV_VAR,
     USE_CASE_CONFIG_RECORD_KEY_ENV_VAR,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     USE_CASE_UUID_ENV_VAR,
     UseCaseNames,
     WEBSOCKET_API_ID_ENV_VAR,
-    WEB_CONFIG_PREFIX
+    WEB_CONFIG_PREFIX,
+    StackDeploymentSource
 } from '../utils/constants';
 import { VPCSetup } from '../vpc/vpc-setup';
+import { UseCaseRestEndpointSetup } from '../api/use-case-rest-endpoint-setup';
 
 export class UseCaseParameters extends BaseParameters {
     /**
-     * Unique ID for this deployed use case within an application. Provided by the deployment platform if in use.
+     * Unique UUID for this deployed use case within an application. Provided by the deployment platform if in use.
      */
     public useCaseUUID: cdk.CfnParameter;
+
+    /**
+     * First 8 characters of the useCaseUUID.
+     */
+    public useCaseShortId: string;
 
     /**
      * Name of the table that stores the configuration for a use case.
@@ -78,7 +92,22 @@ export class UseCaseParameters extends BaseParameters {
     /**
      * Cfn parameter for existing websocket endpoint
      */
-    public existingWebSocketEndpoint: cdk.CfnParameter;
+    public existingRestApiId: cdk.CfnParameter;
+
+    /**
+     * Cfn parameter for existing websocket endpoint
+     */
+    public existingApiRootResourceId: cdk.CfnParameter;
+
+    /**
+     * If set to 'false', the deployed use case stack will not have access to the feedback feature
+     */
+    public feedbackEnabled: cdk.CfnParameter;
+
+    /**
+     * The source where this code was called from
+     */
+    public stackDeploymentSource: StackDeploymentSource;
 
     constructor(stack: BaseStack) {
         super(stack);
@@ -93,11 +122,16 @@ export class UseCaseParameters extends BaseParameters {
         this.useCaseUUID = new cdk.CfnParameter(stack, 'UseCaseUUID', {
             type: 'String',
             description:
-                'UUID to identify this deployed use case within an application. Please provide an 8 character long UUID. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones',
-            allowedPattern: '^[0-9a-fA-F]{8}$',
-            maxLength: 8,
-            constraintDescription: 'Please provide an 8 character long UUID'
+                'UUID to identify this deployed use case within an application. Please provide a 36 character long UUIDv4. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones',
+            allowedPattern:
+                '^[0-9a-fA-F]{8}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+            minLength: 8,
+            maxLength: 36,
+            constraintDescription:
+                'Using digits and the letters A through F, please provide a 8 character id or a 36 character long UUIDv4.'
         });
+
+        this.useCaseShortId = cdk.Fn.select(0, cdk.Fn.split('-', this.useCaseUUID.valueAsString));
 
         this.useCaseConfigTableName = new cdk.CfnParameter(stack, 'UseCaseConfigTableName', {
             type: 'String',
@@ -138,7 +172,7 @@ export class UseCaseParameters extends BaseParameters {
             allowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
             maxLength: 255,
             description:
-                'Name of the DynamoDB table containing user group policies, used by the custom authorizer on this use-cases API. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
+                'Name of the DynamoDB table containing user group policies, used by the custom authorizer for the use-cases APIs. Required when an existing User Pool Id is provided.',
             default: ''
         });
 
@@ -150,6 +184,38 @@ export class UseCaseParameters extends BaseParameters {
                 'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
             default: ''
         });
+
+        this.existingRestApiId = new cdk.CfnParameter(stack, 'ExistingRestApiId', {
+            type: 'String',
+            allowedPattern: '^$|^[a-zA-Z0-9]+$',
+            description:
+                'Optional - Provide the API Gateway REST API ID to use an existing one. If not provided, a new API Gateway REST API will be created. Note that for standalone use cases, existing APIs should have the pre-configured UseCaseDetails (and Feedback if Feedback is enabled) routes with expected models. Additionally, ExistingApiRootResourceId must also be provided.',
+            default: ''
+        });
+
+        this.existingApiRootResourceId = new cdk.CfnParameter(stack, 'ExistingApiRootResourceId', {
+            type: 'String',
+            allowedPattern: '^$|^[a-zA-Z0-9]+$',
+            description:
+                'Optional - Provide the API Gateway REST API Root Resource ID to use an existing one. REST API Root Resource ID can be obtained from a describe call on your REST API.',
+            default: ''
+        });
+
+        this.feedbackEnabled = new cdk.CfnParameter(stack, 'FeedbackEnabled', {
+            type: 'String',
+            description: 'If set to No, the deployed use case stack will not have access to the feedback feature.',
+            allowedValues: ['Yes', 'No'],
+            allowedPattern: '^Yes|No$',
+            default: 'No'
+        });
+
+        this.stackDeploymentSource = new cdk.CfnParameter(stack, 'StackDeploymentSource', {
+            type: 'String',
+            description:
+                'The source of the creation of this stack - standalone usecase or a deployment using the deployment dashboard.',
+            default: 'StandaloneUseCase',
+            allowedValues: ['UseCase', 'StandaloneUseCase']
+        }).valueAsString as StackDeploymentSource;
 
         const existingParameterGroups =
             this.cfnStack.templateOptions.metadata !== undefined &&
@@ -174,7 +240,10 @@ export class UseCaseParameters extends BaseParameters {
             Parameters: [
                 this.useCaseUUID.logicalId,
                 this.useCaseConfigRecordKey.logicalId,
-                this.useCaseConfigTableName.logicalId
+                this.useCaseConfigTableName.logicalId,
+                this.existingRestApiId.logicalId,
+                this.feedbackEnabled.logicalId,
+                this.existingApiRootResourceId.logicalId
             ]
         });
 
@@ -273,6 +342,11 @@ export abstract class UseCaseStack extends BaseStack {
      */
     public chatLlmProviderLambda: lambda.Function;
 
+    /**
+     * The Rest Endpoint for the use case
+     */
+    public useCaseRestEndpointSetup: UseCaseRestEndpointSetup;
+
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
     }
@@ -334,7 +408,12 @@ export abstract class UseCaseStack extends BaseStack {
             this.applicationSetup.customResourceLambda.functionArn
         );
         // With the previous call, the assumption is that `this.chatLlmProviderLambda` has a valid instance object associated with it.
-        this.createVpcConfigForLambda(this.chatLlmProviderLambda);
+        createVpcConfigForLambda(
+            this.chatLlmProviderLambda,
+            this.vpcEnabledCondition,
+            this.transpiredPrivateSubnetIds,
+            this.transpiredSecurityGroupIds
+        );
 
         const uiInfrastructureBuilder = new UIInfrastructureBuilder({
             uiAssetFolder: UIAssetFolders.CHAT,
@@ -346,7 +425,7 @@ export abstract class UseCaseStack extends BaseStack {
                 CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
                 CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
                 AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn,
-                UseCaseUUID: this.stackParameters.useCaseUUID.valueAsString
+                UseCaseUUID: this.stackParameters.useCaseShortId
             },
             description: `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${props.solutionVersion}`
         });
@@ -357,31 +436,145 @@ export abstract class UseCaseStack extends BaseStack {
             existingCognitoUserPoolId: this.stackParameters.existingCognitoUserPoolId.valueAsString,
             existingCognitoGroupPolicyTableName: this.stackParameters.existingCognitoGroupPolicyTableName.valueAsString,
             customResourceLambda: this.applicationSetup.customResourceLambda,
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
+            useCaseUUID: this.stackParameters.useCaseShortId,
             cognitoDomainPrefix: this.stackParameters.cognitoUserPoolClientDomain.valueAsString,
             existingCognitoUserPoolClientId: this.stackParameters.existingUserPoolClientId.valueAsString,
             cloudFrontUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
             deployWebApp: this.deployWebApp.valueAsString,
-            lambdaRouteMapping: this.getWebSocketRoutes()
+            lambdaRouteMapping: this.getWebSocketRoutes(),
+            deployVPCCondition: this.vpcEnabledCondition,
+            privateSubnetIds: this.transpiredPrivateSubnetIds,
+            securityGroupIds: this.transpiredSecurityGroupIds
         });
 
-        const webConfigSsmKey = `${WEB_CONFIG_PREFIX}/${this.stackParameters.useCaseUUID.valueAsString}`;
+        // Existing API was not provided and so a new API will be created.
+        const createApiResourcesCondition = new cdk.CfnCondition(this, 'CreateApiResourcesCondition', {
+            expression: cdk.Fn.conditionOr(
+                cdk.Fn.conditionEquals(this.stackParameters.existingRestApiId, ''),
+                cdk.Fn.conditionEquals(this.stackParameters.existingApiRootResourceId, '')
+            )
+        });
+
+        this.useCaseRestEndpointSetup = new UseCaseRestEndpointSetup(this, 'UseCaseEndpointSetup', {
+            stackDeploymentSource: this.stackParameters.stackDeploymentSource,
+            // Existing API resources
+            existingApiId: this.stackParameters.existingRestApiId,
+            existingApiRootResourceId: this.stackParameters.existingApiRootResourceId,
+            // Resources to create a new authorizer if new APIGw has to be created
+            userPoolId: this.requestProcessor.userPool.userPoolId,
+            userPoolClientId: this.requestProcessor.userPoolClient.userPoolClientId,
+            cognitoGroupPolicyTable: this.requestProcessor.cognitoSetup.getCognitoGroupPolicyTable(this),
+            userPoolGroupName: this.requestProcessor.cognitoSetup.userPoolGroup.groupName,
+            // additional inputs for creating resources
+            llmConfigTable: this.stackParameters.useCaseConfigTableName.valueAsString,
+            createApiResourcesCondition: createApiResourcesCondition,
+            customResourceLambda: this.applicationSetup.customResourceLambda,
+            deployVPCCondition: this.vpcEnabledCondition,
+            privateSubnetIds: this.transpiredPrivateSubnetIds,
+            securityGroupIds: this.transpiredSecurityGroupIds
+        });
+
+        const feedbackEnabledCondition = new cdk.CfnCondition(this, 'CreateFeedbackResources', {
+            expression: cdk.Fn.conditionAnd(
+                // FeedbackEnabled was provided as 'Yes' and a new API was created for this use case type
+                cdk.Fn.conditionEquals(this.stackParameters.feedbackEnabled, 'Yes'),
+                createApiResourcesCondition
+            )
+        });
+
+        // Add feedback based API routes backed by the Feedback Lambda
+        const feedbackSetupStack = new FeedbackSetupStack(this, 'FeedbackSetupStack', {
+            parameters: {
+                ExistingPrivateSubnetIds: this.transpiredPrivateSubnetIds,
+                ExistingSecurityGroupIds: this.transpiredSecurityGroupIds,
+                CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                CustomResourceRoleArn: this.applicationSetup.customResourceRole.roleArn,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn,
+                FeedbackEnabled: this.stackParameters.feedbackEnabled.valueAsString,
+                ExistingRestApiId: this.stackParameters.existingRestApiId,
+                ExistingApiRootResourceId: this.stackParameters.existingApiRootResourceId,
+                StackDeploymentSource: this.stackParameters.stackDeploymentSource
+            },
+            restApi: this.useCaseRestEndpointSetup.restApi as api.RestApi,
+            methodOptions: this.useCaseRestEndpointSetup.methodOptions,
+            dlq: this.useCaseRestEndpointSetup.dlq,
+            description: `Nested Stack that creates the Feedback Resources - Version ${props.solutionVersion}`
+        });
+
+        (feedbackSetupStack.node.defaultChild as cdk.CfnResource).cfnOptions.condition = feedbackEnabledCondition;
+        feedbackSetupStack.feedbackAPILambda.addEnvironment(
+            USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+            this.stackParameters.useCaseConfigTableName.valueAsString
+        );
+        feedbackSetupStack.feedbackAPILambda.addToRolePolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['dynamodb:GetItem', 'dynamodb:Query'],
+                resources: [
+                    dynamodb.Table.fromTableName(
+                        this,
+                        'LLMConfigTable',
+                        this.stackParameters.useCaseConfigTableName.valueAsString
+                    ).tableArn
+                ]
+            })
+        );
+
+        const webConfigSsmKey = `${WEB_CONFIG_PREFIX}/${this.stackParameters.useCaseShortId}`;
         this.applicationSetup.createWebConfigStorage(
             {
-                apiEndpoint: this.requestProcessor.webSocketApi.apiEndpoint,
+                websockApiEndpoint: this.requestProcessor.webSocketApi.apiEndpoint,
                 userPoolId: this.requestProcessor.userPool.userPoolId,
                 userPoolClientId: this.requestProcessor.userPoolClient.userPoolClientId,
                 cognitoRedirectUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
                 isInternalUserCondition: isInternalUserCondition,
+                restApiEndpoint: `https://${this.useCaseRestEndpointSetup.restApi.restApiId}.execute-api.${cdk.Aws.REGION}.amazonaws.com/prod`,
+                useCaseUUID: this.stackParameters.useCaseUUID.valueAsString,
                 additionalProperties: {
                     SocketURL: `${this.requestProcessor.webSocketApi.apiEndpoint}/${this.requestProcessor.websocketApiStage.stageName}`,
                     SocketRoutes: Array.from(this.getWebSocketRoutes().keys()),
                     ModelProviderName: this.getLlmProviderName()
                 },
-                deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition
+                deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition,
+                useCaseConfigKey: this.stackParameters.useCaseConfigRecordKey.valueAsString
             },
             webConfigSsmKey
         );
+
+        const useCasePolicyCustomResource = this.applicationSetup.createCognitoUserGroupPolicy(
+            this.requestProcessor.cognitoSetup,
+            this.applicationSetup.customResourceLambda,
+            this.requestProcessor.webSocketApi,
+            this.stackParameters.useCaseConfigRecordKey.valueAsString,
+            this.useCaseRestEndpointSetup.restApi.restApiId,
+            this.stackParameters.feedbackEnabled.valueAsString,
+            this.stackParameters.useCaseUUID.valueAsString
+        );
+
+        // Prevents deletion of UseCase policies during updates due to Logical ID changes and old custom resource deletion occurring after new custom resource creation 
+        (useCasePolicyCustomResource.node.defaultChild as cdk.CfnResource).overrideLogicalId('WebsocketRequestProcessorCognitoUseCaseGroupPolicyCBC41F18');
+
+        const redeployRestApiCustomResource = this.useCaseRestEndpointSetup.redeployRestApi(
+            this.applicationSetup.customResourceLambda,
+            this.useCaseRestEndpointSetup.restApi.restApiId,
+            'Details',
+            this.useCaseRestEndpointSetup.detailsGETMethod
+        );
+
+        (redeployRestApiCustomResource.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            createApiResourcesCondition;
+
+        const redeployRestApiCustomResourceFeedback = this.useCaseRestEndpointSetup.redeployRestApi(
+            this.applicationSetup.customResourceLambda,
+            this.useCaseRestEndpointSetup.restApi.restApiId,
+            'Feedback',
+            feedbackSetupStack.feedbackPOSTMethod
+        );
+
+        (redeployRestApiCustomResourceFeedback.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            feedbackEnabledCondition;
+
+        redeployRestApiCustomResourceFeedback.node.addDependency(feedbackSetupStack);
 
         const cloudwatchDashboard = this.applicationSetup.addCustomDashboard(
             {
@@ -438,7 +631,11 @@ export abstract class UseCaseStack extends BaseStack {
         );
         this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             USE_CASE_UUID_ENV_VAR,
-            this.stackParameters.useCaseUUID.valueAsString
+            this.stackParameters.useCaseUUID
+        );
+        this.applicationSetup.scheduledMetricsLambda.addEnvironment(
+            FEEDBACK_ENABLED_ENV_VAR,
+            this.stackParameters.feedbackEnabled
         );
 
         // Stack Outputs
@@ -449,11 +646,26 @@ export abstract class UseCaseStack extends BaseStack {
         cloudfrontUrlOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
 
         // prettier-ignore
+        new cdk.CfnOutput(cdk.Stack.of(this), 'CognitoUserPoolId', {
+            value: this.requestProcessor.userPool.userPoolId,
+        });
+
+        // prettier-ignore
+        new cdk.CfnOutput(cdk.Stack.of(this), 'CognitoClientId', {
+            value: this.requestProcessor.userPoolClient.userPoolClientId,
+        });
+
+        // prettier-ignore
+        new cdk.CfnOutput(cdk.Stack.of(this), 'RestApiEndpoint', {
+            description: 'The endpoint URL for the Rest API',
+            value: `https://${this.useCaseRestEndpointSetup.restApi.restApiId}.execute-api.${cdk.Aws.REGION}.amazonaws.com/prod`
+        });
+
         new cdk.CfnOutput(cdk.Stack.of(this), 'CloudwatchDashboardUrl', {
             value: `https://${cdk.Aws.REGION}.console.aws.amazon.com/cloudwatch/home?region=${cdk.Aws.REGION}#dashboards/dashboard/${cloudwatchDashboard.dashboardName}`
         });
 
-        new cdk.CfnOutput(cdk.Stack.of(this), 'WebsockEndpoint', {
+        new cdk.CfnOutput(cdk.Stack.of(this), 'WebsocketEndpoint', {
             value: this.requestProcessor.webSocketApi.apiEndpoint,
             description: 'Websocket API endpoint'
         });
@@ -474,7 +686,7 @@ export abstract class UseCaseStack extends BaseStack {
         this.applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
             USE_CASE_CONFIG_RECORD_KEY: this.stackParameters.useCaseConfigRecordKey.valueAsString,
             USE_CASE_CONFIG_TABLE_NAME: this.stackParameters.useCaseConfigTableName.valueAsString,
-            UUID: this.stackParameters.useCaseUUID.valueAsString,
+            UUID: this.stackParameters.useCaseUUID,
             VPC_ENABLED: this.vpcEnabled.valueAsString,
             CREATE_VPC: this.createNewVpc.valueAsString
         });
@@ -516,29 +728,7 @@ export abstract class UseCaseStack extends BaseStack {
         return new ApplicationSetup(this, 'UseCaseSetup', {
             solutionID: props.solutionID,
             solutionVersion: props.solutionVersion,
-            useCaseUUID: this.stackParameters.useCaseUUID.valueAsString
-        });
-    }
-
-    /**
-     * Method to add vpc configuration to lambda functions
-     *
-     * @param lambdaFunction
-     */
-    protected createVpcConfigForLambda(lambdaFunction: lambda.Function): void {
-        if (lambdaFunction === undefined) {
-            throw new Error('This method should be called after the lambda function is defined');
-        }
-        const cfnFunction = lambdaFunction.node.defaultChild as lambda.CfnFunction;
-        cfnFunction.addPropertyOverride('VpcConfig', {
-            'Fn::If': [
-                this.vpcEnabledCondition.logicalId,
-                {
-                    SubnetIds: cdk.Fn.split(',', this.transpiredPrivateSubnetIds),
-                    SecurityGroupIds: cdk.Fn.split(',', this.transpiredSecurityGroupIds)
-                },
-                cdk.Aws.NO_VALUE
-            ]
+            useCaseUUID: this.stackParameters.useCaseShortId
         });
     }
 
@@ -569,10 +759,7 @@ export abstract class UseCaseStack extends BaseStack {
         );
 
         // passing the UUID to be used in writing custom metrics
-        this.chatLlmProviderLambda.addEnvironment(
-            USE_CASE_UUID_ENV_VAR,
-            this.stackParameters.useCaseUUID.valueAsString
-        );
+        this.chatLlmProviderLambda.addEnvironment(USE_CASE_UUID_ENV_VAR, this.stackParameters.useCaseShortId);
 
         NagSuppressions.addResourceSuppressions(
             this.chatLlmProviderLambda.role!.node.tryFindChild('DefaultPolicy') as iam.Policy,

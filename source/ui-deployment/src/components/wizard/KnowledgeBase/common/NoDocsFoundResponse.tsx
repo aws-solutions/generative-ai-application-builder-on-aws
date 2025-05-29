@@ -111,7 +111,7 @@ const noDocFoundResponseInfoPanel = {
             <Box variant="p">
                 <i>
                     Note: If you select <b>No</b> and do not set a static response, an empty context will be forwarded
-                    to the prompt template and the language model. It is recommended to experiment with different prompt
+                    to the system prompt template and the language model. It is recommended to experiment with different system prompt
                     templates to ensure the model responds appropriately in such cases.
                 </i>
             </Box>

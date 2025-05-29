@@ -6,6 +6,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as s3_assets from 'aws-cdk-lib/aws-s3-assets';
 import { IConstruct } from 'constructs';
 import * as path from 'path';
+
 import { COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../../../utils/constants';
 import { AdditionalInstallArguments, BundlerAssetOptions } from '../base-asset-options';
 import { DockerBuildTemplate, LocalBuildTemplate } from '../base-build-package-template';
@@ -135,7 +136,10 @@ export class PythonDockerBuild extends DockerBuildTemplate {
             commandList.push('python3 -m pip install poetry --upgrade');
         }
         commandList.push(
-            ...[`cp -au /asset-input/* ${outputDir}/`, `poetry run pip install -t ${outputDir} dist/*.whl`]
+            ...[
+                `cp -au /asset-input/* ${outputDir}/`,
+                `poetry run pip install -t ${outputDir} dist/*.whl`
+            ]
         );
         return commandList;
     }

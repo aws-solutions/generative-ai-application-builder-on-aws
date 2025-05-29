@@ -4,7 +4,7 @@
 import { ColumnLayout, Container, Header, SpaceBetween, Button } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
-import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
+import { ValueWithLabel } from '@/utils/ValueWithLabel';
 import { getBooleanString } from '../utils';
 
 interface UseCaseReviewProps extends ReviewSectionProps {
@@ -57,6 +57,8 @@ export const UseCaseReview = (props: UseCaseReviewProps) => {
                     )}
 
                     <ValueWithLabel label="Deploy UI">{getBooleanString(props.useCaseData.deployUI)}</ValueWithLabel>
+
+                    <ValueWithLabel label="Enable Feedback">{getBooleanString(props.useCaseData.feedbackEnabled)}</ValueWithLabel>
                 </ColumnLayout>
             </Container>
         </SpaceBetween>

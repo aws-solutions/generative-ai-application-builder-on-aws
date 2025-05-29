@@ -13,7 +13,7 @@ import DeployVpc from './DeployVpc';
 import UseExistingVpc from './UseExistingVpc';
 import SubnetIdAttrEditor from './SubnetIdAttrEditor';
 import SecurityGroupAttrEditor from './SecurityGroupAttrEditor';
-import { isAttrItemsValid, isSecurityGroupValid, isSubnetIdValid } from './helpers';
+import { isAttrItemsValid, isSecurityGroupValid, isSubnetIdValid, hasDuplicateAttrItems } from './helpers';
 
 const Vpc = ({ info: { vpc }, onChange, setHelpPanelContent }: StepContentProps) => {
     const {
@@ -67,14 +67,18 @@ const Vpc = ({ info: { vpc }, onChange, setHelpPanelContent }: StepContentProps)
     const isVpcAttributeInvalid = (): boolean => {
         return (
             !isAttrItemsValid(vpc.securityGroupIds, isSecurityGroupValid) ||
-            !isAttrItemsValid(vpc.subnetIds, isSubnetIdValid)
+            !isAttrItemsValid(vpc.subnetIds, isSubnetIdValid) ||
+            hasDuplicateAttrItems(vpc.securityGroupIds) ||
+            hasDuplicateAttrItems(vpc.subnetIds)
         );
     };
 
     const isVpcAttributeValid = (): boolean => {
         return (
             isAttrItemsValid(vpc.securityGroupIds, isSecurityGroupValid) &&
-            isAttrItemsValid(vpc.subnetIds, isSubnetIdValid)
+            isAttrItemsValid(vpc.subnetIds, isSubnetIdValid) &&
+            !hasDuplicateAttrItems(vpc.securityGroupIds) &&
+            !hasDuplicateAttrItems(vpc.subnetIds)
         );
     };
 
@@ -101,7 +105,7 @@ const Vpc = ({ info: { vpc }, onChange, setHelpPanelContent }: StepContentProps)
                 <SpaceBetween size="s">
                     {deploymentAction === DEPLOYMENT_ACTIONS.EDIT && !vpc.isVpcRequired && (
                         <Box variant="p">
-                            VPC cannot be configured on Edit for an Use Case deployed without VPC. Please proceed to the
+                            VPC cannot be configured on Edit for a Use Case deployed without a VPC. Please proceed to the
                             next step.
                         </Box>
                     )}
