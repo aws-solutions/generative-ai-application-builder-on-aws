@@ -28,6 +28,11 @@ export interface ChatStorageProps extends BaseStackProps {
     newModelInfoTableCondition: cdk.CfnCondition;
 
     /**
+     * The UseCaseType. The value is provided as 'Agent' or 'Text'
+     */
+    useCaseType: string;
+
+    /**
      * Lambda function to use for custom resource implementation.
      */
     customResourceLambda: lambda.Function;
@@ -67,9 +72,10 @@ export class ChatStorageSetup extends Construct {
                 ConversationTableName: `ConversationTable-${props.useCaseUUID}`,
                 ExistingModelInfoTableName: cdk.Fn.conditionIf(
                     props.newModelInfoTableCondition.logicalId,
-                    cdk.Aws.NO_VALUE,
+                    '',
                     props.existingModelInfoTableName
                 ).toString(),
+                UseCaseType: props.useCaseType,
                 CustomResourceLambdaArn: props.customResourceLambda.functionArn,
                 CustomResourceRoleArn: props.customResourceRole.roleArn,
                 AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn

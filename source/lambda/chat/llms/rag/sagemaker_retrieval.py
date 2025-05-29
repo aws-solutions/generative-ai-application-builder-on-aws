@@ -7,20 +7,25 @@ from typing import Any, Dict, Tuple
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
+from botocore.exceptions import ClientError, EndpointConnectionError
 from helper import get_service_client
 from langchain_aws.llms.sagemaker_endpoint import SagemakerEndpoint
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic_core import ValidationError
+
 from llms.models.model_provider_inputs import SageMakerInputs
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
 from llms.rag.retrieval_llm import RetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import SAGEMAKER_ENDPOINT_ARGS, TEMPERATURE_PLACEHOLDER_STR, TRACE_ID_ENV_VAR
 from utils.custom_exceptions import LLMInvocationError
-from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client
 
 tracer = Tracer()
 logger = Logger(utc=True)
-metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
+sagemaker_metrics = get_metrics_client(CloudWatchNamespaces.AWS_SAGEMAKER)
+langchain_metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
 
 
 class SageMakerRetrievalLLM(RetrievalLLM):
@@ -57,13 +62,12 @@ class SageMakerRetrievalLLM(RetrievalLLM):
         - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
         - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
         - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
-        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
-        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
-        placeholders. In case of errors, falls back on default values.
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, llm_provider, rag_enabled): Generates the ChatPromptTemplate using the provided prompt template and
+         placeholders. In case of errors, raises ValueError
         - get_llm(): Returns the underlying LLM object that is used by the runnable. Each child class must provide its own implementation.
         - get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM. Each child class must provide its own implementation based on the model parameters it supports.
-        - get_validated_disambiguation_prompt(disambiguation_prompt_template, default_disambiguation_prompt_template,
-        disambiguation_prompt_template_placeholders, disambiguation_prompt_enabled): Generates the ChatPromptTemplate used for disambiguating the question using conversation history. It uses the provided prompt template and placeholders. In case of errors, falls back on default values.
+        - get_validated_disambiguation_prompt(disambiguation_prompt_template, disambiguation_prompt_placeholders, disambiguation_prompt_enabled): Generates the ChatPromptTemplate used for disambiguating the question using conversation history.
+          It uses the provided prompt template and placeholders. In case of errors, it raises ValueError
         - save_to_session_history(human_message, ai_response): Saves the conversation history to the conversation memory.
         - enhanced_create_history_aware_retriever(llm, retriever, prompt): create_history_aware_retriever enhancement that allows passing of the intermediate rephrased question into the output using RunnablePassthrough
         - enhanced_create_stuff_documents_chain(llm, prompt, rephrased_question, output_parser, document_prompt, document_separator, document_variable_name): create_stuff_documents_chain enhancement that allows rephrased question to be passed as an input to the LLM instead.
@@ -89,6 +93,17 @@ class SageMakerRetrievalLLM(RetrievalLLM):
         self.llm = self.get_llm()
         self.disambiguation_llm = self.get_llm(condense_prompt_model=True)
         self.runnable_with_history = self.get_runnable()
+
+    @property
+    def prompt_template(self) -> ChatPromptTemplate:
+        return self._prompt_template
+
+    @prompt_template.setter
+    def prompt_template(self, prompt_template) -> None:
+        prompt_placeholders = self._model_inputs.prompt_placeholders
+        self._prompt_template = self.get_validated_prompt(
+            prompt_template, prompt_placeholders, LLMProviderTypes.SAGEMAKER, True
+        )
 
     @property
     def input_schema(self) -> bool:
@@ -187,18 +202,45 @@ class SageMakerRetrievalLLM(RetrievalLLM):
             response = super().generate(question)
             logger.debug(f"Model response: {response}")
             return response
-        except ValueError as ve:
-            error_message = error_message + str(ve)
-            logger.error(
-                error_message,
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
+        except ValidationError as ve:
+            error_message = (
+                error_message
+                + f"Ensure that the input schema and output path expressions are correct for your SageMaker model. Error: {ve}"
             )
-            metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1)
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            langchain_metrics.add_metric(
+                name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1
+            )
             raise LLMInvocationError(error_message)
+
+        except ClientError as ce:
+            if ce.response["Error"]["Code"] == "ValidationException":
+                error_message = error_message + "Please ensure that the endpoint you provided exists."
+
+            else:
+                error_message = error_message + str(ce)
+
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            sagemaker_metrics.add_metric(
+                name=CloudWatchMetrics.SAGEMAKER_MODEL_INVOCATION_FAILURE.value, unit=MetricUnit.Count, value=1
+            )
+            raise LLMInvocationError(error_message)
+
+        except EndpointConnectionError as ex:
+            error_message = error_message + "Please ensure that the endpoint you provided exists."
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            sagemaker_metrics.add_metric(
+                name=CloudWatchMetrics.SAGEMAKER_MODEL_INVOCATION_FAILURE.value, unit=MetricUnit.Count, value=1
+            )
+            raise LLMInvocationError(error_message)
+
         except Exception as ex:
             error_message = error_message + str(ex)
             logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-            metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1)
+            langchain_metrics.add_metric(
+                name=CloudWatchMetrics.LANGCHAIN_FAILURES.value, unit=MetricUnit.Count, value=1
+            )
             raise LLMInvocationError(error_message)
         finally:
-            metrics.flush_metrics()
+            sagemaker_metrics.flush_metrics()
+            langchain_metrics.flush_metrics()

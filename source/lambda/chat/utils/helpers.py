@@ -68,7 +68,8 @@ def type_cast(value: str, data_type: str, mapping_dict: Optional[dict] = TYPE_CA
             return mapping_dict[data_type](value)
         except json.decoder.JSONDecodeError as jde:
             logger.error(
-                f"type_cast() had an error parsing the provided json string. Provided input: {value} for type: {data_type}. Error: {jde}"
+                f"type_cast() had an error parsing the provided json string. Provided input: {value} for type: {data_type}. Error: {jde}",
+                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
             )
             metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
         except ValueError as ve:

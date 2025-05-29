@@ -6,6 +6,7 @@ import os
 from copy import deepcopy
 
 import pytest
+
 from clients.factories.conversation_memory_factory import ConversationMemoryFactory
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR
@@ -34,13 +35,14 @@ def test_get_ddb_memory_success(bedrock_llm_config, model_id, dynamodb_resource,
     if history_length is None:
         del config["ConversationMemoryParams"]["ChatHistoryLength"]
     memory_type, memory_inputs = ConversationMemoryFactory().get_conversation_memory(
-        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", []
+        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", "fake-message-id", []
     )
     assert memory_type == DynamoDBChatMessageHistory
     assert memory_inputs == {
         "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
         "user_id": "fake-user-id",
         "conversation_id": "fake-conversation-id",
+        "message_id": "fake-message-id",
         "max_history_length": history_length,
         "ai_prefix": "A",
         "human_prefix": "H",
@@ -65,7 +67,7 @@ def test_get_ddb_memory_error(bedrock_llm_config, model_id, setup_environment):
     config = deepcopy(bedrock_llm_config)
     config["ConversationMemoryParams"]["ConversationMemoryType"] = "RDS"
     response = ConversationMemoryFactory().get_conversation_memory(
-        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", errors_list
+        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", "fake-message-id", errors_list
     )
     assert response is None
     assert errors_list == ["Unsupported Memory base type: RDS. Supported types are: ['DynamoDB']"]
@@ -89,7 +91,7 @@ def test_get_ddb_memory_missing_table_name(model_id, bedrock_llm_config):
     errors_list = []
     config = deepcopy(bedrock_llm_config)
     response = ConversationMemoryFactory().get_conversation_memory(
-        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", errors_list
+        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", "fake-message-id", errors_list
     )
     assert response is None
     assert errors_list == [
@@ -115,7 +117,7 @@ def test_get_ddb_memory_missing_memory_type(bedrock_llm_config, model_id):
     config = deepcopy(bedrock_llm_config)
     del config["ConversationMemoryParams"]["ConversationMemoryType"]
     response = ConversationMemoryFactory().get_conversation_memory(
-        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", errors_list
+        config, MODEL_INFO_CONFIG, "fake-user-id", "fake-conversation-id", "fake-message-id", errors_list
     )
     assert response is None
     assert errors_list == [

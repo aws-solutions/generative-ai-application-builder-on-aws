@@ -36,7 +36,7 @@ mocked_kendra_docs = [
 ]
 
 
-def kendra_source_doc_responses(conversation_id):
+def kendra_source_doc_responses(conversation_id, message_id):
     return [
         {
             "sourceDocument": {
@@ -48,6 +48,7 @@ def kendra_source_doc_responses(conversation_id):
                 "additional_attributes": {"_source_uri": "http://fakeurl1.html"},
             },
             "conversationId": conversation_id,
+            "messageId": message_id
         },
         {
             "sourceDocument": {
@@ -59,6 +60,7 @@ def kendra_source_doc_responses(conversation_id):
                 "additional_attributes": {"_source_uri": "http://fakeurl2.html"},
             },
             "conversationId": conversation_id,
+            "messageId": message_id
         },
     ]
 
@@ -75,7 +77,7 @@ mocked_bedrock_docs = [
 ]
 
 
-def bedrock_source_doc_responses(conversation_id):
+def bedrock_source_doc_responses(conversation_id, message_id):
     return [
         {
             "sourceDocument": {
@@ -87,6 +89,7 @@ def bedrock_source_doc_responses(conversation_id):
                 "additional_attributes": None,
             },
             "conversationId": conversation_id,
+            "messageId": message_id
         },
         {
             "sourceDocument": {
@@ -98,5 +101,6 @@ def bedrock_source_doc_responses(conversation_id):
                 "additional_attributes": None,
             },
             "conversationId": conversation_id,
+            "messageId": message_id
         },
     ]

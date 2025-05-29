@@ -12,6 +12,7 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from shared.knowledge.knowledge_base import KnowledgeBase
 from utils.constants import (
     DEFAULT_DISAMBIGUATION_ENABLED_MODE,
+    DEFAULT_RAG_ENABLED_MODE,
     DEFAULT_REPHRASE_QUESTION_MODE,
     DEFAULT_RETURN_SOURCE_DOCS_MODE,
     DEFAULT_SAGEMAKER_MODEL_ID,
@@ -56,7 +57,7 @@ class ModelProviderInputs(ABC):
     disambiguation_prompt_enabled: Optional[bool] = DEFAULT_DISAMBIGUATION_ENABLED_MODE
     model: Optional[str] = None
     model_params: Optional[dict] = None
-    rag_enabled: bool
+    rag_enabled: Optional[bool] = DEFAULT_RAG_ENABLED_MODE
     rephrase_question: Optional[bool] = DEFAULT_REPHRASE_QUESTION_MODE
     return_source_docs: Optional[bool] = DEFAULT_RETURN_SOURCE_DOCS_MODE
     response_if_no_docs_found: Optional[str] = None
@@ -86,13 +87,13 @@ class BedrockInputs(ModelProviderInputs):
     """
     Extra model inputs for Bedrock models.
 
-     - model_family (BedrockModelProviders): A string which represents the model family [optional, defaults to DEFAULT_BEDROCK_MODEL_FAMILY]
+     - model_family (BedrockModelProviders): A string which represents the model family
      - model_arn (str): A string which represents the model ARN in case of provisioned throughput model invocation [optional, defaults to None]
      - guardrails (dict): A dictionary of Bedrock guardrail details [optional, defaults to None]
 
     """
 
-    model_family: str
+    model_family: Optional[str] = None
     model_arn: Optional[str] = None
     guardrails: Optional[Dict[str, Any]] = None
 

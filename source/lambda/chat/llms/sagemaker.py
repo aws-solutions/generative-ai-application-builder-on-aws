@@ -3,21 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError, EndpointConnectionError
 from helper import get_service_client
 from langchain_aws.llms.sagemaker_endpoint import SagemakerEndpoint
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic_core import ValidationError
+
 from llms.base_langchain import BaseLangChainModel
 from llms.models.model_provider_inputs import SageMakerInputs
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
-from pydantic_core import ValidationError
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import SAGEMAKER_ENDPOINT_ARGS, TEMPERATURE_PLACEHOLDER_STR, TRACE_ID_ENV_VAR
 from utils.custom_exceptions import LLMInvocationError
-from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client
 
 tracer = Tracer()
@@ -39,9 +41,8 @@ class SageMakerLLM(BaseLangChainModel):
         - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
         - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
         - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
-        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
-        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
-        placeholders. In case of errors, falls back on default values.
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, llm_provider, rag_enabled): Generates the ChatPromptTemplate using the provided prompt template and
+         placeholders. In case of errors, raises ValueError
         - get_llm(): Returns the BedrockChat/BedrockLLM object that is used by the runnable.
          get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM. SageMakerLLM also allows you to send additional endpoint arguments to the SageMaker Endpoint. For more information, refer SageMakerInputs dataclass.
 
@@ -76,6 +77,17 @@ class SageMakerLLM(BaseLangChainModel):
         self.model_params, self.endpoint_params = self.get_clean_model_params(model_inputs.model_params)
         self.llm = self.get_llm()
         self.runnable_with_history = self.get_runnable()
+
+    @property
+    def prompt_template(self) -> ChatPromptTemplate:
+        return self._prompt_template
+
+    @prompt_template.setter
+    def prompt_template(self, prompt_template) -> None:
+        prompt_placeholders = self._model_inputs.prompt_placeholders
+        self._prompt_template = self.get_validated_prompt(
+            prompt_template, prompt_placeholders, LLMProviderTypes.SAGEMAKER, False
+        )
 
     @property
     def sagemaker_endpoint_name(self) -> bool:

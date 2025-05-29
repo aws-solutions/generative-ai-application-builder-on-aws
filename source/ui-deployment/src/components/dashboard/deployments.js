@@ -74,13 +74,7 @@ export async function deleteDeployment(useCaseId, permanentlyDelete) {
  */
 export const statusIndicatorTypeSelector = (status) => {
     const successStatus = ['CREATE_COMPLETE', 'UPDATE_COMPLETE'];
-    const errorStatus = [
-        'CREATE_FAILED',
-        'UPDATE_FAILED',
-        'DELETE_FAILED',
-        'ROLLBACK_COMPLETE',
-        'UPDATE_ROLLBACK_FAILED'
-    ];
+    const errorStatus = ['CREATE_FAILED', 'UPDATE_FAILED', 'DELETE_FAILED', 'ROLLBACK_COMPLETE'];
     const inProgressStatus = [
         'CREATE_IN_PROGRESS',
         'UPDATE_IN_PROGRESS',
@@ -92,7 +86,8 @@ export const statusIndicatorTypeSelector = (status) => {
         'UPDATE_ROLLBACK_IN_PROGRESS',
         'ROLLBACK_IN_PROGRESS',
         'ROLLBACK_FAILED',
-        'ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS'
+        'ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS',
+        'UPDATE_ROLLBACK_FAILED'
     ];
 
     const stoppedStatus = ['DELETE_COMPLETE'];

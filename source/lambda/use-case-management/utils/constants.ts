@@ -17,6 +17,7 @@ export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
 export const USE_CASE_CONFIG_TABLE_NAME_ENV_VAR = 'USE_CASE_CONFIG_TABLE_NAME';
 export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
 export const INFERENCE_PROFILE = 'inference-profile';
+export const STACK_DEPLOYMENT_SOURCE_USE_CASE = 'UseCase';
 
 export const REQUIRED_ENV_VARS = [
     COGNITO_POLICY_TABLE_ENV_VAR,
@@ -135,7 +136,11 @@ export const enum CfnParameterKeys {
     UseCaseConfigRecordKey = 'UseCaseConfigRecordKey',
     BedrockAgentId = 'BedrockAgentId',
     BedrockAgentAliasId = 'BedrockAgentAliasId',
-    UseInferenceProfile = 'UseInferenceProfile'
+    UseInferenceProfile = 'UseInferenceProfile',
+    FeedbackEnabled = 'FeedbackEnabled',
+    ExistingRestApiId = 'ExistingRestApiId',
+    ExistingApiRootResourceId = 'ExistingApiRootResourceId',
+    StackDeploymentSource = 'StackDeploymentSource'
 }
 
 export const enum CfnOutputKeys {
@@ -159,9 +164,9 @@ export const RetainedCfnParameterKeys = [
     CfnParameterKeys.ExistingCognitoUserPoolId
 ];
 
-export const ChatRequiredPlaceholders = ['{input}', '{history}'];
-export const RAGChatRequiredPlaceholders = ['{input}', '{context}', '{history}'];
+export const ChatRequiredPlaceholders = { Bedrock: [], SageMaker: ['{input}', '{history}'] };
 export const DisambiguationRequiredPlaceholders = ['{input}', '{history}'];
+export const RAGChatRequiredPlaceholders = { Bedrock: ['{context}'], SageMaker: ['{input}', '{context}', '{history}'] };
 
 export const RETRY_CONFIG = {
     maxRetries: 5,

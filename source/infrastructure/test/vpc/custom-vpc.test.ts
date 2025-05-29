@@ -424,6 +424,74 @@ describe('When creating a custom VPC', () => {
         });
     });
 
+    it('should have a VPC Gateway Endpoint for S3', () => {
+        template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
+            RouteTableIds: Match.anyValue(),
+            PolicyDocument: {
+                Statement: [
+                    {
+                        Action: [
+                            's3:AbortMultipartUpload',
+                            's3:CreateBucket',
+                            's3:DeleteBucketPolicy',
+                            's3:DeleteObject*',
+                            's3:GetEncryptionConfiguration',
+                            's3:GetBucket*',
+                            's3:GetObject*',
+                            's3:List*',
+                            's3:PutEncryptionConfiguration',
+                            's3:PutObject',
+                            's3:PutObjectLegalHold',
+                            's3:PutObjectRetention',
+                            's3:PutObjectTagging',
+                            's3:PutObjectVersionTagging'
+                        ],
+                        Effect: 'Allow',
+                        Principal: {
+                            AWS: '*'
+                        },
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        Ref: 'AWS::Partition'
+                                    },
+                                    ':s3:::*'
+                                ]
+                            ]
+                        },
+                        Condition: {
+                            'StringEquals': {
+                                'aws:SourceVpc': {
+                                    'Ref': Match.stringLikeRegexp('UseCaseVPC*')
+                                }
+                            }
+                        }
+                    }
+                ],
+                Version: '2012-10-17'
+            },
+            ServiceName: {
+                'Fn::Join': [
+                    '',
+                    [
+                        'com.amazonaws.',
+                        {
+                            Ref: 'AWS::Region'
+                        },
+                        '.s3'
+                    ]
+                ]
+            },
+            VpcEndpointType: 'Gateway',
+            VpcId: {
+                Ref: vpcCapture.asString()
+            }
+        });
+    });
+
     it('should have security groups that allow outbound traffic and restrict inbound traffic on port 443', () => {
         template.resourceCountIs('AWS::EC2::SecurityGroup', 2);
         template.hasResourceProperties('AWS::EC2::SecurityGroup', {
@@ -528,7 +596,17 @@ describe('When creating a custom VPC', () => {
                         Action: 'cloudwatch:PutMetricData',
                         Condition: {
                             StringEquals: {
-                                'cloudwatch:namespace': ['AWS/ApiGateway', 'AWS/Kendra', 'AWS/Cognito', 'Langchain/LLM']
+                                'cloudwatch:namespace': [
+                                    'AWS/ApiGateway',
+                                    'AWS/Bedrock',
+                                    'AWS/Cognito',
+                                    'AWS/Kendra',
+                                    'AWS/SageMaker',
+                                    'Langchain/LLM',
+                                    'Solution/FeedbackManagement',
+                                    'Solution/UseCaseDeployments',
+                                    'Solution/UseCaseDetails'
+                                ]
                             }
                         },
                         Effect: 'Allow',

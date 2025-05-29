@@ -1,0 +1,23 @@
+{
+    "UseCase": "Chat",
+    "ModelProviderName": "Bedrock",
+    "ModelName": "ai21.jamba-1-5-large-v1:0",
+    "DisplayName": "Jamba 1.5 Large",
+    "Description": "The Jamba 1.5 Model Family has a 256K token effective context window, one of the largest on the market. Jamba 1.5 models focus on speed and efficiency, delivering up to 2.5x faster inference than leading models of comparable size. Jamba supports function calling/ tool use, structured output (JSON) and documents API.",
+    "AllowsStreaming": true,
+    "Prompt": "You are a friendly AI assistant that is helpful, honest, and harmless.",
+    "MaxTemperature": "1",
+    "DefaultTemperature": "1",
+    "MinTemperature": "0",
+    "DefaultStopSequences": [],
+    "MemoryConfig": {
+        "history": "history",
+        "input": "input",
+        "context": null,
+        "ai_prefix": "AI",
+        "human_prefix": "Human",
+        "output": null
+    },
+    "MaxPromptSize": 480000,
+    "MaxChatMessageSize": 480000
+}

@@ -11,6 +11,8 @@ import { UseCase } from './model/use-case';
 import { UseCaseValidator } from './model/use-case-validator';
 import { logger, tracer } from './power-tools-init';
 import { DEFAULT_USE_CASES_PER_PAGE } from './utils/constants';
+import { GetUseCaseAdapter, validateAdminToken, castToAdminType, castToBusinessUserType } from './model/get-use-case';
+import { UseCaseConfiguration, GetUseCaseDetailsAdminResponse, GetUseCaseDetailsUserResponse } from './model/types';
 
 export enum Status {
     SUCCESS = 'SUCCESS',
@@ -20,11 +22,11 @@ export enum Status {
 export type DeploymentDetails = {
     useCaseRecord: UseCaseRecord;
     useCaseDeploymentDetails: UseCaseStackDetails;
-    useCaseConfigDetails: Object;
+    useCaseConfigDetails: UseCaseConfiguration;
 };
 
 export interface CaseCommand {
-    execute(useCase: UseCase | ListUseCasesAdapter): Promise<any>;
+    execute(useCase: UseCase | ListUseCasesAdapter | GetUseCaseAdapter): Promise<any>;
 }
 
 /**
@@ -419,9 +421,14 @@ export class ListUseCasesCommand implements CaseCommand {
         try {
             useCaseDeploymentsMap.forEach((value, key) => {
                 formattedData.push({
-                    ...value.useCaseRecord,
-                    ...value.useCaseDeploymentDetails,
-                    ...value.useCaseConfigDetails
+                    Name: value.useCaseRecord.Name,
+                    UseCaseId: value.useCaseRecord.UseCaseId,
+                    CreatedDate: value.useCaseRecord.CreatedDate,
+                    useCaseUUID: value.useCaseDeploymentDetails.useCaseUUID,
+                    status: value.useCaseDeploymentDetails.status,
+                    cloudFrontWebUrl: value.useCaseDeploymentDetails.cloudFrontWebUrl ?? undefined,
+                    ModelProvider: value.useCaseConfigDetails.LlmParams?.ModelProvider,
+                    UseCaseType: value.useCaseConfigDetails.UseCaseType ?? undefined
                 });
             });
 
@@ -438,4 +445,47 @@ export class ListUseCasesCommand implements CaseCommand {
             throw error;
         }
     };
+}
+
+/**
+ * Command to get a use case
+ */
+export class GetUseCaseCommand implements CaseCommand {
+    stackMgmt: StackManagement;
+    storageMgmt: StorageManagement;
+    useCaseConfigMgmt: UseCaseConfigManagement;
+
+    // prettier-ignore
+    constructor() { // NOSONAR - typescript:S4144 - this hierarchy is separate from line 152.
+        this.stackMgmt = new StackManagement();
+        this.storageMgmt = new StorageManagement();
+        this.useCaseConfigMgmt = new UseCaseConfigManagement();
+    }
+
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###getUseCaseCommand' })
+    public async execute(
+        GetUseCaseAdapterEvent: GetUseCaseAdapter
+    ): Promise<GetUseCaseDetailsAdminResponse | GetUseCaseDetailsUserResponse> {
+        try {
+            const useCase = new UseCase(GetUseCaseAdapterEvent.useCaseId, '', '', undefined, {}, '', '', '');
+            const useCaseRecord = await this.storageMgmt.getUseCaseRecord(useCase);
+            const stackDetails = await this.stackMgmt.getStackDetailsFromUseCaseRecord(useCaseRecord);
+            const useCaseConfig = await this.useCaseConfigMgmt.getUseCaseConfigFromRecord(useCaseRecord);
+            const combined = { ...useCaseRecord, ...stackDetails, ...useCaseConfig };
+
+            const isAdmin = await validateAdminToken(GetUseCaseAdapterEvent.authToken);
+            let useCaseInfo: GetUseCaseDetailsAdminResponse | GetUseCaseDetailsUserResponse;
+
+            if (isAdmin) {
+                useCaseInfo = castToAdminType(combined);
+            } else {
+                useCaseInfo = castToBusinessUserType(combined);
+            }
+
+            return useCaseInfo;
+        } catch (error) {
+            logger.error(`Error while getting Use Case Details, Error: ${error}`);
+            throw error;
+        }
+    }
 }

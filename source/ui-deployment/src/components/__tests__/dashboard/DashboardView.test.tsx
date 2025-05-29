@@ -5,21 +5,21 @@ import { Dispatch } from 'react';
 import '@testing-library/jest-dom';
 
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import HomeContext from '../../../contexts/home.context';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import { HomeInitialState } from '../../../contexts/home.state';
 import { ActionType } from '../../../hooks/useCreateReducer';
 import DashboardView from '../../dashboard/DashboardView';
 import { API, Auth } from 'aws-amplify';
 import { API_NAME, USECASE_TYPE_ROUTE } from '../../../utils/constants';
 import UseCaseView from '../../useCaseDetails/UseCaseView';
-import { mockReactMarkdown, getTableRowIndexOfDeployment } from '@/utils';
+import { mockReactMarkdown, getTableRowIndexOfDeployment, renderWithMultipleRoutes } from '@/utils';
 
 // eslint-disable-next-line jest/no-mocks-import
 import mockContext from '../__mocks__/mock-context.json';
 import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
 import UseCaseSelection from '@/components/wizard/UseCaseSelection';
+import { useUseCaseDetailsQuery } from '@/hooks/useQueries';
+import { UseQueryResult } from '@tanstack/react-query';
 
 const mockAPI = {
     get: vi.fn(),
@@ -30,6 +30,14 @@ vi.mock('@aws-amplify/api');
 API.get = mockAPI.get;
 API.post = mockAPI.post;
 API.del = mockAPI.del;
+
+vi.mock('@/hooks/useQueries', async () => {
+    const actual = await vi.importActual('@/hooks/useQueries');
+    return {
+        ...actual,
+        useUseCaseDetailsQuery: vi.fn()
+    };
+});
 
 let WizardView: any;
 
@@ -92,15 +100,12 @@ describe('Dashboard', () => {
             }
         };
 
-        render(
-            <HomeContext.Provider value={{ ...forceRefreshContext }}>
-                <MemoryRouter initialEntries={['/']}>
-                    <Routes>
-                        <Route path="/" element={<DashboardView />} />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/',
+            routes: [{ path: '/', element: <DashboardView /> }],
+            customState: forceRefreshContext.state
+        });
+
         await waitFor(async () => {
             expect(mockAPI.get).toHaveBeenCalledTimes(1);
         });
@@ -116,15 +121,12 @@ describe('Dashboard', () => {
     });
 
     test('The initial state is correct', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/']}>
-                    <Routes>
-                        <Route path="/" element={<DashboardView />} />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/',
+            routes: [{ path: '/', element: <DashboardView /> }],
+            customState: contextValue.state
+        });
+
         const element = screen.getByTestId('dashboard-view');
         const wrapper = createWrapper(element);
         const table = wrapper.findTable();
@@ -154,7 +156,7 @@ describe('Dashboard', () => {
         });
         expect(table?.findBodyCell(deploymentRow, 6)?.getElement().textContent).toEqual(dateString);
         expect(table?.findBodyCell(deploymentRow, 7)?.getElement().textContent).toEqual(
-            firstDeployment.LlmParams?.ModelProvider
+            firstDeployment.ModelProvider
         );
 
         let agentDeployment = mockContext.deploymentsData[2];
@@ -181,16 +183,26 @@ describe('Dashboard', () => {
     });
 
     test('Navigate to details page when deployment name is clicked', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/']}>
-                    <Routes>
-                        <Route path="/" element={<DashboardView />} />
-                        <Route path="/deployment-details" element={<UseCaseView />} />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        const mockSelectedDeployment = mockContext.deploymentsData[0];
+
+        vi.mocked(useUseCaseDetailsQuery).mockReturnValue({
+            isLoading: false,
+            isError: false,
+            isSuccess: true,
+            error: null,
+            data: mockSelectedDeployment,
+            refetch: vi.fn(),
+            status: 'success'
+        } as Partial<UseQueryResult<typeof mockSelectedDeployment, Error>> as UseQueryResult<typeof mockSelectedDeployment, Error>);
+        renderWithMultipleRoutes({
+            initialRoute: '/',
+            routes: [
+                { path: '/', element: <DashboardView /> },
+                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> }
+            ],
+            customState: contextValue.state
+        });
+
         const element = screen.getByTestId('dashboard-view');
         const wrapper = createWrapper(element);
         const table = wrapper.findTable();
@@ -205,24 +217,26 @@ describe('Dashboard', () => {
 
         // find the view details button
         createWrapper(element).findButton('[data-testid="header-btn-view-details"]')?.click();
-        expect(screen.getByTestId('use-case-view')).toBeInTheDocument();
+
+        await waitFor(async () => {
+            expect(screen.getByTestId('use-case-view')).toBeInTheDocument();
+        });
     });
 
     test('Navigate to edit page when edit button is clicked', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/']}>
-                    <Routes>
-                        <Route path="/" element={<DashboardView />} />
-                        <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route
-                            path={USECASE_TYPE_ROUTE.TEXT}
-                            element={<WizardView useCase={new TextUseCaseType()} />}
-                        />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/',
+            routes: [
+                { path: '/', element: <DashboardView /> },
+                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> },
+                {
+                    path: `${USECASE_TYPE_ROUTE.TEXT}`,
+                    element: <WizardView useCase={new TextUseCaseType()} />
+                }
+            ],
+            customState: contextValue.state
+        });
+
         const dashboardWrapper = createWrapper(screen.getByTestId('dashboard-view'));
         const table = dashboardWrapper.findTable();
         await waitFor(async () => {
@@ -234,24 +248,25 @@ describe('Dashboard', () => {
         dashboardWrapper.findButton('[data-testid="header-btn-edit"]')?.click();
         const wizardView = createWrapper(screen.getByTestId('wizard-view'));
         const wizard = wizardView.findWizard();
-        expect(wizard?.findMenuNavigationLink(1, 'active')).not.toBeNull();
+
+        await waitFor(async () => {
+            expect(wizard?.findMenuNavigationLink(1, 'active')).not.toBeNull();
+        });
     });
 
     test('Navigate to clone page when clone button is clicked', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/']}>
-                    <Routes>
-                        <Route path="/" element={<DashboardView />} />
-                        <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route
-                            path={USECASE_TYPE_ROUTE.TEXT}
-                            element={<WizardView useCase={new TextUseCaseType()} />}
-                        />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/',
+            routes: [
+                { path: '/', element: <DashboardView /> },
+                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> },
+                {
+                    path: `${USECASE_TYPE_ROUTE.TEXT}`,
+                    element: <WizardView useCase={new TextUseCaseType()} />
+                }
+            ],
+            customState: contextValue.state
+        });
         const dashboardWrapper = createWrapper(screen.getByTestId('dashboard-view'));
         const table = dashboardWrapper.findTable();
         await waitFor(async () => {
@@ -263,25 +278,27 @@ describe('Dashboard', () => {
         dashboardWrapper.findButton('[data-testid="header-btn-clone"]')?.click();
         const wizardView = createWrapper(screen.getByTestId('wizard-view'));
         const wizard = wizardView.findWizard();
-        expect(wizard?.findMenuNavigationLink(1, 'active')).not.toBeNull();
+
+        await waitFor(async () => {
+            expect(wizard?.findMenuNavigationLink(1, 'active')).not.toBeNull();
+        });
     });
 
     test('Navigate to deploy new use case page when create button is clicked', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/']}>
-                    <Routes>
-                        <Route path="/" element={<DashboardView />} />
-                        <Route path="/create" element={<UseCaseSelection />} />
-                        <Route path="/deployment-details" element={<UseCaseView />} />
-                        <Route
-                            path={USECASE_TYPE_ROUTE.TEXT}
-                            element={<WizardView useCase={new TextUseCaseType()} />}
-                        />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/',
+            routes: [
+                { path: '/', element: <DashboardView /> },
+                { path: '/create', element: <UseCaseSelection /> },
+                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> },
+                {
+                    path: `${USECASE_TYPE_ROUTE.TEXT}`,
+                    element: <WizardView useCase={new TextUseCaseType()} />
+                }
+            ],
+            customState: contextValue.state
+        });
+
         const dashboardWrapper = createWrapper(screen.getByTestId('dashboard-view'));
         const table = dashboardWrapper.findTable();
 
@@ -295,15 +312,12 @@ describe('Dashboard', () => {
 
     test('Deleting a use case from the dashboard', async () => {
         mockAPI.del.mockResolvedValueOnce('success');
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={['/']}>
-                    <Routes>
-                        <Route path="/" element={<DashboardView />} />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithMultipleRoutes({
+            initialRoute: '/',
+            routes: [{ path: '/', element: <DashboardView /> }],
+            customState: contextValue.state
+        });
+
         const element = screen.getByTestId('dashboard-view');
         const wrapper = createWrapper(element);
         const table = wrapper.findTable()!;

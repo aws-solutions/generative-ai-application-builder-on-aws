@@ -140,7 +140,7 @@ describe('when calling resource properties in local synth', () => {
                 expression: cdk.Fn.conditionEquals('Yes', 'Yes')
             })
         }).customResourceLambda;
-        resourceProperties = util.getResourceProperties(stack, asset, customResource);
+        resourceProperties = util.getResourceProperties(stack, asset, customResource).properties;
     });
 
     it('should generate resource properties with cdk staging assets', () => {
@@ -205,7 +205,8 @@ describe('when calling resource properties in a builder pipeline', () => {
         if (!process.env.DIST_OUTPUT_BUCKET) {
             process.env.DIST_OUTPUT_BUCKET = 'fake-bucket';
         }
-        stack = new cdk.Stack();
+        const app = new cdk.App();
+        stack = new cdk.Stack(app);
         asset = new s3_asset.Asset(stack, 'Config', {
             path: '../infrastructure/test/mock-lambda-func/python-lambda'
         });
@@ -220,7 +221,7 @@ describe('when calling resource properties in a builder pipeline', () => {
         new cdk.CustomResource(stack, 'TestResource', {
             resourceType: 'Custom::FakeResource',
             serviceToken: customResource.functionArn,
-            properties: util.getResourceProperties(stack, asset, customResource)
+            properties: util.getResourceProperties(stack, asset, customResource).properties
         });
 
         const lambdaFunctionName = 'MyLambdaFunction';
@@ -351,6 +352,18 @@ describe('generateCfnTemplateUrl', () => {
         expect(result).toEqual([
             'https://asset-bucket.s3.amazonaws.com/*.json',
             'https://s3.*.amazonaws.com/asset-bucket/*.json'
+        ]);
+    });
+
+    it('should return default template URLs for empty cdk-asset-bucket', () => {
+        rawCdkJson.context['cdk-asset-bucket'] = '';
+        // Regenerate the stack with the new context value
+        const app = new cdk.App({ context: rawCdkJson.context });
+        stack = new cdk.Stack(app, 'TestStack', {});
+        const result = util.generateCfnTemplateUrl(stack);
+        expect(result).toEqual([
+            `https://cdk-hnb659fds-assets-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}.s3.amazonaws.com/*.json`,
+            `https://s3.*.amazonaws.com/cdk-hnb659fds-assets-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}/*.json`
         ]);
     });
 });

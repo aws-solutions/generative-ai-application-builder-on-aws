@@ -73,7 +73,8 @@ describe('When addCustomDashboard is called for use case', () => {
                     })
                 }).restApiName,
                 userPoolId: 'fakeUserPoolId',
-                userPoolClientId: 'fakeClientId'
+                userPoolClientId: 'fakeClientId',
+                useCaseUUID: 'fakeUUID'
             },
             DashboardType.UseCase
         );
@@ -174,7 +175,7 @@ describe('When createWebConfigStorage is called', () => {
 
         applicationSetup.createWebConfigStorage(
             {
-                apiEndpoint: new apigateway.LambdaRestApi(stack, 'Api', {
+                restApiEndpoint: new apigateway.LambdaRestApi(stack, 'Api', {
                     handler: new lambda.Function(stack, 'Function', {
                         code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/python-lambda'),
                         handler: 'function.handler',
@@ -205,7 +206,7 @@ describe('When createWebConfigStorage is called', () => {
             },
             Resource: 'WEBCONFIG',
             SSMKey: '/fake/ssm-key',
-            ApiEndpoint: {
+            RestApiEndpoint: {
                 'Fn::Join': [
                     '',
                     [
@@ -322,7 +323,7 @@ describe('When passing additional properties to createWebConfigStorage', () => {
 
         applicationSetup.createWebConfigStorage(
             {
-                apiEndpoint: new apigateway.LambdaRestApi(stack, 'Api', {
+                restApiEndpoint: new apigateway.LambdaRestApi(stack, 'Api', {
                     handler: new lambda.Function(stack, 'Function', {
                         code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/python-lambda'),
                         handler: 'function.handler',
@@ -354,7 +355,7 @@ describe('When passing additional properties to createWebConfigStorage', () => {
             },
             Resource: 'WEBCONFIG',
             SSMKey: '/fake/ssm-key',
-            ApiEndpoint: {
+            RestApiEndpoint: {
                 'Fn::Join': [
                     '',
                     [
@@ -447,6 +448,114 @@ describe('Before and after addAnonymousMetricsCustomLambda is called', () => {
                 UpdateReplacePolicy: 'Delete',
                 DeletionPolicy: 'Delete',
                 Condition: conditionLogicalId
+            });
+        });
+    });
+});
+
+describe('RestApiId and WebsockApiId', () => {
+    let app: cdk.App;
+    let stack: cdk.Stack;
+    let template: Template;
+
+    beforeEach(() => {
+        app = new cdk.App();
+        stack = new cdk.Stack(app, 'TestStack');
+    });
+
+    describe('createWebConfigStorage', () => {
+        it('should create custom resource with both websocket and REST API endpoints when websocket is provided', () => {
+            const applicationSetup = new ApplicationSetup(stack, 'TestApplicationSetup', {
+                solutionID: 'TEST',
+                solutionVersion: '1.0.0'
+            });
+
+            const isInternalUserCondition = new cdk.CfnCondition(stack, 'IsInternalUser', {
+                expression: cdk.Fn.conditionEquals('true', 'true')
+            });
+
+            const deployWebAppCondition = new cdk.CfnCondition(stack, 'DeployUI', {
+                expression: cdk.Fn.conditionEquals('true', 'true')
+            });
+
+            applicationSetup.createWebConfigStorage(
+                {
+                    userPoolId: 'test-user-pool-id',
+                    userPoolClientId: 'test-client-id',
+                    cognitoRedirectUrl: 'https://example.com',
+                    isInternalUserCondition: isInternalUserCondition,
+                    restApiEndpoint: 'https://api.example.com',
+                    websockApiEndpoint: 'wss://websocket.example.com',
+                    deployWebAppCondition: deployWebAppCondition,
+                    useCaseUUID: 'test-uuid'
+                },
+                '/test/webconfig'
+            );
+
+            template = Template.fromStack(stack);
+
+            // Verify the custom resource is created with both endpoints
+            template.hasResourceProperties('Custom::WriteWebConfig', {
+                ServiceToken: Match.anyValue(),
+                Resource: 'WEBCONFIG',
+                SSMKey: '/test/webconfig',
+                UserPoolId: 'test-user-pool-id',
+                UserPoolClientId: 'test-client-id',
+                CognitoRedirectUrl: 'https://example.com',
+                IsInternalUser: Match.anyValue(),
+                RestApiEndpoint: 'https://api.example.com',
+                WebsocketApiEndpoint: 'wss://websocket.example.com',
+                UseCaseId: 'test-uuid'
+            });
+        });
+
+        it('should create custom resource with only REST API endpoint when websocket is not provided', () => {
+            const applicationSetup = new ApplicationSetup(stack, 'TestApplicationSetup', {
+                solutionID: 'TEST',
+                solutionVersion: '1.0.0'
+            });
+
+            const isInternalUserCondition = new cdk.CfnCondition(stack, 'IsInternalUser', {
+                expression: cdk.Fn.conditionEquals('true', 'true')
+            });
+
+            const deployWebAppCondition = new cdk.CfnCondition(stack, 'DeployUI', {
+                expression: cdk.Fn.conditionEquals('true', 'true')
+            });
+
+            applicationSetup.createWebConfigStorage(
+                {
+                    userPoolId: 'test-user-pool-id',
+                    userPoolClientId: 'test-client-id',
+                    cognitoRedirectUrl: 'https://example.com',
+                    isInternalUserCondition: isInternalUserCondition,
+                    restApiEndpoint: 'https://api.example.com',
+                    useCaseUUID: 'test-uuid',
+                    deployWebAppCondition: deployWebAppCondition
+                },
+                '/test/webconfig'
+            );
+
+            template = Template.fromStack(stack);
+
+            // Verify the custom resource is created without websocket endpoint
+            template.hasResourceProperties('Custom::WriteWebConfig', {
+                ServiceToken: Match.anyValue(),
+                Resource: 'WEBCONFIG',
+                SSMKey: '/test/webconfig',
+                UserPoolId: 'test-user-pool-id',
+                UserPoolClientId: 'test-client-id',
+                CognitoRedirectUrl: 'https://example.com',
+                IsInternalUser: Match.anyValue(),
+                RestApiEndpoint: 'https://api.example.com',
+                UseCaseId: 'test-uuid'
+            });
+
+            // Verify WebsocketApiEndpoint is not present
+            template.hasResource('Custom::WriteWebConfig', {
+                Properties: Match.objectLike({
+                    WebsocketApiEndpoint: Match.absent()
+                })
             });
         });
     });

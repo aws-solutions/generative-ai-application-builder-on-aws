@@ -7,7 +7,7 @@ import { ReviewSectionProps } from '../interfaces/Steps';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
 import { HomeContext } from 'contexts';
 import { DEPLOYMENT_ACTIONS } from 'utils/constants';
-import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
+import { ValueWithLabel } from '@/utils/ValueWithLabel';
 import { getBooleanString } from '../utils';
 
 interface VpcConfigReviewProps extends ReviewSectionProps {

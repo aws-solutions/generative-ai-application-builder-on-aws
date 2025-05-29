@@ -191,7 +191,7 @@ describe('CopyUseCaseUIAssets', () => {
         template.hasResource('Custom::CopyWebUI', {
             Properties: Match.anyValue(),
             Condition: 'isUseCaseConfigNotEmpty',
-            DependsOn: [Match.anyValue(), Match.anyValue(), Match.anyValue()]
+            DependsOn: [Match.anyValue(), Match.anyValue(), Match.anyValue(), Match.anyValue()]
         });
     });
 
@@ -516,7 +516,7 @@ describe('When building in standard pipelines', () => {
         template.hasResource('Custom::CopyWebUI', {
             Properties: Match.anyValue(),
             Condition: 'isUseCaseConfigNotEmpty',
-            DependsOn: [Match.anyValue(), Match.anyValue(), Match.anyValue()]
+            DependsOn: [Match.anyValue(), Match.anyValue(), Match.anyValue(), Match.anyValue()]
         });
 
         template.hasResourceProperties('Custom::CopyWebUI', {
@@ -591,7 +591,8 @@ describe('When building in standard pipelines', () => {
 });
 
 function buildStack() {
-    const stack = new cdk.Stack();
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app);
     const uiAssetNestedStack = new CopyUseCaseUIAssets(stack, 'UIAsset', {
         parameters: {
             WebConfigKey: '/fakepath/fakekey',

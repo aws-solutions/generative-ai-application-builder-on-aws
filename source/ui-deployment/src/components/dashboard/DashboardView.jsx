@@ -15,8 +15,8 @@ import HomeContext from '../../contexts/home.context';
 import { DEFAULT_PREFERENCES, Preferences, parseStackName } from '../commons/table-config';
 import { listDeployedUseCases, statusIndicatorTypeSelector } from './deployments';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
-import { dateOptions } from '../useCaseDetails/common-components';
 import { CFN_STACK_STATUS_INDICATOR, ERROR_MESSAGES, USECASE_TYPES } from '../../utils/constants';
+import { dateOptions } from '../../utils/dateUtils';
 
 function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
     const [selectedItems, setSelectedItems] = useState([]);
@@ -150,6 +150,7 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
         <div>
             <Table
                 {...collectionProps}
+                data-testid="dashboard-view-table"
                 loading={loading}
                 items={items}
                 onSelectionChange={onSelectionChange}
@@ -231,16 +232,11 @@ const createCloudfrontUrlLinkComponent = (item) => {
 };
 
 export default function DashboardView() {
-    const { dispatch: homeDispatch } = useContext(HomeContext);
     const navigate = useNavigate();
     const [toolsOpen, setToolsOpen] = useState(false);
 
     const handleOnDeploymentIdClick = (deploymentItem) => {
-        homeDispatch({
-            field: 'selectedDeployment',
-            value: deploymentItem
-        });
-        navigate(`/deployment-details`);
+        navigate(`/deployment-details/${deploymentItem.UseCaseId}`);
     };
 
     const createDetailsPageLink = (item) => {
@@ -272,7 +268,7 @@ export default function DashboardView() {
         },
         {
             id: 'stackId',
-            header: 'Deployment Stack ID',
+            header: 'Use Case ID',
             cell: (item) => item.useCaseUUID,
             minWidth: 100
         },
@@ -297,7 +293,7 @@ export default function DashboardView() {
         {
             id: 'modelProvider',
             header: 'Model Provider',
-            cell: (item) => item.LlmParams?.ModelProvider ?? 'N/A',
+            cell: (item) => item?.ModelProvider ?? 'N/A',
             minWidth: 100
         },
         {

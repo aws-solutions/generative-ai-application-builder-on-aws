@@ -8,9 +8,11 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
-from clients.builders.sagemaker_builder import SageMakerBuilder
 from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.prompts import ChatPromptTemplate
+
+from clients.builders.sagemaker_builder import SageMakerBuilder
 from llms.models.model_provider_inputs import SageMakerInputs
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from llms.sagemaker import SageMakerLLM
@@ -19,8 +21,7 @@ from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
     CONVERSATION_TABLE_NAME_ENV_VAR,
-    DEFAULT_PROMPT_PLACEHOLDERS,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+    DEFAULT_SAGEMAKER_MODEL_ID,
     KENDRA_INDEX_ID_ENV_VAR,
     MESSAGE_KEY,
     RAG_CHAT_IDENTIFIER,
@@ -31,6 +32,8 @@ from utils.enum_types import KnowledgeBaseTypes, LLMProviderTypes
 SAGEMAKER_PROMPT = """\n\n{history}\n\n{input}"""
 SAGEMAKER_RAG_PROMPT = """\n\n{history}\n\n{input}\n\n{context}"""
 CONDENSE_QUESTION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
+DEFAULT_PROMPT_PLACEHOLDERS = ["history", "input"]
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context", "history", "input"]
 
 MEMORY_CONFIG = {
     CHAT_IDENTIFIER: {
@@ -47,7 +50,7 @@ MEMORY_CONFIG = {
     },
 }
 
-model_id = "default"
+model_id = DEFAULT_SAGEMAKER_MODEL_ID
 
 
 @pytest.mark.parametrize(
@@ -65,17 +68,6 @@ model_id = "default"
             model_id,
         ),
         (
-            CHAT_IDENTIFIER,
-            True,
-            False,
-            None,
-            False,
-            SageMakerLLM,
-            SAGEMAKER_PROMPT,
-            DEFAULT_PROMPT_PLACEHOLDERS,
-            model_id,
-        ),
-        (
             RAG_CHAT_IDENTIFIER,
             False,
             True,
@@ -88,29 +80,7 @@ model_id = "default"
         ),
         (
             RAG_CHAT_IDENTIFIER,
-            True,
-            True,
-            KnowledgeBaseTypes.KENDRA.value,
             False,
-            SageMakerRetrievalLLM,
-            SAGEMAKER_RAG_PROMPT,
-            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
-            model_id,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            False,
-            True,
-            KnowledgeBaseTypes.KENDRA.value,
-            True,
-            SageMakerRetrievalLLM,
-            SAGEMAKER_RAG_PROMPT,
-            DEFAULT_PROMPT_RAG_PLACEHOLDERS,
-            model_id,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            True,
             True,
             KnowledgeBaseTypes.KENDRA.value,
             True,
@@ -144,6 +114,7 @@ def test_set_llm(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
     user_id = chat_event_body.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
@@ -152,23 +123,19 @@ def test_set_llm(
     builder.validate_event_input_sizes(chat_event_body[MESSAGE_KEY])
     builder.set_knowledge_base()
     builder.set_conversation_memory(user_id, chat_event_body[MESSAGE_KEY][CONVERSATION_ID_EVENT_KEY])
-
-    if is_streaming:
-        with patch(
-            "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
-            return_value=AsyncIteratorCallbackHandler(),
-        ):
-            builder.set_llm()
-    else:
-        with patch(
-            "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
-            return_value=AsyncIteratorCallbackHandler(),
-        ):
-            builder.set_llm()
+    with patch(
+        "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
+        return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
+    ):
+        builder.set_llm()
 
     assert type(builder.llm) == llm_type
     assert builder.llm.prompt_template == ChatPromptTemplate.from_template(prompt)
     assert set(builder.llm.prompt_template.input_variables) == set(placeholders)
+    assert set(sorted(builder.llm.prompt_placeholders)) == set(placeholders)
     assert builder.llm.model_params["temperature"] == 0.2
     assert builder.llm.streaming == config["LlmParams"]["Streaming"]
     assert builder.llm.verbose == config["LlmParams"]["Verbose"]
@@ -177,6 +144,7 @@ def test_set_llm(
     assert builder.conversation_history_cls == DynamoDBChatMessageHistory
     assert builder.conversation_history_params == {
         "conversation_id": "fake-conversation-id",
+        "message_id": "fake-message-id",
         "max_history_length": 10,
         "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
         "user_id": "fake-user-id",
@@ -184,11 +152,7 @@ def test_set_llm(
         "human_prefix": "User",
     }
     assert type(builder.model_inputs) == SageMakerInputs
-
-    if is_streaming:
-        assert builder.callbacks
-    else:
-        assert builder.callbacks is None
+    assert builder.callbacks
 
 
 @pytest.mark.parametrize(
@@ -219,6 +183,7 @@ def test_set_llm_throws_error_missing_memory(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
 
     chat_event_body = json.loads(chat_event["Records"][0]["body"])
@@ -228,6 +193,9 @@ def test_set_llm_throws_error_missing_memory(
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
             builder.set_llm()
@@ -262,6 +230,7 @@ def test_set_llm_with_errors(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
     builder.errors = ["some-error-1", "some-error-2"]
     builder.set_model_defaults(LLMProviderTypes.SAGEMAKER, model_id)
@@ -270,6 +239,9 @@ def test_set_llm_with_errors(
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
     ):
         with pytest.raises(ValueError) as error:
             builder.set_llm()
@@ -298,6 +270,7 @@ def test_set_llm_with_missing_config_fields(sagemaker_llm_config, model_id, retu
         rag_enabled=False,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
 
     with pytest.raises(ValueError) as error:
@@ -373,6 +346,7 @@ def test_returned_sagemaker_model(
     builder = SageMakerBuilder(
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
         use_case_config=config,
         rag_enabled=rag_enabled,
     )
@@ -384,6 +358,9 @@ def test_returned_sagemaker_model(
     with patch(
         "clients.builders.llm_builder.WebsocketStreamingCallbackHandler",
         return_value=AsyncIteratorCallbackHandler(),
+    ), patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
     ):
         builder.set_llm()
         assert type(builder.llm) == model

@@ -11,7 +11,9 @@ import jsonpath_ng as jp
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from langchain_aws.llms.sagemaker_endpoint import LLMContentHandler
+
 from utils.constants import TRACE_ID_ENV_VAR
+from utils.custom_exceptions import JsonPathExtractionError
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
 from utils.helpers import count_keys, get_metrics_client, pop_null_values
 
@@ -131,13 +133,31 @@ class SageMakerContentHandler(LLMContentHandler):
         The JSONpath available in output_path_expression is used to extract the appropriate output.
         """
         response_json = json.loads(output.read().decode("utf-8"))
-        matches = [match.value for match in self.output_path_expression.find(response_json)]
-        if matches:
+        logger.debug(f"Response received from the SageMaker model: {response_json}")
+        logger.debug(f"JSONPath expression to extract the response: {self.output_path_expression}")
+        matches = None
+
+        try:
+            matches = [match.value for match in self.output_path_expression.find(response_json)]
+        except KeyError as ex:
+            error_message = f"The output JSONPath specified: {self.output_path_expression} for extracting LLM response text doesn't exist in the LLM output received: {response_json}\nError: {ex}"
+            logger.error(error_message, xray_trace_id=tracer_id)
+            metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
+            raise JsonPathExtractionError(error_message)
+
+        except Exception as ex:
+            error_message = f"There was an error parsing the output using the provided JSONPath: {self.output_path_expression}. Received LLM Output: {response_json}\nError: {ex}"
+            logger.error(error_message, xray_trace_id=tracer_id)
+            metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
+            raise JsonPathExtractionError(error_message)
+
+        if matches is not None and len(matches):
             return matches[0]
         else:
-            raise ValueError(
-                f"The JSONPath specified: {self.output_path_expression} for extracting LLM response doesn't exist in the output: {response_json}"
-            )
+            error_message = f"There were no matches for the specified for the output JSONPath {self.output_path_expression} in the LLM output received: {response_json}"
+            logger.error(error_message, xray_trace_id=tracer_id)
+            metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
+            raise JsonPathExtractionError(error_message)
 
     def replace_placeholders(self, input_schema: Dict[Any, Any], placeholders: Dict[str, Any]):
         """

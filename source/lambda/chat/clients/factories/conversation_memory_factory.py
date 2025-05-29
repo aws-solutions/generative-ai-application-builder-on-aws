@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 
 from aws_lambda_powertools import Logger
 from langchain_core.memory import BaseMemory
+
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import CONVERSATION_TABLE_NAME_ENV_VAR, TRACE_ID_ENV_VAR
 from utils.enum_types import ConversationMemoryTypes
@@ -26,6 +27,7 @@ class ConversationMemoryFactory:
         default_memory_config: Dict,
         user_id: str,
         conversation_id: str,
+        message_id: str,
         errors: Optional[List[str]] = None,
     ) -> BaseMemory:
         """
@@ -89,6 +91,7 @@ class ConversationMemoryFactory:
                     "max_history_length": max_history_length,
                     "user_id": user_id,
                     "conversation_id": conversation_id,
+                    "message_id": message_id,
                     "ai_prefix": ai_prefix,
                     "human_prefix": human_prefix,
                 },

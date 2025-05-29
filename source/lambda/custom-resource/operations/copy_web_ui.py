@@ -80,28 +80,6 @@ def create_config_string(
     if usecase_table_name and usecase_config_key:
         config = get_usecase_config(usecase_table_name, usecase_config_key)
 
-        ui_use_case_config = {
-            "UseCaseName": config.get("UseCaseName"),
-            "LlmParams": {
-                "RAGEnabled": config.get("LlmParams", {}).get("RAGEnabled", False),
-                "PromptParams": {
-                    "MaxInputTextLength": config.get("LlmParams", {}).get("PromptParams", {}).get("MaxInputTextLength"),
-                    "UserPromptEditingEnabled": config.get("LlmParams", {}).get("PromptParams", {}).get("UserPromptEditingEnabled"),
-                }
-            },
-        }
-
-        # Only taking necessary values from the config for the chat UI when prompt editing is enabled, to avoid exposing customer data
-        if config.get("LlmParams", {}).get("PromptParams", {}).get("UserPromptEditingEnabled"):
-            ui_use_case_config["LlmParams"]["PromptParams"] = {
-                **ui_use_case_config["LlmParams"]["PromptParams"],
-                "PromptTemplate": config.get("LlmParams", {}).get("PromptParams", {}).get("PromptTemplate"),
-                "MaxPromptTemplateLength": config.get("LlmParams", {})
-                .get("PromptParams", {})
-                .get("MaxPromptTemplateLength"),
-            }
-
-        logger.info(f"create_config_string:config:: {ui_use_case_config}")
         # IS_INTERNAL_USER_KEY can be populated inside the usecase config via the deployment platform, or be inside the SSM param as determined by the cloudformation stack creating the use case based on inputted email
         config_sourced_is_internal_user = config.pop(IS_INTERNAL_USER_KEY, None)
         ssm_params[IS_INTERNAL_USER_KEY] = (
@@ -109,8 +87,6 @@ def create_config_string(
             if ssm_params.get(IS_INTERNAL_USER_KEY, None) == "true" or config_sourced_is_internal_user == "true"
             else "false"
         )
-
-        ssm_params[USE_CASE_CONFIG_KEY] = ui_use_case_config
 
     return json.dumps(ssm_params, cls=DecimalEncoder)
 
@@ -218,6 +194,7 @@ def create(
             Bucket=destination_bucket_name,
             Key=WEBSITE_CONFIG_FILE_NAME,
             ContentType="application/json",
+            CacheControl="no-cache, no-store, must-revalidate",
             ExpectedBucketOwner=invocation_account_id,
         )
     except botocore.exceptions.ClientError as error:

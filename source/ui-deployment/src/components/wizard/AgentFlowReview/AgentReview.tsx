@@ -4,8 +4,9 @@
 import { ColumnLayout, Container, Header, SpaceBetween, Button } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
-import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
+
 import { getBooleanString } from '../utils';
+import { ValueWithLabel } from '@/utils/ValueWithLabel';
 
 interface AgentReviewProps extends ReviewSectionProps {
     agentData: any;

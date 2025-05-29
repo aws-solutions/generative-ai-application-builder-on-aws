@@ -95,7 +95,8 @@ describe('When applying aspect to a Node based lambda function', () => {
                                     CloudWatchNamespace.API_GATEWAY,
                                     CloudWatchNamespace.AWS_KENDRA,
                                     CloudWatchNamespace.AWS_COGNITO,
-                                    CloudWatchNamespace.LANGCHAIN_LLM
+                                    CloudWatchNamespace.LANGCHAIN_LLM,
+                                    CloudWatchNamespace.AWS_BEDROCK
                                 ]
                             }
                         }
@@ -131,11 +132,15 @@ describe('When applying aspect to a Python based lambda function', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 2);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: [
-                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
-                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
-                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
-            ],
+            CompatibleRuntimes: Array.from(
+                new Map(
+                    [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.toString(),
+                        LANGCHAIN_LAMBDA_PYTHON_RUNTIME.toString(),
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.toString()
+                    ].map((value) => [value, value])
+                ).values()
+            ),
             Content: Match.anyValue(),
             Description: 'This layer configures AWS Python SDK initialization to send user-agent information'
         });
@@ -171,7 +176,8 @@ describe('When applying aspect to a Python based lambda function', () => {
                                     CloudWatchNamespace.API_GATEWAY,
                                     CloudWatchNamespace.AWS_KENDRA,
                                     CloudWatchNamespace.AWS_COGNITO,
-                                    CloudWatchNamespace.LANGCHAIN_LLM
+                                    CloudWatchNamespace.LANGCHAIN_LLM,
+                                    CloudWatchNamespace.AWS_BEDROCK
                                 ]
                             }
                         }
@@ -220,11 +226,15 @@ describe('When applying the langchain aspect', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 2);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: [
-                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
-                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
-                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
-            ],
+            CompatibleRuntimes: Array.from(
+                new Map(
+                    [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.toString(),
+                        LANGCHAIN_LAMBDA_PYTHON_RUNTIME.toString(),
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.toString()
+                    ].map((value) => [value, value])
+                ).values()
+            ),
             Content: Match.anyValue(),
             Description: 'This layer configures the LangChain python package to be bundled with python lambda functions'
         });

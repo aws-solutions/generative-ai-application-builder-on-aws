@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "langchain-layer"
-version = "2.1.9"
+version = "3.0.0"
 authors = [ "Amazon Web Services" ]
 description = "Layer for LangChain libraries"
 packages = [
@@ -14,12 +14,12 @@ classifiers = [
 license = "Apache-2.0"
 
 [tool.poetry.dependencies]
-python = "^3.12"
-numpy = "1.26.4"
-langchain = "0.3.8"
-langchain-core = "0.3.21"
-langchain-aws = "0.2.7"
-pydantic = "2.10.6"
+python = "^3.13"
+numpy = "2.2.2"
+langchain = "0.3.23"
+langchain-core = "0.3.51"
+langchain-aws = "0.2.18"
+pydantic = "2.11.0"
 
 [build-system]
 requires = [ "poetry-core>=1.9.0" ]

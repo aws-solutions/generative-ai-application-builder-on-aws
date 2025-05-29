@@ -44,10 +44,10 @@ describe('When injecting Nodejs shared library and aws-sdk library layer', () =>
 describe('When injecting Nodejs shared library and aws-sdk library layer', () => {
     it('should throw an exception if the runtime is python', () => {
         try {
-            buildStack(lambda.Runtime.PYTHON_3_8);
+            buildStack(lambda.Runtime.PYTHON_3_10);
         } catch (error) {
             expect((error as Error).message).toEqual(
-                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_8} is not in [python3.11, python3.12])`
+                `This lambda function uses a runtime that is incompatible with this layer (${lambda.Runtime.PYTHON_3_10} is not in [python3.11, python3.13])`
             );
         }
     });
@@ -64,10 +64,14 @@ describe('When injecting Python shared library and boto3 library layer', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: [
-                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
-                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
-            ],
+            CompatibleRuntimes: Array.from(
+                new Map(
+                    [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.toString(),
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.toString()
+                    ].map((value) => [value, value])
+                ).values()
+            ),
             Content: Match.anyValue()
         });
 
@@ -109,10 +113,13 @@ function buildStack(runtime: lambda.Runtime): cdk.Stack {
                 new Boto3SdkLibLayer(stack, 'Boto3SharedLayer', {
                     entry: '../lambda/layers/aws_boto3',
                     description: 'A layer to add boto3 shared layer',
-                    compatibleRuntimes: [
-                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
-                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
-                    ]
+                    compatibleRuntimes: Array.from(
+                        new Map(
+                            [GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME].map(
+                                (value) => [value, value]
+                            )
+                        ).values()
+                    )
                 })
             ]
         });

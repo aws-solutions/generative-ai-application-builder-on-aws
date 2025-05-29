@@ -12,6 +12,7 @@ import {
     CfnParameterKeys,
     IS_INTERNAL_USER_ENV_VAR,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
+    STACK_DEPLOYMENT_SOURCE_USE_CASE,
     USER_POOL_ID_ENV_VAR,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     UseCaseTypes
@@ -26,8 +27,11 @@ import { UseCaseConfiguration } from './types';
  * specifically deployments and updates
  */
 export class ChatUseCaseDeploymentAdapter extends UseCase {
-    constructor(event: APIGatewayEvent) {
+    constructor(event: APIGatewayEvent, apiRootResourceId?: string) {
         const jsonBody = JSON.parse(event.body!);
+        if (apiRootResourceId) {
+            jsonBody.ExistingApiRootResourceId = apiRootResourceId;
+        }
         // in update and delete cases, we will be provided a useCaseId. In create, we generate one
         const useCaseId: string = event.pathParameters?.useCaseId ?? crypto.randomUUID();
         const cfnParameters = ChatUseCaseDeploymentAdapter.createCfnParameters(jsonBody, useCaseId);
@@ -150,6 +154,26 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
             eventBody.VpcParams?.ExistingSecurityGroupIds
         );
 
+        ChatUseCaseDeploymentAdapter.setBooleanParameterIfExists(
+            cfnParameters,
+            CfnParameterKeys.FeedbackEnabled,
+            eventBody.FeedbackParams?.FeedbackEnabled
+        );
+
+        if (!eventBody.AuthenticationParams?.CognitoParams?.ExistingUserPoolId) {
+            ChatUseCaseDeploymentAdapter.setParameterIfExists(
+                cfnParameters,
+                CfnParameterKeys.ExistingRestApiId,
+                eventBody.ExistingRestApiId
+            );
+
+            ChatUseCaseDeploymentAdapter.setParameterIfExists(
+                cfnParameters,
+                CfnParameterKeys.ExistingApiRootResourceId,
+                eventBody.ExistingApiRootResourceId
+            );
+        }
+
         // fixed/mandatory parameters for the deployment
         // each new deployment or update requires a new SSM param in order to properly have cloudformation update all resources on a deploy
         cfnParameters.set(
@@ -198,7 +222,8 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
             process.env[COGNITO_POLICY_TABLE_ENV_VAR]!
         );
         cfnParameters.set(CfnParameterKeys.ExistingModelInfoTableName, process.env[MODEL_INFO_TABLE_NAME_ENV_VAR]!);
-        cfnParameters.set(CfnParameterKeys.UseCaseUUID, `${shortUUID}`);
+        cfnParameters.set(CfnParameterKeys.UseCaseUUID, `${useCaseId}`);
+        cfnParameters.set(CfnParameterKeys.StackDeploymentSource, STACK_DEPLOYMENT_SOURCE_USE_CASE);
 
         return cfnParameters;
     }
@@ -230,6 +255,10 @@ export class ChatUseCaseDeploymentAdapter extends UseCase {
                 Verbose: eventBody.LlmParams.Verbose
             },
             AuthenticationParams: eventBody.AuthenticationParams,
+            FeedbackParams: {
+                FeedbackEnabled: eventBody.FeedbackParams?.FeedbackEnabled,
+                ...(eventBody.FeedbackParams?.FeedbackEnabled && { CustomMappings: {} })
+            },
             IsInternalUser: process.env[IS_INTERNAL_USER_ENV_VAR]! // env var value is set as 'true' or 'false' on deployment of management stack
         };
 

@@ -1,3 +1,13 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`Snapshot test 1`] = `null`;
+exports[`Snapshot test 1`] = `
+<div
+  style={
+    {
+      "padding": "20px",
+    }
+  }
+>
+  No deployment details found for ID: 
+</div>
+`;

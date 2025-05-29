@@ -16,17 +16,23 @@ export const API_GATEWAY_THROTTLING_RATE_LIMIT = 5;
 export const API_GATEWAY_THROTTLING_BURST_LIMIT = 5;
 export const COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime = lambda.Runtime.NODEJS_22_X;
 export const GOV_CLOUD_REGION_LAMBDA_NODE_RUNTIME: lambda.Runtime = lambda.Runtime.NODEJS_18_X;
-export const COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_12;
-export const COMMERCIAL_REGION_LAMBDA_LAYER_PYTHON_RUNTIME: string = 'python_lambda_layer_3_12';
-export const LANGCHAIN_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_12;
-export const CHAT_LAMBDA_PYTHON_RUNTIME: string = 'python_lambda_3_12_with_args';
-export const LANGCHAIN_LAMBDA_LAYER_PYTHON_RUNTIME: string = 'langchain_python_3_12_with_args';
+export const COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_13;
+export const COMMERCIAL_REGION_LAMBDA_LAYER_PYTHON_RUNTIME: string = 'python_lambda_layer_3_13';
+export const LANGCHAIN_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_13;
+export const CHAT_LAMBDA_PYTHON_RUNTIME: string = 'python_lambda_3_13_with_args';
+export const LANGCHAIN_LAMBDA_LAYER_PYTHON_RUNTIME: string = 'langchain_python_3_13_with_args';
 export const COMMERCIAL_REGION_LAMBDA_NODE_TS_LAYER_RUNTIME: string = 'node_ts_lambda_22_x_layer';
 export const COMMERCIAL_REGION_LAMBDA_JS_LAYER_RUNTIME: string = 'node_js_lambda_22_x_layer';
 export const GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_11;
 export const COMMERCIAL_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_21;
 export const GOV_CLOUD_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_17;
 export const SERVICE_NAME = 'UseCaseManagement';
+
+export enum StackDeploymentSource {
+    DEPLOYMENT_PLATFORM = 'DeploymentPlatform',
+    USE_CASE = 'UseCase',
+    STANDALONE_USE_CASE = 'StandaloneUseCase'
+}
 
 export enum CloudWatchNamespace {
     API_GATEWAY = 'AWS/ApiGateway',
@@ -36,10 +42,22 @@ export enum CloudWatchNamespace {
     AWS_SAGEMAKER = 'AWS/SageMaker',
     LANGCHAIN_LLM = 'Langchain/LLM',
     USE_CASE_DEPLOYMENTS = 'Solution/UseCaseDeployments',
+    USE_CASE_DETAILS = 'Solution/UseCaseDetails',
+    FEEDBACK_MANAGEMENT = 'Solution/FeedbackManagement',
     COLD_STARTS = 'Solution/ColdStarts'
 }
 
+export enum LLMStopReasons {
+    END_TURN = 'EndTurn',
+    MAX_TOKENS = 'MaxTokens',
+    STOP_SEQUENCE = 'StopSequence',
+    GUARDRAIL_INTERVENED = 'GuardrailIntervened',
+    CONTENT_FILTERED = 'ContentFiltered',
+    TOOL_USE = 'ToolUse'
+}
+
 export enum CloudWatchMetrics {
+    // API Gateway Metrics
     REST_ENDPOINT_TOTAL_HITS = 'Count',
     REST_ENDPOINT_CACHE_HITS = 'CacheHitCount',
     REST_ENDPOINT_CACHE_MISSES = 'CacheMissCount',
@@ -51,24 +69,38 @@ export enum CloudWatchMetrics {
     WEBSOCKET_LATENCY = 'IntegrationLatency',
     WEBSOCKET_CLIENT_ERRORS = 'ClientError',
     WEBSOCKET_EXECUTION_ERRORS = 'ExecutionError',
+
+    // Cognito Metrics
     COGNITO_SIGN_IN_SUCCESSES = 'SignInSuccesses',
     COGNITO_SIGN_UP_SUCCESSES = 'SignUpSuccesses',
+
+    // LLM Query Processing Metrics
     LANGCHAIN_QUERY = 'LangchainQueries',
     LANGCHAIN_FAILURES = 'LangchainFailures',
     LANGCHAIN_QUERY_PROCESSING_TIME = 'LangchainQueryProcessingTime',
     INCORRECT_INPUT_FAILURES = 'IncorrectInputFailures',
+    LLM_INPUT_TOKEN_COUNT = 'InputTokenCount',
+    LLM_OUTPUT_TOKEN_COUNT = 'OutputTokenCount',
+    LLM_TOTAL_TOKEN_COUNT = 'TotalTokenCount',
+    LLM_STOP_REASON = 'StopReason',
+
+    // SageMaker Metrics
+    SAGEMAKER_MODEL_INVOCATION_FAILURE = 'SagemakerModelInvocationFailures',
+
+    // KnowledgeBase Metrics
     KENDRA_QUERY = 'KendraQueries',
     KENDRA_FETCHED_DOCUMENTS = 'KendraFetchedDocuments',
     KENDRA_QUERY_PROCESSING_TIME = 'KendraProcessingTime',
     KENDRA_FAILURES = 'KendraFailures',
     KENDRA_NO_HITS = 'KendraNoHits',
-    SAGEMAKER_MODEL_INVOCATION_FAILURE = 'SagemakerModelInvocationFailures',
     BEDROCK_KNOWLEDGE_BASE_RETRIEVE = 'BedrockKnowledgeBaseRetrieve',
     BEDROCK_KNOWLEDGE_BASE_RETRIEVE_TIME = 'BedrockKnowledgeBaseRetrieveTime',
     BEDROCK_KNOWLEDGE_BASE_FETCHED_DOCUMENTS = 'BedrockKnowledgeBaseFetchedDocuments',
     BEDROCK_KNOWLEDGE_BASE_FAILURES = 'BedrockKnowledgeBaseFailures',
     BEDROCK_KNOWLEDGE_BASE_NO_HITS = 'BedrockKnowledgeBaseRetrieveNoHits',
     BEDROCK_MODEL_INVOCATION_FAILURE = 'BedrockModelInvocationFailures',
+
+    // Use Case Deployments
     UC_INITIATION_SUCCESS = 'UCInitiationSuccess',
     UC_INITIATION_FAILURE = 'UCInitiationFailure',
     UC_UPDATE_SUCCESS = 'UCUpdateSuccess',
@@ -76,7 +108,18 @@ export enum CloudWatchMetrics {
     UC_DELETION_SUCCESS = 'UCDeletionSuccess',
     UC_DELETION_FAILURE = 'UCDeletionFailure',
     UC_DESCRIBE_SUCCESS = 'UCDescribeSuccess',
-    UC_DESCRIBE_FAILURE = 'UCDescribeFailure'
+    UC_DESCRIBE_FAILURE = 'UCDescribeFailure',
+
+    // Feedback Metrics
+    FEEDBACK_ENABLED_COUNT = 'FeedbackEnabled',
+    FEEDBACK_REJECTION_COUNT = 'FeedbackRejectionCount',
+    FEEDBACK_SUBMITTED_COUNT = 'FeedbackSubmittedCount',
+    FEEDBACK_PROCESSING_ERROR_COUNT = 'FeedbackProcessingErrorCount',
+    FEEDBACK_STORAGE_ERROR_COUNT = 'FeedbackStorageErrorCount',
+    INACCURATE_FEEDBACK_COUNT = 'InaccurateFeedbackCount',
+    INCOMPLETE_OR_INSUFFICIENT_FEEDBACK_COUNT = 'IncompleteOrInsufficientFeedbackCount',
+    HARMFUL_FEEDBACK_COUNT = 'HarmfulFeedbackCount',
+    OTHER_NEGATIVE_FEEDBACK_COUNT = 'OtherNegativeFeedbackCount'
 }
 
 export const ADDITIONAL_LLM_LIBRARIES = 'AdditionalLLMLibraries';
@@ -119,6 +162,14 @@ export enum AGENT_TYPES {
     BEDROCK = 'Bedrock'
 }
 export const SUPPORTED_AGENT_TYPES = [AGENT_TYPES.BEDROCK];
+
+export enum BEDROCK_INFERENCE_TYPES {
+    QUICK_START = 'QUICK_START',
+    OTHER_FOUNDATION = 'OTHER_FOUNDATION',
+    INFERENCE_PROFILE = 'INFERENCE_PROFILE',
+    PROVISIONED = 'PROVISIONED',
+}
+export const SUPPORTED_BEDROCK_INFERENCE_TYPES = [BEDROCK_INFERENCE_TYPES.QUICK_START, BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION, BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILE, BEDROCK_INFERENCE_TYPES.PROVISIONED];
 
 export enum DynamoDBAttributes {
     CONVERSATION_TABLE_PARTITION_KEY = 'UserId',
@@ -171,6 +222,7 @@ export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
 export const USE_CASE_API_KEY_SUFFIX_ENV_VAR = 'API_KEY_SUFFIX';
 export const USE_CASE_UUID_ENV_VAR = 'USE_CASE_UUID';
 export const WEBSOCKET_API_ID_ENV_VAR = 'WEBSOCKET_API_ID';
+export const FEEDBACK_ENABLED_ENV_VAR = 'FEEDBACK_ENABLED'
 export const REST_API_NAME_ENV_VAR = 'REST_API_NAME';
 export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
 
@@ -213,3 +265,9 @@ export const INVALID_REQUEST_HEADER_RESPONSE_CODE = 403;
 // Default AWS managed rules have priority 0-6. Custom rules start from priority 7
 export const CUSTOM_RULE_PRIORITY = 7;
 export const HEADERS_NOT_ALLOWED_KEY = 'HeadersNotAllowed';
+
+// Feedback related constants
+export const FEEDBACK_REASON_OPTIONS = ['Inaccurate', 'Incomplete or insufficient', 'Harmful', 'Other'];
+export const MAX_REPHRASED_QUERY_LENGTH = 1000;
+export const MAX_COMMENT_LENGTH = 500;
+export const FEEDBACK_VALUES = ['positive', 'negative'];

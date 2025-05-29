@@ -34,11 +34,14 @@ describe('When Chat use case is created', () => {
     it('has suitable cloudformation parameters', () => {
         template.hasParameter('UseCaseUUID', {
             Type: 'String',
-            AllowedPattern: '^[0-9a-fA-F]{8}$',
-            MaxLength: 8,
-            ConstraintDescription: 'Please provide an 8 character long UUID',
+            AllowedPattern:
+                '^[0-9a-fA-F]{8}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+            MinLength: 8,
+            MaxLength: 36,
+            ConstraintDescription:
+                'Using digits and the letters A through F, please provide a 8 character id or a 36 character long UUIDv4.',
             Description:
-                'UUID to identify this deployed use case within an application. Please provide an 8 character long UUID. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones'
+                'UUID to identify this deployed use case within an application. Please provide a 36 character long UUIDv4. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones'
         });
 
         template.hasParameter('RAGEnabled', {
@@ -150,7 +153,7 @@ describe('When Chat use case is created', () => {
             AllowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
             MaxLength: 255,
             Description:
-                'Name of the DynamoDB table containing user group policies, used by the custom authorizer on this use-cases API. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
+                'Name of the DynamoDB table containing user group policies, used by the custom authorizer for the use-cases APIs. Required when an existing User Pool Id is provided.',
             Default: ''
         });
 
@@ -194,7 +197,30 @@ describe('When Chat use case is created', () => {
             MaxLength: 128
         });
 
-        template.hasOutput('WebsockEndpoint', {
+        template.hasParameter('ExistingRestApiId', {
+            Type: 'String',
+            AllowedPattern: '^$|^[a-zA-Z0-9]+$',
+            Default: '',
+            Description:
+                'Optional - Provide the API Gateway REST API ID to use an existing one. If not provided, a new API Gateway REST API will be created. Note that for standalone use cases, existing APIs should have the pre-configured UseCaseDetails (and Feedback if Feedback is enabled) routes with expected models. Additionally, ExistingApiRootResourceId must also be provided.'
+        });
+
+        template.hasParameter('ExistingApiRootResourceId', {
+            Type: 'String',
+            AllowedPattern: '^$|^[a-zA-Z0-9]+$',
+            Default: '',
+            Description:
+                'Optional - Provide the API Gateway REST API Root Resource ID to use an existing one. REST API Root Resource ID can be obtained from a describe call on your REST API.'
+        });
+
+        template.hasParameter('FeedbackEnabled', {
+            Type: 'String',
+            AllowedValues: ['Yes', 'No'],
+            Default: 'No',
+            Description: 'If set to No, the deployed use case stack will not have access to the feedback feature.'
+        });
+
+        template.hasOutput('WebsocketEndpoint', {
             Description: 'Websocket API endpoint',
             Value: {
                 'Fn::GetAtt': [
@@ -205,6 +231,63 @@ describe('When Chat use case is created', () => {
                 ]
             }
         });
+        template.hasOutput('CognitoClientId', {
+            'Value': {
+                'Fn::If': [
+                    Match.stringLikeRegexp('.*CreateUserPoolClientCondition.*'),
+                    {
+                        'Fn::GetAtt': [Match.stringLikeRegexp('.*CfnAppClient.*'), 'ClientId']
+                    },
+                    {
+                        'Ref': 'ExistingCognitoUserPoolClient'
+                    }
+                ]
+            }
+        });
+        template.hasOutput('CognitoUserPoolId', {
+            'Value': {
+                'Fn::If': [
+                    Match.stringLikeRegexp('.*CreateUserPoolCondition.*'),
+                    {
+                        'Ref': Match.stringLikeRegexp('.*CognitoSetupNewUserPool.*')
+                    },
+                    {
+                        'Ref': 'ExistingCognitoUserPoolId'
+                    }
+                ]
+            }
+        });
+        template.hasOutput('RestApiEndpoint', {
+            'Description': 'The endpoint URL for the Rest API',
+            'Value': {
+                'Fn::Join': [
+                    '',
+                    [
+                        'https://',
+
+                        {
+                            'Fn::If': [
+                                'CreateApiResourcesCondition',
+                                {
+                                    'Ref': Match.stringLikeRegexp('.*RestEndpoint.*')
+                                },
+                                {
+                                    'Ref': 'ExistingRestApiId'
+                                }
+                            ]
+                        },
+                        '.execute-api.',
+                        {
+                            'Ref': 'AWS::Region'
+                        },
+                        '.amazonaws.com/prod'
+                    ]
+                ]
+            }
+        });
+
+        // Ensure you expected to add a new CfnOutput before incrementing this value
+        expect(Object.keys(template.findOutputs('*')).length).toEqual(12);
     });
 
     describe('When nested stacks are created', () => {
@@ -218,7 +301,7 @@ describe('When Chat use case is created', () => {
         });
 
         it('should create nested stacks for chat provider and ddb storage', () => {
-            template.resourceCountIs('AWS::CloudFormation::Stack', 5);
+            template.resourceCountIs('AWS::CloudFormation::Stack', 6);
         });
 
         it('should have a description in the nested stacks', () => {
@@ -230,7 +313,9 @@ describe('When Chat use case is created', () => {
 
             expect(
                 Template.fromStack(chatStack.knowledgeBaseSetup.kendraKnowledgeBase).toJSON()['Description']
-            ).toEqual(`(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the Kendra Index - Version ${version}`);
+            ).toEqual(
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the Kendra Index - Version ${version}`
+            );
 
             expect(Template.fromStack(chatStack.uiDistribution).toJSON()['Description']).toEqual(
                 `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${version}`
@@ -264,6 +349,96 @@ describe('When Chat use case is created', () => {
             });
         });
 
+        it('has condition for FeedbackSetupStack', () => {
+            template.hasCondition('CreateFeedbackResources', {
+                'Fn::And': [
+                    {
+                        'Fn::Equals': [
+                            {
+                                'Ref': 'FeedbackEnabled'
+                            },
+                            'Yes'
+                        ]
+                    },
+                    {
+                        'Condition': 'CreateApiResourcesCondition'
+                    }
+                ]
+            });
+        });
+        it('has a condition for Feedback Setup nested stack to deploy', () => {
+            template.hasResource('AWS::CloudFormation::Stack', {
+                Type: 'AWS::CloudFormation::Stack',
+                Properties: {
+                    Parameters: {
+                        ExistingPrivateSubnetIds: {
+                            'Fn::If': [
+                                'DeployVPCCondition',
+                                {
+                                    'Fn::GetAtt': [
+                                        Match.stringLikeRegexp('VPCBedrockUseCaseVPCNestedStack.*'),
+                                        'Outputs.PrivateSubnetIds'
+                                    ]
+                                },
+                                {
+                                    'Fn::Join': [
+                                        ',',
+                                        {
+                                            Ref: 'ExistingPrivateSubnetIds'
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        ExistingSecurityGroupIds: {
+                            'Fn::If': [
+                                'DeployVPCCondition',
+                                {
+                                    'Fn::GetAtt': [
+                                        Match.stringLikeRegexp('VPCBedrockUseCaseVPCNestedStack.*'),
+                                        'Outputs.SecurityGroupIds'
+                                    ]
+                                },
+                                {
+                                    'Fn::Join': [
+                                        ',',
+                                        {
+                                            Ref: 'ExistingSecurityGroupIds'
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        CustomResourceLambdaArn: {
+                            'Fn::GetAtt': [Match.stringLikeRegexp('UseCaseSetupInfraSetupCustomResource.*'), 'Arn']
+                        },
+                        CustomResourceRoleArn: {
+                            'Fn::GetAtt': [Match.stringLikeRegexp('UseCaseSetupCustomResourceLambdaRole.*'), 'Arn']
+                        },
+                        AccessLoggingBucketArn: {
+                            'Fn::GetAtt': [Match.stringLikeRegexp('UseCaseSetupAccessLog.*'), 'Arn']
+                        },
+                        FeedbackEnabled: {
+                            Ref: 'FeedbackEnabled'
+                        },
+                        ExistingRestApiId: {
+                            Ref: 'ExistingRestApiId'
+                        },
+                        ExistingApiRootResourceId: {
+                            Ref: 'ExistingApiRootResourceId'
+                        },
+                        StackDeploymentSource: {
+                            Ref: 'StackDeploymentSource'
+                        }
+                    },
+                    TemplateURL: Match.anyValue()
+                },
+                UpdateReplacePolicy: 'Delete',
+                DeletionPolicy: 'Delete',
+                Condition: 'CreateFeedbackResources'
+            });
+        });
+
         it('has a condition for the UI nested stack to deploy on a CfnParameter', () => {
             template.hasResource('AWS::CloudFormation::Stack', {
                 Type: 'AWS::CloudFormation::Stack',
@@ -276,7 +451,7 @@ describe('When Chat use case is created', () => {
                             'Fn::GetAtt': [Match.anyValue(), 'Arn']
                         },
                         UseCaseUUID: {
-                            Ref: Match.anyValue()
+                            'Fn::Select': [0, Match.anyValue()]
                         },
                         AccessLoggingBucketArn: {
                             'Fn::GetAtt': ['UseCaseSetupAccessLog473E9BB9', 'Arn']
@@ -306,7 +481,17 @@ describe('When Chat use case is created', () => {
                                 [
                                     '/gaab-webconfig/',
                                     {
-                                        'Ref': 'UseCaseUUID'
+                                        'Fn::Select': [
+                                            0,
+                                            {
+                                                'Fn::Split': [
+                                                    '-',
+                                                    {
+                                                        'Ref': 'UseCaseUUID'
+                                                    }
+                                                ]
+                                            }
+                                        ]
                                     }
                                 ]
                             ]
@@ -360,8 +545,8 @@ describe('When Chat use case is created', () => {
     });
 
     describe('Creates the LLM provider setup', () => {
-        it('should create 6 lambda functions', () => {
-            template.resourceCountIs('AWS::Lambda::Function', 6);
+        it('should create 8 lambda functions', () => {
+            template.resourceCountIs('AWS::Lambda::Function', 8);
         });
 
         it('should create chat provider lambda function with correct env vars set', () => {
@@ -620,6 +805,101 @@ describe('When Chat use case is created', () => {
                         'Ref': Match.stringLikeRegexp('ChatLlmProviderLambdaRole*')
                     }
                 ]
+            });
+        });
+    });
+
+    describe('API Gateway and REST endpoint setup', () => {
+        it('should create API Gateway provided condition', () => {
+            template.hasCondition('CreateApiResourcesCondition', {
+                'Fn::Or': [
+                    {
+                        'Fn::Equals': [
+                            {
+                                'Ref': 'ExistingRestApiId'
+                            },
+                            ''
+                        ]
+                    },
+                    {
+                        'Fn::Equals': [
+                            {
+                                'Ref': 'ExistingApiRootResourceId'
+                            },
+                            ''
+                        ]
+                    }
+                ]
+            });
+        });
+
+        it('should create use case REST endpoint with correct properties', () => {
+            template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
+            template.resourceCountIs('AWS::ApiGateway::Deployment', 1);
+            template.resourceCountIs('AWS::ApiGateway::Stage', 1);
+
+            template.hasResourceProperties('AWS::ApiGateway::RestApi', {
+                Description: 'API endpoint to access use case related resources',
+                EndpointConfiguration: {
+                    Types: ['EDGE']
+                },
+                Name: {
+                    'Fn::Join': [
+                        '',
+                        [
+                            {
+                                Ref: 'AWS::StackName'
+                            },
+                            '-UseCasesAPI'
+                        ]
+                    ]
+                }
+            });
+
+            template.hasResource('AWS::ApiGateway::RestApi', {
+                Condition: Match.stringLikeRegexp('CreateApiResourcesCondition')
+            });
+        });
+
+        it('should create use case REST endpoint with feedback resources', () => {
+            template.hasResourceProperties('AWS::ApiGateway::Resource', {
+                RestApiId: {
+                    'Fn::If': [
+                        'CreateApiResourcesCondition',
+                        {
+                            'Ref': Match.stringLikeRegexp('UseCaseEndpointSetupUseCaseRestEndpointDeployment*')
+                        },
+                        {
+                            'Ref': 'ExistingRestApiId'
+                        }
+                    ]
+                },
+                PathPart: 'feedback'
+            });
+            template.hasResource('AWS::ApiGateway::Resource', {
+                Condition: Match.stringLikeRegexp('CreateFeedbackResources')
+            });
+        });
+
+        it('should create use case REST endpoint with feedback use case id method', () => {
+            template.hasResourceProperties('AWS::ApiGateway::Method', {
+                RestApiId: {
+                    'Fn::If': [
+                        'CreateApiResourcesCondition',
+                        {
+                            'Ref': Match.stringLikeRegexp(
+                                'UseCaseEndpointSetupUseCaseRestEndpointDeploymentRestEndPointLambdaRestApi*'
+                            )
+                        },
+                        {
+                            'Ref': 'ExistingRestApiId'
+                        }
+                    ]
+                },
+                HttpMethod: 'POST'
+            });
+            template.hasResource('AWS::ApiGateway::Method', {
+                Condition: Match.stringLikeRegexp('CreateFeedbackResources')
             });
         });
     });

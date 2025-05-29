@@ -9,7 +9,13 @@ To build and run the application locally, the setup requires
 
 -   [Nodejs 18.x](https://nodejs.org/en) or higher installed
 
-Follow the below steps before building the web app for local execution
+#### Option 1 - Script
+
+To set up your local development environment, use `/source/scripts/ui_dev_setup/setup_local_dev_server.py`. Instructions for running the script can be found in the comments at the bottom of the file.
+
+#### Option 2 - Manual
+
+To perform these steps manually, follow the below steps before building the web app for local execution
 
 -   The backend infrastructure stacks from `source/infrastructure` are deployed in your AWS account
 -   Create a file `source/ui-deployment/public/runtimeConfig.json` (if one does not exist) by executing
@@ -79,6 +85,28 @@ After completing the above steps, you can run the web application locally.
 ```
     npm start
 ```
+
+Local Development Setup - Cognito Configuration
+
+1. Get your local server URL
+   - Run `npm start`
+   - Note the ********* URL that appears
+
+2. Update your configuration files:
+   - Open runtimeConfig.json
+   - Set CognitoRedirectUrl to your ********* URL
+
+3. Configure Cognito to allow your local URL:
+   a. Open AWS Console and navigate to Cognito
+   b. Go to User Pools
+   c. Find your user pool using the UserPoolId from runtimeConfig.json
+   d. Click App integration → App clients
+   e. Select the client matching the UserPoolClientId from runtimeConfig.json
+   f. Under Hosted UI settings, click 'Edit'
+   g. Add your ********* URL to the 'Allowed callback URLs'
+   h. Save changes
+
+This enables Cognito to redirect back to your local development server after authentication.
 
 You should now be able to log in with the User Id and Password for which you should have received an email during deployment. You can also
 create additional users in the Amazon Cognito User Pool from the AWS web console.

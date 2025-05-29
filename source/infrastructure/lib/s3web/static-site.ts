@@ -64,6 +64,7 @@ export class StaticWebsite extends Construct {
             serverAccessLogsBucket: props.accessLoggingBucket,
             serverAccessLogsPrefix: 'webappbucket/'
         });
+        this.webS3Bucket.policy?.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
         const bucketPolicyForLambda = new iam.Policy(this, 'LambdaBucketResourcePolicy', {
             document: new iam.PolicyDocument({
@@ -130,12 +131,14 @@ export class StaticWebsite extends Construct {
             },
             insertHttpSecurityHeaders: false
         });
-
+        cloudfrontToS3.s3Bucket?.policy?.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
         this.webS3Bucket.policy?.node.addDependency(cloudfrontToS3.cloudFrontWebDistribution);
+        
         cloudfrontToS3.cloudFrontLoggingBucket?.node
             .tryFindChild('Policy')
             ?.node.tryFindChild('Resource')
             ?.node?.addDependency(cloudfrontToS3.cloudFrontLoggingBucket);
+        cloudfrontToS3.cloudFrontLoggingBucket?.policy?.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
         const bucketPolicyUpdateCustomResource = new cdk.CustomResource(this, 'UpdateBucketPolicy', {
             resourceType: 'Custom::UpdateBucketPolicy',

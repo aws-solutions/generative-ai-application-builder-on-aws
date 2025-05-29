@@ -26,6 +26,7 @@ import {
     IS_INTERNAL_USER_ENV_VAR,
     KnowledgeBaseTypes,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
+    STACK_DEPLOYMENT_SOURCE_USE_CASE,
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
@@ -47,7 +48,7 @@ import {
 jest.mock('crypto', () => {
     return {
         ...jest.requireActual('crypto'),
-        randomUUID: jest.fn().mockReturnValue('11111111-222222222-33333333-44444444-55555555')
+        randomUUID: jest.fn().mockReturnValue('11111111-2222-2222-3333-333344444444')
     };
 });
 
@@ -82,7 +83,7 @@ describe('When creating StackCommandBuilders', () => {
             const cfnParameters = new Map<string, string>();
             cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
             const useCase = new UseCase(
-                '11111111',
+                '11111111-2222-2222-3333-333344444444',
                 'fake-test',
                 'Create a stack for test',
                 cfnParameters,
@@ -150,6 +151,7 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
                 { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                { ParameterKey: CfnParameterKeys.FeedbackEnabled, ParameterValue: 'Yes' },
                 {
                     ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                     ParameterValue: '11111111-11111111'
@@ -164,7 +166,8 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE }
             ]);
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -210,6 +213,7 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
                 { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                { ParameterKey: CfnParameterKeys.FeedbackEnabled, ParameterValue: 'Yes' },
                 {
                     ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                     ParameterValue: '11111111-11111111'
@@ -224,7 +228,8 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE }
             ]);
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -281,7 +286,8 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE }
             ]);
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -345,7 +351,8 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE }
             ]);
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -411,7 +418,8 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE }
             ]);
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -446,6 +454,7 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: CfnParameterKeys.RAGEnabled, ParameterValue: 'true' },
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
                 { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
+                { ParameterKey: CfnParameterKeys.FeedbackEnabled, ParameterValue: 'Yes' },
                 {
                     ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                     ParameterValue: '11111111-11111111'
@@ -460,7 +469,8 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE }
             ]);
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -487,7 +497,7 @@ describe('When creating StackCommandBuilders', () => {
             const cfnParameters = new Map<string, string>();
             cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
             useCase = new UseCase(
-                '11111111',
+                '11111111-2222-2222-3333-333344444444',
                 'fake-test',
                 'Create a stack for test',
                 cfnParameters,
@@ -577,13 +587,14 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE },
                 { ParameterKey: CfnParameterKeys.VpcEnabled, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.CreateNewVpc, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingVpcId, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingPrivateSubnetIds, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingSecurityGroupIds, UsePreviousValue: true },
-                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolClient, UsePreviousValue: true }
+                { ParameterKey: CfnParameterKeys.ExistingCognitoUserPoolClient, UsePreviousValue: true },
             ]);
             expect(updateStackInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',
@@ -632,7 +643,8 @@ describe('When creating StackCommandBuilders', () => {
                     ParameterValue: 'fake-table-name'
                 },
                 { ParameterKey: CfnParameterKeys.ExistingModelInfoTableName, ParameterValue: 'model-info-table-name' },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' },
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE },
                 { ParameterKey: CfnParameterKeys.VpcEnabled, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.CreateNewVpc, UsePreviousValue: true },
                 { ParameterKey: CfnParameterKeys.ExistingVpcId, UsePreviousValue: true },
@@ -661,7 +673,7 @@ describe('When creating StackCommandBuilders', () => {
         let useCase: UseCase;
         beforeAll(async () => {
             useCase = new UseCase(
-                '11111111',
+                '11111111-2222-2222-3333-333344444444',
                 'fake-test',
                 'Create a stack for test',
                 new Map<string, string>(),
@@ -793,6 +805,7 @@ describe('create stack builder with agent use case', () => {
                 { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
                 { ParameterKey: 'BedrockAgentId', ParameterValue: 'fake-agent-id' },
                 { ParameterKey: 'BedrockAgentAliasId', ParameterValue: 'fake-alias-id' },
+                { ParameterKey: CfnParameterKeys.FeedbackEnabled, ParameterValue: 'Yes' },
                 {
                     ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                     ParameterValue: '11111111-11111111'
@@ -810,7 +823,8 @@ describe('create stack builder with agent use case', () => {
                     ParameterKey: CfnParameterKeys.ExistingCognitoGroupPolicyTableName,
                     ParameterValue: 'fake-table-name'
                 },
-                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111' }
+                { ParameterKey: CfnParameterKeys.UseCaseUUID, ParameterValue: '11111111-2222-2222-3333-333344444444' },
+                { ParameterKey: CfnParameterKeys.StackDeploymentSource, ParameterValue: STACK_DEPLOYMENT_SOURCE_USE_CASE }
             ]);
             expect(createStackCommandInput.Capabilities).toEqual([
                 'CAPABILITY_IAM',

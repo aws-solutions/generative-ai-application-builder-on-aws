@@ -35,7 +35,11 @@ export const ModelTemperature = (props: ModelTemperatureProps) => {
     });
     const [temperature, setTemperature] = React.useState(props.modelData.temperature);
 
-    const modelTemperatureQueryResponse = useModelTemperatureQuery(props.modelProvider.value!, props.modelName);
+    const modelTemperatureQueryResponse = useModelTemperatureQuery(
+        props.modelProvider.value!,
+        props.modelName,
+        props.modelData?.bedrockInferenceType
+    );
 
     const onTemperatureChange = ({ detail, maxTemperature, minTemperature }: OnTemperatureChangeProps) => {
         setTemperature(detail.value);

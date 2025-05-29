@@ -26,9 +26,6 @@ describe('When creating rest endpoints', () => {
             runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
             handler: 'index.handler'
         };
-        const testUserPool = new cognito.UserPool(stack, 'UserPool', {
-            userPoolName: `TestPool`
-        });
 
         const testAuthorizer = new api.RequestAuthorizer(stack, 'CustomRequestAuthorizers', {
             handler: new lambda.Function(stack, 'MockAuthorizerFunction', mockLambdaFuncProps),
@@ -117,7 +114,7 @@ describe('When creating rest endpoints', () => {
         const restApiStageCapture = new Capture();
         const lambdaCapture = new Capture();
 
-        template.resourceCountIs('AWS::Lambda::Permission', 17);
+        template.resourceCountIs('AWS::Lambda::Permission', 19);
         template.hasResourceProperties('AWS::Lambda::Permission', {
             Action: 'lambda:InvokeFunction',
             FunctionName: {
@@ -663,7 +660,7 @@ describe('When creating rest endpoints', () => {
         expect(jsonTemplate['Resources'][webAclCapture.asString()]['Type']).toEqual('AWS::WAFv2::WebACL');
     });
 
-    it('should create path based resources', () => {
+    it('should create deployments path based resources', () => {
         const restApiCapture = new Capture();
 
         template.resourceCountIs('AWS::ApiGateway::Resource', 8);
@@ -680,7 +677,7 @@ describe('When creating rest endpoints', () => {
 
         template.hasResourceProperties('AWS::ApiGateway::Resource', {
             ParentId: {
-                Ref: Match.stringLikeRegexp('TestEndpointCreationEndPointLambdaRestApideployments*')
+                Ref: Match.stringLikeRegexp('TestEndpointCreationDeploymentRestEndPointLambdaRestApideployments*')
             },
             PathPart: '{useCaseId}',
             RestApiId: {
@@ -688,13 +685,127 @@ describe('When creating rest endpoints', () => {
             }
         });
 
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'GET',
+            OperationName: 'GetUseCase',
+            ResourceId: {
+                Ref: Match.stringLikeRegexp(
+                    'TestEndpointCreationDeploymentRestEndPointLambdaRestApideploymentsuseCaseId*'
+                )
+            },
+            AuthorizerId: {
+                'Ref': 'CustomRequestAuthorizers5281AD5E'
+            },
+            RestApiId: {
+                Ref: restApiCapture.asString()
+            },
+            Integration: {
+                IntegrationHttpMethod: 'POST',
+                PassthroughBehavior: 'NEVER',
+                Type: 'AWS_PROXY',
+                Uri: {
+                    'Fn::Join': [
+                        '',
+                        [
+                            'arn:',
+                            {
+                                'Ref': 'AWS::Partition'
+                            },
+                            ':apigateway:',
+                            {
+                                'Ref': 'AWS::Region'
+                            },
+                            ':lambda:path/2015-03-31/functions/',
+                            {
+                                'Fn::GetAtt': [Match.stringLikeRegexp('MockGetRequestFunction*'), 'Arn']
+                            },
+                            '/invocations'
+                        ]
+                    ]
+                }
+            },
+            RequestParameters: { 'method.request.header.authorization': true }
+        });
+    });
+
+    it('should create model-info path based resources', () => {
+        const restApiCapture = new Capture();
+
+        template.resourceCountIs('AWS::ApiGateway::Resource', 8);
+
         template.hasResourceProperties('AWS::ApiGateway::Resource', {
             ParentId: {
-                'Fn::GetAtt': [restApiCapture.asString(), 'RootResourceId']
+                'Fn::GetAtt': [restApiCapture, 'RootResourceId']
             },
             PathPart: 'model-info',
             RestApiId: {
-                Ref: restApiCapture.asString()
+                Ref: restApiCapture
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            'ParentId': {
+                'Fn::GetAtt': [restApiCapture, 'RootResourceId']
+            },
+            'PathPart': 'model-info',
+            'RestApiId': {
+                'Ref': restApiCapture
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            'ParentId': {
+                'Ref': Match.stringLikeRegexp('TestEndpointCreationDeploymentRestEndPointLambdaRestApimodelinfo*')
+            },
+            'PathPart': 'use-case-types',
+            'RestApiId': {
+                'Ref': restApiCapture
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            'ParentId': {
+                'Ref': Match.stringLikeRegexp('TestEndpointCreationDeploymentRestEndPointLambdaRestApimodelinfo')
+            },
+            'PathPart': '{useCaseType}',
+            'RestApiId': {
+                'Ref': restApiCapture
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            'ParentId': {
+                'Ref': Match.stringLikeRegexp(
+                    'TestEndpointCreationDeploymentRestEndPointLambdaRestApimodelinfouseCaseType'
+                )
+            },
+            'PathPart': 'providers',
+            'RestApiId': {
+                'Ref': restApiCapture
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            'ParentId': {
+                'Ref': Match.stringLikeRegexp(
+                    'TestEndpointCreationDeploymentRestEndPointLambdaRestApimodelinfouseCaseType'
+                )
+            },
+            'PathPart': '{providerName}',
+            'RestApiId': {
+                'Ref': restApiCapture
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            'ParentId': {
+                'Ref': Match.stringLikeRegexp(
+                    'TestEndpointCreationDeploymentRestEndPointLambdaRestApimodelinfouseCaseTypeproviderName'
+                )
+            },
+            'PathPart': '{modelId}',
+            'RestApiId': {
+                'Ref': restApiCapture
             }
         });
     });
@@ -704,7 +815,7 @@ describe('When creating rest endpoints', () => {
         const authorizerCapture = new Capture();
         const validatorCapture = new Capture();
 
-        template.resourceCountIs('AWS::ApiGateway::Method', 14);
+        template.resourceCountIs('AWS::ApiGateway::Method', 15);
 
         template.hasResourceProperties('AWS::ApiGateway::Method', {
             AuthorizationType: 'CUSTOM',
@@ -739,7 +850,7 @@ describe('When creating rest endpoints', () => {
                 'Ref': validatorCapture
             },
             ResourceId: {
-                'Ref': Match.stringLikeRegexp('TestEndpointCreationEndPointLambdaRestApideployments*')
+                'Ref': Match.stringLikeRegexp('TestEndpointCreationDeploymentRestEndPointLambdaRestApideployments*')
             },
             RestApiId: {
                 'Ref': restApiCapture
@@ -747,10 +858,9 @@ describe('When creating rest endpoints', () => {
         });
     });
 
-    it('stack should publish a REST endpoint output', () => {
+    it('should have a WebACLAssociation', () => {
         const restApiCapture = new Capture();
         const restApiDeploymentCapture = new Capture();
-
         template.hasResourceProperties('AWS::WAFv2::WebACLAssociation', {
             ResourceArn: {
                 'Fn::Join': [
@@ -777,33 +887,6 @@ describe('When creating rest endpoints', () => {
             },
             WebACLArn: {
                 'Fn::GetAtt': [Match.anyValue(), 'Arn']
-            }
-        });
-
-        template.hasOutput('TestEndpointCreationEndPointLambdaRestApiEndpointE2A92C44', {
-            Value: {
-                'Fn::Join': [
-                    '',
-                    [
-                        'https://',
-                        {
-                            Ref: restApiCapture.asString()
-                        },
-                        '.execute-api.',
-                        {
-                            Ref: 'AWS::Region'
-                        },
-                        '.',
-                        {
-                            Ref: 'AWS::URLSuffix'
-                        },
-                        '/',
-                        {
-                            Ref: restApiDeploymentCapture.asString()
-                        },
-                        '/'
-                    ]
-                ]
             }
         });
     });
@@ -863,6 +946,16 @@ describe('When creating rest endpoints', () => {
                 Ref: restApiCapture.asString()
             },
             StatusCode: '400'
+        });
+    });
+
+    it('should create API Gateway resources with correct configuration for model-info', () => {
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: 'model-info'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: '{useCaseId}'
         });
     });
 });

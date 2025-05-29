@@ -6,7 +6,9 @@
 import pytest
 from operations import operation_types
 from operations.use_case_policy import (
-    API_ARN,
+    WEBSOCKET_API_ARN,
+    DETAILS_API_ARN,
+    FEEDBACK_API_ARN,
     GROUP_NAME,
     PHYSICAL_RESOURCE_ID,
     POLICY_TABLE_NAME,
@@ -19,7 +21,9 @@ from operations.use_case_policy import (
 def lambda_event(aws_credentials, custom_resource_event):
     custom_resource_event[RESOURCE_PROPERTIES] = {RESOURCE: operation_types.USE_CASE_POLICY}
     custom_resource_event[RESOURCE_PROPERTIES][GROUP_NAME] = "fakegroupname"
-    custom_resource_event[RESOURCE_PROPERTIES][API_ARN] = "fakeapi.arn"
+    custom_resource_event[RESOURCE_PROPERTIES][WEBSOCKET_API_ARN] = "fakewebsocketapi.arn"
+    custom_resource_event[RESOURCE_PROPERTIES][DETAILS_API_ARN] = "fakedetailsapi.arn"
+    custom_resource_event[RESOURCE_PROPERTIES][FEEDBACK_API_ARN] = "fakefeedbackapi.arn"
     custom_resource_event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME] = "policytable"
     custom_resource_event[PHYSICAL_RESOURCE_ID] = "fake_physical_resource_id"
 

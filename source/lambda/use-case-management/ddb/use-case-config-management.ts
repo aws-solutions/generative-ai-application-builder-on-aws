@@ -108,13 +108,13 @@ export class UseCaseConfigManagement {
 
     /**
      * Method to retrieve use case config record from ddb, using use case record from deployments table
-     * @param useCaseRecod
+     * @param useCaseRecordInput
      * @returns
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###getUseCaseConfig' })
-    public async getUseCaseConfigFromRecord(useCaseRecod: UseCaseRecord): Promise<any> {
+    public async getUseCaseConfigFromRecord(useCaseRecordInput: UseCaseRecord): Promise<UseCaseConfiguration> {
         try {
-            const input = await new GetItemCommandInputBuilder(useCaseRecod).build();
+            const input = await new GetItemCommandInputBuilder(useCaseRecordInput).build();
             const response = await this.client.send(new GetItemCommand(input));
             const unmarshalledConfig = unmarshall(response.Item!);
             return unmarshalledConfig.config;

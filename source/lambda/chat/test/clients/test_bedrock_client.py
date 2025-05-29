@@ -8,24 +8,24 @@ from unittest.mock import patch
 
 import pytest
 from clients.bedrock_client import BedrockClient
+from langchain_core.callbacks import BaseCallbackHandler
+
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from llms.bedrock import BedrockLLM
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from utils.constants import (
     CHAT_IDENTIFIER,
-    DEFAULT_BEDROCK_MODEL_FAMILY,
-    DEFAULT_BEDROCK_MODELS_MAP,
-    DEFAULT_PROMPT_PLACEHOLDERS,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     MESSAGE_KEY,
     PROMPT_EVENT_KEY,
     RAG_CHAT_IDENTIFIER,
 )
 from utils.enum_types import KnowledgeBaseTypes
 
-BEDROCK_PROMPT = """\n\n{history}\n\n{input}"""
-BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
-model_id = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
-
+BEDROCK_PROMPT = """{input}"""
+BEDROCK_RAG_PROMPT = """{context}\n\n{input}"""
+DEFAULT_PROMPT_PLACEHOLDERS = ["input"]
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context", "input"]
+model_id = "amazon.fake-model"
 table_name = "fake-table"
 
 
@@ -147,17 +147,23 @@ def test_construct_chat_model(
 ):
     chat_event_body = json.loads(chat_event["Records"][0]["body"])
     chat_event_body[MESSAGE_KEY][PROMPT_EVENT_KEY] = prompt
-
-    llm_client = BedrockClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
-    llm_client.get_model(chat_event_body[MESSAGE_KEY], "fake-user-id")
+    with patch(
+        "clients.builders.llm_builder.WebsocketHandler",
+        return_value=BaseCallbackHandler(),
+    ):
+        llm_client = BedrockClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
+        llm_client.get_model(chat_event_body[MESSAGE_KEY], "fake-user-id")
 
     assert type(llm_client.builder.llm) == llm_type
     assert llm_client.builder.llm.model == parsed_bedrock_config["LlmParams"]["BedrockLlmParams"]["ModelId"]
     assert llm_client.builder.llm.model_params == {"maxTokenCount": 100, "topP": 0.3, "temperature": 0.2}
-    from langchain_core.prompts import ChatPromptTemplate
 
-    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(
-        parsed_bedrock_config["LlmParams"]["PromptParams"]["PromptTemplate"]
+    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_messages(
+        [
+            ("system", parsed_bedrock_config["LlmParams"]["PromptParams"]["PromptTemplate"]),
+            MessagesPlaceholder("history", optional=True),
+            ("human", "{input}"),
+        ]
     )
     assert set(llm_client.builder.llm.prompt_template.input_variables) == set(placeholders)
     assert llm_client.builder.llm.streaming == parsed_bedrock_config["LlmParams"]["Streaming"]

@@ -30,22 +30,12 @@ def setup_metrics_environment():
 
 
 def test_get_cloudwatch_metrics_queries():
-    total_queries = 43
-    number_of_kendra_queries = 9
-
-    assert len(get_cloudwatch_metrics_queries()) == total_queries
-
-    del os.environ[KENDRA_INDEX_ID_ENV_VAR]
-    assert len(get_cloudwatch_metrics_queries()) == (total_queries - number_of_kendra_queries)
-
-    os.environ[KENDRA_INDEX_ID_ENV_VAR] = ""
-    assert len(get_cloudwatch_metrics_queries()) == (total_queries - number_of_kendra_queries)
+    assert len(get_cloudwatch_metrics_queries()) == 12
 
 
 @mock_aws
 @mock.patch("utils.metrics_payload.get_cloudwatch_metrics_queries", return_value=[mock.ANY])
 def test_get_metrics_payload_success(mock_queries):
-
     metric_key, metric_value = ["metric1", mock.ANY]
     expected_metrics = {metric_key: metric_value}
     mock_response = {"MetricDataResults": [{"Id": metric_key, "Values": [metric_value]}]}

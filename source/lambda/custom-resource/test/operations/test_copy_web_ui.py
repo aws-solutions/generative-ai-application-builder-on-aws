@@ -102,44 +102,14 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
             None,
             None,
             False,
-            {
-                "Key1": "FakeValue1",
-                "Key2": {"Key3": "FakeValue3"},
-                "IsInternalUser": "false",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": False,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
-            },
+            {"Key1": "FakeValue1", "Key2": {"Key3": "FakeValue3"}, "IsInternalUser": "false"},
         ),
         (
             "Create",
             False,
             False,
             True,
-            {
-                "Key1": "FakeValue1",
-                "Key2": {"Key3": "FakeValue3"},
-                "IsInternalUser": "false",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "PromptTemplate": "fake_prompt_template",
-                            "MaxPromptTemplateLength": 1000.0,
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": True,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
-            },
+            {"Key1": "FakeValue1", "Key2": {"Key3": "FakeValue3"}, "IsInternalUser": "false"},
         ),
         (
             "Create",
@@ -150,18 +120,6 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "PromptTemplate": "fake_prompt_template",
-                            "MaxPromptTemplateLength": 1000.0,
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": True,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
             },
         ),
         (
@@ -173,16 +131,6 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": False,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
             },
         ),
         (
@@ -194,16 +142,6 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": False,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
             },
         ),
         (
@@ -215,16 +153,6 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "false",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": False,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
             },
         ),
         (
@@ -236,18 +164,6 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "false",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "PromptTemplate": "fake_prompt_template",
-                            "MaxPromptTemplateLength": 1000.0,
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": True,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
             },
         ),
         (
@@ -259,18 +175,6 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "PromptTemplate": "fake_prompt_template",
-                            "MaxPromptTemplateLength": 1000.0,
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": True,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
             },
         ),
         (
@@ -282,18 +186,6 @@ def test_get_params_failure(monkeypatch, web_ui_copy_setup):
                 "Key1": "FakeValue1",
                 "Key2": {"Key3": "FakeValue3"},
                 "IsInternalUser": "true",
-                "UseCaseConfig": {
-                    "UseCaseName": "test_use_case",
-                    "LlmParams": {
-                        "PromptParams": {
-                            "PromptTemplate": "fake_prompt_template",
-                            "MaxPromptTemplateLength": 1000.0,
-                            "MaxInputTextLength": 1000.0,
-                            "UserPromptEditingEnabled": True,
-                        },
-                        "RAGEnabled": True,
-                    },
-                },
             },
         ),
         ("Delete", None, None, None, None),

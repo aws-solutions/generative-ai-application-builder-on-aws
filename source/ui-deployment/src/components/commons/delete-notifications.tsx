@@ -14,7 +14,7 @@ function useNotifications(status = '') {
     if (status === DEPLOYMENT_STATUS_NOTIFICATION.SUCCESS && !isDismissed) {
         notifications.push({
             type: 'success',
-            header: 'Sucess',
+            header: 'Success',
             content: 'Delete request submitted.',
             dismissible: true,
             dismissLabel: 'Dismiss message',

@@ -4,6 +4,13 @@
 import { AuthResponse, APIGatewayRequestAuthorizerEvent } from 'aws-lambda';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
 import { getPolicyDocument } from './utils/get-policy';
+import {
+    CognitoIdentityProviderClient,
+    DescribeUserPoolClientCommand
+} from '@aws-sdk/client-cognito-identity-provider';
+import { jwtDecode } from 'jwt-decode';
+
+const cognitoClient = new CognitoIdentityProviderClient({});
 
 /**
  * Cognito JWT verifier to validate incoming APIGateway websocket authorization request.
@@ -11,8 +18,7 @@ import { getPolicyDocument } from './utils/get-policy';
  */
 export const jwtVerifier = CognitoJwtVerifier.create({
     userPoolId: process.env.USER_POOL_ID!,
-    tokenUse: 'access',
-    clientId: process.env.CLIENT_ID!
+    tokenUse: 'access'
 });
 
 /**
@@ -33,9 +39,26 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
         if (!encodedToken) {
             throw new Error('Authorization header value is missing');
         }
+        const encodedTokenWithoutBearer = encodedToken.replace(/^Bearer\s+/i, '');
 
-        const decodedTokenPayload = await jwtVerifier.verify(encodedToken, {
-            clientId: process.env.CLIENT_ID!
+        const decodedToken = jwtDecode<any>(encodedTokenWithoutBearer);
+
+        const clientId = decodedToken.aud ?? decodedToken.client_id;
+
+        try {
+            await cognitoClient.send(
+                new DescribeUserPoolClientCommand({
+                    UserPoolId: process.env.USER_POOL_ID,
+                    ClientId: clientId
+                })
+            );
+        } catch (error) {
+            console.error('Client validation failed:', error);
+            throw new Error('Invalid client id');
+        }
+
+        const decodedTokenPayload = await jwtVerifier.verify(encodedTokenWithoutBearer, {
+            clientId: clientId
         });
 
         return getPolicyDocument(decodedTokenPayload);

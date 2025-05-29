@@ -19,6 +19,7 @@
   "context": {
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/core:aspectStabilization": true,
     "@aws-cdk/core:target-partitions": [
       "aws",
       "aws-cn"
@@ -63,10 +64,10 @@
     "@custom-bundler/unit-test": false,
     "solution_id": "SO0276",
     "solution_name": "generative-ai-application-builder-on-aws",
-    "solution_version": "v2.1.9",
+    "solution_version": "v3.0.0",
     "app_registry_name": "GAAB",
     "application_type": "AWS-Solutions",
     "application_trademark_name": "Generative AI Application Builder on AWS",
-    "cdk-asset-bucket": "cdk-hnb659fds-assets-123456789012-us-east-1"
+    "cdk-asset-bucket": ""
   }
 }

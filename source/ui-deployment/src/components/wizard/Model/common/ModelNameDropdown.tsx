@@ -56,7 +56,7 @@ export const ModelNameDropdown = (props: ModelNameDropdownProps) => {
             } else if (isError) {
                 throw error;
             } else {
-                const options = formatModelNamesList(data as string[], providerName);
+                const options = formatModelNamesList(data, providerName);
                 setOptions(options);
                 setStatus('finished');
             }
@@ -112,36 +112,26 @@ export const ModelNameDropdown = (props: ModelNameDropdownProps) => {
                     statusType={status}
                     errorText="Error fetching model names"
                 />
-                <Alert>
-                    For the selected model, please review the below information
-                    <ul>
-                        <li>
-                            <Box variant="p">
-                                You have enabled "Model Access" in the{' '}
-                                <Link
-                                    external={false}
-                                    href={`https://console.aws.amazon.com/bedrock/home`}
-                                    target="_blank"
-                                    data-testid="bedrock-console-link"
-                                >
-                                    Amazon Bedrock console
-                                </Link>
-                                .
-                            </Box>
-                        </li>
-                        <li>
-                            <Box variant="p">
-                                The model is available in the AWS region where the use case is being deployed.
-                            </Box>
-                        </li>
-                        <li>
-                            <Box variant="p">
-                                If Amazon Bedrock mandates the use of Amazon Bedrock inference profiles for model
-                                invocation.
-                            </Box>
-                        </li>
-                    </ul>
-                </Alert>
+                {modelNameSelectedOption && (
+                    <Alert type="warning" data-testid="inference-profile-alert">
+                        <Box variant="p">
+                            Please check if the selected model requires an inference profile. Not all models are
+                            available in all AWS regions in direct on-demand mode and may require an inference profile.
+                        </Box>
+                        <Box variant="p">
+                            For more information on which models require inference profiles, please refer to the{' '}
+                            <Link
+                                external={true}
+                                href="https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html"
+                                target="_blank"
+                                data-testid="inference-profile-docs-link"
+                            >
+                                Amazon Bedrock Inference Profiles documentation
+                            </Link>
+                            .
+                        </Box>
+                    </Alert>
+                )}
             </SpaceBetween>
         </FormField>
     );

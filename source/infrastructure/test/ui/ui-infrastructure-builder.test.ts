@@ -17,7 +17,7 @@ describe('UIInfrastructureBuilder constructor', () => {
 
         const builder = new UIInfrastructureBuilder(props);
 
-        expect(builder.uiAssetFolder).toEqual('ui-chat');
+        expect(builder.uiAssetFolder).toEqual(UIAssetFolders.CHAT);
         expect(builder.deployWebApp).toEqual('Yes');
     });
 
@@ -29,7 +29,7 @@ describe('UIInfrastructureBuilder constructor', () => {
 
         const builder = new UIInfrastructureBuilder(props);
 
-        expect(builder.uiAssetFolder).toEqual('ui-deployment');
+        expect(builder.uiAssetFolder).toEqual(UIAssetFolders.DEPLOYMENT_PLATFORM);
         expect(builder.deployWebApp).toEqual('Yes');
     });
 });

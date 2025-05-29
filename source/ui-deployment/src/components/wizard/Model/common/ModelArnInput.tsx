@@ -1,17 +1,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BaseFormComponentProps } from '@/components/wizard/interfaces/';
 import { updateNumFieldsInError } from '@/components/wizard/utils';
 import { Box, FormField, Input, InputProps } from '@cloudscape-design/components';
 import { InfoLink } from '@/components/commons';
-import { IG_DOCS } from '@/utils/constants';
 
 export interface ModelArnInputProps extends BaseFormComponentProps {
     modelData: any;
-    modelArnError: string;
-    setModelArnError: React.Dispatch<React.SetStateAction<string>>;
+    modelArnError?: string;
+    setModelArnError?: React.Dispatch<React.SetStateAction<string>>;
+    registerErrorSetter?: (setter: React.Dispatch<React.SetStateAction<string>>) => void;
 }
 
 const arnPrefix = 'arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}:';
@@ -22,17 +22,33 @@ const provisionedModelPattern = '([0-9]{12}:provisioned-model/[a-z0-9]{12})';
 const arnPattern = `^(${arnPrefix}(${customModelPattern}|${foundationModelPattern}|${provisionedModelPattern}))$`;
 
 export const ModelArnInput = (props: ModelArnInputProps) => {
+    const [localModelArnError, setLocalModelArnError] = React.useState('');
+
+    // Use provided error state and setter if available, otherwise use local state
+    const modelArnError = props.modelArnError !== undefined ? props.modelArnError : localModelArnError;
+
+    const setModelArnError = props.setModelArnError || setLocalModelArnError;
+
+    // Register error setter with parent component if registerErrorSetter is provided
+    useEffect(() => {
+        if (props.registerErrorSetter) {
+            props.registerErrorSetter(setModelArnError);
+        }
+    }, [props.registerErrorSetter]);
+
     const onModelArnChange = (detail: InputProps.ChangeDetail) => {
         props.onChangeFn({ modelArn: detail.value });
+
         let errors = '';
-        if (detail.value.length === 0) {
+        if (detail.value.trim().length === 0) {
             errors += 'Required field. ';
         }
-        if (!detail.value.match(arnPattern)) {
+        if (!detail.value.trim().match(arnPattern)) {
             errors += 'Invalid model ARN.';
         }
-        updateNumFieldsInError(errors, props.modelArnError, props.setNumFieldsInError);
-        props.setModelArnError(errors);
+
+        updateNumFieldsInError(errors, modelArnError, props.setNumFieldsInError);
+        setModelArnError(errors);
     };
 
     return (
@@ -49,7 +65,7 @@ export const ModelArnInput = (props: ModelArnInputProps) => {
                 />
             }
             description={'ARN of the provisioned/custom model to use from Amazon Bedrock.'}
-            errorText={props.modelArnError}
+            errorText={modelArnError}
             data-testid="model-arn-field"
         >
             <Input

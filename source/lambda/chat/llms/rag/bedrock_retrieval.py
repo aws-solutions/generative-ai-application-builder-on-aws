@@ -3,26 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, Union
+from typing import Any, Dict, List
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
-from langchain_aws.chat_models.bedrock import ChatBedrock
-from langchain_aws.llms.bedrock import BedrockLLM as Bedrock
-from llms.factories.bedrock_adapter_factory import BedrockAdapterFactory
+from langchain_aws import ChatBedrockConverse
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 from llms.models.model_provider_inputs import ModelProviderInputs
 from llms.rag.retrieval_llm import RetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import (
-    BETA_USE_CONVERSE_API_MODELS,
-    CHATBEDROCK_MODELS,
-    DEFAULT_BEDROCK_MODEL_FAMILY,
-    DEFAULT_BEDROCK_MODELS_MAP,
-    TRACE_ID_ENV_VAR,
-)
-from utils.custom_exceptions import LLMBuildError, LLMInvocationError
-from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
+from utils.constants import BEDROCK_GUARDRAILS_KEY, TOP_LEVEL_PARAMS_MAPPING, TRACE_ID_ENV_VAR
+from utils.custom_exceptions import LLMInvocationError
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client
 
 tracer = Tracer()
@@ -40,8 +34,8 @@ class BedrockRetrievalLLM(RetrievalLLM):
             conversation_memory (BaseMemory): A BaseMemory object which helps store and access user chat history
             knowledge_base (KnowledgeBase): A KnowledgeBase object which retrieves information from the user's knowledge base for LLM context
             return_source_docs (bool): A boolean which represents whether the source documents are returned or not [optional, defaults to DEFAULT_RETURN_SOURCE_DOCS]
-            model_family (BedrockModelProviders): A string which represents the model family [optional, defaults to DEFAULT_BEDROCK_MODEL_FAMILY]
-            model (str): Bedrock model name that represents the underlying LLM [optional, defaults to DEFAULT_BEDROCK_MODELS_MAP defined default]
+            model_family (BedrockModelProviders): A string which represents the model family
+            model (str): Bedrock model name that represents the underlying LLM
             model_params (dict): A dictionary of model parameters, which can be obtained from the Bedrock documentation [optional]
             prompt_template (str): A string which represents the prompt template [optional, defaults to prompt template provided in ModelInfoStorage DynamoDB table]
             streaming (bool): A boolean which represents whether the chat is streaming or not [optional, defaults to value provided in ModelInfoStorage DynamoDB table]
@@ -51,21 +45,19 @@ class BedrockRetrievalLLM(RetrievalLLM):
             callbacks (list): A list of BaseCallbackHandler objects which are used for the LLM callbacks [optional, defaults to None]
 
         - model_defaults (ModelDefaults): A ModelDefaults object which contains default values for the model retrieved from ModelInfoStorage DynamoDB table
-        - model_family (BedrockModelProviders): A string which represents the model family [optional, defaults to DEFAULT_BEDROCK_MODEL_FAMILY]. When model_family
-            is not provided, whether the model is provided or not, the model will be set to the default model within the DEFAULT_BEDROCK_MODEL_FAMILY
+        - model_family (BedrockModelProviders): A string which represents the model family
         - return_source_docs (bool): A boolean which represents whether the source documents are returned or not [optional, defaults to DEFAULT_RETURN_SOURCE_DOCS]
 
     Methods:
        - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
         - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
         - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
-        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
-        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
-        placeholders. In case of errors, falls back on default values.
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, llm_provider, rag_enabled): Generates the ChatPromptTemplate using the provided prompt template and
+         placeholders. In case of errors, raises ValueError
         - get_llm(): Returns the underlying LLM object that is used by the runnable. Each child class must provide its own implementation.
         - get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM. Each child class must provide its own implementation based on the model parameters it supports.
-        - get_validated_disambiguation_prompt(disambiguation_prompt_template, default_disambiguation_prompt_template,
-        disambiguation_prompt_template_placeholders, disambiguation_prompt_enabled): Generates the ChatPromptTemplate used for disambiguating the question using conversation history. It uses the provided prompt template and placeholders. In case of errors, falls back on default values.
+        - get_validated_disambiguation_prompt(disambiguation_prompt_template, disambiguation_prompt_placeholders, disambiguation_prompt_enabled): Generates the ChatPromptTemplate used for disambiguating the question using conversation history.
+          It uses the provided prompt template and placeholders. In case of errors, it raises ValueError
         - save_to_session_history(human_message, ai_response): Saves the conversation history to the conversation memory.
         - enhanced_create_history_aware_retriever(llm, retriever, prompt): create_history_aware_retriever enhancement that allows passing of the intermediate rephrased question into the output using RunnablePassthrough
         - enhanced_create_stuff_documents_chain(llm, prompt, rephrased_question, output_parser, document_prompt, document_separator, document_variable_name): create_stuff_documents_chain enhancement that allows rephrased question to be passed as an input to the LLM instead.
@@ -84,18 +76,30 @@ class BedrockRetrievalLLM(RetrievalLLM):
             self.model = model_inputs.model
             self.model_family = model_inputs.model_family
         else:
-            self.model = DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY]
-            self.model_family = DEFAULT_BEDROCK_MODEL_FAMILY
+            error_message = f"Model Name and Model Family are required to initialize BedrockRetrievalLLM. Received model family as '{model_inputs.model_family}' and model name as '{model_inputs.model}'"
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            raise ValueError(error_message)
 
         self.model_arn = model_inputs.model_arn
         self.guardrails = model_inputs.guardrails
         self.model_params = self.get_clean_model_params(model_inputs.model_params)
 
         self.llm = self.get_llm()
-        self.disambiguation_llm = self.get_llm(condense_prompt_model=True)
+        self.disambiguation_llm = self.get_llm()
         self.runnable_with_history = self.get_runnable()
 
-    def get_llm(self, condense_prompt_model: bool = False, *args, **kwargs) -> Union[Bedrock, ChatBedrock]:
+    @property
+    def prompt_template(self) -> ChatPromptTemplate:
+        return self._prompt_template
+
+    @prompt_template.setter
+    def prompt_template(self, prompt_template) -> None:
+        prompt_placeholders = self._model_inputs.prompt_placeholders
+        self._prompt_template = self.get_validated_prompt(
+            prompt_template, prompt_placeholders, LLMProviderTypes.BEDROCK, True
+        )
+
+    def get_llm(self, *args, **kwargs) -> ChatBedrockConverse:
         """
         Creates a LangChain `LLM` object which is used to generate chat responses.
 
@@ -105,38 +109,46 @@ class BedrockRetrievalLLM(RetrievalLLM):
                 callbacks and streaming are disabled when this flag is set to True
 
         Returns:
-            (Bedrock) The created LangChain LLM object that can be invoked in a conversation chain
+            (ChatBedrockConverse) The created LangChain LLM object that can be invoked in a conversation chain
         """
         bedrock_client = get_service_client("bedrock-runtime")
-
-        # condense_prompt_model refers to the model used for condensing a prompt for RAG use-cases
-        # callbacks and streaming is disabled for this model
-        streaming = False if condense_prompt_model else self.streaming
 
         if self.model_arn is not None:
             model = self.model_arn
         else:
             model = self.model
 
+        # Initialize request options with required parameters
         request_options = {
             "client": bedrock_client,
             "model_id": model,
             "provider": self.model_family,
-            "model_kwargs": self.model_params,
-            "streaming": streaming,
+            "verbose": self.verbose,
         }
 
+        # Extract top-level parameters into request_options
+        request_options.update(
+            {
+                TOP_LEVEL_PARAMS_MAPPING[param]: self.model_params[param]
+                for param in TOP_LEVEL_PARAMS_MAPPING
+                if param in self.model_params
+            }
+        )
+
+        # Add remaining parameters as additional_model_request_fields
+        additional_model_request_fields = {
+            key: value for key, value in self.model_params.items() if key not in TOP_LEVEL_PARAMS_MAPPING
+        }
+
+        if additional_model_request_fields:
+            request_options["additional_model_request_fields"] = additional_model_request_fields
+
         if self.guardrails is not None:
-            request_options["guardrails"] = self.guardrails
+            request_options[BEDROCK_GUARDRAILS_KEY] = self.guardrails
 
-        if model in BETA_USE_CONVERSE_API_MODELS:
-            request_options["beta_use_converse_api"] = True
+        logger.debug(f"Request options: {request_options}")
 
-        if self.model_family in CHATBEDROCK_MODELS or "beta_use_converse_api" in request_options:
-            request_options["verbose"] = self.verbose
-            return ChatBedrock(**request_options)
-        else:
-            return Bedrock(**request_options)
+        return ChatBedrockConverse(**request_options)
 
     def get_clean_model_params(self, model_params) -> Dict[str, Any]:
         """
@@ -150,24 +162,8 @@ class BedrockRetrievalLLM(RetrievalLLM):
             (Dict): Sanitized model params
         """
         sanitized_model_params = super().get_clean_model_params(model_params)
-        sanitized_model_params["temperature"] = self.temperature
-        bedrock_adapter = BedrockAdapterFactory().get_bedrock_adapter(self.model_family, self.model)
         sanitized_model_params["temperature"] = float(self.temperature)
-
-        try:
-            bedrock_llm_params_dict = bedrock_adapter(
-                **sanitized_model_params, model_defaults=self.model_defaults
-            ).get_params_as_dict()
-        except TypeError as error:
-            error_message = (
-                f"Error occurred while building Bedrock family '{self.model_family}' model '{self.model}'. "
-                "Ensure that the model params provided are correct and they match the model specification. "
-                f"Received params: {sanitized_model_params}. Error: {error}"
-            )
-            logger.error(error_message)
-            raise LLMBuildError(error_message)
-
-        return bedrock_llm_params_dict
+        return sanitized_model_params
 
     @tracer.capture_method(capture_response=True)
     def generate(self, question: str) -> Dict[str, Any]:

@@ -6,6 +6,7 @@ import json
 import os
 
 import pytest
+
 from clients.builders.bedrock_builder import BedrockBuilder
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
@@ -75,6 +76,7 @@ def test_knowledge_base_builder(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
 
     config = bedrock_llm_config
@@ -145,6 +147,7 @@ def test_conversation_memory_builder(
         rag_enabled=rag_enabled,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
     user_id = chat_event_body.get("requestContext", {}).get("authorizer", {}).get(USER_ID_EVENT_KEY, {})
 
@@ -156,6 +159,7 @@ def test_conversation_memory_builder(
     assert builder.conversation_history_cls == DynamoDBChatMessageHistory
     assert builder.conversation_history_params == {
         "conversation_id": "fake-conversation-id",
+        "message_id": "fake-message-id",
         "max_history_length": 10,
         "table_name": os.environ[CONVERSATION_TABLE_NAME_ENV_VAR],
         "user_id": "fake-user-id",
@@ -206,5 +210,6 @@ def test_get_guardrails(
         rag_enabled=False,
         connection_id="fake-connection-id",
         conversation_id="fake-conversation-id",
+        message_id="fake-message-id",
     )
     assert builder.get_guardrails(model_config) == output_response

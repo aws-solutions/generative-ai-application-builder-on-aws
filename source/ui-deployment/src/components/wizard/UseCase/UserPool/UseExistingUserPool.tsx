@@ -30,6 +30,7 @@ export const UseExistingUserPool = (props: UserPoolFieldProps) => {
             info={
                 <InfoLink
                     onFollow={() => props.setHelpPanelContent!(existingUserPoolInfoPanel)}
+                    data-testid="existing-user-pool-radio-info-link"
                     ariaLabel={
                         'You can use an existing Cognito User Pool, or choose "No" to use the default user pool.'
                     }

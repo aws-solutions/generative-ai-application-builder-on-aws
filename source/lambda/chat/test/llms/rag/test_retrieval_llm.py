@@ -6,9 +6,10 @@ from unittest import mock
 
 import pytest
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables.base import RunnableBinding
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.runnables.utils import AddableDict
+
 from llms.models.model_provider_inputs import BedrockInputs
 from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
@@ -16,8 +17,6 @@ from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
     CONTEXT_KEY,
-    DEFAULT_PROMPT_PLACEHOLDERS,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     DEFAULT_REPHRASE_RAG_QUESTION,
     DISAMBIGUATION_PROMPT_PLACEHOLDERS,
     OUTPUT_KEY,
@@ -30,7 +29,9 @@ from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 RAG_ENABLED = True
 model_id = "amazon.fake-model"
 model_provider = LLMProviderTypes.BEDROCK.value
-BEDROCK_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+DEFAULT_PROMPT_PLACEHOLDERS = ["input"]
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["input", "context"]
+BEDROCK_RAG_PROMPT = """{context}\n\n{input}"""
 DISAMBIGUATION_PROMPT_TEMPLATE = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
 RESPONSE_IF_NO_DOCS_FOUND = "Sorry, the model cannot respond to your questions due to admin enforced constraints."
 MOCKED_SOURCE_DOCS = [
@@ -66,6 +67,7 @@ def model_inputs(disambiguation_enabled, disambiguation_prompt, return_source_do
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": RAG_ENABLED,
             "knowledge_base": KendraKnowledgeBase(
@@ -217,9 +219,16 @@ def test_implement_error_not_raised(
         assert chat.conversation_history_params == {
             "table_name": "fake-table",
             "user_id": "fake-user-id",
+            "message_id": "fake-message-id",
             "conversation_id": "fake-conversation-id",
         }
-        assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
+        assert chat.prompt_template == ChatPromptTemplate.from_messages(
+            [
+                ("system", prompt),
+                MessagesPlaceholder("history", optional=True),
+                ("human", "{input}"),
+            ]
+        )
         assert set(chat.prompt_template.input_variables) == set(DEFAULT_PROMPT_RAG_PLACEHOLDERS)
         assert chat.model_params == {"temperature": 0.25, "maxTokenCount": 200, "topP": 0.9}
         assert chat.streaming == is_streaming
@@ -234,7 +243,7 @@ def test_implement_error_not_raised(
         if response_if_no_docs_found is not None:
             assert chat.response_if_no_docs_found == response_if_no_docs_found
 
-        runnable_type = RunnableBinding if is_streaming else RunnableWithMessageHistory
+        runnable_type = RunnableWithMessageHistory
         assert type(chat.runnable_with_history) == runnable_type
     except NotImplementedError as ex:
         raise Exception(ex)
@@ -270,7 +279,23 @@ def test_implement_error_not_raised(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            {OUTPUT_KEY: "some answer based on context", REPHRASED_QUERY_KEY: "rephrased query"},
+            [
+                AddableDict(
+                    {
+                        OUTPUT_KEY: "some answer",
+                    }
+                ),
+                AddableDict(
+                    {
+                        OUTPUT_KEY: " based on context",
+                    }
+                ),
+                AddableDict(
+                    {
+                        REPHRASED_QUERY_KEY: "rephrased query",
+                    }
+                ),
+            ],
             {OUTPUT_KEY: "some answer based on context", REPHRASED_QUERY_KEY: "rephrased query"},
             DISAMBIGUATION_PROMPT_TEMPLATE,
             None,
@@ -307,12 +332,25 @@ def test_implement_error_not_raised(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            {
-                OUTPUT_KEY: "some answer based on context",
-                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
-                REPHRASED_QUERY_KEY: "rephrased query",
-                "other_fields": {"some_field": "some_value"},
-            },
+            [
+                AddableDict(
+                    {
+                        OUTPUT_KEY: "some answer",
+                    }
+                ),
+                AddableDict(
+                    {
+                        OUTPUT_KEY: " based on context",
+                    }
+                ),
+                AddableDict(
+                    {
+                        CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                        REPHRASED_QUERY_KEY: "rephrased query",
+                        "other_fields": {"some_field": "some_value"},
+                    }
+                ),
+            ],
             {
                 OUTPUT_KEY: "some answer based on context",
                 SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
@@ -348,11 +386,24 @@ def test_implement_error_not_raised(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            {
-                OUTPUT_KEY: "some answer based on context",
-                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
-                "other_fields": {"some_field": "some_value"},
-            },
+            [
+                AddableDict(
+                    {
+                        OUTPUT_KEY: "some answer",
+                    }
+                ),
+                AddableDict(
+                    {
+                        OUTPUT_KEY: " based on context",
+                    }
+                ),
+                AddableDict(
+                    {
+                        CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                        "other_fields": {"some_field": "some_value"},
+                    }
+                ),
+            ],
             {OUTPUT_KEY: "some answer based on context"},
             None,
             None,
@@ -387,11 +438,24 @@ def test_implement_error_not_raised(
             BEDROCK_RAG_PROMPT,
             model_id,
             "rag_chat",
-            {
-                OUTPUT_KEY: "some answer based on context",
-                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
-                "other_fields": {"some_field": "some_value"},
-            },
+            [
+                AddableDict(
+                    {
+                        OUTPUT_KEY: "some answer",
+                    }
+                ),
+                AddableDict(
+                    {
+                        OUTPUT_KEY: " based on context",
+                    }
+                ),
+                AddableDict(
+                    {
+                        CONTEXT_KEY: MOCKED_SOURCE_DOCS,
+                        "other_fields": {"some_field": "some_value"},
+                    }
+                ),
+            ],
             {
                 OUTPUT_KEY: "some answer based on context",
                 SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
@@ -443,7 +507,11 @@ def test_generate(
 ):
     model = request.getfixturevalue(chat_fixture)
     response = None
-    with mock.patch("langchain_core.runnables.RunnableWithMessageHistory.invoke", return_value=chain_output):
+    if is_streaming:
+        method_name = "stream"
+    else:
+        method_name = "invoke"
+    with mock.patch(f"langchain_core.runnables.RunnableWithMessageHistory.{method_name}", return_value=chain_output):
         response = model.generate("What is lambda?")
         assert response == expected_output
 
@@ -524,7 +592,6 @@ def test_get_validated_disambiguation_prompt(
     chat = request.getfixturevalue(chat_fixture)
     response = chat.get_validated_disambiguation_prompt(
         test_disambiguation_prompt,
-        DISAMBIGUATION_PROMPT_TEMPLATE,
         DISAMBIGUATION_PROMPT_PLACEHOLDERS,
         disambiguation_enabled,
     )
@@ -535,7 +602,7 @@ def test_get_validated_disambiguation_prompt(
     "rag_enabled, disambiguation_enabled, return_source_docs, is_streaming, use_case, model_id, prompt,test_prompt, expected_prompt",
     [
         (
-            # incorrect prompt with repeated occurrences leads to default prompt being used
+            # incorrect prompt with repeated occurrences raises error
             True,
             True,
             False,
@@ -569,6 +636,7 @@ def test_exceptional_disambiguation_prompt_validations(
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "rag_enabled": True,
             "knowledge_base": KendraKnowledgeBase(
@@ -601,10 +669,13 @@ def test_exceptional_disambiguation_prompt_validations(
         }
     )
 
-    chat = BedrockRetrievalLLM(
-        model_inputs=llm_params,
-        model_defaults=ModelDefaults(model_provider, model_id, rag_enabled),
-    )
+    with pytest.raises(ValueError) as error:
+        BedrockRetrievalLLM(
+            model_inputs=llm_params,
+            model_defaults=ModelDefaults(model_provider, model_id, rag_enabled),
+        )
 
-    assert chat.prompt_template == ChatPromptTemplate.from_template(BEDROCK_RAG_PROMPT)
-    assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(expected_prompt)
+    assert (
+        error.value.args[0]
+        == "The prompt template contains more than one occurrence of the required placeholder: {input}"
+    )

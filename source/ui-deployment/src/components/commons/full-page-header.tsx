@@ -43,11 +43,7 @@ export function FullPageHeader({
         USECASE_TYPE_ROUTE[selectedDeployment.UseCaseType?.toUpperCase() as UseCaseType] ?? USECASE_TYPE_ROUTE.TEXT;
 
     function handleOnDeploymentIdClick() {
-        homeDispatch({
-            field: 'selectedDeployment',
-            value: selectedItems[0]
-        });
-        navigate(`/deployment-details`);
+        navigate(`/deployment-details/${selectedDeployment.UseCaseId}`);
     }
 
     function handleEditDeploymentClick() {
@@ -96,6 +92,8 @@ export function FullPageHeader({
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING ||
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.STOPPED;
+
+    const isDeleteEnabled = currentDeploymentStatus !== CFN_STACK_STATUS_INDICATOR.IN_PROGRESS;
 
     const handleRefresh = () => {
         homeDispatch({
@@ -148,7 +146,11 @@ export function FullPageHeader({
                     >
                         Clone
                     </Button>
-                    <Button data-testid="header-btn-delete" onClick={onDeleteInit} disabled={selectedItems.length < 1}>
+                    <Button
+                        data-testid="header-btn-delete"
+                        onClick={onDeleteInit}
+                        disabled={!isDeleteEnabled || selectedItems.length < 1}
+                    >
                         Delete
                     </Button>
                     <Button

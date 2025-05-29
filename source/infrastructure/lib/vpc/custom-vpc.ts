@@ -128,7 +128,7 @@ export class CustomVPC extends BaseNestedStack {
                 effect: iam.Effect.ALLOW,
                 principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
 
-                //Also this is an endpoint policy, to perform the actions on dynamodb, the lambda still requires requisite permissions.
+                // This is a VPC endpoint policy. To perform the actions on dynamodb, the lambda still requires requisite permissions.
                 resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`],
                 actions: [
                     'dynamodb:BatchGetItem',
@@ -149,6 +149,41 @@ export class CustomVPC extends BaseNestedStack {
             })
         );
 
+        const s3Endpoint: ec2.GatewayVpcEndpoint = this.vpc.addGatewayEndpoint('S3Endpoint', {
+            service: ec2.GatewayVpcEndpointAwsService.S3,
+            subnets: [{ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }]
+        });
+
+        // Permissions for S3 buckets such as the web app bucket, use case management lambda, feedback bucket, etc.
+        s3Endpoint.addToPolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
+                resources: [`arn:${cdk.Aws.PARTITION}:s3:::*`],
+                actions: [
+                    's3:AbortMultipartUpload',
+                    's3:CreateBucket',
+                    's3:DeleteBucketPolicy',
+                    's3:DeleteObject*',
+                    's3:GetEncryptionConfiguration',
+                    's3:GetBucket*',
+                    's3:GetObject*',
+                    's3:List*',
+                    's3:PutEncryptionConfiguration',
+                    's3:PutObject',
+                    's3:PutObjectLegalHold',
+                    's3:PutObjectRetention',
+                    's3:PutObjectTagging',
+                    's3:PutObjectVersionTagging'
+                ],
+                conditions: {
+                    'StringEquals': {
+                        'aws:SourceVpc': this.vpc.vpcId
+                    }
+                }
+            })
+        );
+
         const cloudWatchEndpoint = new ec2.InterfaceVpcEndpoint(this, 'CloudWatchEndpoint', {
             vpc: this.vpc,
             service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
@@ -163,7 +198,17 @@ export class CustomVPC extends BaseNestedStack {
                 resources: ['*'],
                 conditions: {
                     'StringEquals': {
-                        'cloudwatch:namespace': ['AWS/ApiGateway', 'AWS/Kendra', 'AWS/Cognito', 'Langchain/LLM']
+                        'cloudwatch:namespace': [
+                            'AWS/ApiGateway',
+                            'AWS/Bedrock',
+                            'AWS/Cognito',
+                            'AWS/Kendra',
+                            'AWS/SageMaker',
+                            'Langchain/LLM',
+                            'Solution/FeedbackManagement',
+                            'Solution/UseCaseDeployments',
+                            'Solution/UseCaseDetails'
+                        ]
                     }
                 }
             })
@@ -205,7 +250,7 @@ export class CustomVPC extends BaseNestedStack {
                 principals: [new iam.AnyPrincipal()], // NOSONAR - policy is on vpc endpoint, user principal is not known - typescript:S6270
                 actions: ['xray:PutTraceSegments', 'xray:PutTelemetryRecords'],
                 effect: iam.Effect.ALLOW,
-                resources: ['*'] // NOSONAR - this is a wildcard since the desintation does not have an arn
+                resources: ['*'] // NOSONAR - this is a wildcard since the destination does not have an arn
             })
         );
 

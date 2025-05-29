@@ -168,7 +168,7 @@ describe('When creating StackCommandBuilders', () => {
 
         it('should have the following properties', () => {
             expect(deleteCommandInput.TableName).toEqual(process.env[USE_CASES_TABLE_NAME_ENV_VAR]);
-            expect(deleteCommandInput.Key!.UseCaseId.S).toEqual('11111111-222222222-33333333-44444444-55555555');
+            expect(deleteCommandInput.Key!.UseCaseId.S).toEqual('11111111-2222-2222-3333-333344444444');
         });
     });
 
@@ -224,7 +224,7 @@ describe('When creating StackCommandBuilders', () => {
         it('should have the following properties', () => {
             expect(updateItemCommandInput.TableName).toEqual(process.env[USE_CASES_TABLE_NAME_ENV_VAR]);
             expect(updateItemCommandInput.Key).toEqual({
-                'UseCaseId': { 'S': '11111111-222222222-33333333-44444444-55555555' }
+                'UseCaseId': { 'S': '11111111-2222-2222-3333-333344444444' }
             });
             expect(updateItemCommandInput.UpdateExpression).toEqual(
                 'SET #TTL = :expiry_time, #DeletedBy = :user, #DeletedDate = :deletion_date'

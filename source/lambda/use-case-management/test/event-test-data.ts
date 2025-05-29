@@ -10,6 +10,9 @@ export const createAgentUseCaseEvent = {
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
         DeployUI: false,
+        FeedbackParams: {
+            FeedbackEnabled: true
+        },
         AgentParams: {
             BedrockAgentParams: {
                 AgentId: 'fake-agent-id',
@@ -85,6 +88,11 @@ export const createAgentWithCognitoConfig = {
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
         DeployUI: true,
+        ExistingRestApiId: 'fake-api-id',
+        ExistingApiRootResourceId: 'fake-root-resource-id',
+        FeedbackParams: {
+            FeedbackEnabled: true
+        },
         AgentParams: {
             BedrockAgentParams: {
                 AgentId: 'fake-agent-id',
@@ -107,6 +115,33 @@ export const createAgentWithCognitoConfig = {
     }
 };
 
+export const createAgentWithoutCognitoWithApiConfig = {
+    body: {
+        UseCaseType: 'Agent',
+        UseCaseName: 'fake-name',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        DeployUI: true,
+        ExistingRestApiId: 'fake-api-id',
+        ExistingApiRootResourceId: 'fake-root-resource-id',
+        FeedbackParams: {
+            FeedbackEnabled: true
+        },
+        AgentParams: {
+            BedrockAgentParams: {
+                AgentId: 'fake-agent-id',
+                AgentAliasId: 'fake-alias-id',
+                EnableTrace: false
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
 export const createUseCaseEvent = {
     body: {
         UseCaseType: 'Text',
@@ -114,6 +149,9 @@ export const createUseCaseEvent = {
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
         DeployUI: true,
+        FeedbackParams: {
+            FeedbackEnabled: true
+        },
         ConversationMemoryParams: { ConversationMemoryType: 'DDBMemoryType' },
         KnowledgeBaseParams: {
             KnowledgeBaseType: KnowledgeBaseTypes.KENDRA,
@@ -130,7 +168,7 @@ export const createUseCaseEvent = {
             RAGEnabled: true,
             Temperature: 0.1,
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {context} {input}',
+                PromptTemplate: 'Prompt1 {context}',
                 DisambiguationPromptTemplate: 'Prompt1 {history} {context} {input}'
             }
         }
@@ -165,7 +203,7 @@ export const createUseCaseEventInferenceProfile = {
             RAGEnabled: true,
             Temperature: 0.1,
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {context} {input}',
+                PromptTemplate: 'Prompt1 {context}',
                 DisambiguationPromptTemplate: 'Prompt1 {history} {context} {input}'
             }
         }
@@ -189,7 +227,7 @@ export const createUseCaseEventNonRag = {
             BedrockLlmParams: { 'ModelId': 'fake-model' },
             ModelParams: { 'Param1': 'value1' },
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {input}'
+                PromptTemplate: 'Prompt1'
             },
             Streaming: true,
             RAGEnabled: false,
@@ -228,7 +266,7 @@ export const createUseCaseEventBedrockKnowledgeBase = {
             RAGEnabled: true,
             Temperature: 0.1,
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {context} {input}'
+                PromptTemplate: 'Prompt1 {context}'
             }
         }
     },
@@ -264,8 +302,11 @@ export const createUseCaseEventBedrockKnowledgeBaseNoOverride = {
             RAGEnabled: true,
             Temperature: 0.1,
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {context} {input}'
+                PromptTemplate: 'Prompt1 {context}'
             }
+        },
+        FeedbackParams: {
+            FeedbackEnabled: false
         }
     },
     requestContext: {
@@ -367,7 +408,7 @@ export const createUseCaseEventVPC = {
             RAGEnabled: true,
             Temperature: 0.1,
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {context} {input}'
+                PromptTemplate: 'Prompt1 {context}'
             }
         }
     },
@@ -391,6 +432,17 @@ export const createAgentUseCaseApiEvent = {
 
 export const createAgentUseCaseApiEventWithCognitoConfigEvent = {
     body: JSON.stringify(createAgentWithCognitoConfig.body),
+    resource: '/deployments',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentUseCaseApiEventWithoutCognitoWithApiConfigEvent = {
+    body: JSON.stringify(createAgentWithoutCognitoWithApiConfig.body),
     resource: '/deployments',
     httpMethod: 'POST',
     requestContext: {
@@ -499,12 +551,12 @@ export const updateUseCaseEvent = {
             RAGEnabled: true,
             Temperature: 0.1,
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {context} {input}'
+                PromptTemplate: 'Prompt1 {context}'
             }
         }
     },
     pathParameters: {
-        useCaseId: '11111111-222222222-33333333-44444444-55555555'
+        useCaseId: '11111111-2222-2222-3333-333344444444'
     },
     requestContext: {
         authorizer: {
@@ -534,7 +586,7 @@ export const updateUseCaseVPCEvent = {
             RAGEnabled: true,
             Temperature: 0.1,
             PromptParams: {
-                PromptTemplate: 'Prompt1 {history} {context} {input}'
+                PromptTemplate: 'Prompt1 {context}'
             }
         },
         VpcParams: {
@@ -543,7 +595,7 @@ export const updateUseCaseVPCEvent = {
         }
     },
     pathParameters: {
-        useCaseId: '11111111-222222222-33333333-44444444-55555555'
+        useCaseId: '11111111-2222-2222-3333-333344444444'
     },
     requestContext: {
         authorizer: {
@@ -556,7 +608,7 @@ export const updateUseCaseApiEvent = {
     body: JSON.stringify(updateUseCaseEvent.body),
     resource: '/deployments/{useCaseId}',
     pathParameters: {
-        useCaseId: '11111111-222222222-33333333-44444444-55555555'
+        useCaseId: '11111111-2222-2222-3333-333344444444'
     },
     httpMethod: 'PATCH',
     requestContext: {
@@ -568,7 +620,7 @@ export const updateUseCaseApiEvent = {
 
 export const deleteUseCaseEvent = {
     pathParameters: {
-        useCaseId: '11111111-222222222-33333333-44444444-55555555'
+        useCaseId: '11111111-2222-2222-3333-333344444444'
     },
     requestContext: {
         authorizer: {
@@ -582,7 +634,7 @@ export const deleteUseCaseEvent = {
 
 export const permanentlyDeleteUseCaseEvent = {
     pathParameters: {
-        useCaseId: '11111111-222222222-33333333-44444444-55555555'
+        useCaseId: '11111111-2222-2222-3333-333344444444'
     },
     requestContext: {
         authorizer: {

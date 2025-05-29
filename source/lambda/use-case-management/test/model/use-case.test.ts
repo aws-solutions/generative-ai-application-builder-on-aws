@@ -7,7 +7,7 @@ import { CHAT_PROVIDERS } from '../../utils/constants';
 jest.mock('crypto', () => {
     return {
         ...jest.requireActual('crypto'),
-        randomUUID: jest.fn().mockReturnValue('11111111-222222222-33333333-44444444-55555555')
+        randomUUID: jest.fn().mockReturnValue('11111111-2222-2222-3333-333344444444')
     };
 });
 
@@ -26,7 +26,7 @@ describe('Test clone', () => {
                         param1: { Value: 'value1', Type: 'string' },
                         param2: { Value: 'value2', Type: 'string' }
                     },
-                    PromptParams: { PromptTemplate: '{input}{history}' },
+                    PromptParams: { PromptTemplate: 'You are a helpful AI assistant.' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: false

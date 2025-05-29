@@ -15,8 +15,15 @@ import { SERVICE_NAME } from '../../lib/utils/constants';
  */
 
 export class DeploymentPlatformDashboard extends CustomDashboard {
+    /**
+     * props passed to this construct
+     */
+    public readonly props: CustomDashboardProps;
+
     constructor(scope: Construct, id: string, props: CustomDashboardProps) {
         super(scope, id, props);
+        this.props = props;
+        this.addWidgets();
     }
 
     protected addWidgets(): void {

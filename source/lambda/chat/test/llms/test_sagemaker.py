@@ -9,17 +9,19 @@ import pytest
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.base import RunnableBinding
 from langchain_core.runnables.history import RunnableWithMessageHistory
+
 from llms.models.model_provider_inputs import SageMakerInputs
 from llms.sagemaker import SageMakerLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import CHAT_IDENTIFIER, DEFAULT_PROMPT_PLACEHOLDERS
+from utils.constants import CHAT_IDENTIFIER, DEFAULT_SAGEMAKER_MODEL_ID
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import LLMProviderTypes
 
 DEFAULT_TEMPERATURE = 0.0
 RAG_ENABLED = False
 SAGEMAKER_PROMPT = """\n\n{history}\n\n{input}"""
+DEFAULT_PROMPT_PLACEHOLDERS = ["history", "input"]
 input_schema = {
     "inputs": "<<prompt>>",
     "parameters": {
@@ -31,7 +33,7 @@ input_schema = {
 }
 
 model_provider = LLMProviderTypes.SAGEMAKER
-model_id = "default"
+model_id = DEFAULT_SAGEMAKER_MODEL_ID
 model_inputs = SageMakerInputs(
     **{
         "conversation_history_cls": DynamoDBChatMessageHistory,
@@ -39,6 +41,7 @@ model_inputs = SageMakerInputs(
             "table_name": "fake-table",
             "user_id": "fake-user-id",
             "conversation_id": "fake-conversation-id",
+            "message_id": "fake-message-id"
         },
         "rag_enabled": RAG_ENABLED,
         "model": model_id,
@@ -74,10 +77,9 @@ def streaming_chat(model_id, setup_environment):
 
 
 @pytest.mark.parametrize(
-    "use_case, prompt, is_streaming, model_id, chat_fixture, expected_runnable_type",
+    "use_case, prompt, is_streaming, model_id, chat_fixture",
     [
-        (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, False, model_id, "streamless_chat", RunnableWithMessageHistory),
-        (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, True, model_id, "streaming_chat", RunnableBinding),
+        (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, False, model_id, "streamless_chat"),
     ],
 )
 def test_implement_error_not_raised(
@@ -88,12 +90,11 @@ def test_implement_error_not_raised(
     request,
     setup_environment,
     sagemaker_dynamodb_defaults_table,
-    expected_runnable_type,
 ):
     chat = request.getfixturevalue(chat_fixture)
     try:
         assert chat.prompt_template == ChatPromptTemplate.from_template(prompt)
-        assert chat.prompt_template.input_variables == DEFAULT_PROMPT_PLACEHOLDERS
+        assert chat.prompt_template.input_variables == ["history", "input"]
         assert chat.sagemaker_endpoint_name == "fake-endpoint"
         assert chat.input_schema == input_schema
         assert chat.response_jsonpath == "$.generated_text"
@@ -108,8 +109,8 @@ def test_implement_error_not_raised(
             "table_name": "fake-table",
             "user_id": "fake-user-id",
             "conversation_id": "fake-conversation-id",
+            "message_id": "fake-message-id"
         }
-        assert type(chat.runnable_with_history) == expected_runnable_type
     except NotImplementedError as ex:
         raise Exception(ex)
 
@@ -118,7 +119,6 @@ def test_implement_error_not_raised(
     "use_case, prompt, is_streaming, model_id, chat_fixture",
     [
         (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, False, model_id, "streamless_chat"),
-        (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, True, model_id, "streaming_chat"),
     ],
 )
 def test_generate(
@@ -145,8 +145,7 @@ def test_generate(
             SAGEMAKER_PROMPT,
             False,
             model_id,
-        ),
-        (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, True, model_id),
+        )
     ],
 )
 def test_exception_for_failed_model_response(
@@ -190,7 +189,6 @@ def test_exception_for_failed_model_response(
     "use_case, prompt, is_streaming, model_id, chat_fixture",
     [
         (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, False, model_id, "streamless_chat"),
-        (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, True, model_id, "streaming_chat"),
     ],
 )
 def test_model_get_clean_model_params(
@@ -273,42 +271,12 @@ def test_clean_model_endpoint_args(
         (
             CHAT_IDENTIFIER,
             SAGEMAKER_PROMPT,
-            True,
+            False,
             model_id,
             "fake-endpoint",
             {},
             "some-path",
             "SageMaker input schema is required.",
-        ),
-        (
-            CHAT_IDENTIFIER,
-            SAGEMAKER_PROMPT,
-            True,
-            model_id,
-            "fake-endpoint",
-            None,
-            "some-path",
-            "SageMaker input schema is required.",
-        ),
-        (
-            CHAT_IDENTIFIER,
-            SAGEMAKER_PROMPT,
-            True,
-            model_id,
-            "fake-endpoint",
-            input_schema,
-            "",
-            "SageMaker response JSONPath is required.",
-        ),
-        (
-            CHAT_IDENTIFIER,
-            SAGEMAKER_PROMPT,
-            True,
-            model_id,
-            "fake-endpoint",
-            input_schema,
-            None,
-            "SageMaker response JSONPath is required.",
         ),
     ],
 )

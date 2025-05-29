@@ -13,6 +13,7 @@ import UseCaseName from './UseCaseName';
 import { StepContentProps } from '../interfaces/Steps';
 import DeployUI from './DeployUI';
 import UserPool from './UserPool/UserPool';
+import EnableFeedback from './EnableFeedback';
 
 const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepContentProps) => {
     const {
@@ -93,8 +94,8 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
 
     return (
         <Box>
-            <Box margin={{ bottom: 'l' }}>
-                <Container header={<Header variant="h2">Use case options</Header>}>
+            <SpaceBetween size='l'>
+                <Container header={<Header variant="h2" data-testid="wizard-use-case-options-header">Use case options</Header>}>
                     <SpaceBetween size="s">
                         <UseCaseName
                             name={useCase.useCaseName}
@@ -115,27 +116,35 @@ const UseCase = ({ info: { useCase }, onChange, setHelpPanelContent }: StepConte
                         />
                     </SpaceBetween>
                 </Container>
-            </Box>
-            <Container header={<Header variant="h2">Manage user access</Header>}>
-                <SpaceBetween size="l">
-                    <UserEmail
-                        email={useCase.defaultUserEmail}
-                        onChangeFn={onChange}
+                <Container header={<Header variant="h2">Manage user access</Header>}>
+                    <SpaceBetween size="l">
+                        <UserEmail
+                            email={useCase.defaultUserEmail}
+                            onChangeFn={onChange}
+                            setHelpPanelContent={setHelpPanelContent}
+                            setNumFieldsInError={setNumFieldsInError}
+                        />
+                        <UserPool
+                            useExistingUserPool={useCase.useExistingUserPool}
+                            existingUserPoolId={useCase.existingUserPoolId}
+                            useExistingUserPoolClient={useCase.useExistingUserPoolClient}
+                            existingUserPoolClientId={useCase.existingUserPoolClientId}
+                            setHelpPanelContent={setHelpPanelContent}
+                            onChangeFn={onChange}
+                            setNumFieldsInError={setNumFieldsInError}
+                            disabled={deploymentAction === DEPLOYMENT_ACTIONS.EDIT}
+                        />
+                    </SpaceBetween>
+                </Container>
+                <Container header={<Header variant="h2">Collect User Feedback</Header>}>
+                    <EnableFeedback
+                        feedbackEnabled={useCase.feedbackEnabled}
                         setHelpPanelContent={setHelpPanelContent}
-                        setNumFieldsInError={setNumFieldsInError}
-                    />
-                    <UserPool
-                        useExistingUserPool={useCase.useExistingUserPool}
-                        existingUserPoolId={useCase.existingUserPoolId}
-                        useExistingUserPoolClient={useCase.useExistingUserPoolClient}
-                        existingUserPoolClientId={useCase.existingUserPoolClientId}
-                        setHelpPanelContent={setHelpPanelContent}
                         onChangeFn={onChange}
-                        setNumFieldsInError={setNumFieldsInError}
-                        disabled={deploymentAction === DEPLOYMENT_ACTIONS.EDIT}
                     />
-                </SpaceBetween>
-            </Container>
+                </Container>
+            </SpaceBetween>
+
         </Box>
     );
 };

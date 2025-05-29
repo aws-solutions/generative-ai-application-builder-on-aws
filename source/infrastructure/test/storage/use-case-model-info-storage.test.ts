@@ -4,9 +4,9 @@ import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { UseCaseModelInfoStorage } from '../../lib/storage/use-case-model-info-storage';
-import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, DynamoDBAttributes } from '../../lib/utils/constants';
+import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, DynamoDBAttributes, USE_CASE_TYPES } from '../../lib/utils/constants';
 
-describe('Creating a conditional model store', () => {
+describe('Creating a model store with useCaseType as Text and empty existingModelInfoTableName', () => {
     let template: Template;
 
     beforeAll(() => {
@@ -21,7 +21,8 @@ describe('Creating a conditional model store', () => {
         const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
 
         new UseCaseModelInfoStorage(stack, 'TestSetup', {
-            existingModelInfoTableName: 'fake-model-table',
+            existingModelInfoTableName: '',
+            useCaseType: USE_CASE_TYPES.TEXT,
             customResourceLambdaArn: crLambda.functionArn,
             customResourceRoleArn: crLambda.role!.roleArn
         });
@@ -89,55 +90,104 @@ describe('Creating a conditional model store', () => {
                     Ref: Match.stringLikeRegexp('TestSetupModelInfoStore*')
                 }
             },
-            DependsOn: [Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*')],
+            DependsOn: [
+                Match.stringLikeRegexp('TestSetupAssetRead*'),
+                Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*')
+            ],
             UpdateReplacePolicy: 'Delete',
             DeletionPolicy: 'Delete',
             Condition: Match.stringLikeRegexp('TestSetupCreateModelInfoTableCondition*')
         });
     });
 
-    it('creates a policy for custom resource to perform ddb operations scan, batchwrite, and delete', () => {
-        template.hasResource('AWS::IAM::Policy', {
-            Properties: {
-                PolicyDocument: {
-                    Statement: [
-                        {
-                            Action: ['dynamodb:Scan', 'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem'],
-                            Effect: 'Allow',
-                            Resource: {
-                                'Fn::GetAtt': [Match.stringLikeRegexp('TestSetupModelInfoStore*'), 'Arn']
-                            }
-                        }
-                    ]
+    it('has the condition that checks both useCaseType and existingModelInfoTableName', () => {
+        template.hasCondition('TestSetupCreateModelInfoTableConditionB9BB3F52', {
+            'Fn::And': [
+                {
+                    'Fn::Equals': ['Text', 'Text']
                 },
-                PolicyName: Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*'),
-                Roles: [
-                    {
-                        'Fn::Select': [
-                            1,
-                            {
-                                'Fn::Split': [
-                                    '/',
-                                    {
-                                        'Fn::Select': [
-                                            5,
-                                            {
-                                                'Fn::Split': [
-                                                    ':',
-                                                    {
-                                                        'Fn::GetAtt': ['customResourceLambdaServiceRole40A2C4F7', 'Arn']
-                                                    }
-                                                ]
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            },
-            Condition: Match.stringLikeRegexp('TestSetupCreateModelInfoTableCondition*')
+                {
+                    'Fn::Equals': ['', '']
+                }
+            ]
+        });
+    });
+});
+
+describe('Creating a model store with useCaseType as Text and non-empty existingModelInfoTableName', () => {
+    let template: Template;
+
+    beforeAll(() => {
+        const app = new cdk.App();
+        const stack = new cdk.Stack(app, 'TestStack');
+
+        const mockLambdaFuncProps = {
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler'
+        };
+        const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
+
+        new UseCaseModelInfoStorage(stack, 'TestSetup', {
+            existingModelInfoTableName: 'fake-model-table',
+            useCaseType: 'Text',
+            customResourceLambdaArn: crLambda.functionArn,
+            customResourceRoleArn: crLambda.role!.roleArn
+        });
+        template = Template.fromStack(stack);
+    });
+
+    it('creates a table but with condition that evaluates to false', () => {
+        template.resourceCountIs('AWS::DynamoDB::Table', 1);
+
+        template.hasCondition('TestSetupCreateModelInfoTableConditionB9BB3F52', {
+            'Fn::And': [
+                {
+                    'Fn::Equals': ['Text', 'Text']
+                },
+                {
+                    'Fn::Equals': ['fake-model-table', '']
+                }
+            ]
+        });
+    });
+});
+
+describe('Creating a model store with useCaseType Agent', () => {
+    let template: Template;
+
+    beforeAll(() => {
+        const app = new cdk.App();
+        const stack = new cdk.Stack(app, 'TestStack');
+
+        const mockLambdaFuncProps = {
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler'
+        };
+        const crLambda = new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps);
+
+        new UseCaseModelInfoStorage(stack, 'TestSetup', {
+            existingModelInfoTableName: '',
+            useCaseType: 'Agent',
+            customResourceLambdaArn: crLambda.functionArn,
+            customResourceRoleArn: crLambda.role!.roleArn
+        });
+        template = Template.fromStack(stack);
+    });
+
+    it('creates a table but with condition that evaluates to false', () => {
+        template.resourceCountIs('AWS::DynamoDB::Table', 1);
+
+        template.hasCondition('TestSetupCreateModelInfoTableConditionB9BB3F52', {
+            'Fn::And': [
+                {
+                    'Fn::Equals': ['Agent', 'Text']
+                },
+                {
+                    'Fn::Equals': ['', '']
+                }
+            ]
         });
     });
 });

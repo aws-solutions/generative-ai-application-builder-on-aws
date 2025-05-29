@@ -87,7 +87,7 @@ describe('When invoking the lambda function', () => {
             } as Partial<APIGatewayEvent>;
 
             expect(await (await lambda).lambdaHandler(mockedEvent as APIGatewayEvent)).toEqual({
-                'body': '["model1","model2","model3"]',
+                'body': '[{"ModelName":"model1","DisplayName":"Model One","Description":"This is model one description"},{"ModelName":"model2","DisplayName":"Model Two","Description":""},{"ModelName":"model3","DisplayName":"model3","Description":""}]',
                 'headers': {
                     'Access-Control-Allow-Credentials': true,
                     'Access-Control-Allow-Headers': 'Origin,X-Requested-With,Content-Type,Accept',

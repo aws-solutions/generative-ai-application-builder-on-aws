@@ -5,6 +5,8 @@
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { LambdaToDynamoDB } from '@aws-solutions-constructs/aws-lambda-dynamodb';
+import { ChatStorageSetup } from './storage/chat-storage-setup';
 import { Construct } from 'constructs';
 import { BaseStack, BaseStackProps } from '../lib/framework/base-stack';
 import { ApplicationAssetBundler } from '../lib/framework/bundler/asset-options-factory';
@@ -12,10 +14,12 @@ import {
     CHAT_LAMBDA_PYTHON_RUNTIME,
     CHAT_PROVIDERS,
     COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
-    LAMBDA_TIMEOUT_MINS
+    CONVERSATION_TABLE_NAME_ENV_VAR,
+    LAMBDA_TIMEOUT_MINS,
+    USE_CASE_TYPES
 } from '../lib/utils/constants';
 import { UseCaseParameters, UseCaseStack } from './framework/use-case-stack';
-import { createDefaultLambdaRole } from './utils/common-utils';
+import { createDefaultLambdaRole, generateSourceCodeMapping } from './utils/common-utils';
 import { VPCSetup } from './vpc/vpc-setup';
 
 export class BedrockAgentParameters extends UseCaseParameters {
@@ -67,6 +71,11 @@ export class BedrockAgentParameters extends UseCaseParameters {
 }
 
 export class BedrockAgent extends UseCaseStack {
+    /**
+     * Construct managing the chat storage nested stack
+     */
+    public chatStorageSetup: ChatStorageSetup;
+
     constructor(stack: Construct, id: string, props: BaseStackProps) {
         super(stack, id, props);
         this.withAdditionalResourceSetup(props);
@@ -88,6 +97,43 @@ export class BedrockAgent extends UseCaseStack {
      */
     protected withAdditionalResourceSetup(props: BaseStackProps): void {
         super.withAdditionalResourceSetup(props);
+
+        this.chatStorageSetup = new ChatStorageSetup(this, 'ChatStorageSetup', {
+            useCaseUUID: this.stackParameters.useCaseShortId,
+            useCaseType: USE_CASE_TYPES.AGENT,
+            existingModelInfoTableName: '',
+            newModelInfoTableCondition: new cdk.CfnCondition(this, 'NewModelInfoTableCondition', {
+                expression: cdk.Fn.conditionEquals(true, false)
+            }),
+            customResourceLambda: this.applicationSetup.customResourceLambda,
+            customResourceRole: this.applicationSetup.customResourceRole,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
+            ...this.baseStackProps
+        });
+
+        if (process.env.DIST_OUTPUT_BUCKET) {
+            generateSourceCodeMapping(this.chatStorageSetup.chatStorage, props.solutionName, props.solutionVersion);
+        }
+
+        const updateLlmConfigCustomResource = new cdk.CustomResource(this, 'UpdateLlmConfig', {
+            resourceType: 'Custom::UpdateLlmConfig',
+            serviceToken: this.applicationSetup.customResourceLambda.functionArn,
+            properties: {
+                Resource: 'UPDATE_LLM_CONFIG',
+                USE_CASE_CONFIG_TABLE_NAME: this.stackParameters.useCaseConfigTableName.valueAsString,
+                USE_CASE_CONFIG_RECORD_KEY: this.stackParameters.useCaseConfigRecordKey.valueAsString,
+                USE_CASE_UUID: this.stackParameters.useCaseUUID,
+                CONVERSATION_TABLE_NAME: this.chatStorageSetup.chatStorage.conversationTable.tableName
+            }
+        });
+
+        const feedbackEnabledCondition = new cdk.CfnCondition(this, 'FeedbackEnabledCondition', {
+            expression: cdk.Fn.conditionEquals(this.stackParameters.feedbackEnabled, 'Yes')
+        });
+
+        (updateLlmConfigCustomResource.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            feedbackEnabledCondition;
+
         this.setLlmProviderPermissions();
     }
 
@@ -130,6 +176,21 @@ export class BedrockAgent extends UseCaseStack {
                 ]
             })
         );
+    }
+
+    /**
+     * Provides the correct environment variables and permissions to the llm provider lambda
+     */
+    protected setLlmProviderPermissions(): void {
+        super.setLlmProviderPermissions();
+        // connection to the conversation memory
+        // prettier-ignore
+        new LambdaToDynamoDB(this, 'ChatProviderLambdaToConversationTable', { // NOSONAR - construct instantiation
+                existingLambdaObj: this.chatLlmProviderLambda,
+                existingTableObj: this.chatStorageSetup.chatStorage.conversationTable,
+                tablePermissions: 'ReadWrite',
+                tableEnvironmentVariableName: CONVERSATION_TABLE_NAME_ENV_VAR
+            });
     }
 
     protected initializeCfnParameters(): void {

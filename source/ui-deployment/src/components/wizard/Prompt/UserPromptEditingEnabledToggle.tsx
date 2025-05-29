@@ -18,7 +18,7 @@ export const UserPromptEditingEnabledToggle = (props: UserPromptEditingEnabledTo
     return (
         <FormField
             label="User Prompt Editing"
-            description="If disabled, the prompt template will not be modifiable after deployment."
+            description="If disabled, the system prompt template will not be modifiable after deployment."
             data-testid="user-prompt-editing-enabled-toggle-field"
             info={
                 <InfoLink

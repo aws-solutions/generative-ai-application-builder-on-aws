@@ -1,20 +1,20 @@
 {
-  "name": "gen-ai-app-builder-on-aws-infrastructure",
-  "version": "2.1.9",
+  "name": "@amzn/gen-ai-app-builder-on-aws-infrastructure",
+  "version": "3.0.0",
   "bin": {
     "infrastructure": "bin/gen-ai-app-builder.js"
   },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "jest --coverage --silent --verbose --runInBand",
+    "test": "jest --coverage --silent --verbose",
     "test-debug": "jest --coverage --runInBand",
     "unit-test": "jest --coverage --silent --verbose --runInBand --testPathIgnorePatterns=integration",
     "integ-test": "jest --coverage --silent --verbose --runInBand -- integration",
     "cdk": "./node_modules/cdk/bin/cdk",
     "clean": "rm -rf node_modules",
     "code-linter": "./node_modules/eslint/bin/eslint.js . -c .eslintrc.js --ext .ts",
-    "code-formatter": "./node_modules/prettier/bin-prettier.js . --config ../.prettierrc.yml --ignore-path ../.prettierignore '**/*.{ts,json,css,md}' !**/*.js --write"
+    "code-formatter": "./node_modules/prettier/bin/prettier.cjs . --config ../.prettierrc.yml --ignore-path ../.prettierignore '**/*.{ts,json,css,md}' !**/*.js --write"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

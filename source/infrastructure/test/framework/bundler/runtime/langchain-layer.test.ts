@@ -33,7 +33,7 @@ describe('When bundling JS lambda functions', () => {
             JSON.stringify([
                 'bash',
                 '-c',
-                `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install poetry && poetry install && poetry run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path.dirname(__dirname).split('/').slice(0, -3).join('/')}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && poetry run pip install --python-version 3.12 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t /asset-output/python/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf`
+                `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install poetry && poetry install && poetry run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path.dirname(__dirname).split('/').slice(0, -3).join('/')}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && poetry run pip install --python-version 3.13 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t /asset-output/python/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf`
             ])
         );
     });
@@ -63,7 +63,7 @@ describe('When bundling JS lambda functions', () => {
                 'poetry install --only main',
                 'cd fake-module',
                 'python3 -m pip install poetry --upgrade',
-                'poetry run pip install --python-version 3.12 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t fake-output-dir/python/ dist/*.whl',
+                'poetry run pip install --python-version 3.13 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t fake-output-dir/python/ dist/*.whl',
                 'deactivate',
                 'find fake-output-dir | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$|dist$|.venv*$)" | xargs rm -rf',
                 'rm -fr fake-output-dir/requirements.txt'

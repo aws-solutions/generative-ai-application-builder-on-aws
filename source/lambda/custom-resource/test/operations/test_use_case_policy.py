@@ -11,7 +11,10 @@ from lambda_func import handler
 from moto import mock_aws
 from operations.operation_types import RESOURCE, RESOURCE_PROPERTIES
 from operations.use_case_policy import (
-    API_ARN,
+    WEBSOCKET_API_ARN,
+    FEEDBACK_API_ARN,
+    DETAILS_API_ARN,
+    FEEDBACK_API_ARN,
     GROUP_NAME,
     POLICY_TABLE_NAME,
     RESOURCE,
@@ -50,8 +53,8 @@ def test_when_resource_properties_missing(monkeypatch, lambda_event, mock_lambda
         mocked_PoolManager.request.assert_called_once_with(
             method="PUT",
             url="https://fakeurl/doesnotexist",
-            headers={"content-type": "", "content-length": "322"},
-            body='{"Status": "FAILED", "Reason": "Either GROUP_NAME or API_ARN or POLICY_TABLE_NAME has not been passed. Hence operation cannot be performed", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
+            headers={"content-type": "", "content-length": "351"},
+            body='{"Status": "FAILED", "Reason": "Either GROUP_NAME or WEBSOCKET_API_ARN or DETAILS_API_ARN or POLICY_TABLE_NAME has not been passed. Hence operation cannot be performed", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
         )
 
 
@@ -70,15 +73,33 @@ def test_create_with_no_admin_group(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn",
+                    "fakewebsocketapi.arn",
                 ],
-            }
+            },
+            {
+                "Sid": "fakegroupname-details-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakedetailsapi.arn",
+                ],
+            },
+            {
+                "Sid": "fakegroupname-feedback-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakefeedbackapi.arn",
+                ],
+            },
         ],
     }
 
     # subsequent appends to the existing group
     lambda_event[RESOURCE_PROPERTIES][GROUP_NAME] = "fakegroupname2"
-    lambda_event[RESOURCE_PROPERTIES][API_ARN] = "fakeapi.arn2"
+    lambda_event[RESOURCE_PROPERTIES][WEBSOCKET_API_ARN] = "fake-websocket-api.arn2"
+    lambda_event[RESOURCE_PROPERTIES][DETAILS_API_ARN] = "fake-details-api.arn2"
+    lambda_event[RESOURCE_PROPERTIES][FEEDBACK_API_ARN] = "fake-feedback-api.arn2"
     create(lambda_event, mock_lambda_context)
     admin_policy = table.get_item(Key={"group": "admin"})["Item"]["policy"]
     assert admin_policy == {
@@ -89,7 +110,23 @@ def test_create_with_no_admin_group(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn",
+                    "fakewebsocketapi.arn",
+                ],
+            },
+            {
+                "Sid": "fakegroupname-details-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakedetailsapi.arn",
+                ],
+            },
+            {
+                "Sid": "fakegroupname-feedback-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakefeedbackapi.arn",
                 ],
             },
             {
@@ -97,7 +134,23 @@ def test_create_with_no_admin_group(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn2",
+                    "fake-websocket-api.arn2",
+                ],
+            },
+            {
+                "Sid": "fakegroupname2-details-policy-statement",
+                "Action": "execute-api:Invoke",
+                "Effect": "Allow",
+                "Resource": [
+                    "fake-details-api.arn2",
+                ],
+            },
+            {
+                "Sid": "fakegroupname2-feedback-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fake-feedback-api.arn2",
                 ],
             },
         ],
@@ -112,9 +165,25 @@ def test_create_with_no_admin_group(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn2",
+                    "fake-websocket-api.arn2",
                 ],
-            }
+            },
+            {
+                "Sid": "fakegroupname2-details-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fake-details-api.arn2",
+                ],
+            },
+            {
+                "Sid": "fakegroupname2-feedback-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fake-feedback-api.arn2",
+                ],
+            },
         ],
     }
 
@@ -141,9 +210,25 @@ def test_create_with_existing_admin_group(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn",
+                    "fakewebsocketapi.arn",
                 ],
-            }
+            },
+            {
+                "Sid": "fakegroupname-details-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakedetailsapi.arn",
+                ],
+            },
+            {
+                "Sid": "fakegroupname-feedback-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakefeedbackapi.arn",
+                ],
+            },
         ],
     }
     group_policy = table.get_item(Key={"group": "fakegroupname"})["Item"]["policy"]
@@ -155,9 +240,25 @@ def test_create_with_existing_admin_group(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn",
+                    "fakewebsocketapi.arn",
                 ],
-            }
+            },
+            {
+                "Action": "execute-api:Invoke",
+                "Effect": "Allow",
+                "Resource": [
+                    "fakedetailsapi.arn",
+                ],
+                "Sid": "fakegroupname-details-policy-statement",
+            },
+            {
+                "Action": "execute-api:Invoke",
+                "Effect": "Allow",
+                "Resource": [
+                    "fakefeedbackapi.arn",
+                ],
+                "Sid": "fakegroupname-feedback-policy-statement",
+            },
         ],
     }
 
@@ -212,9 +313,25 @@ def test_create_where_group_exists(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn",
+                    "fakewebsocketapi.arn",
                 ],
-            }
+            },
+            {
+                "Sid": "fakegroupname-details-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakedetailsapi.arn",
+                ],
+            },
+            {
+                "Sid": "fakegroupname-feedback-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakefeedbackapi.arn",
+                ],
+            },
         ],
     }
     group_policy = table.get_item(Key={"group": "fakegroupname"})["Item"]["policy"]
@@ -226,9 +343,25 @@ def test_create_where_group_exists(setup_ddb, mock_lambda_context):
                 "Effect": "Allow",
                 "Action": "execute-api:Invoke",
                 "Resource": [
-                    "fakeapi.arn",
+                    "fakewebsocketapi.arn",
                 ],
-            }
+            },
+            {
+                "Sid": "fakegroupname-details-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakedetailsapi.arn",
+                ],
+            },
+            {
+                "Sid": "fakegroupname-feedback-policy-statement",
+                "Effect": "Allow",
+                "Action": "execute-api:Invoke",
+                "Resource": [
+                    "fakefeedbackapi.arn",
+                ],
+            },
         ],
     }
 

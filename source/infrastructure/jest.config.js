@@ -9,5 +9,6 @@ module.exports = {
     transform: {
         '^.+\\.tsx?$': 'ts-jest'
     },
-    coverageReporters: ['text', ['lcov', { projectRoot: '../../' }]]
+    coverageReporters: ['text', ['lcov', { projectRoot: '../../' }]],
+    setupFilesAfterEnv: ['<rootDir>/jest.setup.ts']
 };

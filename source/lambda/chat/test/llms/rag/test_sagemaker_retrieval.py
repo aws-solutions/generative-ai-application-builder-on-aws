@@ -10,6 +10,7 @@ from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.base import RunnableBinding
 from langchain_core.runnables.history import RunnableWithMessageHistory
+
 from llms.models.model_provider_inputs import SageMakerInputs
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
@@ -17,9 +18,8 @@ from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
 from utils.constants import (
     CONTEXT_KEY,
-    DEFAULT_MODELS_MAP,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
     DEFAULT_REPHRASE_RAG_QUESTION,
+    DEFAULT_SAGEMAKER_MODEL_ID,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     OUTPUT_KEY,
     RAG_CHAT_IDENTIFIER,
@@ -30,8 +30,9 @@ from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import LLMProviderTypes
 
 SAGEMAKER_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context", "history", "input"]
 RAG_ENABLED = True
-MODEL_ID = DEFAULT_MODELS_MAP[LLMProviderTypes.SAGEMAKER.value]  # default
+MODEL_ID = DEFAULT_SAGEMAKER_MODEL_ID
 MODEL_PROVIDER = LLMProviderTypes.SAGEMAKER.value
 DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
 RESPONSE_IF_NO_DOCS_FOUND = "Sorry, the model cannot respond to your questions due to admin enforced constraints."
@@ -79,6 +80,7 @@ def model_inputs(
                 "table_name": "fake-table",
                 "user_id": "fake-user-id",
                 "conversation_id": "fake-conversation-id",
+                "message_id": "fake-message-id",
             },
             "knowledge_base": KendraKnowledgeBase(
                 {
@@ -177,29 +179,7 @@ def temp_sagemaker_dynamodb_defaults_table(dynamodb_resource, prompt, dynamodb_d
         (
             RAG_CHAT_IDENTIFIER,
             SAGEMAKER_RAG_PROMPT,
-            True,
-            MODEL_ID,
             False,
-            "sagemaker_model",
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            False,
-            MODEL_ID,
-            True,
-            "sagemaker_model",
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            True,
             MODEL_ID,
             True,
             "sagemaker_model",
@@ -248,10 +228,11 @@ def test_implement_error_not_raised(
         assert chat.conversation_history_params == {
             "table_name": "fake-table",
             "user_id": "fake-user-id",
+            "message_id": "fake-message-id",
             "conversation_id": "fake-conversation-id",
         }
         if disambiguation_enabled:
-            assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(DISAMBIGUATION_PROMPT)
+            assert chat.disambiguation_prompt_template == ChatPromptTemplate.from_template(disambiguation_prompt)
         else:
             assert chat.disambiguation_prompt_template is disambiguation_prompt
         assert chat.return_source_docs == return_source_docs
@@ -288,44 +269,7 @@ def test_implement_error_not_raised(
         ),
         (
             True,
-            True,
             False,
-            True,
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            MODEL_ID,
-            "sagemaker_model",
-            {OUTPUT_KEY: "some answer based on context", REPHRASED_QUERY_KEY: "rephrased query"},
-            {OUTPUT_KEY: "some answer based on context", REPHRASED_QUERY_KEY: "rephrased query"},
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            False,
-            True,
-            True,
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            MODEL_ID,
-            "sagemaker_model",
-            {
-                OUTPUT_KEY: "some answer based on context",
-                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
-                REPHRASED_QUERY_KEY: "rephrased query",
-                "other_fields": {"some_field": "some_value"},
-            },
-            {
-                OUTPUT_KEY: "some answer based on context",
-                SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
-                REPHRASED_QUERY_KEY: "rephrased query",
-            },
-            DISAMBIGUATION_PROMPT,
-            None,
-        ),
-        (
-            True,
-            True,
             True,
             True,
             RAG_CHAT_IDENTIFIER,
@@ -366,46 +310,7 @@ def test_implement_error_not_raised(
         ),
         (
             True,
-            True,
             False,
-            False,
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            MODEL_ID,
-            "sagemaker_model",
-            {
-                OUTPUT_KEY: "some answer based on context",
-                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
-                "other_fields": {"some_field": "some_value"},
-            },
-            {OUTPUT_KEY: "some answer based on context"},
-            None,
-            None,
-        ),
-        (
-            True,
-            False,
-            True,
-            False,
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            MODEL_ID,
-            "sagemaker_model",
-            {
-                OUTPUT_KEY: "some answer based on context",
-                CONTEXT_KEY: MOCKED_SOURCE_DOCS,
-                "other_fields": {"some_field": "some_value"},
-            },
-            {
-                OUTPUT_KEY: "some answer based on context",
-                SOURCE_DOCUMENTS_OUTPUT_KEY: MOCKED_SOURCE_DOCS_DICT,
-            },
-            None,
-            None,
-        ),
-        (
-            True,
-            True,
             True,
             False,
             RAG_CHAT_IDENTIFIER,
@@ -498,29 +403,7 @@ def test_generate(
         (
             RAG_CHAT_IDENTIFIER,
             SAGEMAKER_RAG_PROMPT,
-            True,
-            MODEL_ID,
             False,
-            "sagemaker_model",
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            False,
-            MODEL_ID,
-            True,
-            "sagemaker_model",
-            True,
-            DISAMBIGUATION_PROMPT,
-            RESPONSE_IF_NO_DOCS_FOUND,
-        ),
-        (
-            RAG_CHAT_IDENTIFIER,
-            SAGEMAKER_RAG_PROMPT,
-            True,
             MODEL_ID,
             True,
             "sagemaker_model",

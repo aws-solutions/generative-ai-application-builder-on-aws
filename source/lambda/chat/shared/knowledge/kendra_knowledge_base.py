@@ -9,9 +9,11 @@ from typing import Any, Dict, List, Optional
 from aws_lambda_powertools import Logger
 from cognito_jwt_verifier import CognitoJWTVerifier
 from langchain_core.documents import Document
+
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
 from shared.knowledge.knowledge_base import KnowledgeBase, SourceDocument
 from utils.constants import (
+    AUTH_TOKEN_EVENT_KEY,
     CLIENT_ID_ENV_VAR,
     DEFAULT_KENDRA_NUMBER_OF_DOCS,
     DEFAULT_RAG_RBAC_ENABLED_STATUS,
@@ -68,6 +70,12 @@ class KendraKnowledgeBase(KnowledgeBase):
         self.rag_rbac_enabled = knowledge_base_params.get("KendraKnowledgeBaseParams", {}).get(
             "RoleBasedAccessControlEnabled", DEFAULT_RAG_RBAC_ENABLED_STATUS
         )
+
+        if self.rag_rbac_enabled and user_context_token is None:
+            raise ValueError(
+                f"RoleBasedAccessControlEnabled in config is enabled but {AUTH_TOKEN_EVENT_KEY} is not provided"
+            )
+
         self.user_context_token_verifier = CognitoJWTVerifier(
             user_pool_id=os.environ.get(USER_POOL_ID_ENV_VAR),
             app_client_id=os.environ.get(CLIENT_ID_ENV_VAR),

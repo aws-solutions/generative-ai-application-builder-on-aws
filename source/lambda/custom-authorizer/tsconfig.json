@@ -52,7 +52,10 @@
       ],
       "@smithy/types": [
         "../layers/aws-sdk-lib/node_modules/@smithy/types"
-      ]
+      ],
+      "@aws-sdk/client-cognito-identity-provider": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-cognito-identity-provider"
+      ],
     }
   }
 }

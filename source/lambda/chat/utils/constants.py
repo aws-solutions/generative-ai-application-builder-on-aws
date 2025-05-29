@@ -36,6 +36,7 @@ USER_POOL_ID_ENV_VAR = "USER_POOL_ID"
 # Event keys
 USER_ID_EVENT_KEY = "UserId"
 CONVERSATION_ID_EVENT_KEY = "conversationId"
+MESSAGE_ID_EVENT_KEY = "messageId"
 QUESTION_EVENT_KEY = "question"
 PROMPT_EVENT_KEY = "promptTemplate"
 AUTH_TOKEN_EVENT_KEY = "authToken"
@@ -58,8 +59,6 @@ DEFAULT_DISAMBIGUATION_ENABLED_MODE = True
 DEFAULT_RAG_ENABLED_MODE = False
 DEFAULT_DISAMBIGUATION_ENABLED_MODE = True
 DEFAULT_STREAMING_MODE = False
-DEFAULT_PROMPT_PLACEHOLDERS = ["history", "input"]
-DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context", "history", "input"]
 DISAMBIGUATION_PROMPT_PLACEHOLDERS = ["input", "history"]
 DEFAULT_RETURN_GENERATED_RAG_QUESTION = True
 DEFAULT_REPHRASE_RAG_QUESTION = True
@@ -76,36 +75,12 @@ AI_PREFIX = "ai_prefix"
 SYSTEM_PREFIX = "system"
 USER_ID_KEY = "user_id"
 CONVERSATION_ID_KEY = "conversation_id"
+MESSAGE_ID_KEY = "message_id"
 RAG_CONVERSATION_TRACER_KEY = "retrievalAugmentedConversationInvocation"
 CONVERSATION_TRACER_KEY = "conversationInvocation"
 PAYLOAD_DATA_KEY = "data"
 PAYLOAD_SOURCE_DOCUMENT_KEY = "sourceDocument"
 REPHRASED_QUERY_KEY = "rephrased_query"
-
-
-# Bedrock text generation models
-DEFAULT_BEDROCK_MODELS_MAP = {
-    BedrockModelProviders.AMAZON.value: "amazon.titan-text-express-v1",
-    BedrockModelProviders.AI21.value: "ai21.j2-mid",
-    BedrockModelProviders.ANTHROPIC.value: "anthropic.claude-instant-v1",
-}
-DEFAULT_BEDROCK_MODEL_FAMILY = BedrockModelProviders.AMAZON.value
-
-DEFAULT_MODELS_MAP = {
-    LLMProviderTypes.BEDROCK.value: DEFAULT_BEDROCK_MODELS_MAP[DEFAULT_BEDROCK_MODEL_FAMILY],
-    LLMProviderTypes.SAGEMAKER.value: "default",
-}
-BETA_USE_CONVERSE_API_MODELS = [
-    "cohere.command-r-v1:0",
-    "cohere.command-r-plus-v1:0",
-    "mistral.mistral-large-2407-v1:0",
-]
-CHATBEDROCK_MODELS = [
-    BedrockModelProviders.ANTHROPIC.value,
-    BedrockModelProviders.AMAZON.value,
-    BedrockModelProviders.MISTRAL.value,
-    BedrockModelProviders.META.value,
-]
 
 SAGEMAKER_ENDPOINT_ARGS = [
     "CustomAttributes",
@@ -117,9 +92,18 @@ SAGEMAKER_ENDPOINT_ARGS = [
     "InferenceComponentName",
 ]
 
-BEDROCK_GUARDRAILS_KEY = "guardrails"
+BEDROCK_GUARDRAILS_KEY = "guardrail_config"
 BEDROCK_GUARDRAIL_IDENTIFIER_KEY = "GuardrailIdentifier"
 BEDROCK_GUARDRAIL_VERSION_KEY = "GuardrailVersion"
 BEDROCK_INFERENCE_PROFILE_MODEL = "inference-profile"
+
+# Top-level Bedrock Converse API parameters
+# key is the Bedrock API param name, and value is the Langchain property name
+TOP_LEVEL_PARAMS_MAPPING = {
+    "temperature": "temperature",
+    "topP": "top_p",
+    "maxTokens": "max_tokens",
+    "stopSequences": "stop_sequences",
+}
 
 DEFAULT_RAG_RBAC_ENABLED_STATUS = False

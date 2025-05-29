@@ -12,7 +12,6 @@ import { BaseStack, BaseStackProps } from '../lib/framework/base-stack';
 import { SageMakerChat } from '../lib/sagemaker-chat-stack';
 import { AppRegistry } from '../lib/utils/app-registry-aspects';
 import { LambdaAspects } from '../lib/utils/lambda-aspect';
-import { LambdaVersionCDKNagSuppression } from '../lib/utils/lambda-version-cdk-nag-suppression';
 import { LogGroupRetentionCheckAspect } from '../lib/utils/log-group-retention-check-aspect';
 
 const app = new cdk.App();
@@ -32,9 +31,8 @@ for (const stack of stackList) {
 createStack(DeploymentPlatformStack, getDefaultBaseStackProps(DeploymentPlatformStack), false);
 
 // adding cdk-nag checks
-cdk.Aspects.of(app).add(new AwsSolutionsChecks());
-cdk.Aspects.of(app).add(new LogGroupRetentionCheckAspect());
-cdk.Aspects.of(app).add(new LambdaVersionCDKNagSuppression());
+cdk.Aspects.of(app).add(new AwsSolutionsChecks(), { priority: cdk.AspectPriority.READONLY });
+cdk.Aspects.of(app).add(new LogGroupRetentionCheckAspect(), { priority: cdk.AspectPriority.READONLY });
 
 app.synth();
 
@@ -54,9 +52,10 @@ function createStack(stack: typeof BaseStack, props?: BaseStackProps, isUseCase?
             solutionName: solutionName,
             applicationType: applicationType,
             applicationName: isUseCase
-                ? `${applicationName}-${cdk.Fn.ref('UseCaseUUID')}`
+                ? `${applicationName}-${cdk.Fn.select(0, cdk.Fn.split('-', cdk.Fn.ref('UseCaseUUID')))}`
                 : `${applicationName}-Dashboard`
-        })
+        }),
+        { priority: cdk.AspectPriority.MUTATING }
     );
 
     // adding lambda layer to all lambda functions for injecting user-agent for SDK calls to AWS services.
@@ -64,7 +63,8 @@ function createStack(stack: typeof BaseStack, props?: BaseStackProps, isUseCase?
         new LambdaAspects(instance, 'AspectInject', {
             solutionID: solutionID,
             solutionVersion: version
-        })
+        }),
+        { priority: cdk.AspectPriority.MUTATING }
     );
 }
 

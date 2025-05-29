@@ -11,6 +11,7 @@ import {
     AUTHENTICATION_PROVIDERS,
     CfnParameterKeys,
     ChatRequiredPlaceholders,
+    CHAT_PROVIDERS,
     DisambiguationRequiredPlaceholders,
     KnowledgeBaseTypes,
     RAGChatRequiredPlaceholders,
@@ -145,7 +146,6 @@ export class TextUseCaseValidator extends UseCaseValidator {
         let dummyOldUseCase = useCase.clone();
         dummyOldUseCase.setUseCaseConfigRecordKey(oldDynamoDbRecordKey);
         const existingConfigObj = await this.useCaseConfigMgmt.getUseCaseConfigFromTable(dummyOldUseCase);
-
         // this await is required for this to work on lambda, despite it seeming unnecessary here
         useCase.configuration = await TextUseCaseValidator.mergeConfigs(existingConfigObj, useCase.configuration);
 
@@ -182,6 +182,7 @@ export class TextUseCaseValidator extends UseCaseValidator {
         if (sageMakerModelInputPayloadSchema) {
             mergedConfig.LlmParams.SageMakerLlmParams.ModelInputPayloadSchema = sageMakerModelInputPayloadSchema;
         }
+        mergedConfig = this.resolveKnowledgeBaseParamsOnUpdate(newConfigObj, mergedConfig);
 
         mergedConfig = this.resolveBedrockModelSourceOnUpdate(newConfigObj, mergedConfig);
 
@@ -220,6 +221,23 @@ export class TextUseCaseValidator extends UseCaseValidator {
             }
         }
 
+        return resolvedConfig;
+    }
+
+    /**
+     * Function to be applied to an updated use case configuration which will ensure that a removed NoDocsFoundResponse value results in its removal from the LLM config.
+     *
+     * @param newConfig The new config object coming from an update request
+     * @param mergedConfig A merged config from existing and new configs
+     * @returns A resolved config which always takes the value of NoDocsFoundResponse from the updated config.
+     */
+    public static resolveKnowledgeBaseParamsOnUpdate(updateConfig: any, mergedConfig: any): any {
+        let resolvedConfig = mergedConfig;
+
+        if(resolvedConfig?.KnowledgeBaseParams?.NoDocsFoundResponse && !updateConfig?.KnowledgeBaseParams?.NoDocsFoundResponse) {
+            delete resolvedConfig.KnowledgeBaseParams.NoDocsFoundResponse;
+        }
+    
         return resolvedConfig;
     }
 
@@ -275,9 +293,10 @@ export class TextUseCaseValidator extends UseCaseValidator {
     private static checkPromptsAreCompatible(useCase: UseCase): void {
         //validate main prompt template
         const promptTemplate = useCase.configuration.LlmParams!.PromptParams!.PromptTemplate!;
+        const chat_provider = useCase.configuration.LlmParams!.ModelProvider;
         const requiredPlaceholders = useCase.configuration.LlmParams!.RAGEnabled
-            ? RAGChatRequiredPlaceholders
-            : ChatRequiredPlaceholders;
+            ? RAGChatRequiredPlaceholders[chat_provider as CHAT_PROVIDERS]
+            : ChatRequiredPlaceholders[chat_provider as CHAT_PROVIDERS];
 
         requiredPlaceholders.forEach((placeholder) => {
             //placeholder must exist
@@ -334,9 +353,11 @@ export class TextUseCaseValidator extends UseCaseValidator {
     private static checkPromptIsEscaped(useCase: UseCase): void {
         // removes all the placeholders, which are valid uses of unescaped curly braces
         let promptTemplate = useCase.configuration.LlmParams!.PromptParams!.PromptTemplate!;
+        const chat_provider = useCase.configuration.LlmParams!.ModelProvider!;
         const requiredPlaceholders = useCase.configuration.LlmParams!.RAGEnabled
-            ? RAGChatRequiredPlaceholders
-            : ChatRequiredPlaceholders;
+            ? RAGChatRequiredPlaceholders[chat_provider as CHAT_PROVIDERS]
+            : ChatRequiredPlaceholders[chat_provider as CHAT_PROVIDERS];
+
         requiredPlaceholders.forEach((placeholder) => {
             promptTemplate = promptTemplate.replace(placeholder, '');
         });

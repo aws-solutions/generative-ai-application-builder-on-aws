@@ -31,7 +31,7 @@ DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following convers
 
 
 @pytest.mark.parametrize(
-    "use_case, model_id, model_provider, prompt, disambiguation_prompt, is_streaming, rag_enabled, default_temperature, min_temperature, max_temperature, chat_message_size, max_prompt_size, stop_sequences",
+    "use_case, model_id, model_provider, prompt, disambiguation_prompt, is_streaming, rag_enabled, default_temperature, min_temperature, max_temperature, chat_message_size, max_prompt_size, stop_sequences, display_name, description",
     [
         (
             CHAT_IDENTIFIER,
@@ -47,6 +47,8 @@ DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following convers
             2500,
             2000,
             [],
+            "Claude 1",
+            "Anthropic Claude 1 model",
         ),
         (
             RAG_CHAT_IDENTIFIER,
@@ -62,6 +64,8 @@ DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following convers
             2500,
             2000,
             [],
+            "Claude 1",
+            "Anthropic Claude 1 model",
         ),
         (
             CHAT_IDENTIFIER,
@@ -77,6 +81,8 @@ DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following convers
             2500,
             2000,
             [],
+            "Claude 2",
+            "Anthropic Claude 2 model",
         ),
         (
             RAG_CHAT_IDENTIFIER,
@@ -92,6 +98,8 @@ DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """Given the following convers
             2500,
             2000,
             [],
+            "Claude 2",
+            "Anthropic Claude 2 model",
         ),
     ],
 )
@@ -109,6 +117,8 @@ def test_model_defaults_success(
     chat_message_size,
     max_prompt_size,
     stop_sequences,
+    display_name,
+    description,
     setup_environment,
     bedrock_dynamodb_defaults_table,
 ):
@@ -126,6 +136,8 @@ def test_model_defaults_success(
     assert model_defaults.max_prompt_size == max_prompt_size
     assert model_defaults.stop_sequences == stop_sequences
     assert model_defaults.disambiguation_prompt == disambiguation_prompt
+    assert model_defaults.display_name == display_name
+    assert model_defaults.description == description
 
 
 @pytest.mark.parametrize(

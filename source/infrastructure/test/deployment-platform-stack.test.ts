@@ -44,19 +44,17 @@ describe('When deployment platform stack is created', () => {
         });
         template.hasOutput('CognitoClientId', {
             'Value': {
-                'Fn::If': [
-                    'DeploymentDashboardCognitoResourcesGenerated',
-                    {
-                        'Fn::GetAtt': [
-                            Match.stringLikeRegexp(
-                                'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource'
-                            ),
-                            'Outputs.GeneratedUserPoolClientId'
-                        ]
-                    },
-                    {
-                        'Ref': 'ExistingCognitoUserPoolClient'
-                    }
+                'Fn::GetAtt': [
+                    'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
+                    'Outputs.DeploymentPlatformCognitoSetupUserPoolClientIdFE2BD0AE'
+                ]
+            }
+        });
+        template.hasOutput('CognitoUserPoolId', {
+            'Value': {
+                'Fn::GetAtt': [
+                    'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
+                    'Outputs.DeploymentPlatformCognitoSetupUserPoolId0A73EB1C'
                 ]
             }
         });
@@ -67,10 +65,9 @@ describe('When deployment platform stack is created', () => {
                     [
                         'https://',
                         {
-                            'Fn::GetAtt': [
-                                'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
-                                'Outputs.DeploymentPlatformStackUseCaseManagementSetupUseCaseManagementRequestProcessorRestEndpointEndPointLambdaRestApiDB0E95B9Ref'
-                            ]
+                            'Ref': Match.stringLikeRegexp(
+                                'UseCaseManagementSetupRequestProcessorDeploymentRestEndpointDeploymentRestEndPointLambdaRestApi'
+                            )
                         },
                         '.execute-api.',
                         {
@@ -82,10 +79,9 @@ describe('When deployment platform stack is created', () => {
                         },
                         '/',
                         {
-                            'Fn::GetAtt': [
-                                'UseCaseManagementSetupUseCaseManagementNestedStackUseCaseManagementNestedStackResource7ED7E421',
-                                'Outputs.DeploymentPlatformStackUseCaseManagementSetupUseCaseManagementRequestProcessorRestEndpointEndPointLambdaRestApiDeploymentStageprodFA7420DFRef'
-                            ]
+                            'Ref': Match.stringLikeRegexp(
+                                'UseCaseManagementSetupRequestProcessorDeploymentRestEndpointDeploymentRestEndPointLambdaRestApiDeploymentStageprod'
+                            )
                         },
                         '/'
                     ]
@@ -116,12 +112,16 @@ describe('When deployment platform stack is created', () => {
                 ]
             }
         });
+
+        // Ensure you expected to add a new CfnOutput before incrementing this value
+        expect(Object.keys(template.findOutputs('*')).length).toEqual(11);
     });
 
     describe('when nested stacks are created', () => {
-        it('should create nested stack for ddb storage, and UI', () => {
-            template.resourceCountIs('AWS::CloudFormation::Stack', 5);
+        it('should create nested stack for ddb storage, UI and feedback', () => {
+            template.resourceCountIs('AWS::CloudFormation::Stack', 6);
 
+            // UseCaseManagement Stack
             template.hasResource('AWS::CloudFormation::Stack', {
                 Type: 'AWS::CloudFormation::Stack',
                 Properties: {
@@ -129,7 +129,6 @@ describe('When deployment platform stack is created', () => {
                         DefaultUserEmail: {
                             'Ref': 'AdminUserEmail'
                         },
-                        ApplicationTrademarkName: 'Generative AI Application Builder on AWS',
                         WebConfigSSMKey: {
                             'Fn::Join': [
                                 '',
@@ -222,7 +221,7 @@ describe('When deployment platform stack is created', () => {
                     'Description'
                 ]
             ).toEqual(
-                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the resources for use case management (API Gateway, lambda, cognito, etc.) - Version ${process.env.VERSION}`
+                `(SO0276-Nested) - generative-ai-application-builder-on-aws - Nested Stack that creates the resources for use case management (lambdas) - Version ${process.env.VERSION}`
             );
 
             expect(
@@ -317,12 +316,6 @@ describe('When deployment platform stack is created', () => {
             });
         });
 
-        it('should have a condition specifying if cognito resources are created', () => {
-            template.hasCondition('DeploymentDashboardCognitoResourcesGenerated', {
-                'Fn::Equals': [{ 'Ref': 'ExistingCognitoUserPoolId' }, '']
-            });
-        });
-
         it('should have a condition for marking dashboard as internal', () => {
             template.hasCondition('IsInternalUserCondition', {
                 'Fn::Equals': [
@@ -400,6 +393,27 @@ describe('With all environment variables and context.json available', () => {
 
         it('has mapping for features to be deployed', () => {
             expect(jsonTemplate['Mappings']['FeaturesToDeploy']['Deploy']['CustomDashboard']).toEqual('Yes');
+        });
+    });
+
+    it('should create API Gateway resources with correct configuration for feedback', () => {
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: 'feedback'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: '{useCaseId}'
+        });
+    });
+
+    it('should create API Gateway method with correct properties for feedback submission', () => {
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            AuthorizationType: 'CUSTOM',
+            OperationName: 'SubmitFeedback',
+            RequestParameters: {
+                'method.request.header.authorization': true
+            }
         });
     });
 });
