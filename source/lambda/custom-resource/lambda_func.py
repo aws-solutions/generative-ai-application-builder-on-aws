@@ -14,11 +14,13 @@ from operations import (
     copy_model_info_to_ddb,
     copy_web_ui,
     cw_log_retention,
+    update_llm_config,
     gen_domain_prefix,
     gen_uuid,
     get_arns_for_inference_profile,
     get_compatible_azs,
     operation_types,
+    redeploy_api,
     update_s3_policy,
     use_case_policy,
     webconfig,
@@ -43,7 +45,9 @@ operations_dictionary = {
     operation_types.GET_COMPATIBLE_AZS: get_compatible_azs.execute,
     operation_types.GEN_DOMAIN_PREFIX: gen_domain_prefix.execute,
     operation_types.CW_LOG_RETENTION: cw_log_retention.execute,
+    operation_types.UPDATE_LLM_CONFIG: update_llm_config.execute,
     operation_types.GET_MODEL_RESOURCE_ARNS: get_arns_for_inference_profile.execute,
+    operation_types.REDEPLOY_API: redeploy_api.execute,
 }
 
 

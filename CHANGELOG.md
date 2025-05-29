@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-05-29
+
+### Added
+
+- Feedback collection mechanism for LLM chat responses with positive/negative feedback, feedback categories and reason.
+- Support for Bedrock Converse APIs for improved model support.
+- Support for all Amazon Bedrock models through the use of model IDs or inference profiles.
+- Use case details API to retrieve deployment information.
+- Bedrock token usage, stop reason and feedback metrics in CloudWatch dashboard.
+- Friendly names and descriptions on model selection UI.
+- Streaming support for Agent UseCases.
+
+### Changed
+
+- Chat UI with a New/Refreshed look and enhanced error handling.
+- Python runtime from 3.12 to Python 3.13.
+- Use Case ID to expect a full 36-character UUID.
+- Prompt step for Bedrock model provider to require system prompt without {input} and {history} placeholders as a result of switching to Converse APIs. {context} placeholder is still required for RAG use cases.
+
+### Fixed
+
+- Bug where documents returned from Bedrock knowledge bases without a title were not properly displayed in the UI.
+
 ## [2.1.9] - 2025-05-22
 
 ### Security
@@ -28,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded aws-cdk-lib to `2.187.0`
 - Upgraded vite to `5.4.17`
 
-### Fixed 
+### Fixed
 
 - Stack deployment failures performed through `cdk deploy`
 

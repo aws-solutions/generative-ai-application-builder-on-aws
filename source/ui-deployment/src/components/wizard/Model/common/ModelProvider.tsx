@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { Box, FormField, Select, SelectProps } from '@cloudscape-design/components';
+import { Alert, Box, FormField, Link, Select, SelectProps, SpaceBetween } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 
 import React from 'react';
@@ -90,18 +90,44 @@ export const ModelProviderDropdown = (props: ModelProviderDropdownProps) => {
             description="Select the model provider you want to use."
             data-testid="model-provider-field"
         >
-            <Select
-                selectedAriaLabel="Selected"
-                selectedOption={selectedModelProviderOption}
-                placeholder="select model provider"
-                options={modelProviderOptions}
-                onChange={({ detail }) => onModelProviderChange(detail)}
-                disabled={isDisabled}
-                onLoadItems={handleLoadItems}
-                statusType={status}
-                errorText="Error fetching model providers"
-                loadingText="Fetching model providers..."
-            />
+            <SpaceBetween size="m">
+                <Select
+                    selectedAriaLabel="Selected"
+                    selectedOption={selectedModelProviderOption}
+                    placeholder="select model provider"
+                    options={modelProviderOptions}
+                    onChange={({ detail }) => onModelProviderChange(detail)}
+                    disabled={isDisabled}
+                    onLoadItems={handleLoadItems}
+                    statusType={status}
+                    errorText="Error fetching model providers"
+                    loadingText="Fetching model providers..."
+                />
+                <Alert data-testid="model-access-review-alert">
+                    Please review the information below
+                    <ul>
+                        <li>
+                            <Box variant="p">
+                                You have enabled "Model Access" in the{' '}
+                                <Link
+                                    external={false}
+                                    href={`https://console.aws.amazon.com/bedrock/home`}
+                                    target="_blank"
+                                    data-testid="bedrock-console-link"
+                                >
+                                    Amazon Bedrock console
+                                </Link>
+                                .
+                            </Box>
+                        </li>
+                        <li>
+                            <Box variant="p">
+                                The model is available in the AWS region where the use case is being deployed.
+                            </Box>
+                        </li>
+                    </ul>
+                </Alert>
+            </SpaceBetween>{' '}
         </FormField>
     );
 };

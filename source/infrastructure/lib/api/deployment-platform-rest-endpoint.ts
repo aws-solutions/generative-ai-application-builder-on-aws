@@ -4,30 +4,24 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as api from 'aws-cdk-lib/aws-apigateway';
-import { StageOptions } from 'aws-cdk-lib/aws-apigateway';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 import { ApiGatewayToLambda } from '@aws-solutions-constructs/aws-apigateway-lambda';
-import { WafwebaclToApiGateway } from '@aws-solutions-constructs/aws-wafwebacl-apigateway';
-import { wrapManagedRuleSet } from '@aws-solutions-constructs/core';
-import { CfnWebACL } from 'aws-cdk-lib/aws-wafv2';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct } from 'constructs';
 import * as cfn_nag from '../utils/cfn-guard-suppressions';
 import {
     API_GATEWAY_THROTTLING_BURST_LIMIT,
     API_GATEWAY_THROTTLING_RATE_LIMIT,
-    CUSTOM_RULE_PRIORITY,
-    HEADERS_NOT_ALLOWED_KEY,
-    INVALID_REQUEST_HEADER_RESPONSE_CODE,
     LOG_RETENTION_PERIOD
 } from '../utils/constants';
 import { deployUseCaseBodySchema } from './model-schema/deploy-usecase-body';
 import { deployUseCaseResponseSchema } from './model-schema/deploy-usecase-response';
 import { updateUseCaseBodySchema } from './model-schema/update-usecase-body';
 import { updateUseCaseResponseSchema } from './model-schema/update-usecase-response';
+import { BaseRestEndpoint, BaseRestEndpointProps } from './base-rest-endpoint';
 
-export interface DeploymentPlatformRestEndpointProps {
+export interface DeploymentPlatformRestEndpointProps extends BaseRestEndpointProps {
     /**
      * The use case management lambda function.
      */
@@ -44,35 +38,41 @@ export interface DeploymentPlatformRestEndpointProps {
     deploymentPlatformAuthorizer: api.RequestAuthorizer;
 }
 
-export class DeploymentPlatformRestEndpoint extends Construct {
+export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
     /**
-     * Lambda REST endpoint created by the construct
+     * ApiGatewayToLambda construct which contains the REST endpoint
      */
-    readonly restApi: api.LambdaRestApi;
+    private readonly lambdaRestApi: ApiGatewayToLambda;
 
     /**
-     * The root resource interface of the API Gateway
+     * The API request validator
      */
-    readonly apiRootResource: api.IResource;
-
-    /**
-     * local instance of the stack used to add suppressions
-     */
-    private readonly stack: cdk.Stack;
-
-    /**
-     * Counter for the priority of custom WAF rules
-     */
-    private rulePriorityCounter: number;
+    public readonly requestValidator: api.RequestValidator;
 
     constructor(scope: Construct, id: string, props: DeploymentPlatformRestEndpointProps) {
-        super(scope, id);
-        this.stack = cdk.Stack.of(scope);
-        this.rulePriorityCounter = CUSTOM_RULE_PRIORITY;
+        super(scope, id, props);
 
-        const lambdaRestApi = new ApiGatewayToLambda(this, 'EndPoint', {
+        this.lambdaRestApi = this.createRestApi(props);
+        this.restApi = this.lambdaRestApi.apiGateway;
+        this.requestValidator = this.createRequestValidator(props, this.restApi);
+
+        this.configureWaf(this.restApi, 'DeploymentPlatformEndpointWaf');
+        this.configureGatewayResponses(this.restApi);
+
+        this.createUseCaseManagementApi(props, this.restApi);
+        this.createModelInfoApi(props, this.restApi);
+        this.addSuppressions();
+    }
+
+    protected createRestApi(props: DeploymentPlatformRestEndpointProps): ApiGatewayToLambda {
+        const restApi = new ApiGatewayToLambda(this, 'DeploymentRestEndPoint', {
             existingLambdaObj: props.useCaseManagementAPILambda,
             apiGatewayProps: {
+                defaultMethodOptions: {
+                    authorizationType: api.AuthorizationType.CUSTOM,
+                    authorizer: props.deploymentPlatformAuthorizer,
+                    handler: props.useCaseManagementAPILambda
+                } as api.MethodOptions,
                 description: 'API endpoint to access use case management functions',
                 restApiName: `${cdk.Aws.STACK_NAME}-UseCaseManagementAPI`,
                 proxy: false,
@@ -83,173 +83,22 @@ export class DeploymentPlatformRestEndpoint extends Construct {
                     metricsEnabled: true,
                     throttlingRateLimit: API_GATEWAY_THROTTLING_RATE_LIMIT,
                     throttlingBurstLimit: API_GATEWAY_THROTTLING_BURST_LIMIT
-                } as StageOptions
-            },
+                } as api.StageOptions
+            } as api.LambdaRestApiProps,
             logGroupProps: {
                 retention: LOG_RETENTION_PERIOD
             }
         });
+        restApi.apiGateway.node.tryRemoveChild("Endpoint");
+        return restApi;
+    }
 
-        const requestValidator = new api.RequestValidator(this, 'RequestValidator', {
-            restApi: lambdaRestApi.apiGateway,
+    protected createRequestValidator(props: BaseRestEndpointProps, restApi: api.IRestApi): api.RequestValidator {
+        return new api.RequestValidator(this, 'RequestValidator', {
+            restApi: restApi,
             requestValidatorName: `${cdk.Aws.STACK_NAME}-api-request-validator`,
             validateRequestBody: true,
             validateRequestParameters: true
-        });
-
-        this.configureGatewayResponses(lambdaRestApi.apiGateway);
-
-        new WafwebaclToApiGateway(this, 'Endpoint', {
-            existingApiGatewayInterface: lambdaRestApi.apiGateway,
-            webaclProps: {
-                defaultAction: { allow: {} },
-                scope: 'REGIONAL',
-                rules: [
-                    wrapManagedRuleSet('AWSManagedRulesBotControlRuleSet', 'AWS', 0),
-                    wrapManagedRuleSet('AWSManagedRulesKnownBadInputsRuleSet', 'AWS', 1),
-                    this.defineAWSManagedRulesCommonRuleSetWithBodyOverride(2),
-                    wrapManagedRuleSet('AWSManagedRulesAnonymousIpList', 'AWS', 3),
-                    wrapManagedRuleSet('AWSManagedRulesAmazonIpReputationList', 'AWS', 4),
-                    wrapManagedRuleSet('AWSManagedRulesAdminProtectionRuleSet', 'AWS', 5),
-                    wrapManagedRuleSet('AWSManagedRulesSQLiRuleSet', 'AWS', 6),
-                    this.defineBlockRequestHeadersRule(),
-                    this.defineBlockOversizedBodyNotInDeployRule()
-                ],
-                customResponseBodies: {
-                    [HEADERS_NOT_ALLOWED_KEY]: this.createHeadersNotAllowedResponse()
-                }
-            }
-        });
-
-        const apiRoot = lambdaRestApi.apiGateway.root; // root resource
-
-        this.createUseCaseManagementApi(props, apiRoot, requestValidator, lambdaRestApi.apiGateway);
-        this.createModelInfoApi(props, apiRoot, requestValidator);
-
-        this.restApi = lambdaRestApi.apiGateway;
-        this.apiRootResource = apiRoot;
-
-        NagSuppressions.addResourceSuppressions(lambdaRestApi.apiGatewayCloudWatchRole!, [
-            {
-                id: 'AwsSolutions-IAM5',
-                reason: 'Permission generated by the ApiGatewayToLambda construct to allow CloudWatch Logs to be used',
-                appliesTo: ['Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:*']
-            }
-        ]);
-
-        NagSuppressions.addResourceSuppressions(lambdaRestApi.apiGateway.deploymentStage, [
-            {
-                id: 'AwsSolutions-APIG6',
-                reason: 'Turning off execution logs as recommended best practice in the ApiGateway service documentation'
-            }
-        ]);
-
-        const resourcePathsToSuppress = [
-            'deployments',
-            'deployments/{useCaseId}',
-            'model-info',
-            'model-info/use-case-types',
-            'model-info/{useCaseType}/providers',
-            'model-info/{useCaseType}/{providerName}',
-            'model-info/{useCaseType}/{providerName}/{modelId}'
-        ];
-        const operationsToSuppress = ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'];
-
-        resourcePathsToSuppress.forEach((_path) => {
-            operationsToSuppress.forEach((_operation) => {
-                try {
-                    NagSuppressions.addResourceSuppressionsByPath(
-                        cdk.Stack.of(this),
-                        `${lambdaRestApi.apiGateway.root}/${_path}/${_operation}/Resource`,
-                        [
-                            {
-                                id: 'AwsSolutions-APIG4',
-                                reason: 'The API Gateway method cannot use auth as the server has to respond to the OPTIONS request for cors reasons'
-                            },
-                            {
-                                id: 'AwsSolutions-COG4',
-                                reason: 'A Custom authorizer must be used in order to authenticate using Cognito user groups'
-                            }
-                        ],
-                        false
-                    );
-                } catch (error) {}
-            });
-        });
-
-        cfn_nag.addCfnSuppressRules(lambdaRestApi.apiGateway, [
-            {
-                id: 'W87',
-                reason: 'Since caching is not enabled, cache encryption is also not enabled'
-            }
-        ]);
-
-        cfn_nag.addCfnSuppressRules(lambdaRestApi.apiGateway.deploymentStage, [
-            {
-                id: 'W87',
-                reason: "Caching is not configured for this endpoint, hence CacheEncryption configurations don't apply"
-            }
-        ]);
-
-        cfn_nag.addCfnSuppressRules(lambdaRestApi.apiGatewayCloudWatchRole?.node.defaultChild as cdk.CfnResource, [
-            {
-                id: 'F10',
-                reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
-            }
-        ]);
-    }
-
-    /**
-     * Configure all 4XX and 5XX responses to have CORS headers
-     * @param restApi
-     */
-    private configureGatewayResponses(restApi: api.RestApi) {
-        new api.GatewayResponse(this, 'BadRequestDefaultResponse', {
-            restApi: restApi,
-            type: api.ResponseType.DEFAULT_4XX,
-            responseHeaders: {
-                'gatewayresponse.header.Access-Control-Allow-Origin': "'*'",
-                'gatewayresponse.header.Access-Control-Allow-Headers': "'*'"
-            }
-        });
-
-        new api.GatewayResponse(this, 'InternalServerErrorDefaultResponse', {
-            restApi: restApi,
-            type: api.ResponseType.DEFAULT_5XX,
-            statusCode: '400',
-            responseHeaders: {
-                'gatewayresponse.header.Access-Control-Allow-Origin': "'*'",
-                'gatewayresponse.header.Access-Control-Allow-Headers': "'*'"
-            }
-        });
-
-        // templates provide useful info about requests which fail validation
-        new api.GatewayResponse(this, 'BadRequestBodyResponse', {
-            restApi: restApi,
-            type: api.ResponseType.BAD_REQUEST_BODY,
-            statusCode: '400',
-            responseHeaders: {
-                'gatewayresponse.header.Access-Control-Allow-Origin': "'*'",
-                'gatewayresponse.header.Access-Control-Allow-Headers': "'*'"
-            },
-            templates: {
-                'application/json':
-                    '{"error":{"message":"$context.error.messageString","errors":"$context.error.validationErrorString"}}'
-            }
-        });
-
-        new api.GatewayResponse(this, 'BadRequestParametersResponse', {
-            restApi: restApi,
-            type: api.ResponseType.BAD_REQUEST_PARAMETERS,
-            statusCode: '400',
-            responseHeaders: {
-                'gatewayresponse.header.Access-Control-Allow-Origin': "'*'",
-                'gatewayresponse.header.Access-Control-Allow-Headers': "'*'"
-            },
-            templates: {
-                'application/json':
-                    '{"error":{"message":"$context.error.messageString","errors":"$context.error.validationErrorString"}}'
-            }
         });
     }
 
@@ -257,21 +106,15 @@ export class DeploymentPlatformRestEndpoint extends Construct {
      * Creates all API resources and methods for the use case management API
      * @param props
      * @param apiRoot
-     * @param requestValidator
      * @param restApi
      */
-    private createUseCaseManagementApi(
-        props: DeploymentPlatformRestEndpointProps,
-        apiRoot: cdk.aws_apigateway.IResource,
-        requestValidator: cdk.aws_apigateway.RequestValidator,
-        restApi: api.RestApi
-    ) {
+    private createUseCaseManagementApi(props: DeploymentPlatformRestEndpointProps, restApi: api.IRestApi) {
         const useCaseManagementAPILambdaIntegration = new api.LambdaIntegration(props.useCaseManagementAPILambda, {
             passthroughBehavior: api.PassthroughBehavior.NEVER
         });
 
         // Paths for the deployment api
-        const deploymentsResource = apiRoot.addResource('deployments'); // for getting and creating deployments
+        const deploymentsResource = restApi.root.addResource('deployments'); // for getting and creating deployments
         const deploymentResource = deploymentsResource.addResource('{useCaseId}'); // for updating/deleting specific a specific deployment
 
         deploymentsResource.addCorsPreflight({
@@ -285,7 +128,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             operationName: 'GetUseCases',
             authorizer: props.deploymentPlatformAuthorizer,
             authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: requestValidator,
+            requestValidator: this.requestValidator,
             requestParameters: {
                 'method.request.querystring.pageNumber': true,
                 'method.request.querystring.searchFilter': false,
@@ -298,7 +141,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             operationName: 'DeployUseCase',
             authorizer: props.deploymentPlatformAuthorizer,
             authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: requestValidator,
+            requestValidator: this.requestValidator,
             requestParameters: {
                 'method.request.header.authorization': true
             },
@@ -330,7 +173,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
         deploymentResource.addCorsPreflight({
             allowOrigins: ['*'],
             allowHeaders: ['Content-Type, Access-Control-Allow-Headers, X-Requested-With, Authorization'],
-            allowMethods: ['PATCH', 'DELETE', 'OPTIONS']
+            allowMethods: ['GET', 'PATCH', 'DELETE', 'OPTIONS']
         });
 
         //  Updating an existing use case deployment (i.e. changing its configuration)
@@ -338,7 +181,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             operationName: 'UpdateUseCase',
             authorizer: props.deploymentPlatformAuthorizer,
             authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: requestValidator,
+            requestValidator: this.requestValidator,
             requestParameters: {
                 'method.request.header.authorization': true
             },
@@ -371,9 +214,21 @@ export class DeploymentPlatformRestEndpoint extends Construct {
         deploymentResource.addMethod('DELETE', useCaseManagementAPILambdaIntegration, {
             operationName: 'DeleteUseCase',
             authorizer: props.deploymentPlatformAuthorizer,
+            requestValidator: this.requestValidator,
             authorizationType: api.AuthorizationType.CUSTOM,
             requestParameters: {
                 'method.request.querystring.permanent': false,
+                'method.request.header.authorization': true
+            }
+        });
+
+        // Getting information on a deployed use case
+        deploymentResource.addMethod('GET', useCaseManagementAPILambdaIntegration, {
+            operationName: 'GetUseCase',
+            authorizer: props.deploymentPlatformAuthorizer,
+            requestValidator: this.requestValidator,
+            authorizationType: api.AuthorizationType.CUSTOM,
+            requestParameters: {
                 'method.request.header.authorization': true
             }
         });
@@ -382,19 +237,13 @@ export class DeploymentPlatformRestEndpoint extends Construct {
     /**
      * Creates all API resources and methods for the use case management API
      * @param props
-     * @param apiRoot
-     * @param requestValidator
      * @param restApi
      */
-    private createModelInfoApi(
-        props: DeploymentPlatformRestEndpointProps,
-        apiRoot: cdk.aws_apigateway.IResource,
-        requestValidator: cdk.aws_apigateway.RequestValidator
-    ) {
+    private createModelInfoApi(props: DeploymentPlatformRestEndpointProps, restApi: api.IRestApi) {
         const modelInfoLambdaIntegration = new api.LambdaIntegration(props.modelInfoApiLambda, {
             passthroughBehavior: api.PassthroughBehavior.NEVER
         });
-        const modelInfoResource = apiRoot.addResource('model-info');
+        const modelInfoResource = restApi.root.addResource('model-info');
 
         // Listing the available use case types
         const useCaseTypesResource = modelInfoResource.addResource('use-case-types');
@@ -409,7 +258,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             operationName: 'GetUseCaseTypes',
             authorizer: props.deploymentPlatformAuthorizer,
             authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: requestValidator,
+            requestValidator: this.requestValidator,
             requestParameters: {
                 'method.request.header.authorization': true
             }
@@ -429,7 +278,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             operationName: 'GetModelProviders',
             authorizer: props.deploymentPlatformAuthorizer,
             authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: requestValidator,
+            requestValidator: this.requestValidator,
             requestParameters: {
                 'method.request.header.authorization': true
             }
@@ -448,7 +297,7 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             operationName: 'GetModels',
             authorizer: props.deploymentPlatformAuthorizer,
             authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: requestValidator,
+            requestValidator: this.requestValidator,
             requestParameters: {
                 'method.request.header.authorization': true
             }
@@ -467,150 +316,68 @@ export class DeploymentPlatformRestEndpoint extends Construct {
             operationName: 'GetModelInfo',
             authorizer: props.deploymentPlatformAuthorizer,
             authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: requestValidator,
+            requestValidator: this.requestValidator,
             requestParameters: {
                 'method.request.header.authorization': true
             }
         });
     }
 
-    /**
-     * Define WAF rule for blocking any request that contains the `X-Amzn-Requestid` header
-     * @returns WAF rule
-     */
-    private defineBlockRequestHeadersRule(): CfnWebACL.RuleProperty {
-        return {
-            priority: this.getCustomRulePriority(),
-            name: 'Custom-BlockRequestHeaders',
-            action: {
-                block: {
-                    customResponse: {
-                        responseCode: INVALID_REQUEST_HEADER_RESPONSE_CODE,
-                        customResponseBodyKey: HEADERS_NOT_ALLOWED_KEY
-                    }
-                }
-            },
-            visibilityConfig: {
-                cloudWatchMetricsEnabled: true,
-                metricName: 'Custom-BlockRequestHeaders',
-                sampledRequestsEnabled: true
-            },
-            statement: {
-                sizeConstraintStatement: {
-                    fieldToMatch: {
-                        singleHeader: {
-                            'Name': 'x-amzn-requestid'
-                        }
-                    },
-                    comparisonOperator: 'GE',
-                    size: 0,
-                    textTransformations: [
-                        {
-                            type: 'NONE',
-                            priority: 0
-                        }
-                    ]
-                }
+    protected addSuppressions(): void {
+        NagSuppressions.addResourceSuppressions(this.restApi.deploymentStage, [
+            {
+                id: 'AwsSolutions-APIG6',
+                reason: 'Turning off execution logs as recommended best practice in the ApiGateway service documentation'
             }
-        };
-    }
+        ]);
 
-    private createHeadersNotAllowedResponse(): CfnWebACL.CustomResponseBodyProperty {
-        return {
-            content: 'One of your injected headers is not allowed',
-            contentType: 'TEXT_PLAIN'
-        };
-    }
-
-    /**
-     * Define WAF rule which enforces the SizeRestrictions_Body rule from the core rule set for URIs not in the /deployments path
-     * @returns WAF rule
-     */
-    private defineBlockOversizedBodyNotInDeployRule(): CfnWebACL.RuleProperty {
-        return {
-            priority: this.getCustomRulePriority(),
-            name: 'Custom-BlockOversizedBodyNotInDeploy',
-            action: {
-                block: {}
-            },
-            visibilityConfig: {
-                cloudWatchMetricsEnabled: true,
-                metricName: 'Custom-BlockOversizedBodyNotInDeploy',
-                sampledRequestsEnabled: true
-            },
-            statement: {
-                andStatement: {
-                    statements: [
-                        {
-                            labelMatchStatement: {
-                                scope: 'LABEL',
-                                key: 'awswaf:managed:aws:core-rule-set:SizeRestrictions_Body'
-                            }
-                        },
-                        {
-                            notStatement: {
-                                statement: {
-                                    byteMatchStatement: {
-                                        searchString: '/deployments',
-                                        fieldToMatch: {
-                                            uriPath: {}
-                                        },
-                                        textTransformations: [
-                                            {
-                                                priority: 0,
-                                                type: 'NONE'
-                                            }
-                                        ],
-                                        positionalConstraint: 'ENDS_WITH'
-                                    }
-                                }
-                            }
-                        }
-                    ]
-                }
+        NagSuppressions.addResourceSuppressions(this.lambdaRestApi.apiGatewayCloudWatchRole!, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'Permission generated by the ApiGatewayToLambda construct to allow CloudWatch Logs to be used',
+                appliesTo: ['Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:*']
             }
-        };
-    }
+        ]);
 
-    /**
-     * Defines a WAF rule which enforces the AWSManagedRulesCommonRuleSet, with an override to only count the SizeRestrictions_BODY.
-     * @param priority The priority of the rule
-     * @returns The WAF rule
-     */
-    private defineAWSManagedRulesCommonRuleSetWithBodyOverride(priority: number): CfnWebACL.RuleProperty {
-        return {
-            name: 'AWS-AWSManagedRulesCommonRuleSet',
-            priority: priority,
-            statement: {
-                managedRuleGroupStatement: {
-                    vendorName: 'AWS',
-                    name: 'AWSManagedRulesCommonRuleSet',
-                    ruleActionOverrides: [
-                        {
-                            name: 'SizeRestrictions_BODY',
-                            actionToUse: {
-                                count: {}
+        const resourcePathsToSuppress = [
+            'deployments',
+            'deployments/{useCaseId}',
+            'model-info',
+            'model-info/use-case-types',
+            'model-info/{useCaseType}/providers',
+            'model-info/{useCaseType}/{providerName}',
+            'model-info/{useCaseType}/{providerName}/{modelId}'
+        ];
+        const operationsToSuppress = ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'];
+        resourcePathsToSuppress.forEach((_path) => {
+            operationsToSuppress.forEach((_operation) => {
+                try {
+                    NagSuppressions.addResourceSuppressionsByPath(
+                        cdk.Stack.of(this),
+                        `${this.restApi.root}/${_path}/${_operation}/Resource`,
+                        [
+                            {
+                                id: 'AwsSolutions-COG4',
+                                reason: 'A Custom authorizer must be used in order to authenticate using Cognito user groups'
                             }
-                        }
-                    ]
-                }
-            },
-            overrideAction: {
-                none: {}
-            },
-            visibilityConfig: {
-                sampledRequestsEnabled: true,
-                cloudWatchMetricsEnabled: true,
-                metricName: 'AWS-AWSManagedRulesCommonRuleSet'
-            }
-        };
-    }
+                        ],
+                        false
+                    );
+                } catch (error) {}
+            });
+        });
 
-    /**
-     * Gets a unique priority for a custom rule, incrementing an internal counter
-     * @returns A unique priority for each custom rule
-     */
-    private getCustomRulePriority(): number {
-        return this.rulePriorityCounter++;
+        cfn_nag.addCfnSuppressRules(this.restApi.node.defaultChild as api.CfnResource, [
+            {
+                id: 'W87',
+                reason: 'Since caching is not enabled, cache encryption is also not enabled'
+            }
+        ]);
+        cfn_nag.addCfnSuppressRules(this.restApi.deploymentStage, [
+            {
+                id: 'W87',
+                reason: "Caching is not configured for this endpoint, hence CacheEncryption configurations don't apply"
+            }
+        ]);
     }
 }

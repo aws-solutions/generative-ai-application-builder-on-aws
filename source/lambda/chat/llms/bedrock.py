@@ -3,20 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, Union
+from typing import Any, Dict, List
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
-from langchain_aws.chat_models.bedrock import ChatBedrock
-from langchain_aws.llms.bedrock import BedrockLLM as Bedrock
+from langchain_aws import ChatBedrockConverse
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
 from llms.base_langchain import BaseLangChainModel
-from llms.factories.bedrock_adapter_factory import BedrockAdapterFactory
 from llms.models.model_provider_inputs import BedrockInputs
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import BETA_USE_CONVERSE_API_MODELS, CHATBEDROCK_MODELS, TRACE_ID_ENV_VAR
-from utils.custom_exceptions import LLMBuildError, LLMInvocationError
-from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
+from utils.constants import BEDROCK_GUARDRAILS_KEY, TOP_LEVEL_PARAMS_MAPPING, TRACE_ID_ENV_VAR
+from utils.custom_exceptions import LLMInvocationError
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client
 
 tracer = Tracer()
@@ -37,8 +37,8 @@ class BedrockLLM(BaseLangChainModel):
         - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
         - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
         - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
-        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
-        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, llm_provider, rag_enabled): Generates the ChatPromptTemplate using the provided prompt template and
+         placeholders. In case of errors, raises ValueError
         placeholders. In case of errors, falls back on default values.
         - get_llm(): Returns the BedrockChat/BedrockLLM object that is used by the runnable.
         - get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM.
@@ -59,15 +59,26 @@ class BedrockLLM(BaseLangChainModel):
             self.model_family = model_inputs.model_family
             self.model = model_inputs.model
         else:
-            raise ValueError(
-                f"Model Name and Model Family are required to initialize BedrockLLM. Received model family as '{model_inputs.model_family}' and model name as '{model_inputs.model}'"
-            )
+            error_message = f"Model Name and Model Family are required to initialize BedrockLLM. Received model family as '{model_inputs.model_family}' and model name as '{model_inputs.model}'"
+            logger.error(error_message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            raise ValueError(error_message)
 
         self.model_arn = model_inputs.model_arn
         self.guardrails = model_inputs.guardrails
         self.model_params = self.get_clean_model_params(model_inputs.model_params)
         self.llm = self.get_llm()
         self.runnable_with_history = self.get_runnable()
+
+    @property
+    def prompt_template(self) -> ChatPromptTemplate:
+        return self._prompt_template
+
+    @prompt_template.setter
+    def prompt_template(self, prompt_template) -> None:
+        prompt_placeholders = self._model_inputs.prompt_placeholders
+        self._prompt_template = self.get_validated_prompt(
+            prompt_template, prompt_placeholders, LLMProviderTypes.BEDROCK, False
+        )
 
     @property
     def model_family(self) -> str:
@@ -77,12 +88,12 @@ class BedrockLLM(BaseLangChainModel):
     def model_family(self, model_family) -> None:
         self._model_family = model_family
 
-    def get_llm(self, *args, **kwargs) -> Union[Bedrock, ChatBedrock]:
+    def get_llm(self, *args, **kwargs) -> ChatBedrockConverse:
         """
         Creates a LangChain `LLM` object which is used to generate chat responses.
 
         Returns:
-            (Bedrock) The created LangChain LLM object that can be invoked in a conversation chain
+            (ChatBedrockConverse) The created LangChain LLM object that can be invoked in a conversation chain
         """
         bedrock_client = get_service_client("bedrock-runtime")
 
@@ -91,25 +102,37 @@ class BedrockLLM(BaseLangChainModel):
         else:
             model = self.model
 
+        # Initialize request options with required parameters
         request_options = {
             "client": bedrock_client,
             "model_id": model,
             "provider": self.model_family,
-            "model_kwargs": self.model_params,
-            "streaming": self.streaming,
+            "verbose": self.verbose,
         }
 
+        # Extract top-level parameters into request_options
+        request_options.update(
+            {
+                TOP_LEVEL_PARAMS_MAPPING[param]: self.model_params[param]
+                for param in TOP_LEVEL_PARAMS_MAPPING
+                if param in self.model_params
+            }
+        )
+
+        # Add remaining parameters as additional_model_request_fields
+        additional_model_request_fields = {
+            key: value for key, value in self.model_params.items() if key not in TOP_LEVEL_PARAMS_MAPPING
+        }
+
+        if additional_model_request_fields:
+            request_options["additional_model_request_fields"] = additional_model_request_fields
+
         if self.guardrails is not None:
-            request_options["guardrails"] = self.guardrails
+            request_options[BEDROCK_GUARDRAILS_KEY] = self.guardrails
 
-        if model in BETA_USE_CONVERSE_API_MODELS:
-            request_options["beta_use_converse_api"] = True
+        logger.debug(f"Request options: {request_options}")
 
-        if self.model_family in CHATBEDROCK_MODELS or "beta_use_converse_api" in request_options:
-            request_options["verbose"] = self.verbose
-            return ChatBedrock(**request_options)
-        else:
-            return Bedrock(**request_options)
+        return ChatBedrockConverse(**request_options)
 
     @tracer.capture_method(capture_response=True)
     def generate(self, question: str) -> Dict[str, Any]:
@@ -153,19 +176,4 @@ class BedrockLLM(BaseLangChainModel):
         """
         sanitized_model_params = super().get_clean_model_params(model_params)
         sanitized_model_params["temperature"] = float(self.temperature)
-        bedrock_adapter = BedrockAdapterFactory().get_bedrock_adapter(self.model_family, self.model)
-
-        try:
-            bedrock_llm_params_dict = bedrock_adapter(
-                **sanitized_model_params, model_defaults=self.model_defaults
-            ).get_params_as_dict()
-        except TypeError as error:
-            error_message = (
-                f"Error occurred while building Bedrock family '{self.model_family}' model '{self.model}'. "
-                "Ensure that the model params provided are correct and they match the model specification. "
-                f"Received params: {sanitized_model_params}. Error: {error}"
-            )
-            logger.error(error_message)
-            raise LLMBuildError(error_message)
-
-        return bedrock_llm_params_dict
+        return sanitized_model_params

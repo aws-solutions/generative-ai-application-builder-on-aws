@@ -155,60 +155,111 @@ describe('When validating model parameters', () => {
 });
 
 describe('formatModelNamesList', () => {
-    test('should format Bedrock model names with cross-region inference at the beginning', () => {
-        const modelNames = ['ai21.j2-ultra', 'anthropic.claude-v2', INFERENCE_PROFILE, 'amazon.titan-text-express-v1'];
+    test('should handle Bedrock model names with DisplayName and Description', () => {
+        const modelData = {
+            '1': {
+                ModelName: 'ai21.j2-ultra',
+                DisplayName: 'J2 Ultra',
+                Description: 'AI21 J2 Ultra model'
+            },
+            '2': {
+                ModelName: 'anthropic.claude-v2',
+                DisplayName: 'Claude v2',
+                Description: 'Anthropic Claude v2 model'
+            }
+        };
 
-        const result = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.Bedrock);
-
-        expect(result[0]).toEqual({
-            label: CROSS_REGION_INFERENCE,
-            options: [
-                {
-                    label: 'select inference profile...',
-                    value: INFERENCE_PROFILE
-                }
-            ]
-        });
-
-        expect(result).toHaveLength(4);
-        expect(result[1]).toMatchObject({
-            label: expect.any(String),
-            options: expect.arrayContaining([
-                expect.objectContaining({
-                    label: expect.any(String),
-                    value: expect.any(String)
-                })
-            ])
-        });
-    });
-
-    test('should handle Bedrock model names without inference profile', () => {
-        const modelNames = ['ai21.j2-ultra', 'anthropic.claude-v2'];
-
-        const result = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.Bedrock);
+        const result = formatModelNamesList(modelData, MODEL_PROVIDER_NAME_MAP.Bedrock);
 
         expect(result.some((group) => group.label === CROSS_REGION_INFERENCE)).toBeFalsy();
         expect(result).toHaveLength(2);
+        
+        // Check that ai21 group contains the correct option
+        const ai21Group = result.find(group => group.label === 'Ai21');
+        expect(ai21Group).toBeDefined();
+        expect(ai21Group?.options).toContainEqual({
+            label: 'J2 Ultra',
+            value: 'ai21.j2-ultra',
+            description: 'AI21 J2 Ultra model'
+        });
+        
+        // Check that anthropic group contains the correct option
+        const anthropicGroup = result.find(group => group.label === 'Anthropic');
+        expect(anthropicGroup).toBeDefined();
+        expect(anthropicGroup?.options).toContainEqual({
+            label: 'Claude v2',
+            value: 'anthropic.claude-v2',
+            description: 'Anthropic Claude v2 model'
+        });
     });
 
-    test('should handle non-Bedrock model names', () => {
-        const modelNames = ['model1', 'model2', 'model3'];
-        const result = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.SageMaker);
+    test('should handle Bedrock model names without DisplayName', () => {
+        const modelData = {
+            '1': {
+                ModelName: 'ai21.j2-ultra',
+                Description: 'AI21 J2 Ultra model'
+            },
+            '2': {
+                ModelName: 'anthropic.claude-v2'
+            }
+        };
+
+        const result = formatModelNamesList(modelData, MODEL_PROVIDER_NAME_MAP.Bedrock);
+
+        // Check that ai21 group uses ModelName as fallback for label
+        const ai21Group = result.find(group => group.label === 'Ai21');
+        expect(ai21Group?.options).toContainEqual({
+            label: 'ai21.j2-ultra',
+            value: 'ai21.j2-ultra',
+            description: 'AI21 J2 Ultra model'
+        });
+        
+        // Check that anthropic group uses ModelName as fallback for label and empty string for description
+        const anthropicGroup = result.find(group => group.label === 'Anthropic');
+        expect(anthropicGroup?.options).toContainEqual({
+            label: 'anthropic.claude-v2',
+            value: 'anthropic.claude-v2',
+            description: ''
+        });
+    });
+
+    test('should handle non-Bedrock model names with DisplayName and Description', () => {
+        const modelData = {
+            '1': {
+                ModelName: 'model1',
+                DisplayName: 'Model One',
+                Description: 'First model'
+            },
+            '2': {
+                ModelName: 'model2',
+                DisplayName: 'Model Two',
+                Description: 'Second model'
+            }
+        };
+        
+        const result = formatModelNamesList(modelData, MODEL_PROVIDER_NAME_MAP.SageMaker);
 
         expect(result).toEqual([
-            { label: 'model1', value: 'model1' },
-            { label: 'model2', value: 'model2' },
-            { label: 'model3', value: 'model3' }
+            { label: 'Model One', value: 'model1', description: 'First model' },
+            { label: 'Model Two', value: 'model2', description: 'Second model' }
         ]);
     });
 
-    test('should handle empty model names array', () => {
-        const modelNames: string[] = [];
+    test('should handle empty model data object', () => {
+        const modelData = {};
 
-        const bedrockResult = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.Bedrock);
+        const bedrockResult = formatModelNamesList(modelData, MODEL_PROVIDER_NAME_MAP.Bedrock);
         expect(bedrockResult).toEqual([]);
 
-        const nonBedrockResult = formatModelNamesList(modelNames, MODEL_PROVIDER_NAME_MAP.SageMaker);
+        const nonBedrockResult = formatModelNamesList(modelData, MODEL_PROVIDER_NAME_MAP.SageMaker);
         expect(nonBedrockResult).toEqual([]);
+    });
+    
+    test('should handle null or undefined model data', () => {
+        const bedrockResultNull = formatModelNamesList(null, MODEL_PROVIDER_NAME_MAP.Bedrock);
+        expect(bedrockResultNull).toEqual([]);
+        
+        const bedrockResultUndefined = formatModelNamesList(undefined, MODEL_PROVIDER_NAME_MAP.Bedrock);
+        expect(bedrockResultUndefined).toEqual([]);
     });
 });

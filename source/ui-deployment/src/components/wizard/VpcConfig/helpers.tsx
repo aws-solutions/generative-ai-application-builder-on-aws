@@ -75,6 +75,30 @@ export const isAttrItemsValid = (items: AttributeEditorItems, validatorFn: (i: s
     });
 };
 
+/**
+ * Check if there are duplicate values in the attribute editor items
+ * @param items The attribute editor items to check
+ * @returns true if there are duplicates, false otherwise
+ */
+export const hasDuplicateAttrItems = (items: AttributeEditorItems): boolean => {
+    if (items.length <= 1) {
+        return false;
+    }
+
+    const seenKeys = new Set<string>();
+    
+    for (const item of items) {
+        if ('key' in item && item.key) {
+            if (seenKeys.has(item.key)) {
+                return true; // Found a duplicate
+            }
+            seenKeys.add(item.key);
+        }
+    }
+    
+    return false; // No duplicates found
+};
+
 //INFO PANEL CONTENT
 export const vpcToolsContent = {
     existingVPC: {

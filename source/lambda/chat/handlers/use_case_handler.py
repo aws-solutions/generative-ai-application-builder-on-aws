@@ -9,6 +9,7 @@ from typing import Any, Dict
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.typing import LambdaContext
+
 from clients.llm_chat_client import LLMChatClient
 from shared.callbacks.websocket_error_handler import WebsocketErrorHandler
 from shared.callbacks.websocket_handler import WebsocketHandler
@@ -79,7 +80,11 @@ class UseCaseHandler:
                 )
                 ai_response = llm_chat.generate(event_message["question"])
 
-                socket_handler = WebsocketHandler(connection_id=connection_id, conversation_id=conversation_id)
+                socket_handler = WebsocketHandler(
+                    connection_id=connection_id,
+                    conversation_id=conversation_id,
+                    message_id=llm_client.builder.message_id,
+                )
                 if not llm_client.builder.is_streaming:
                     socket_handler.post_response_to_connection(ai_response)
                 socket_handler.post_token_to_connection(END_CONVERSATION_TOKEN)

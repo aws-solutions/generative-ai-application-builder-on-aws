@@ -11,6 +11,7 @@ import { Construct } from 'constructs';
 import { CognitoSetup } from '../auth/cognito-setup';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import * as cfn_nag from '../utils/cfn-guard-suppressions';
+import { NagSuppressions } from 'cdk-nag';
 import { createCustomResourceForLambdaLogRetention, createDefaultLambdaRole } from '../utils/common-utils';
 import {
     CLIENT_ID_ENV_VAR,
@@ -42,6 +43,11 @@ export interface RestRequestProcessorProps extends RequestProcessorProps {
      * The ARN of the IAM role to use for custom resource implementation.
      */
     customResourceRoleArn: string;
+
+    /**
+     * The CognitoSetup construct to use for user pool and client setup
+     */
+    cognitoSetup: CognitoSetup;
 }
 
 export class RestRequestProcessor extends RequestProcessor {
@@ -53,36 +59,49 @@ export class RestRequestProcessor extends RequestProcessor {
     /**
      * Construct which defines the REST API/endpoints
      */
-    public readonly restEndpoint: DeploymentPlatformRestEndpoint;
+    public readonly deploymentRestEndpoint: DeploymentPlatformRestEndpoint;
+
+    /**
+     * API Request Validator
+     */
+    public readonly requestValidator: api.RequestValidator;
+
+    /**
+     * API Request Authorizer
+     */
+    public readonly requestAuthorizer: api.RequestAuthorizer;
 
     constructor(scope: Construct, id: string, props: RestRequestProcessorProps) {
         super(scope, id);
 
-        // create the cognito user pool and group for admin
-        this.cognitoSetup = new CognitoSetup(this, 'DeploymentPlatformCognitoSetup', {
-            userPoolProps: {
-                defaultUserEmail: props.defaultUserEmail,
-                applicationTrademarkName: props.applicationTrademarkName,
-                userGroupName: 'admin',
-                usernameSuffix: 'admin',
-                customResourceLambdaArn: props.customResourceLambdaArn,
-                cognitoDomainPrefix: props.cognitoDomainPrefix,
-                existingCognitoUserPoolId: props.existingCognitoUserPoolId,
-                existingCognitoGroupPolicyTableName: ''
-            },
-            userPoolClientProps: {
-                logoutUrl: props.cloudFrontUrl,
-                callbackUrl: props.cloudFrontUrl,
-                existingCognitoUserPoolClientId: props.existingCognitoUserPoolClientId
-            },
-            deployWebApp: props.deployWebApp
-        });
-        this.userPool = this.cognitoSetup.userPool;
-        this.userPoolClient = this.cognitoSetup.userPoolClient;
+        this.cognitoSetup = props.cognitoSetup;
+        this.userPool = props.cognitoSetup.getUserPool(this);
+        this.userPoolClient = props.cognitoSetup.getUserPoolClient(this);
 
         // a custom lambda authorizer is needed for the API. The API lambda should be able to read the policy table
         const restAuthorizerRole = createDefaultLambdaRole(this, 'RestAuthorizerRole');
-        this.authorizerLambda = new lambda.Function(this, 'RestAuthorizer', {
+
+        // Add Cognito User Pool describe permissions
+        restAuthorizerRole.addToPolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['cognito-idp:DescribeUserPoolClient'],
+                resources: [`arn:aws:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`]
+            })
+        );
+
+        NagSuppressions.addResourceSuppressions(
+            restAuthorizerRole,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'Lambda authorizer needs to describe any user pool to validate tokens from multiple user pools. Additional scoping down is found in the authorizer'
+                }
+            ],
+            true
+        );
+
+        this.authorizerLambda = new lambda.Function(this, 'DeploymentRestAuthorizer', {
             description: 'Authorizes REST API requests based on Cognito user pool groups',
             code: lambda.Code.fromAsset(
                 '../lambda/custom-authorizer',
@@ -97,7 +116,7 @@ export class RestRequestProcessor extends RequestProcessor {
             environment: {
                 [USER_POOL_ID_ENV_VAR]: this.userPool.userPoolId,
                 [CLIENT_ID_ENV_VAR]: this.userPoolClient.userPoolClientId,
-                [COGNITO_POLICY_TABLE_ENV_VAR]: this.cognitoSetup.cognitoGroupPolicyTable.tableName
+                [COGNITO_POLICY_TABLE_ENV_VAR]: this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName
             }
         });
 
@@ -114,31 +133,31 @@ export class RestRequestProcessor extends RequestProcessor {
                     effect: iam.Effect.ALLOW,
                     actions: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:BatchGetItem'],
                     resources: [
-                        `arn:aws:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${this.cognitoSetup.cognitoGroupPolicyTable.tableName}`
+                        `arn:aws:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName}`
                     ]
                 })
             ]
         });
         lambdaPolicyTablePolicy.attachToRole(this.authorizerLambda.role!);
 
-        // Env vars which need to be passed to use cases on deployment
-        props.useCaseManagementAPILambda.addEnvironment(
-            COGNITO_POLICY_TABLE_ENV_VAR,
-            this.cognitoSetup.cognitoGroupPolicyTable.tableName
-        );
-        props.useCaseManagementAPILambda.addEnvironment(USER_POOL_ID_ENV_VAR, this.userPool.userPoolId);
-        props.useCaseManagementAPILambda.addEnvironment(CLIENT_ID_ENV_VAR, this.userPoolClient.userPoolClientId);
-
-        const authorizer = new api.RequestAuthorizer(this, 'CustomRequestAuthorizers', {
+        this.requestAuthorizer = new api.RequestAuthorizer(this, 'RestCustomRequestAuthorizer', {
             handler: this.authorizerLambda,
             identitySources: [api.IdentitySource.header('Authorization')],
             resultsCacheTtl: cdk.Duration.seconds(0)
         });
 
-        this.restEndpoint = new DeploymentPlatformRestEndpoint(this, 'RestEndpoint', {
+        this.deploymentRestEndpoint = new DeploymentPlatformRestEndpoint(this, 'DeploymentRestEndpoint', {
             useCaseManagementAPILambda: props.useCaseManagementAPILambda,
             modelInfoApiLambda: props.modelInfoAPILambda,
-            deploymentPlatformAuthorizer: authorizer
+            deploymentPlatformAuthorizer: this.requestAuthorizer
+        });
+
+        this.requestValidator = this.deploymentRestEndpoint.requestValidator;
+
+        this.authorizerLambda.addPermission('APIGatewayInvoke', {
+            principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+            action: 'lambda:InvokeFunction',
+            sourceArn: `arn:${cdk.Aws.PARTITION}:execute-api:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${this.deploymentRestEndpoint.restApi.restApiId}/*`
         });
 
         // custom resource to populate policy table with admin policy
@@ -150,8 +169,8 @@ export class RestRequestProcessor extends RequestProcessor {
                 serviceToken: props.customResourceLambdaArn,
                 properties: {
                     Resource: 'ADMIN_POLICY',
-                    API_ARN: this.restEndpoint.restApi.arnForExecuteApi(),
-                    POLICY_TABLE_NAME: this.cognitoSetup.cognitoGroupPolicyTable.tableName
+                    API_ARN: this.deploymentRestEndpoint.restApi.arnForExecuteApi(),
+                    POLICY_TABLE_NAME: this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName
                 }
             }
         );
@@ -168,14 +187,14 @@ export class RestRequestProcessor extends RequestProcessor {
                     effect: iam.Effect.ALLOW,
                     actions: ['dynamodb:PutItem', 'dynamodb:DeleteItem', 'dynamodb:GetItem'],
                     resources: [
-                        `arn:aws:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${this.cognitoSetup.cognitoGroupPolicyTable.tableName}`
+                        `arn:aws:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName}`
                     ]
                 })
             ]
         });
         cognitoAdminGroupPolicy.attachToRole(customResourceLambdaRole);
         cognitoAdminGroupPolicyCustomResource.node.addDependency(cognitoAdminGroupPolicy);
-        cognitoAdminGroupPolicyCustomResource.node.addDependency(this.cognitoSetup.cognitoGroupPolicyTable);
+        cognitoAdminGroupPolicyCustomResource.node.addDependency(this.cognitoSetup.getCognitoGroupPolicyTable(this));
         cognitoAdminGroupPolicyCustomResource.node.addDependency(this.authorizerLambda);
 
         cfn_nag.addCfnSuppressRules(restAuthorizerRole, [

@@ -25,7 +25,7 @@ describe('When creating a use case management Stack', () => {
     let oldDistBucket: string;
 
     beforeAll(() => {
-        rawCdkJson.context['cdk-asset-bucket'] = 'asset-bucket';
+        rawCdkJson.context['cdk-asset-bucket'] = 'cdk-hnb659fds-assets-123456789012-ap-southeast-1';
         oldTemplateOutputBucket = process.env.TEMPLATE_OUTPUT_BUCKET ?? '';
         delete process.env.TEMPLATE_OUTPUT_BUCKET;
 
@@ -33,14 +33,14 @@ describe('When creating a use case management Stack', () => {
         delete process.env.DIST_OUTPUT_BUCKET;
 
         const app = new cdk.App({ context: rawCdkJson.context });
-        stack = new UseCaseManagement(new cdk.Stack(app, 'ParentStack'), 'ManagementStack', {
+        const tempStack = new cdk.Stack(app, 'ParentStack');
+        stack = new UseCaseManagement(tempStack, 'ManagementStack', {
             parameters: {
                 DefaultUserEmail: 'abc@example.com',
                 ApplicationTrademarkName: 'Fake Application',
                 WebConfigSSMKey: '/fake-webconfig/key'
             }
         });
-
         template = Template.fromStack(stack);
     });
 
@@ -57,20 +57,102 @@ describe('When creating a use case management Stack', () => {
     const dlqCapture = new Capture();
     const lambdaRoleCapture = new Capture();
 
+    it('Inline policy size for roles should be smaller than 10240 bytes ', () => {
+        const resolvedTemplate = Template.fromJSON(
+            JSON.parse(
+                JSON.stringify(Template.fromStack(stack))
+                    // Handle Ref for AWS pseudo parameters
+                    .replace(/\{"Ref":"AWS::Partition"\}/g, '"aws"')
+                    .replace(/\{"Ref":"AWS::Region"\}/g, '"ap-southeast-1"')
+                    .replace(/\{"Ref":"AWS::AccountId"\}/g, '"123456789012"')
+
+                    // Handle Fn::Join
+                    .replace(
+                        /\{"Fn::Join":\["",(\[(?:[^\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])*\])\]}/g,
+                        (match, array) => {
+                            try {
+                                return `"${JSON.parse(array).join('')}"`;
+                            } catch {
+                                return match;
+                            }
+                        }
+                    )
+                    // We don't currently have a good way to get the real resource names, which may cause the overall policy size to be slightly off.
+                    .replace(
+                        /\{"Fn::GetAtt":\s*\[[^\]]*\]\}/g,
+                        '"arn:aws:cloudformation:ap-southeast-1-1:123456789012:some_resource/*"'
+                    )
+            )
+        );
+
+        // Find all policies
+        const policyResources = resolvedTemplate.findResources('AWS::IAM::Policy');
+
+        // Find all IAM roles (which might have inline policies)
+        const roleResources = resolvedTemplate.findResources('AWS::IAM::Role');
+
+        // Dictionary to track total policy size by role
+        const rolePolicySizes: { [roleName: string]: number } = {};
+
+        Object.entries(policyResources).forEach(([_, resource]) => {
+            const roles = (resource as any).Properties.Roles || [];
+
+            // Calculate policy size (in bytes, with whitespace removed)
+            let policyDocument;
+            if ((resource as any).Properties.PolicyDocument) {
+                // Single policy document
+                policyDocument = JSON.stringify((resource as any).Properties.PolicyDocument, null, 0); // removes whitespace
+                const policySize = Buffer.from(policyDocument).length;
+                // Add size to each referenced role
+                roles.forEach((roleRef: any) => {
+                    const roleName = roleRef.Ref || 'UnknownRole';
+                    if (!rolePolicySizes[roleName]) {
+                        rolePolicySizes[roleName] = 0;
+                    }
+                    rolePolicySizes[roleName] += policySize;
+                });
+            }
+        });
+        Object.entries(roleResources).forEach(([logicalId, resource]) => {
+            const inlinePolicies = (resource as any).Properties.Policies || [];
+
+            if (inlinePolicies.length > 0) {
+                // Calculate size of each inline policy
+                inlinePolicies.forEach((policy: any) => {
+                    const policyDocumentCopy = JSON.parse(JSON.stringify(policy.PolicyDocument));
+                    const policyJson = JSON.stringify(policyDocumentCopy, null, 0);
+                    const policySize = Buffer.from(policyJson).length;
+                    // Add size to this role
+                    if (!rolePolicySizes[logicalId]) {
+                        rolePolicySizes[logicalId] = 0;
+                    }
+                    rolePolicySizes[logicalId] += policySize;
+                });
+            }
+        });
+        rolePolicySizes['UCMLRole389A579A'] += 224 + 824; // Include sizing from DeploymentPlatformStorageDDBUCMLPolicy and CustomMetricsPolicy, which don't naturally exist in this stack
+
+        // Print results for analysis
+        console.log('\nPolicy size by role (in bytes):');
+        Object.entries(rolePolicySizes)
+            .sort((a, b) => b[1] - a[1]) // Sort by size descending
+            .forEach(([roleName, totalSize]) => {
+                console.log(`${roleName}: ${totalSize} bytes`);
+            });
+
+        // Assert that no role exceeds the AWS limit of 10,240 bytes
+        Object.entries(rolePolicySizes).forEach(([_, totalSize]) => {
+            expect(totalSize).toBeLessThanOrEqual(10240);
+        });
+    });
+
     // write a unit test to test for cloudformation parameters
-    it('should have a parameter for the default user email', () => {
+    it('should have required parameters', () => {
         template.hasParameter('DefaultUserEmail', {
             Type: 'String',
             Description: 'Email required to create the default user for the deployment platform',
             AllowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             ConstraintDescription: 'Please provide a valid email'
-        });
-
-        template.hasParameter('ApplicationTrademarkName', {
-            Type: 'String',
-            Description: 'Trademark name for the application',
-            ConstraintDescription: 'Please provide a valid trademark name',
-            AllowedPattern: '[a-zA-Z0-9_ ]+'
         });
 
         template.hasParameter('WebConfigSSMKey', {
@@ -135,6 +217,7 @@ describe('When creating a use case management Stack', () => {
             TracingConfig: {
                 Mode: 'Active'
             },
+            Description: 'Lambda function backing the REST API for use case management',
             Environment: {
                 Variables: {
                     [ARTIFACT_BUCKET_ENV_VAR]: {
@@ -160,7 +243,7 @@ describe('When creating a use case management Stack', () => {
                     [COGNITO_POLICY_TABLE_ENV_VAR]: {
                         'Fn::If': [
                             Match.stringLikeRegexp(
-                                'RequestProcessorDeploymentPlatformCognitoSetupCreateCognitoGroupPolicyTableCondition'
+                                'DeploymentPlatformCognitoSetupCreateCognitoGroupPolicyTableCondition816E7DA5'
                             ),
                             {
                                 Ref: Match.stringLikeRegexp(
@@ -172,9 +255,7 @@ describe('When creating a use case management Stack', () => {
                     },
                     [USER_POOL_ID_ENV_VAR]: {
                         'Fn::If': [
-                            Match.stringLikeRegexp(
-                                'RequestProcessorDeploymentPlatformCognitoSetupCreateUserPoolCondition'
-                            ),
+                            Match.stringLikeRegexp('DeploymentPlatformCognitoSetupCreateUserPoolCondition17EE8EF9'),
                             {
                                 Ref: Match.stringLikeRegexp('RequestProcessorDeploymentPlatformCognitoSetupNewUserPool')
                             },
@@ -195,19 +276,18 @@ describe('When creating a use case management Stack', () => {
         });
     });
 
-    it('lambda role should have a policy to allow creation and deletion of ddb tables, and access SSM parameter store keys', () => {
+    it('lambda role should have a policy to allow creation and deletion of ddb tables, access SSM parameter store keys, and get API gateway resource', () => {
         template.hasResourceProperties('AWS::IAM::Policy', {
             PolicyDocument: {
                 Statement: [
                     {
                         Action: [
+                            'dynamodb:*TimeToLive',
                             'dynamodb:CreateTable',
                             'dynamodb:DeleteTable',
                             'dynamodb:DescribeTable',
-                            'dynamodb:DescribeTimeToLive',
                             'dynamodb:ListTagsOfResource',
-                            'dynamodb:TagResource',
-                            'dynamodb:UpdateTimeToLive'
+                            'dynamodb:TagResource'
                         ],
                         Effect: 'Allow',
                         Resource: {
@@ -254,6 +334,26 @@ describe('When creating a use case management Stack', () => {
                                     {
                                         Ref: 'WebConfigSSMKey'
                                     }
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        Action: 'apigateway:GET',
+                        Effect: 'Allow',
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        Ref: 'AWS::Partition'
+                                    },
+                                    ':apigateway:',
+                                    {
+                                        Ref: 'AWS::Region'
+                                    },
+                                    '::/restapis/*'
                                 ]
                             ]
                         }
@@ -336,13 +436,12 @@ describe('When creating a use case management Stack', () => {
                     },
                     {
                         Action: [
+                            'iam:*tRolePolicy',
                             'iam:CreateRole',
                             'iam:DeleteRole*',
                             'iam:DetachRolePolicy',
                             'iam:GetRole',
-                            'iam:GetRolePolicy',
                             'iam:ListRoleTags',
-                            'iam:PutRolePolicy',
                             'iam:TagRole',
                             'iam:UpdateAssumeRolePolicy'
                         ],
@@ -467,14 +566,13 @@ describe('When creating a use case management Stack', () => {
                     },
                     {
                         Action: [
+                            'lambda:*LayerVersion',
                             'lambda:AddPermission',
                             'lambda:CreateFunction',
                             'lambda:Delete*',
                             'lambda:GetFunction',
-                            'lambda:GetLayerVersion',
                             'lambda:InvokeFunction',
                             'lambda:ListTags',
-                            'lambda:PublishLayerVersion',
                             'lambda:RemovePermission',
                             'lambda:TagResource',
                             'lambda:UpdateEventSourceMapping',
@@ -551,15 +649,14 @@ describe('When creating a use case management Stack', () => {
                     },
                     {
                         Action: [
+                            's3:*EncryptionConfiguration',
                             's3:CreateBucket',
                             's3:DeleteBucketPolicy',
                             's3:GetBucketAcl',
                             's3:GetBucketPolicy*',
                             's3:GetBucketVersioning',
-                            's3:GetEncryptionConfiguration',
                             's3:GetObject',
-                            's3:PutBucket*',
-                            's3:PutEncryptionConfiguration'
+                            's3:PutBucket*'
                         ],
                         Effect: 'Allow',
                         Resource: {
@@ -576,13 +673,7 @@ describe('When creating a use case management Stack', () => {
                         }
                     },
                     {
-                        Action: [
-                            'events:DeleteRule',
-                            'events:DescribeRule',
-                            'events:PutRule',
-                            'events:PutTargets',
-                            'events:RemoveTargets'
-                        ],
+                        Action: ['events:*Targets', 'events:DeleteRule', 'events:DescribeRule', 'events:PutRule'],
                         Effect: 'Allow',
                         Resource: {
                             'Fn::Join': [
@@ -665,7 +756,12 @@ describe('When creating a use case management Stack', () => {
                             'apigateway:GET',
                             'apigateway:PATCH',
                             'apigateway:POST',
-                            'apigateway:TagResource'
+                            'apigateway:PUT',
+                            'apigateway:SetWebACL',
+                            'apigateway:TagResource',
+                            'wafv2:*ForResource',
+                            'wafv2:*WebACL',
+                            'wafv2:TagResource'
                         ],
                         Condition: {
                             'ForAnyValue:StringEquals': {
@@ -673,25 +769,48 @@ describe('When creating a use case management Stack', () => {
                             }
                         },
                         Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':apigateway:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    '::/*'
+                        Resource: [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            Ref: 'AWS::Partition'
+                                        },
+                                        ':apigateway:',
+                                        {
+                                            Ref: 'AWS::Region'
+                                        },
+                                        '::/*'
+                                    ]
                                 ]
-                            ]
-                        }
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:',
+                                        {
+                                            'Ref': 'AWS::Partition'
+                                        },
+                                        ':wafv2:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        ':',
+                                        {
+                                            'Ref': 'AWS::AccountId'
+                                        },
+                                        ':regional/*/*/*'
+                                    ]
+                                ]
+                            }
+                        ]
                     },
                     {
                         Action: [
+                            'cognito-idp:*UserPoolClient',
                             'cognito-idp:AdminAddUserToGroup',
                             'cognito-idp:AdminCreateUser',
                             'cognito-idp:AdminDeleteUser',
@@ -701,10 +820,8 @@ describe('When creating a use case management Stack', () => {
                             'cognito-idp:CreateGroup',
                             'cognito-idp:CreateUserPool*',
                             'cognito-idp:Delete*',
-                            'cognito-idp:DescribeUserPoolClient',
                             'cognito-idp:GetGroup',
-                            'cognito-idp:SetUserPoolMfaConfig',
-                            'cognito-idp:UpdateUserPoolClient'
+                            'cognito-idp:SetUserPoolMfaConfig'
                         ],
                         Condition: {
                             'ForAnyValue:StringEquals': {
@@ -925,14 +1042,7 @@ describe('When creating a use case management Stack', () => {
                         }
                     },
                     {
-                        Action: [
-                            'cloudwatch:DeleteDashboards',
-                            'cloudwatch:GetDashboard',
-                            'cloudwatch:GetMetricData',
-                            'cloudwatch:ListDashboards',
-                            'cloudwatch:PutDashboard',
-                            'cloudwatch:TagResource'
-                        ],
+                        Action: ['cloudwatch:*Dashboard*', 'cloudwatch:GetMetricData', 'cloudwatch:TagResource'],
                         Condition: {
                             'ForAnyValue:StringEquals': {
                                 'aws:CalledVia': ['cloudformation.amazonaws.com']

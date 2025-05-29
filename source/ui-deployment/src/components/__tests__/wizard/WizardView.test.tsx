@@ -5,23 +5,49 @@ import React, { Dispatch } from 'react';
 
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import HomeContext from '../../../contexts/home.context';
+import { screen, waitFor } from '@testing-library/react';
 import { HomeInitialState } from '../../../contexts/home.state';
 import { ActionType } from '../../../hooks/useCreateReducer';
 import { API, Auth } from 'aws-amplify';
 import { mockReactMarkdown, mockedAuthenticator, renderWithProvider } from '@/utils';
 import WizardView from '../../wizard/WizardView';
 import * as QueryHooks from 'hooks/useQueries';
+import { mockSelectedDeployment } from '../__mocks__/mock-text-deployment';
 import {
     API_NAME,
     DELAY_AFTER_SUCCESS_DEPLOYMENT,
     INTERNAL_USER_GENAI_POLICY_URL,
     USECASE_TYPE_ROUTE
 } from '@/utils/constants';
-import mockContext from '../__mocks__/mock-context.json';
 import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
+import HomeContext, { HomeContextProvider } from '@/contexts';
+
+// Mock the formatModelNamesList function
+jest.mock('../../wizard/Model/helpers', () => ({
+    ...jest.requireActual('../../wizard/Model/helpers'),
+    formatModelNamesList: jest.fn().mockImplementation(() => [
+        {
+            label: 'amazon.titan-text-express-v1',
+            value: 'amazon.titan-text-express-v1',
+            description: 'Amazon Titan Text Express model'
+        },
+        {
+            label: 'anthropic.claude-v1',
+            value: 'anthropic.claude-v1',
+            description: 'Anthropic Claude v1 model'
+        },
+        {
+            label: 'anthropic.claude-v2',
+            value: 'anthropic.claude-v2',
+            description: 'Anthropic Claude v2 model'
+        },
+        {
+            label: 'anthropic.claude-instant-v1',
+            value: 'anthropic.claude-instant-v1',
+            description: 'Anthropic Claude Instant v1 model'
+        }
+    ])
+}));
 
 const mockAPI = {
     post: jest.fn(),
@@ -77,12 +103,26 @@ describe('Wizard', () => {
                         isLoading: false,
                         isError: false,
                         data: [
-                            'ai21.j2-ultra',
-                            'ai21.j2-mid',
-                            'amazon.titan-text-express-v1',
-                            'anthropic.claude-v1',
-                            'anthropic.claude-v2',
-                            'anthropic.claude-instant-v1'
+                            {
+                                ModelName: 'amazon.titan-text-express-v1',
+                                DisplayName: 'Amazon Titan Text Express',
+                                Description: 'Amazon Titan Text Express model'
+                            },
+                            {
+                                ModelName: 'anthropic.claude-v1',
+                                DisplayName: 'Claude v1',
+                                Description: 'Anthropic Claude v1 model'
+                            },
+                            {
+                                ModelName: 'anthropic.claude-v2',
+                                DisplayName: 'Claude v2',
+                                Description: 'Anthropic Claude v2 model'
+                            },
+                            {
+                                ModelName: 'anthropic.claude-instant-v1',
+                                DisplayName: 'Claude Instant v1',
+                                Description: 'Anthropic Claude Instant v1 model'
+                            }
                         ]
                     } as any;
 
@@ -93,18 +133,7 @@ describe('Wizard', () => {
     });
 
     test('The initial state is correct', async () => {
-        render(
-            <HomeContext.Provider value={{ ...contextValue }}>
-                <MemoryRouter initialEntries={[USECASE_TYPE_ROUTE.TEXT]}>
-                    <Routes>
-                        <Route
-                            path={USECASE_TYPE_ROUTE.TEXT}
-                            element={<WizardView useCase={new TextUseCaseType()} />}
-                        />
-                    </Routes>
-                </MemoryRouter>
-            </HomeContext.Provider>
-        );
+        renderWithProvider(<WizardView useCase={new TextUseCaseType()} />, { route: USECASE_TYPE_ROUTE.TEXT });
         const element = screen.getByTestId('wizard-view');
         const wrapper = createWrapper(element);
         expect(wrapper.findBreadcrumbGroup()?.findBreadcrumbLinks()).toHaveLength(3);
@@ -322,6 +351,10 @@ describe('Wizard', () => {
                     HumanPrefix: undefined
                 },
                 DeployUI: true,
+                ExistingRestApiId: '',
+                FeedbackParams: {
+                    FeedbackEnabled: false
+                },
                 DefaultUserEmail: 'correct_email@example.com',
                 KnowledgeBaseParams: {
                     KendraKnowledgeBaseParams: {
@@ -340,6 +373,7 @@ describe('Wizard', () => {
 
                 LlmParams: {
                     BedrockLlmParams: {
+                        BedrockInferenceType: 'QUICK_START',
                         ModelId: 'amazon.titan-text-express-v1'
                     },
                     ModelParams: {},
@@ -373,6 +407,184 @@ describe('Wizard', () => {
         expect(flashBarWrapper).toBeDefined();
         setTimeout(() => {
             expect(screen?.getByTestId('dashboard-view')).toBeDefined();
-        }, DELAY_AFTER_SUCCESS_DEPLOYMENT);
+        }, DELAY_AFTER_SUCCESS_DEPLOYMENT * 2);
+    });
+
+    test('WizardView populates correctly with selected deployment', async () => {
+        // Mock the queries
+        jest.spyOn(QueryHooks, 'useUseCaseDetailsQuery').mockReturnValue({
+            isLoading: false,
+            isError: false,
+            data: mockSelectedDeployment,
+            error: null
+        } as any);
+
+        jest.spyOn(QueryHooks, 'useModelProvidersQuery').mockReturnValue({
+            isLoading: false,
+            isError: false,
+            data: ['Bedrock', 'SageMaker'],
+            placeholderData: ['Bedrock', 'SageMaker']
+        } as any);
+
+        jest.spyOn(QueryHooks, 'useModelNameQuery').mockImplementation(
+            (providerName: string) =>
+                ({
+                    isLoading: false,
+                    isError: false,
+                    data:
+                        providerName === 'Bedrock'
+                            ? [
+                                {
+                                    ModelName: 'anthropic.claude-v2',
+                                    DisplayName: 'Claude v2',
+                                    Description: 'Anthropic Claude v2 model'
+                                },
+                                {
+                                    ModelName: 'anthropic.claude-v1',
+                                    DisplayName: 'Claude v1',
+                                    Description: 'Anthropic Claude v1 model'
+                                },
+                                {
+                                    ModelName: 'amazon.titan-text-express-v1',
+                                    DisplayName: 'Amazon Titan Text Express',
+                                    Description: 'Amazon Titan Text Express model'
+                                }
+                            ]
+                            : []
+                } as any)
+        );
+
+        const mockHomeContext = {
+            state: {
+                authorized: true,
+                selectedDeployment: mockSelectedDeployment,
+                deploymentsData: [mockSelectedDeployment],
+                deploymentAction: 'EDIT',
+                usecaseType: 'TEXT',
+                runtimeConfig: {
+                    IsInternalUser: 'true'
+                },
+                reloadData: true,
+                searchFilter: '',
+                submittedSearchFilter: '',
+                numUseCases: 1,
+                currentPageIndex: 1
+            },
+            dispatch: jest.fn()
+        };
+
+        const mockUseEffect = jest.fn();
+        jest.spyOn(React, 'useEffect').mockImplementation(mockUseEffect);
+
+        renderWithProvider(
+            <HomeContextProvider value={mockHomeContext}>
+                <WizardView useCase={new TextUseCaseType()} />
+            </HomeContextProvider>,
+            { route: USECASE_TYPE_ROUTE.TEXT }
+        );
+        const element = screen.getByTestId('wizard-view');
+        const wrapper = createWrapper(element);
+        const wizardWrapper = wrapper.findWizard();
+
+        // step 1
+        const useCaseNameFieldElement = screen.getByTestId('use-case-name-field');
+        const useCaseNameInput = createWrapper(useCaseNameFieldElement).findInput()?.getInputValue();
+        expect(useCaseNameInput).toBe(mockSelectedDeployment.UseCaseName);
+
+        const userEmailFieldElement = screen.getByTestId('user-email-field');
+        const userEmailInput = createWrapper(userEmailFieldElement).findInput()?.getInputValue();
+        expect(userEmailInput).toBe(mockSelectedDeployment.defaultUserEmail);
+
+        const useCaseDescriptionFieldElement = screen.getByTestId('use-case-description-field');
+        const useCaseDescriptionInput = createWrapper(useCaseDescriptionFieldElement)
+            .findTextarea()
+            ?.getTextareaValue();
+        expect(useCaseDescriptionInput).toBe(mockSelectedDeployment.Description);
+
+        wizardWrapper?.findPrimaryButton().click();
+
+        // step 2 - vpc
+        expect(
+            screen.getByText(
+                /vpc cannot be configured on edit for a use case deployed without a vpc\. please proceed to the next step\./i
+            )
+        );
+
+        wizardWrapper?.findPrimaryButton().click();
+
+        // step 3 - model
+        expect(wizardWrapper?.findMenuNavigationLink(3, 'active')).not.toBeNull();
+
+        const modelProviderSelect = createWrapper(screen.getByTestId('model-provider-field')).findSelect();
+        expect(modelProviderSelect?.getElement().innerHTML).toContain(mockSelectedDeployment.LlmParams.ModelProvider);
+
+        let modelNameDropdown = createWrapper(screen.getByTestId('model-name-dropdown'))
+            .findSelect()
+            ?.findDropdown()
+            .getElement();
+        expect(modelNameDropdown?.innerHTML).toContain(mockSelectedDeployment.LlmParams.BedrockLlmParams.ModelId);
+
+        let modelVerboseField = createWrapper(screen.getByTestId('model-verbose-field'))
+            .findToggle()
+            ?.findNativeInput()
+            .getElement();
+        expect(modelVerboseField?.checked).toBe(mockSelectedDeployment.LlmParams.Verbose);
+
+        const modelParametersEditor = createWrapper(
+            screen.getByTestId('advanced-settings-container')
+        ).findAttributeEditor();
+
+        expect(modelParametersEditor).toBeDefined();
+
+        modelParametersEditor?.findAddButton().click();
+        const modelParamRow = modelParametersEditor?.findRow(1);
+        expect(modelParamRow?.findField(1)?.findControl()?.findInput()?.getInputValue()).toBe(
+            Object.keys(mockSelectedDeployment.LlmParams.ModelParams)[0].toString()
+        );
+        expect(modelParamRow?.findField(2)?.findControl()?.findInput()?.getInputValue()).toBe(
+            mockSelectedDeployment.LlmParams.ModelParams.parameter.Value
+        );
+
+        wizardWrapper?.findPrimaryButton().click();
+
+        // step 4
+        expect(wizardWrapper?.findMenuNavigationLink(4, 'active')).not.toBeNull();
+
+        const kendraIndexNameInput = createWrapper(screen.getByTestId('input-kendra-index-id')).findInput();
+        expect(kendraIndexNameInput?.getInputValue()).toBe(
+            mockSelectedDeployment.KnowledgeBaseParams.KendraKnowledgeBaseParams.ExistingKendraIndexId
+        );
+
+        const maxNumDocs = createWrapper(screen.getByTestId('input-max-num-docs')).findInput();
+        expect(maxNumDocs?.getInputValue()).toBe(mockSelectedDeployment.KnowledgeBaseParams.NumberOfDocs.toString());
+
+        // step 5: prompt
+        wizardWrapper?.findPrimaryButton().click();
+        expect(wizardWrapper?.findMenuNavigationLink(5, 'active')).not.toBeNull();
+
+        // step 6: review
+        wizardWrapper?.findPrimaryButton().click();
+        console.log(screen.logTestingPlaygroundURL());
+        expect(wizardWrapper?.findMenuNavigationLink(6, 'active')).not.toBeNull();
+
+        const reviewElement = screen.getByTestId('review-deployment-component');
+        expect(reviewElement).toBeDefined();
+
+        const useCaseDetailsReviewComponent = screen.getByTestId('review-use-case-details');
+        expect(useCaseDetailsReviewComponent).toBeDefined();
+
+        const useCaseDetailsReviewComponentHtml = createWrapper(useCaseDetailsReviewComponent)?.getElement().innerHTML;
+
+        expect(useCaseDetailsReviewComponentHtml).toContain(mockSelectedDeployment.UseCaseName);
+        expect(useCaseDetailsReviewComponentHtml).toContain(mockSelectedDeployment.UseCaseType);
+        expect(useCaseDetailsReviewComponentHtml).toContain(mockSelectedDeployment.Description);
+        expect(useCaseDetailsReviewComponentHtml).toContain(mockSelectedDeployment.defaultUserEmail);
+        expect(useCaseDetailsReviewComponentHtml).toContain(
+            mockSelectedDeployment.AuthenticationParams.CognitoParams.ExistingUserPoolId
+        );
+        expect(useCaseDetailsReviewComponentHtml).toContain(
+            mockSelectedDeployment.AuthenticationParams.CognitoParams.ExistingUserPoolClientId
+        );
+        expect(useCaseDetailsReviewComponentHtml).toContain(mockSelectedDeployment.deployUI);
     });
 });

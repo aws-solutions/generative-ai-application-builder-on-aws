@@ -7,14 +7,14 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
-from clients.sagemaker_client import SageMakerClient
 from langchain_core.prompts import ChatPromptTemplate
+
+from clients.sagemaker_client import SageMakerClient
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
 from llms.sagemaker import SageMakerLLM
 from utils.constants import (
     CHAT_IDENTIFIER,
-    DEFAULT_PROMPT_PLACEHOLDERS,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+    DEFAULT_SAGEMAKER_MODEL_ID,
     MESSAGE_KEY,
     PROMPT_EVENT_KEY,
     RAG_CHAT_IDENTIFIER,
@@ -23,8 +23,10 @@ from utils.enum_types import KnowledgeBaseTypes
 
 SAGEMAKER_PROMPT = """\n\n{history}\n\n{input}"""
 SAGEMAKER_RAG_PROMPT = """\n\n{history}\n\n{input}\n\n{context}"""
+DEFAULT_PROMPT_PLACEHOLDERS = ["input", "history"]
+DEFAULT_PROMPT_RAG_PLACEHOLDERS = ["context", "history", "input"]
 table_name = "fake-table"
-model_id = "default"
+model_id = DEFAULT_SAGEMAKER_MODEL_ID
 
 
 @pytest.fixture
@@ -144,22 +146,23 @@ def test_construct_chat_model1(
     setup_test_table,
     parsed_sagemaker_config,
 ):
-    chat_event_body = json.loads(chat_event["Records"][0]["body"])
-    chat_event_body[MESSAGE_KEY][PROMPT_EVENT_KEY] = prompt
-    llm_client = SageMakerClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
-    llm_client.get_model(chat_event_body[MESSAGE_KEY], "fake-user-id")
+    with patch("shared.callbacks.websocket_handler.get_service_client"):
+        chat_event_body = json.loads(chat_event["Records"][0]["body"])
+        chat_event_body[MESSAGE_KEY][PROMPT_EVENT_KEY] = prompt
+        llm_client = SageMakerClient(rag_enabled=rag_enabled, connection_id="fake-connection_id")
+        llm_client.get_model(chat_event_body[MESSAGE_KEY], "fake-user-id")
 
-    assert type(llm_client.builder.llm) == llm_type
-    assert llm_client.builder.llm.model == "default"
-    assert llm_client.builder.llm.model_params == {
-        "maxTokenCount": 100,
-        "topP": 0.3,
-        "temperature": 0.2,
-    }
+        assert type(llm_client.builder.llm) == llm_type
+        assert llm_client.builder.llm.model == model_id
+        assert llm_client.builder.llm.model_params == {
+            "maxTokenCount": 100,
+            "topP": 0.3,
+            "temperature": 0.2,
+        }
 
-    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(
-        parsed_sagemaker_config["LlmParams"]["PromptParams"]["PromptTemplate"]
-    )
-    assert set(llm_client.builder.llm.prompt_template.input_variables) == set(placeholders)
-    assert llm_client.builder.llm.streaming == parsed_sagemaker_config["LlmParams"]["Streaming"]
-    assert llm_client.builder.llm.verbose == parsed_sagemaker_config["LlmParams"]["Verbose"]
+        assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(
+            parsed_sagemaker_config["LlmParams"]["PromptParams"]["PromptTemplate"]
+        )
+        assert set(llm_client.builder.llm.prompt_template.input_variables) == set(placeholders)
+        assert llm_client.builder.llm.streaming == parsed_sagemaker_config["LlmParams"]["Streaming"]
+        assert llm_client.builder.llm.verbose == parsed_sagemaker_config["LlmParams"]["Verbose"]

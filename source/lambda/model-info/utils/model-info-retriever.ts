@@ -94,7 +94,11 @@ export class ModelInfoRetriever {
     public async getModels(useCaseType: string, providerName: string): Promise<any[]> {
         const query = {
             TableName: this.tableName,
-            ProjectionExpression: `${[ModelInfoTableKeys.MODEL_INFO_TABLE_MODEL_NAME_KEY]}`,
+            ProjectionExpression: `${[
+                ModelInfoTableKeys.MODEL_INFO_TABLE_MODEL_NAME_KEY,
+                ModelInfoTableKeys.MODEL_INFO_TABLE_DISPLAY_NAME_KEY,
+                ModelInfoTableKeys.MODEL_INFO_TABLE_DESCRIPTION_KEY
+            ]}`,
             ExpressionAttributeNames: {
                 '#P': ModelInfoTableKeys.MODEL_INFO_TABLE_PARTITION_KEY,
                 '#S': ModelInfoTableKeys.MODEL_INFO_TABLE_SORT_KEY
@@ -112,7 +116,11 @@ export class ModelInfoRetriever {
             const allData = await this.getAllDataForQuery(query);
             // array of model names from ddb item results which come from query in form [{ModelName: "value"},...]
             return allData.length > 0
-                ? allData.map((item) => item[ModelInfoTableKeys.MODEL_INFO_TABLE_MODEL_NAME_KEY])
+                ? allData.map((item) => ({
+                    ModelName: item[ModelInfoTableKeys.MODEL_INFO_TABLE_MODEL_NAME_KEY],
+                    DisplayName: item[ModelInfoTableKeys.MODEL_INFO_TABLE_DISPLAY_NAME_KEY] || item[ModelInfoTableKeys.MODEL_INFO_TABLE_MODEL_NAME_KEY],
+                    Description: item.Description || ''
+                }))
                 : [];
         } catch (error) {
             const errMessage = `Failed to get models: ${error}`;

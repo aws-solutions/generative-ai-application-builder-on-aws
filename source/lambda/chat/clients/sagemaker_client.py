@@ -4,9 +4,10 @@
 
 import os
 from typing import Dict, Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from aws_lambda_powertools import Logger, Tracer
+
 from clients.builders.sagemaker_builder import SageMakerBuilder
 from clients.llm_chat_client import LLMChatClient
 from llms.rag.sagemaker_retrieval import SageMakerRetrievalLLM
@@ -66,6 +67,7 @@ class SageMakerClient(LLMChatClient):
             self.use_case_config,
             connection_id=self.connection_id,
             conversation_id=event_body[CONVERSATION_ID_EVENT_KEY],
+            message_id=str(uuid4()),
             user_context_token=event_body.get(AUTH_TOKEN_EVENT_KEY),
             rag_enabled=self.rag_enabled,
         )

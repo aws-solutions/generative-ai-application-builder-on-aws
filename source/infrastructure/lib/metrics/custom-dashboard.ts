@@ -28,11 +28,6 @@ export interface CustomDashboardProps {
      * Client in the user pool for which dashboard is being created
      */
     userPoolClientId: string;
-
-    /**
-     * The UUID of the use case for which dashboard is being created. Required for UseCaseDashboard's
-     */
-    useCaseUUID?: string;
 }
 
 /**
@@ -45,14 +40,8 @@ export abstract class CustomDashboard extends Construct {
      */
     public readonly dashboard: cloudwatch.Dashboard;
 
-    /**
-     * props passed to this construct
-     */
-    public readonly props: CustomDashboardProps;
-
     constructor(scope: Construct, id: string, props: CustomDashboardProps) {
         super(scope, id);
-        this.props = props;
 
         this.dashboard = new cloudwatch.Dashboard(this, 'CustomDashboard', {
             dashboardName: `${cdk.Aws.STACK_NAME}-${cdk.Aws.REGION}-Dashboard`,
@@ -63,8 +52,6 @@ export abstract class CustomDashboard extends Construct {
 
         (this.dashboard.node.defaultChild as cloudwatch.CfnDashboard).cfnOptions.deletionPolicy =
             cdk.CfnDeletionPolicy.DELETE;
-
-        this.addWidgets();
     }
 
     protected abstract addWidgets(): void;

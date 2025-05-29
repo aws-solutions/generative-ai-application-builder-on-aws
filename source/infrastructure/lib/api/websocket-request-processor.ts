@@ -16,7 +16,11 @@ import { Construct } from 'constructs';
 import { CognitoSetup } from '../auth/cognito-setup';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
-import { createCustomResourceForLambdaLogRetention, createDefaultLambdaRole } from '../utils/common-utils';
+import {
+    createCustomResourceForLambdaLogRetention,
+    createDefaultLambdaRole,
+    createVpcConfigForLambda
+} from '../utils/common-utils';
 import {
     CLIENT_ID_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
@@ -47,6 +51,22 @@ export interface WebsocketRequestProcessorProps extends RequestProcessorProps {
      * Used here to append to the username for created user(s)
      */
     useCaseUUID: string;
+
+    /**
+     * Condition that determines if VPC configuration should be applied
+     * When false, VPC related props (privateSubnetIds, securityGroupIds) are ignored
+     */
+    deployVPCCondition: cdk.CfnCondition;
+
+    /**
+     * VPC configuration parameter private subnet IDs. Required when VPC is deployed
+     */
+    privateSubnetIds: string;
+
+    /**
+     * VPC configuration parameter security group IDs. Required when VPC is deployed
+     */
+    securityGroupIds: string;
 }
 
 export class WebsocketRequestProcessor extends RequestProcessor {
@@ -139,10 +159,15 @@ export class WebsocketRequestProcessor extends RequestProcessor {
             },
             deployWebApp: props.deployWebApp
         });
-        this.userPool = this.cognitoSetup.userPool;
-        this.userPoolClient = this.cognitoSetup.userPoolClient;
+        this.userPool = this.cognitoSetup.getUserPool(this);
+        this.userPoolClient = this.cognitoSetup.getUserPoolClient(this);
 
-        const webSocketAuthLambdaRole = createDefaultLambdaRole(this, 'WebSocketAuthorizerRole');
+        const webSocketAuthLambdaRole = createDefaultLambdaRole(
+            this,
+            'WebSocketAuthorizerRole',
+            props.deployVPCCondition
+        );
+
         this.authorizerLambda = new lambda.Function(this, 'WebSocketAuthorizer', {
             description: 'Authorizes websocket connections based on Cognito user pool groups',
             code: lambda.Code.fromAsset(
@@ -158,7 +183,7 @@ export class WebsocketRequestProcessor extends RequestProcessor {
             environment: {
                 [USER_POOL_ID_ENV_VAR]: this.userPool.userPoolId,
                 [CLIENT_ID_ENV_VAR]: this.userPoolClient.userPoolClientId,
-                [COGNITO_POLICY_TABLE_ENV_VAR]: this.cognitoSetup.cognitoGroupPolicyTable.tableName
+                [COGNITO_POLICY_TABLE_ENV_VAR]: this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName
             }
         });
 
@@ -169,12 +194,19 @@ export class WebsocketRequestProcessor extends RequestProcessor {
             props.customResourceLambda.functionArn
         );
 
+        createVpcConfigForLambda(
+            this.authorizerLambda,
+            props.deployVPCCondition,
+            props.privateSubnetIds,
+            props.securityGroupIds
+        );
+
         const lambdaPolicyTablePolicy = new iam.Policy(this, 'LambdaPolicyTablePolicy', {
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
                     actions: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:BatchGetItem'],
-                    resources: [this.cognitoSetup.cognitoGroupPolicyTable.tableArn]
+                    resources: [this.cognitoSetup.getCognitoGroupPolicyTable(this).tableArn]
                 })
             ]
         });
@@ -198,21 +230,6 @@ export class WebsocketRequestProcessor extends RequestProcessor {
         // note: that this implementation is opinionated such that each route adds it own queue as the integration. there
         // may be alternate AWS services or lambda functions as integration options, but this one assumes it always is a queue.
         addAddtionalRoutes(this, routeKeys, webSocketEndpoint, props);
-
-        // custom resource to populate policy table with admin policy
-        const cognitoUserGroupPolicyCustomResource = new cdk.CustomResource(this, 'CognitoUseCaseGroupPolicy', {
-            resourceType: 'Custom::CognitoUseCaseGroupPolicy',
-            serviceToken: props.customResourceLambda.functionArn,
-            properties: {
-                Resource: 'USE_CASE_POLICY',
-                GROUP_NAME: this.cognitoSetup.userPoolGroup.groupName!,
-                API_ARN: `arn:${cdk.Aws.PARTITION}:execute-api:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:${webSocketEndpoint.webSocketApi.apiId}/*/*`,
-                POLICY_TABLE_NAME: this.cognitoSetup.cognitoGroupPolicyTable.tableName
-            }
-        });
-        const grant = this.cognitoSetup.cognitoGroupPolicyTable.grantReadWriteData(props.customResourceLambda);
-        cognitoUserGroupPolicyCustomResource.node.addDependency(this.cognitoSetup.cognitoGroupPolicyTable);
-        cognitoUserGroupPolicyCustomResource.node.addDependency(grant);
 
         cfn_guard.addCfnSuppressRules(onConnectLambdaRole, [
             {

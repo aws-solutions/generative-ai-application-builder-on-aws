@@ -66,10 +66,14 @@ describe('When injecting Python shared library and boto3 library layer', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: [
-                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
-                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
-            ],
+            CompatibleRuntimes: Array.from(
+                new Map(
+                    [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.toString(),
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.toString()
+                    ].map((value) => [value, value])
+                ).values()
+            ),
             Content: Match.anyValue()
         });
 
@@ -100,10 +104,13 @@ describe('When injecting the LangChain shared layer', () => {
                 new PythonLangchainLayer(stack, 'PythonLangchainLayer', {
                     entry: '../lambda/layers/custom_boto3_init',
                     description: 'A layer for LangChain Python functions',
-                    compatibleRuntimes: [
-                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
-                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
-                    ]
+                    compatibleRuntimes: Array.from(
+                        new Map(
+                            [GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME].map(
+                                (value) => [value, value]
+                            )
+                        ).values()
+                    )
                 })
             ]
         });
@@ -115,10 +122,14 @@ describe('When injecting the LangChain shared layer', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: [
-                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
-                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
-            ],
+            CompatibleRuntimes: Array.from(
+                new Map(
+                    [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.toString(),
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.toString()
+                    ].map((value) => [value, value])
+                ).values()
+            ),
             Content: Match.anyValue()
         });
 
@@ -160,10 +171,13 @@ function buildStack(runtime: lambda.Runtime): cdk.Stack {
                 new PythonUserAgentLayer(stack, 'PythonUserAgent', {
                     entry: '../lambda/layers/custom_boto3_init',
                     description: 'A layer for Python Lambda functions',
-                    compatibleRuntimes: [
-                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
-                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
-                    ]
+                    compatibleRuntimes: Array.from(
+                        new Map(
+                            [GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME].map(
+                                (value) => [value, value]
+                            )
+                        ).values()
+                    )
                 })
             ]
         });

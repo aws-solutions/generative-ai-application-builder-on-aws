@@ -1,0 +1,72 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+.markdown-content {
+    // General content spacing
+    p,
+    ul,
+    ol {
+        margin: 8px 0;
+    }
+
+    // Inline code styling
+    code:not([class*='language-']) {
+        background-color: #f6f8fa;
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-size: 85%;
+        font-family: monospace;
+    }
+
+    // Table styling
+    .markdown-table-container {
+        margin: 16px 0;
+        overflow-x: auto;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .markdown-table {
+        border-collapse: collapse;
+        width: 100%;
+        background-color: #ffffff;
+        font-size: 14px;
+        line-height: 1.5;
+
+        // Remove double borders
+        border-spacing: 0;
+
+        // Ensure borders are visible
+        border: 1px solid #e1e4e8;
+    }
+
+    .markdown-th {
+        background-color: #f6f8fa;
+        border: 1px solid #e1e4e8;
+        padding: 8px 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #24292e;
+        white-space: nowrap;
+    }
+
+    .markdown-td {
+        border: 1px solid #e1e4e8;
+        padding: 8px 12px;
+        color: #24292e;
+
+        // Handle long content
+        word-break: break-word;
+        min-width: 100px;
+    }
+
+    // Zebra striping for better readability
+    .markdown-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    // Hover effect
+    .markdown-table tr:hover {
+        background-color: #f1f4f8;
+    }
+}

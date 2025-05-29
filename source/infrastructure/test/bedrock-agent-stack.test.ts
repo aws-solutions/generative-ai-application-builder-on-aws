@@ -5,7 +5,11 @@ import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import * as rawCdkJson from '../cdk.json';
 import { BedrockAgent } from '../lib/bedrock-agent-stack';
-import { CHAT_PROVIDERS, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from '../lib/utils/constants';
+import {
+    CHAT_PROVIDERS,
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+    CONVERSATION_TABLE_NAME_ENV_VAR
+} from '../lib/utils/constants';
 
 describe('BedrockAgent Stack', () => {
     let template: Template;
@@ -33,14 +37,14 @@ describe('BedrockAgent Stack', () => {
     it('should have correct IAM permissions for the Lambda function', () => {
         template.hasResourceProperties('AWS::IAM::Policy', {
             PolicyDocument: {
-                Statement: [
+                Statement: Match.arrayWith([
                     {
                         Action: 'bedrock:GetAgent',
                         Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
+                        Resource: Match.objectLike({
+                            'Fn::Join': Match.arrayWith([
                                 '',
-                                [
+                                Match.arrayWith([
                                     'arn:',
                                     { Ref: 'AWS::Partition' },
                                     ':bedrock:',
@@ -49,17 +53,17 @@ describe('BedrockAgent Stack', () => {
                                     { Ref: 'AWS::AccountId' },
                                     ':agent/',
                                     { 'Ref': 'BedrockAgentId' }
-                                ]
-                            ]
-                        }
+                                ])
+                            ])
+                        })
                     },
                     {
                         Action: 'bedrock:InvokeAgent',
                         Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
+                        Resource: Match.objectLike({
+                            'Fn::Join': Match.arrayWith([
                                 '',
-                                [
+                                Match.arrayWith([
                                     'arn:',
                                     { Ref: 'AWS::Partition' },
                                     ':bedrock:',
@@ -70,14 +74,63 @@ describe('BedrockAgent Stack', () => {
                                     { 'Ref': 'BedrockAgentId' },
                                     '/',
                                     { 'Ref': 'BedrockAgentAliasId' }
-                                ]
-                            ]
-                        }
-                    },
-                    Match.anyValue(),
-                    Match.anyValue(),
-                    Match.anyValue()
-                ]
+                                ])
+                            ])
+                        })
+                    }
+                ])
+            }
+        });
+    });
+
+    it('should have DynamoDB permissions for conversation table', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    {
+                        Action: Match.arrayWith([
+                            'dynamodb:BatchGetItem',
+                            'dynamodb:BatchWriteItem',
+                            'dynamodb:ConditionCheckItem',
+                            'dynamodb:DeleteItem',
+                            'dynamodb:DescribeTable',
+                            'dynamodb:GetItem',
+                            'dynamodb:GetRecords',
+                            'dynamodb:GetShardIterator',
+                            'dynamodb:PutItem',
+                            'dynamodb:Query',
+                            'dynamodb:Scan',
+                            'dynamodb:UpdateItem'
+                        ]),
+                        Effect: 'Allow',
+                        Resource: Match.arrayWith([
+                            {
+                                'Fn::GetAtt': Match.arrayWith([
+                                    Match.stringLikeRegexp(
+                                        'ChatStorageSetupChatStorageNestedStackChatStorageNestedStackResource.*'
+                                    ),
+                                    Match.stringLikeRegexp('.*ConversationTable.*Arn')
+                                ])
+                            }
+                        ])
+                    }
+                ])
+            },
+            PolicyName: Match.stringLikeRegexp('InvokeAgentLambdaRoleDefaultPolicy.*'),
+            Roles: Match.arrayWith([
+                {
+                    Ref: 'InvokeAgentLambdaRole61F85200'
+                }
+            ])
+        });
+    });
+
+    it('should set environment variables for conversation table', () => {
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            Environment: {
+                Variables: Match.objectLike({
+                    [CONVERSATION_TABLE_NAME_ENV_VAR]: Match.anyValue()
+                })
             }
         });
     });
@@ -102,6 +155,12 @@ describe('BedrockAgent Stack', () => {
         });
     });
 
+    it('should create a condition that is always false for ModelInfoTable', () => {
+        template.hasCondition('NewModelInfoTableCondition', {
+            'Fn::Equals': [true, false]
+        });
+    });
+
     it('getLlmProviderName returns BEDROCK_AGENT', () => {
         const bedrockAgent = new BedrockAgent(stack, 'TestBedrockAgent2', {
             solutionID: 'SO0999',
@@ -110,6 +169,31 @@ describe('BedrockAgent Stack', () => {
             applicationTrademarkName: 'TestTrademark'
         });
         expect(bedrockAgent.getLlmProviderName()).toBe(CHAT_PROVIDERS.BEDROCK_AGENT);
+    });
+
+    it('should create UpdateLlmConfig custom resource with correct properties', () => {
+        template.hasResourceProperties('Custom::UpdateLlmConfig', {
+            ServiceToken: Match.anyValue(),
+            Resource: 'UPDATE_LLM_CONFIG',
+            USE_CASE_CONFIG_TABLE_NAME: { 'Ref': 'UseCaseConfigTableName' },
+            USE_CASE_CONFIG_RECORD_KEY: { 'Ref': 'UseCaseConfigRecordKey' },
+            USE_CASE_UUID: { 'Ref': 'UseCaseUUID' },
+            CONVERSATION_TABLE_NAME: Match.anyValue()
+        });
+    });
+
+    it('should create FeedbackEnabledCondition for UpdateLlmConfig custom resource', () => {
+        template.hasCondition('FeedbackEnabledCondition', {
+            'Fn::Equals': [{ 'Ref': 'FeedbackEnabled' }, 'Yes']
+        });
+
+        // Verify the condition is applied to the custom resource
+        const resources = template.findResources('Custom::UpdateLlmConfig');
+        const resourceKeys = Object.keys(resources);
+        expect(resourceKeys.length).toBeGreaterThan(0);
+
+        const customResource = resources[resourceKeys[0]];
+        expect(customResource.Condition).toBe('FeedbackEnabledCondition');
     });
 });
 

@@ -83,7 +83,7 @@ describe('When a non-supported runtime is provided', () => {
             });
         } catch (error) {
             expect((error as Error).message).toEqual(
-                'This lambda function uses a runtime that is incompatible with this layer (python3.12 is not in [nodejs18.x])'
+                'This lambda function uses a runtime that is incompatible with this layer (python3.13 is not in [nodejs18.x])'
             );
         }
     });

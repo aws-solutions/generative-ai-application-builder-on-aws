@@ -45,10 +45,16 @@ export interface SharedLibLayerProps {
 
 export class PythonLangchainLayer extends lambda.LayerVersion {
     constructor(scope: Construct, id: string, props: SharedLibLayerProps) {
-        const compatibleRuntimes = props.compatibleRuntimes ?? [
-            GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
-            LANGCHAIN_LAMBDA_PYTHON_RUNTIME
-        ];
+        const compatibleRuntimes =
+            props.compatibleRuntimes ??
+            Array.from(
+                new Map(
+                    [GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME, LANGCHAIN_LAMBDA_PYTHON_RUNTIME].map((value) => [
+                        value,
+                        value
+                    ])
+                ).values()
+            );
 
         for (const runtime of compatibleRuntimes) {
             if (runtime && runtime.family !== lambda.RuntimeFamily.PYTHON) {

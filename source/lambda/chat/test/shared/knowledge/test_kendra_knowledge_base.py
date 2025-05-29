@@ -7,9 +7,10 @@ from unittest.mock import patch
 
 import pytest
 from langchain_core.documents import Document
+
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.knowledge.kendra_retriever import CustomKendraRetriever
-from utils.constants import KENDRA_INDEX_ID_ENV_VAR
+from utils.constants import AUTH_TOKEN_EVENT_KEY, KENDRA_INDEX_ID_ENV_VAR
 
 knowledge_base_params = {
     "NumberOfDocs": 3,
@@ -33,6 +34,19 @@ def test_knowledge_base_construction_fails(setup_environment):
         KendraKnowledgeBase(knowledge_base_params)
 
     assert error.value.args[0] == "Kendra index id env variable is not set"
+
+
+def test_rbac_enabled_auth_token_unavailable(setup_environment):
+    with pytest.raises(ValueError) as error:
+        KendraKnowledgeBase(
+            knowledge_base_params,
+            None,
+        )
+
+    assert (
+        error.value.args[0]
+        == f"RoleBasedAccessControlEnabled in config is enabled but {AUTH_TOKEN_EVENT_KEY} is not provided"
+    )
 
 
 @patch.object(CustomKendraRetriever, "_add_user_context_to_attribute_filter")

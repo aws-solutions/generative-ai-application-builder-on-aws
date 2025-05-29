@@ -8,7 +8,8 @@ import { ToolHelpPanelContent } from '../components/wizard/interfaces/Steps';
 import { BaseWizardStep } from '@/components/wizard/interfaces/Steps/BaseWizardStep';
 
 const getFormattedToolsContent = (tools: ToolHelpPanelContent) => (
-    <HelpPanel header={<h2>{tools.title}</h2>} footer={<ExternalLinkGroup items={tools.links} />}>
+    <HelpPanel header={<h2>{tools.title}</h2>} footer={tools.links && <ExternalLinkGroup items={tools.links} data-testid="help-panel"
+    />}>
         {tools.content}
     </HelpPanel>
 );

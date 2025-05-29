@@ -43,6 +43,12 @@ export const DEFAULT_DISAMBIGUATION_PROMPT_ENABLED = true;
 
 export const DEPLOYMENT_PLATFORM_API_ROUTES = {
     LIST_USE_CASES: { route: '/deployments', method: 'GET' },
+    GET_USE_CASE: {
+        route: (useCaseId: string) => {
+            return `/deployments/${useCaseId}`;
+        },
+        method: 'GET'
+    },
     CREATE_USE_CASE: { route: '/deployments', method: 'POST' },
     UPDATE_USE_CASE: {
         route: (useCaseId: string) => {
@@ -105,18 +111,6 @@ Amazon Kendra index created here is NOT deleted automatically when the use-case 
 
 export const INTERNAL_USER_GENAI_POLICY_URL = 'https://policy.a2z.com/docs/568686/publication';
 
-export const SUPPORTED_FALCON_MODELS = [
-    'tiiuae/falcon-40b-instruct',
-    'tiiuae/falcon-7b-instruct',
-    'tiiuae/falcon-40b',
-    'tiiuae/falcon-7b',
-    'google/flan-t5-xxl',
-    'google/flan-t5-xl',
-    'google/flan-t5-large',
-    'google/flan-t5-base',
-    'google/flan-t5-small'
-];
-
 export const BEDROCK_MODEL_PROVIDER_NAME = 'Bedrock';
 export const SAGEMAKER_MODEL_PROVIDER_NAME = 'SageMaker';
 export const ERROR_MESSAGES = {
@@ -163,4 +157,12 @@ export const DEFAULT_MODEL_ID = 'default';
 export const USECASE_TYPE_ROUTE = {
     TEXT: '/textUseCase',
     AGENT: '/agentUseCase'
+};
+
+// Bedrock inference types
+export const BEDROCK_INFERENCE_TYPES = {
+    QUICK_START_MODELS: 'QuickStartModels',
+    OTHER_FOUNDATION_MODELS: 'OtherFoundationModels',
+    INFERENCE_PROFILES: 'InferenceProfiles',
+    PROVISIONED_MODELS: 'ProvisionedModels'
 };

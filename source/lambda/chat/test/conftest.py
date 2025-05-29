@@ -14,10 +14,12 @@ from custom_config import custom_usr_agent_config
 from helper import get_service_client
 from jwt import PyJWKClient
 from moto import mock_aws
+
 from utils.constants import (
     BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR,
     CLIENT_ID_ENV_VAR,
     CONVERSATION_TABLE_NAME_ENV_VAR,
+    DEFAULT_SAGEMAKER_MODEL_ID,
     KENDRA_INDEX_ID_ENV_VAR,
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     RAG_CHAT_IDENTIFIER,
@@ -31,24 +33,24 @@ from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 DEFAULT_BEDROCK_ANTHROPIC_DISAMBIGUATION_PROMPT = """\n\nHuman: Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.\n\nChat history:\n{history}\n\nFollow up question: {input}\n\nAssistant: Standalone question:"""
 DISAMBIGUATION_PROMPT = """Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language.\n\nChat History:\n{history}\nFollow Up Input: {input}\nStandalone question:"""
-human_prefix = "human"
-ai_prefix = "ai"
-provisioned_arn = "arn:aws:bedrock:us-east-1:123456789012:provisioned-model/z8g9xzoxoxmw"
+HUMAN_PREFIX = "human"
+AI_PREFIX = "ai"
+PROVISIONED_ARN = "arn:aws:bedrock:us-east-1:123456789012:provisioned-model/z8g9xzoxoxmw"
 
 
 @pytest.fixture
 def test_human():
-    return human_prefix
+    return HUMAN_PREFIX
 
 
 @pytest.fixture
 def test_ai():
-    return ai_prefix
+    return AI_PREFIX
 
 
 @pytest.fixture
 def test_provisioned_arn():
-    return provisioned_arn
+    return PROVISIONED_ARN
 
 
 @pytest.fixture
@@ -146,7 +148,7 @@ def chat_event():
             {
                 "messageId": "fake-message-id",
                 "receiptHandle": "fake-receipt-handle",
-                "body": '{"requestContext": {"authorizer": {"UserId": "fake-user-id"}, "connectionId": "fake-connection-id"}, "message": {"action":"sendMessage","question":"fake_message","conversationId":"fake-conversation-id","promptTemplate":"\\n\\nHuman: You are a friendly AI assistant that is helpful, honest, and harmless.\\n\\nHere is the current conversation:\\n{history}\\n\\n{input}\\n\\nAssistant:"}}',
+                "body": '{"requestContext": {"authorizer": {"UserId": "fake-user-id"}, "connectionId": "fake-connection-id"}, "message": {"action":"sendMessage","question":"fake_message","conversationId":"fake-conversation-id"}}',
                 "attributes": {
                     "ApproximateReceiveCount": "1",
                     "AWSTraceHeader": "Root=fake-tracer-id",
@@ -188,8 +190,8 @@ def bedrock_llm_config(
     yield {
         "ConversationMemoryParams": {
             "ConversationMemoryType": "DynamoDB",
-            "HumanPrefix": human_prefix,
-            "AiPrefix": ai_prefix,
+            "HumanPrefix": HUMAN_PREFIX,
+            "AiPrefix": AI_PREFIX,
             "ChatHistoryLength": 10,
         },
         "KnowledgeBaseParams": {
@@ -233,7 +235,7 @@ def bedrock_provisioned_llm_config(
 ):
     use_case_config = bedrock_llm_config.copy()
     provisioned_llm_config = use_case_config
-    provisioned_llm_config["LlmParams"]["BedrockLlmParams"]["ModelArn"] = provisioned_arn
+    provisioned_llm_config["LlmParams"]["BedrockLlmParams"]["ModelArn"] = PROVISIONED_ARN
     use_case_config = provisioned_llm_config
     yield use_case_config
 
@@ -246,13 +248,13 @@ def sagemaker_llm_config(
     knowledge_base_type,
     return_source_docs,
     model_params=None,
-    model_id="default",
+    model_id=DEFAULT_SAGEMAKER_MODEL_ID,
 ):
     yield {
         "ConversationMemoryParams": {
             "ConversationMemoryType": "DynamoDB",
-            "HumanPrefix": human_prefix,
-            "AiPrefix": ai_prefix,
+            "HumanPrefix": HUMAN_PREFIX,
+            "AiPrefix": AI_PREFIX,
             "ChatHistoryLength": 10,
         },
         "KnowledgeBaseParams": {
@@ -289,8 +291,8 @@ def basic_llm_config_parsed():
     yield {
         "ConversationMemoryParams": {
             "ConversationMemoryType": "DynamoDB",
-            "HumanPrefix": human_prefix,
-            "AiPrefix": ai_prefix,
+            "HumanPrefix": HUMAN_PREFIX,
+            "AiPrefix": AI_PREFIX,
             "ChatHistoryLength": 10,
         },
         "KnowledgeBaseParams": {},
@@ -299,7 +301,7 @@ def basic_llm_config_parsed():
             "BedrockLlmParams": {"ModelId": f"{BedrockModelProviders.ANTHROPIC.value}.fake-model"},
             "ModelParams": {},
             "PromptParams": {
-                "PromptTemplate": "{history} {input}",
+                "PromptTemplate": "{input}",
                 "UserPromptEditingEnabled": True,
                 "MaxPromptTemplateLength": 1000,
                 "MaxInputTextLength": 1000,
@@ -372,6 +374,8 @@ def bedrock_dynamodb_defaults_table(
             "Prompt": prompt,
             "DefaultStopSequences": [],
             "DisambiguationPrompt": DISAMBIGUATION_PROMPT,
+            "DisplayName": {"claude-1": "Claude 1", "claude-2": "Claude 2"}.get(model_id, model_id),
+            "Description": {"claude-1": "Anthropic Claude 1 model", "claude-2": "Anthropic Claude 2 model"}.get(model_id, model_id + " model")
         }
     )
 
@@ -416,6 +420,8 @@ def sagemaker_dynamodb_defaults_table(
             "Prompt": prompt,
             "DefaultStopSequences": [],
             "DisambiguationPrompt": DISAMBIGUATION_PROMPT,
+            "DisplayName": {"claude-1": "Claude 1", "claude-2": "Claude 2"}.get(model_id, model_id),
+            "Description": {"claude-1": "Anthropic Claude 1 model", "claude-2": "Anthropic Claude 2 model"}.get(model_id, model_id + " model")
         }
     )
 

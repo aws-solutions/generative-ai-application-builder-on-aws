@@ -28,13 +28,15 @@ import {
     DeleteUseCaseCommand,
     ListUseCasesCommand,
     PermanentlyDeleteUseCaseCommand,
-    UpdateUseCaseCommand
+    UpdateUseCaseCommand,
+    GetUseCaseCommand
 } from '../command';
 import { ListUseCasesAdapter } from '../model/list-use-cases';
 import { UseCase } from '../model/use-case';
 import {
     ARTIFACT_BUCKET_ENV_VAR,
     CHAT_PROVIDERS,
+    CfnOutputKeys,
     CfnParameterKeys,
     IS_INTERNAL_USER_ENV_VAR,
     KnowledgeBaseTypes,
@@ -44,9 +46,13 @@ import {
     USE_CASE_CONFIG_RECORD_CONFIG_ATTRIBUTE_NAME,
     USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
-    WEBCONFIG_SSM_KEY_ENV_VAR
+    WEBCONFIG_SSM_KEY_ENV_VAR,
+    USER_POOL_ID_ENV_VAR,
+    CLIENT_ID_ENV_VAR
 } from '../utils/constants';
 import { createUseCaseEvent } from './event-test-data';
+import { castToAdminType, GetUseCaseAdapter, castToBusinessUserType } from '../model/get-use-case';
+import { CognitoJwtVerifier } from 'aws-jwt-verify';
 
 describe('When testing Use Case Commands', () => {
     let event: any;
@@ -69,8 +75,9 @@ describe('When testing Use Case Commands', () => {
         process.env[WEBCONFIG_SSM_KEY_ENV_VAR] = '/fake-webconfig/key';
         process.env[MODEL_INFO_TABLE_NAME_ENV_VAR] = modelInfoTableName;
         process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = 'UseCaseConfig';
-
         process.env[IS_INTERNAL_USER_ENV_VAR] = 'true';
+        process.env[USER_POOL_ID_ENV_VAR] = 'test-pool-id';
+        process.env[CLIENT_ID_ENV_VAR] = 'test-client-id';
 
         cfnMockedClient = mockClient(CloudFormationClient);
         ddbMockedClient = mockClient(DynamoDBClient);
@@ -96,7 +103,7 @@ describe('When testing Use Case Commands', () => {
                         param1: { Value: 'value1', Type: 'string' },
                         param2: { Value: 'value2', Type: 'string' }
                     },
-                    PromptParams: { PromptTemplate: '{input}{history}{context}' },
+                    PromptParams: { PromptTemplate: '{context}' },
                     Streaming: true,
                     Temperature: 0.1,
                     RAGEnabled: true
@@ -177,7 +184,7 @@ describe('When testing Use Case Commands', () => {
                         'ModelProviderName': CHAT_PROVIDERS.BEDROCK,
                         'ModelName': 'fake-model',
                         'AllowsStreaming': false,
-                        'Prompt': 'Prompt2 {input}{history}{context}',
+                        'Prompt': 'Prompt2 {context}',
                         'MaxTemperature': '100',
                         'DefaultTemperature': '0.1',
                         'MinTemperature': '0',
@@ -234,6 +241,11 @@ describe('When testing Use Case Commands', () => {
                             'ConversationMemoryParams': { 'M': { 'ConversationMemoryType': { 'S': 'DDBMemoryType' } } },
                             'DefaultUserEmail': { 'S': 'fake-email@example.com' },
                             'DeployUI': { 'BOOL': true },
+                            'FeedbackParams': {
+                                'M': {
+                                    'FeedbackEnabled': { 'BOOL': true }
+                                }
+                            },
                             'KnowledgeBaseParams': {
                                 'M': {
                                     'KendraKnowledgeBaseParams': {
@@ -255,7 +267,7 @@ describe('When testing Use Case Commands', () => {
                                             'DisambiguationPromptTemplate': {
                                                 'S': 'Prompt1 {history} {context} {input}'
                                             },
-                                            'PromptTemplate': { 'S': 'Prompt1 {history} {context} {input}' }
+                                            'PromptTemplate': { 'S': 'Prompt1 {context}' }
                                         }
                                     },
                                     'RAGEnabled': { 'BOOL': true },
@@ -550,23 +562,16 @@ describe('When testing Use Case Commands', () => {
             expect(listCasesResponse.deployments.length).toEqual(10);
             expect(listCasesResponse.deployments[0]).toEqual(
                 expect.objectContaining({
-                    CreatedBy: 'fake-user-id',
                     CreatedDate: '2024-07-22T20:31:00Z',
-                    Description: 'test case 11',
                     Name: 'test-11',
-                    StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-11',
                     cloudFrontWebUrl: 'mock-cloudfront-url',
-                    status: 'CREATE_COMPLETE',
-                    webConfigKey: 'mock-webconfig-ssm-parameter-key'
+                    status: 'CREATE_COMPLETE'
                 })
             );
             expect(listCasesResponse.deployments[9]).toEqual(
                 expect.objectContaining({
-                    CreatedBy: 'fake-user-id',
                     CreatedDate: '2024-07-22T20:22:00Z',
-                    Description: 'test case 2',
                     Name: 'test-2',
-                    StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-2',
                     status: 'CREATE_COMPLETE',
                     cloudFrontWebUrl: 'mock-cloudfront-url'
                 })
@@ -590,13 +595,9 @@ describe('When testing Use Case Commands', () => {
             expect(listCasesResponse.deployments.length).toEqual(1);
             expect(listCasesResponse.deployments[0]).toEqual(
                 expect.objectContaining({
-                    CreatedBy: 'fake-user-id',
-                    Description: 'test case 2',
                     Name: 'test-2',
-                    StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-2',
                     cloudFrontWebUrl: 'mock-cloudfront-url',
-                    status: 'CREATE_COMPLETE',
-                    webConfigKey: 'mock-webconfig-ssm-parameter-key'
+                    status: 'CREATE_COMPLETE'
                 })
             );
             expect(listCasesResponse.numUseCases).toEqual(1);
@@ -618,13 +619,9 @@ describe('When testing Use Case Commands', () => {
             expect(listCasesResponse.deployments.length).toEqual(1);
             expect(listCasesResponse.deployments[0]).toEqual(
                 expect.objectContaining({
-                    CreatedBy: 'fake-user-id',
-                    Description: 'test case 2',
                     Name: 'test-2',
-                    StackId: 'arn:aws:cloudformation:us-west-2:123456789012:stack/fake-stack-name/fake-uuid-2',
                     cloudFrontWebUrl: 'mock-cloudfront-url',
-                    status: 'CREATE_COMPLETE',
-                    webConfigKey: 'mock-webconfig-ssm-parameter-key'
+                    status: 'CREATE_COMPLETE'
                 })
             );
             expect(listCasesResponse.numUseCases).toEqual(1);
@@ -910,6 +907,228 @@ describe('When testing Use Case Commands', () => {
         });
     });
 
+    describe('When retrieving the details of a specific use case', () => {
+        const mockUseCaseRecord = {
+            'UseCaseConfigTableName':
+                'DeploymentPlatformStack-CustomerServiceNestedStack-9XYZABC123-ConfigTable45678-ZXCVBNM98765',
+            'UseCaseId': 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14',
+            'CreatedDate': '2025-07-15T09:45:33.124Z',
+            'UpdatedDate': '2025-08-22T14:17:55.892Z',
+            'UseCaseConfigRecordKey': 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14',
+            'CreatedBy': '987654ab-cdef-4321-9876-543210fedcba',
+            'Description': 'Customer sentiment analysis use case for retail division',
+            'StackId':
+                'arn:aws:cloudformation:us-west-2:123456789012:stack/prod-a1b2c3d4/45678901-abcd-12ef-3456-789012ghijkl',
+            'UpdatedBy': '456789cd-efgh-5678-ijkl-mnopqrstuvwx',
+            'Name': 'retail-sentiment-analyzer'
+        };
+        const mockStackDetails = {
+            'status': 'UPDATE_COMPLETE',
+            'deployUI': 'Yes',
+            'knowledgeBaseType': 'Kendra',
+            'cloudFrontWebUrl': 'mock-cloudfront-url',
+            'vpcEnabled': 'Yes'
+        };
+        const mockUseCaseConfig = {
+            'config': {
+                'IsInternalUser': 'false',
+                'KnowledgeBaseParams': {
+                    'ReturnSourceDocs': true,
+                    'KnowledgeBaseType': 'Kendra',
+                    'KendraKnowledgeBaseParams': {
+                        'ExistingKendraIndexId': 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14n',
+                        'RoleBasedAccessControlEnabled': true
+                    },
+                    'NumberOfDocs': 5,
+                    'ScoreThreshold': 0.5
+                },
+                'ConversationMemoryParams': {
+                    'HumanPrefix': 'Customer',
+                    'ConversationMemoryType': 'DynamoDB',
+                    'ChatHistoryLength': 10,
+                    'AiPrefix': 'Assistant'
+                },
+                'UseCaseName': 'sentiment-analysis',
+                'LlmParams': {
+                    'Streaming': true,
+                    'Temperature': 0.7,
+                    'Verbose': true,
+                    'BedrockLlmParams': {
+                        'GuardrailIdentifier': 'content-safety',
+                        'GuardrailVersion': '1.0',
+                        'ModelId': 'anthropic.claude-v2'
+                    },
+                    'ModelProvider': 'Bedrock',
+                    'PromptParams': {
+                        'UserPromptEditingEnabled': false,
+                        'DisambiguationEnabled': true,
+                        'MaxInputTextLength': 4000,
+                        'RephraseQuestion': false,
+                        'PromptTemplate':
+                            'You are a helpful AI assistant specialized in customer support.\n\nContext:\n{context}',
+                        'MaxPromptTemplateLength': 4000,
+                        'DisambiguationPromptTemplate':
+                            'Based on the following conversation history, convert the follow-up question into a clear, self-contained question that maintains the original context.\n\nPrevious conversation:\n{history}\n\nFollow-up question: {input}\n\nRewritten question:'
+                    },
+                    'ModelParams': {},
+                    'RAGEnabled': true
+                },
+                'FeedbackParams': {
+                    'FeedbackEnabled': true
+                },
+                'UseCaseType': 'Text'
+            }
+        };
+
+        jest.mock('aws-jwt-verify');
+        let mockVerify: jest.Mock;
+        const mockedCognitoJwtVerifier = CognitoJwtVerifier as jest.Mocked<typeof CognitoJwtVerifier>;
+
+        beforeEach(() => {
+            mockVerify = jest.fn();
+            mockedCognitoJwtVerifier.create = jest.fn().mockReturnValue({
+                verify: mockVerify
+            });
+            ddbMockedClient
+                .on(GetItemCommand, {
+                    'TableName': process.env[USE_CASES_TABLE_NAME_ENV_VAR],
+                    'Key': { 'UseCaseId': { 'S': 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14' } }
+                })
+                .resolves({
+                    Item: marshall(mockUseCaseRecord)
+                });
+            cfnMockedClient.on(DescribeStacksCommand).resolves({
+                Stacks: [
+                    {
+                        StackName: 'test',
+                        StackId: 'fake-stack-id',
+                        CreationTime: new Date(),
+                        StackStatus: 'UPDATE_COMPLETE',
+                        Parameters: [
+                            {
+                                ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
+                                ParameterValue: 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14'
+                            },
+                            {
+                                ParameterKey: CfnOutputKeys.WebConfigKey,
+                                ParameterValue: '/gaab-webconfig/f8b92461'
+                            },
+                            {
+                                ParameterKey: CfnOutputKeys.CloudFrontWebUrl,
+                                ParameterValue: 'mock-cloudfront-url'
+                            },
+                            {
+                                ParameterKey: CfnParameterKeys.KnowledgeBaseType,
+                                ParameterValue: 'Kendra'
+                            },
+                            {
+                                ParameterKey: CfnParameterKeys.VpcEnabled,
+                                ParameterValue: 'Yes'
+                            },
+                            {
+                                ParameterKey: CfnParameterKeys.DeployUI,
+                                ParameterValue: 'Yes'
+                            }
+                        ],
+                        Outputs: [
+                            {
+                                OutputKey: 'CloudFrontWebUrl',
+                                OutputValue: 'mock-cloudfront-url'
+                            }
+                        ]
+                    }
+                ]
+            });
+            ddbMockedClient
+                .on(GetItemCommand, {
+                    TableName: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR],
+                    Key: { key: { S: 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14' } }
+                })
+                .resolves({
+                    Item: marshall(mockUseCaseConfig)
+                });
+        });
+
+        afterEach(() => {
+            jest.clearAllMocks();
+            cfnMockedClient.reset();
+            ddbMockedClient.reset();
+        });
+
+        it('should successfully get admin use case details', async () => {
+            const event = {
+                pathParameters: {
+                    useCaseId: 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14'
+                },
+                headers: {
+                    Authorization: 'Bearer fake-token'
+                }
+            } as Partial<APIGatewayEvent>;
+
+            mockVerify.mockResolvedValue({
+                'cognito:groups': ['admin']
+            });
+
+            const adaptedEvent = new GetUseCaseAdapter(event as APIGatewayEvent);
+            const command = new GetUseCaseCommand();
+            let useCaseInfo = await command.execute(adaptedEvent);
+            expect(useCaseInfo).toEqual(
+                castToAdminType({
+                    ...mockStackDetails,
+                    ...mockUseCaseConfig.config,
+                    ...mockUseCaseRecord
+                })
+            );
+        });
+
+        it('should successfully get business user use case details', async () => {
+            const event = {
+                pathParameters: {
+                    useCaseId: 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14'
+                },
+                headers: {
+                    Authorization: 'Bearer fake-token'
+                }
+            } as Partial<APIGatewayEvent>;
+
+            mockVerify.mockReturnValue({
+                'cognito:groups': ['User']
+            });
+
+            const adaptedEvent = new GetUseCaseAdapter(event as APIGatewayEvent);
+            const command = new GetUseCaseCommand();
+            let useCaseInfo = await command.execute(adaptedEvent);
+            expect(useCaseInfo).toEqual(
+                castToBusinessUserType({
+                    ...mockStackDetails,
+                    ...mockUseCaseConfig.config,
+                    ...mockUseCaseRecord
+                })
+            );
+        });
+
+        it('should throw error', async () => {
+            ddbMockedClient.on(GetItemCommand).rejects('Mock error');
+            const event = {
+                pathParameters: {
+                    useCaseId: 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14'
+                },
+                headers: {
+                    Authorization: 'Bearer fake-token'
+                }
+            } as Partial<APIGatewayEvent>;
+
+            const adaptedEvent = new GetUseCaseAdapter(event as APIGatewayEvent);
+            const command = new GetUseCaseCommand();
+            expect(
+                command.execute(adaptedEvent).catch((error) => {
+                    expect(error).toBeInstanceOf(Error);
+                    expect(error.message).toEqual('Mock error');
+                })
+            );
+        });
+    });
+
     afterAll(() => {
         delete process.env.AWS_SDK_USER_AGENT;
         delete process.env[POWERTOOLS_METRICS_NAMESPACE_ENV_VAR];
@@ -918,6 +1137,8 @@ describe('When testing Use Case Commands', () => {
         delete process.env[WEBCONFIG_SSM_KEY_ENV_VAR];
         delete process.env[IS_INTERNAL_USER_ENV_VAR];
         delete process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR];
+        delete process.env[USER_POOL_ID_ENV_VAR];
+        delete process.env[CLIENT_ID_ENV_VAR];
 
         cfnMockedClient.restore();
         ddbMockedClient.restore();

@@ -5,7 +5,8 @@ import {
     DEFAULT_ADDITIONAL_KENDRA_QUERY_CAPACITY,
     DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY,
     DEFAULT_SCORE_THRESHOLD,
-    USECASE_TYPES
+    USECASE_TYPES,
+    BEDROCK_INFERENCE_TYPES
 } from '../../utils/constants';
 
 export const USE_CASE_OPTIONS = [
@@ -102,6 +103,7 @@ export const DEFAULT_STEP_INFO = {
         existingUserPoolId: '',
         useExistingUserPoolClient: false,
         existingUserPoolClientId: '',
+        feedbackEnabled: false,
         inError: false
     },
     vpc: {
@@ -159,7 +161,8 @@ export const DEFAULT_STEP_INFO = {
         ),
         sagemakerOutputSchema: '',
         sagemakerEndpointName: '',
-        inferenceProfileId: ''
+        inferenceProfileId: '',
+        bedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS
     },
     prompt: {
         maxPromptTemplateLength: undefined,

@@ -80,16 +80,27 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
      *
      * @param lambda
      */
-    private addCWMetricsPolicy(lambda: lambda.Function) {
+    private addCWMetricsPolicy(lambda: lambda.Function): iam.Policy {
+        const stack = cdk.Stack.of(lambda);
+        const functionResource = lambda.node.defaultChild as cdk.CfnResource;
+        const functionCondition = functionResource?.cfnOptions?.condition;
+
         if (!this.customMetricsPolicy) {
             this.customMetricsPolicy = new Map();
         }
 
-        const stack = cdk.Stack.of(lambda);
-        let metricsPolicy = this.customMetricsPolicy.get(stack.stackId);
+        // Use the specific condition ID as the map key
+        const mapKey = functionCondition ? `${stack.stackId}-${functionCondition.node.id}` : `${stack.stackId}-default`;
+
+        let metricsPolicy = this.customMetricsPolicy.get(mapKey);
 
         if (metricsPolicy === undefined) {
-            metricsPolicy = new iam.Policy(stack, 'CustomMetricsPolicy', {
+            // Create unique policy name for each condition type
+            const policyName = functionCondition
+                ? `CustomMetricsPolicy-${functionCondition.node.id}`
+                : 'CustomMetricsPolicy';
+
+            metricsPolicy = new iam.Policy(stack, policyName, {
                 statements: [
                     new iam.PolicyStatement({
                         actions: ['cloudwatch:PutMetricData'],
@@ -101,7 +112,8 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
                                     CloudWatchNamespace.API_GATEWAY,
                                     CloudWatchNamespace.AWS_KENDRA,
                                     CloudWatchNamespace.AWS_COGNITO,
-                                    CloudWatchNamespace.LANGCHAIN_LLM
+                                    CloudWatchNamespace.LANGCHAIN_LLM,
+                                    CloudWatchNamespace.AWS_BEDROCK
                                 ]
                             }
                         }
@@ -109,7 +121,13 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
                 ]
             });
 
-            this.customMetricsPolicy.set(stack.stackId, metricsPolicy);
+            // Apply the specific condition to the policy
+            if (functionCondition) {
+                const cfnPolicy = metricsPolicy.node.defaultChild as cdk.CfnResource;
+                cfnPolicy.cfnOptions.condition = functionCondition;
+            }
+
+            this.customMetricsPolicy.set(mapKey, metricsPolicy);
 
             NagSuppressions.addResourceSuppressions(metricsPolicy, [
                 {
@@ -121,6 +139,7 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
         }
 
         metricsPolicy.attachToRole(lambda.role!);
+        return metricsPolicy;
     }
 
     /**
@@ -340,8 +359,12 @@ export class LambdaAspects extends Construct implements cdk.IAspect {
     }
 }
 
-const pythonCompatibleRuntimes = [
-    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
-    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
-    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
-];
+const pythonCompatibleRuntimes = Array.from(
+    new Map(
+        [
+            GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+            LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+            COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
+        ].map((value) => [value, value])
+    ).values()
+);

@@ -27,6 +27,7 @@ export interface SageMakerLlmParams {
 export interface PromptParams {
     PromptTemplate?: string;
     UserPromptEditingEnabled?: boolean;
+    MaxInputTextLength?: number;
     MaxPromptTemplateLength?: number;
     RephraseQuestion?: boolean;
     DisambiguationPromptTemplate?: string;
@@ -40,10 +41,13 @@ export interface LlmParams {
     PromptParams?: PromptParams;
     ModelParams?: Object;
     Temperature?: number;
-    MaxInputTextLength?: number;
     RAGEnabled?: boolean;
     Streaming?: boolean;
     Verbose?: boolean;
+}
+
+interface FeedbackParams {
+    FeedbackEnabled: boolean;
 }
 
 export interface KnowledgeBaseParams {
@@ -81,6 +85,7 @@ export interface UseCaseConfiguration {
     LlmParams?: LlmParams;
     AuthenticationParams?: AuthenticationParams;
     IsInternalUser?: string;
+    FeedbackParams?: FeedbackParams;
 }
 
 export interface BedrockAgentParams {
@@ -99,4 +104,51 @@ export interface AgentUseCaseConfiguration {
     AgentParams?: AgentParams;
     AuthenticationParams?: AuthenticationParams;
     IsInternalUser?: string;
+    FeedbackParams?: FeedbackParams;
+}
+
+export interface GetUseCaseDetailsAdminResponse {
+    UseCaseName: string;
+    UseCaseType: string;
+    UseCaseId: string;
+    Description: string;
+    CreatedDate: string;
+    StackId: string;
+    Status: string;
+    ragEnabled: string;
+    deployUI: string;
+    createNewVpc: string;
+    vpcEnabled: string;
+    vpcId?: string;
+    cloudwatchDashboardUrl?: string;
+    knowledgeBaseType?: string;
+    kendraIndexId?: string;
+    bedrockKnowledgeBaseId?: string;
+    cloudFrontWebUrl?: string;
+    KnowledgeBaseParams?: KnowledgeBaseParams;
+    ConversationMemoryParams?: ConversationMemoryParams;
+    AuthenticationParams?: AuthenticationParams;
+    LlmParams?: LlmParams;
+    AgentParams?: AgentParams;
+    privateSubnetIds?: string[];
+    securityGroupIds?: string[];
+    defaultUserEmail?: string; 
+    FeedbackParams?: FeedbackParams;
+}
+
+export interface GetUseCaseDetailsUserResponse {
+    UseCaseName: string;
+    UseCaseType: string;
+    LlmParams?: LlmParams;
+    ModelProviderName?: string;
+}
+
+export interface ListUseCasesResponse {
+    Name: string;
+    CreatedDate: string;
+    useCaseUUID: string;
+    status: string;
+    cloudfrontWebUrl?: string;
+    ModelProvider?: string;
+    UseCaseType?: string;
 }

@@ -76,6 +76,17 @@ describe('When Chat use case is created', () => {
         });
     });
 
+    it('should create UpdateLlmConfig custom resource with correct properties', () => {
+        template.hasResourceProperties('Custom::UpdateLlmConfig', {
+            ServiceToken: Match.anyValue(),
+            Resource: 'UPDATE_LLM_CONFIG',
+            USE_CASE_CONFIG_TABLE_NAME: { 'Ref': 'UseCaseConfigTableName' },
+            USE_CASE_CONFIG_RECORD_KEY: { 'Ref': 'UseCaseConfigRecordKey' },
+            USE_CASE_UUID: { 'Ref': 'UseCaseUUID' },
+            CONVERSATION_TABLE_NAME: Match.anyValue()
+        });
+    });
+
     it('should create chat provider lambda function with permissions to call the Bedrock Invoke APIs', () => {
         template.hasResourceProperties('AWS::IAM::Policy', {
             'PolicyDocument': {
@@ -295,6 +306,60 @@ describe('When Chat use case is created', () => {
                                 'Ref': 'AWS::NoValue'
                             }
                         ]
+                    },
+                    {
+                        'Action': ['apigateway:PATCH', 'apigateway:POST'],
+                        'Effect': 'Allow',
+                        'Resource': [
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:aws:apigateway:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        '::/restapis/',
+                                        {
+                                            'Fn::If': [
+                                                'CreateApiResourcesCondition',
+                                                {
+                                                    'Ref': 'UseCaseEndpointSetupUseCaseRestEndpointDeploymentRestEndPointLambdaRestApi93CAF584'
+                                                },
+                                                {
+                                                    'Ref': 'ExistingRestApiId'
+                                                }
+                                            ]
+                                        },
+                                        '/deployments'
+                                    ]
+                                ]
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        'arn:aws:apigateway:',
+                                        {
+                                            'Ref': 'AWS::Region'
+                                        },
+                                        '::/restapis/',
+                                        {
+                                            'Fn::If': [
+                                                'CreateApiResourcesCondition',
+                                                {
+                                                    'Ref': 'UseCaseEndpointSetupUseCaseRestEndpointDeploymentRestEndPointLambdaRestApi93CAF584'
+                                                },
+                                                {
+                                                    'Ref': 'ExistingRestApiId'
+                                                }
+                                            ]
+                                        },
+                                        '/stages/prod'
+                                    ]
+                                ]
+                            }
+                        ]
                     }
                 ],
                 'Version': '2012-10-17'
@@ -312,7 +377,7 @@ describe('When Chat use case is created', () => {
             Default: 'No',
             AllowedValues: ['Yes', 'No'],
             Description:
-                'If the model configured is Bedrock, you can indicate if you are using Bedrock Inference Profile. This will ensure that the required IAM policies will be configured during stack deployment. For more details refer the following https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html'
+                'If the model configured is Bedrock, you can indicate if you are using Bedrock Inference Profile. This will ensure that the required IAM policies will be configured during stack deployment. For more details, refer to the following https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html'
         });
 
         template.hasCondition('InferenceProfileProvidedCondition', {

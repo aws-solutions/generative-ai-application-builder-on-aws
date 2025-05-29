@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 from clients.bedrock_client import BedrockClient
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from utils.constants import (
     CHAT_IDENTIFIER,
     CONVERSATION_ID_EVENT_KEY,
@@ -23,8 +23,8 @@ from utils.constants import (
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 # Testing LLMChatClient using subclass
-BASIC_PROMPT = """\n\n{history}\n\n{input}"""
-BASIC_RAG_PROMPT = """{context}\n\n{history}\n\n{input}"""
+BASIC_PROMPT = """{input}"""
+BASIC_RAG_PROMPT = """{context}\n\n{input}"""
 
 PROMPT = """The following is a conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it says "Sorry I dont know".
 Current conversation:
@@ -75,7 +75,9 @@ def test_empty_body(setup_environment, simple_llm_client):
 
 def test_missing_user_id(setup_environment, simple_llm_client):
     with pytest.raises(ValueError) as error:
-        simple_llm_client.check_event({"connectionId": "fake-id", "body": '{"some-key": "some-value"}'}, "fake-conversation-id")
+        simple_llm_client.check_event(
+            {"connectionId": "fake-id", "body": '{"some-key": "some-value"}'}, "fake-conversation-id"
+        )
 
     assert error.value.args[0] == f"{USER_ID_EVENT_KEY} is missing from the requestContext"
 
@@ -435,4 +437,10 @@ def test_construct_chat_model_new_prompt(
     llm_client.get_model(chat_body, "fake-user-uuid")
 
     assert llm_client.use_case_config["LlmParams"]["PromptParams"]["PromptTemplate"] == PROMPT
-    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_template(PROMPT)
+    assert llm_client.builder.llm.prompt_template == ChatPromptTemplate.from_messages(
+        [
+            ("system", PROMPT),
+            MessagesPlaceholder("history", optional=True),
+            ("human", "{input}"),
+        ]
+    )

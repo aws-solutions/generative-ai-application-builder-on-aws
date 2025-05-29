@@ -78,12 +78,12 @@ export abstract class ModelInfoStorage extends Construct {
         const modelInfoAsset = new s3_asset.Asset(this, 'Files', {
             path: path.join(__dirname, '../../../model-info')
         });
-
+        const resourceProperties = getResourceProperties(this, modelInfoAsset, undefined, crLambdaRole);
         const copyModelInfoCustomResource = new cdk.CustomResource(this, 'CopyModelInfo', {
             resourceType: 'Custom::CopyModelInfo',
             serviceToken: props.customResourceLambdaArn,
             properties: {
-                ...getResourceProperties(this, modelInfoAsset, undefined, crLambdaRole),
+                ...resourceProperties.properties,
                 Resource: 'COPY_MODEL_INFO',
                 DDB_TABLE_NAME: modelInfoTable.tableName
             }
@@ -100,6 +100,9 @@ export abstract class ModelInfoStorage extends Construct {
             ]
         });
         copyModelInfoCustomResource.node.addDependency(modelInfoDDBPolicy);
+
+        // Ensures S3 bucket read permissions exist before custom resource execution
+        copyModelInfoCustomResource.node.addDependency(resourceProperties.policy);
 
         return copyModelInfoCustomResource;
     }

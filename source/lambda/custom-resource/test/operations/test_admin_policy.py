@@ -14,7 +14,6 @@ from operations.admin_policy import (
     RESOURCE,
     RESOURCE_PROPERTIES,
     create,
-    delete,
     execute,
     verify_env_setup,
 )
@@ -135,45 +134,8 @@ def test_create_fails(lambda_event, mock_lambda_context):
     with pytest.raises(botocore.exceptions.ClientError):
         create(lambda_event, mock_lambda_context)
 
-
-def test_delete(setup_ddb, mock_lambda_context):
-    ddb, lambda_event = setup_ddb
-    table = ddb.Table(lambda_event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME])
-    table.put_item(
-        Item={
-            "group": "admin",
-            "policy": {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Sid": ADMIN_POLICY_SID,
-                        "Effect": "Allow",
-                        "Action": "execute-api:Invoke",
-                        "Resource": [
-                            "fakeapi2.arn",
-                        ],
-                    },
-                ],
-            },
-        }
-    )
-
-    delete(lambda_event, mock_lambda_context)
-
-    # item is removed
-    group_item = table.get_item(Key={"group": "admin"})
-    with pytest.raises(KeyError):
-        group_item["Item"]
-
-
-def test_delete_fails(lambda_event, mock_lambda_context):
-    # don't mock ddb, so we get a botocore exception
-    with pytest.raises(botocore.exceptions.ClientError):
-        delete(lambda_event, mock_lambda_context)
-
-
 @mock_aws
-@pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
+@pytest.mark.parametrize("requestType", ["Create", "Update"])
 def test_execute_method(ddb, lambda_event, mock_lambda_context, requestType):
     ddb.create_table(
         TableName=lambda_event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME],
@@ -203,36 +165,9 @@ def test_execute_method(ddb, lambda_event, mock_lambda_context, requestType):
                 body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
             )
 
-        if requestType == "Delete":
-            table.put_item(
-                Item={
-                    "group": "fakegroupname",
-                    "policy": {
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            {
-                                "Sid": "fakegroupname-policy-statement",
-                                "Effect": "Allow",
-                                "Action": "execute-api:Invoke",
-                                "Resource": [
-                                    "fakeapi.arn/*",
-                                ],
-                            }
-                        ],
-                    },
-                }
-            )
-            execute(lambda_event, mock_lambda_context)
-            mocked_PoolManager.request.assert_called_once_with(
-                method="PUT",
-                url="https://fakeurl/doesnotexist",
-                headers={"content-type": "", "content-length": "278"},
-                body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
-            )
-
 
 @mock_aws
-@pytest.mark.parametrize("requestType", ["Create", "Update", "Delete"])
+@pytest.mark.parametrize("requestType", ["Create", "Update"])
 def test_lambda_handler(ddb, lambda_event, mock_lambda_context, requestType):
     ddb.create_table(
         TableName=lambda_event[RESOURCE_PROPERTIES][POLICY_TABLE_NAME],
@@ -254,33 +189,6 @@ def test_lambda_handler(ddb, lambda_event, mock_lambda_context, requestType):
             )
 
         if requestType == "Update":
-            handler(lambda_event, mock_lambda_context)
-            mocked_PoolManager.request.assert_called_once_with(
-                method="PUT",
-                url="https://fakeurl/doesnotexist",
-                headers={"content-type": "", "content-length": "278"},
-                body='{"Status": "SUCCESS", "Reason": "See the details in CloudWatch Log Stream: fake_logstream_name", "PhysicalResourceId": "fake_physical_resource_id", "StackId": "fakeStackId", "RequestId": "fakeRequestId", "LogicalResourceId": "fakeLogicalResourceId", "NoEcho": false, "Data": {}}',
-            )
-
-        if requestType == "Delete":
-            table.put_item(
-                Item={
-                    "group": "fakegroupname",
-                    "policy": {
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            {
-                                "Sid": "fakegroupname-policy-statement",
-                                "Effect": "Allow",
-                                "Action": "execute-api:Invoke",
-                                "Resource": [
-                                    "fakeapi.arn/*",
-                                ],
-                            }
-                        ],
-                    },
-                }
-            )
             handler(lambda_event, mock_lambda_context)
             mocked_PoolManager.request.assert_called_once_with(
                 method="PUT",

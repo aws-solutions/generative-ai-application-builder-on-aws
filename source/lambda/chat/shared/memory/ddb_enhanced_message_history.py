@@ -22,6 +22,7 @@ from langchain_core.messages import (
     messages_from_dict,
     messages_to_dict,
 )
+
 from utils.constants import DDB_MESSAGE_TTL_ENV_VAR, DEFAULT_DDB_MESSAGE_TTL, TRACE_ID_ENV_VAR
 
 logger = Logger(utc=True)
@@ -44,6 +45,7 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
         table_name: str,
         user_id: str,
         conversation_id: str,
+        message_id: str,
         max_history_length: Optional[int] = None,
         human_prefix: Optional[str] = "Human",
         ai_prefix: Optional[str] = "AI",
@@ -52,14 +54,15 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
         self.table = ddb_resource.Table(table_name)
         self.conversation_id = conversation_id
         self.user_id = user_id
+        self.message_id = message_id
         self.max_history_length = int(max_history_length) if max_history_length else None
         self.human_prefix = human_prefix
         self.ai_prefix = ai_prefix
 
     @property
     @tracer.capture_method(capture_response=True)
-    def messages(self) -> List[BaseMessage]:  # type: ignore
-        """Retrieve the messages from DynamoDB"""
+    def raw_messages(self) -> List[BaseMessage]:  # type: ignore
+        """Retrieve the full set of messages from DynamoDB"""
 
         response = None
         # fmt: off
@@ -87,6 +90,16 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
 
             messages = messages_from_dict(items)
             return messages
+
+    @property
+    @tracer.capture_method(capture_response=True)
+    def messages(self) -> List[BaseMessage]:  # type: ignore
+        """Retrieve the messages from DynamoDB adhering to max_history_length"""
+
+        messages = self.raw_messages
+        if self.max_history_length is not None:
+            messages = messages[-self.max_history_length :]
+        return messages
 
     def get_role_prepended_message(self, message: BaseMessage) -> BaseMessage:
         """Convert a message to string with pre-pended role.
@@ -129,12 +142,10 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
 
         message = self.get_role_prepended_message(message)
 
-        messages = messages_to_dict(self.messages)
+        messages = messages_to_dict(self.raw_messages)
         _message = _message_to_dict(message)
+        _message["data"]["id"] = self.message_id
         messages.append(_message)
-
-        if self.max_history_length is not None:
-            messages = messages[-self.max_history_length :]
 
         # fmt: off
         with tracer.provider.in_subsegment("## chat_history") as subsegment: # NOSONAR python:S1192 - subsegment name for x-ray tracing

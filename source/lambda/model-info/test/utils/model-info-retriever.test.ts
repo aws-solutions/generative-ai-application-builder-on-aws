@@ -91,16 +91,32 @@ describe('When performing ddb operations', () => {
 
     it('getModels succeeds', async () => {
         ddbMockedClient.on(QueryCommand).resolves(ddbGetModelsResponse);
-        const modelProviders = await modelInfoRetriever.getModels('Chat', 'Anthropic');
+        const models = await modelInfoRetriever.getModels('Chat', 'Anthropic');
         expect(ddbMockedClient).toHaveReceivedCommand(QueryCommand);
-        expect(modelProviders).toEqual(['model1', 'model2', 'model3']);
+        expect(models).toEqual([
+            {
+                ModelName: 'model1',
+                DisplayName: 'Model One',
+                Description: 'This is model one description'
+            },
+            {
+                ModelName: 'model2',
+                DisplayName: 'Model Two',
+                Description: ''
+            },
+            {
+                ModelName: 'model3',
+                DisplayName: 'model3',
+                Description: ''
+            }
+        ]);
     });
 
     it('getModels fails returning nothing', async () => {
         ddbMockedClient.on(QueryCommand).resolves({});
-        const modelProviders = await modelInfoRetriever.getModels('Chat', 'fake-provider');
+        const models = await modelInfoRetriever.getModels('Chat', 'fake-provider');
         expect(ddbMockedClient).toHaveReceivedCommand(QueryCommand);
-        expect(modelProviders).toEqual([]);
+        expect(models).toEqual([]);
     });
 
     it('getModels errors out', async () => {

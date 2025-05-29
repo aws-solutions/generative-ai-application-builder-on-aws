@@ -59,16 +59,34 @@ export const ddbGetModelsResponse = {
         {
             ModelName: {
                 'S': 'model1'
+            },
+            DisplayName: {
+                'S': 'Model One'
+            },
+            Description: {
+                'S': 'This is model one description'
             }
         },
         {
             ModelName: {
                 'S': 'model2'
+            },
+            DisplayName: {
+                'S': 'Model Two'
+            },
+            Description: {
+                'S': ''
             }
         },
         {
             ModelName: {
                 'S': 'model3'
+            },
+            DisplayName: {
+                'S': 'model3'  // Added DisplayName field
+            },
+            Description: {
+                'S': ''
             }
         }
     ],

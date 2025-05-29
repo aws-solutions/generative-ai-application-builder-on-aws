@@ -1,34 +1,60 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-export const API_NAME = 'api';
-export const APP_TRADEMARK_NAME = 'Generative AI Application Builder on AWS - Chat';
+export const ROUTES = {
+    // Public Routes
+    ROOT: '',
+    SIGN_IN: 'signin',
 
-export const MIN_PROMPT_TEMPLATE_LENGTH = 0;
-export const MAX_PROMPT_TEMPLATE_LENGTH = 375000;
+    // Protected Routes
+    APP: {
+        ROOT: 'app',
+        CHAT: 'chat',
+        I18N: 'i18n'
+    }
+} as const;
+
+// Helper function to get full path with leading slash
+export const getFullPath = (path: string) => `/${path}`;
+
+// Helper function to get full app path with leading slash
+export const getAppNestedPath = (path: string) => `/${ROUTES.APP.ROOT}/${path}`;
+
+export const DOCS_LINKS = {
+    IG_ROOT:
+        'https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/solution-overview.html',
+    GEN_AI_POLICY: 'https://policy.a2z.com/docs/568686/publication',
+    GITHUB_ISSUES_FORM: 'https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/new/choose'
+};
+
+export const USE_CASE_TYPES = {
+    AGENT: 'Agent',
+    TEXT: 'Text'
+};
+
+export const USE_CASE_TYPES_ROUTE = {
+    AGENT: 'invokeAgent',
+    TEXT: 'sendMessage'
+};
+
+export const MAX_PROMPT_TEMPLATE_LENGTH = 10000;
+export const DEFAULT_CHAT_INPUT_MAX_LENGTH = 10000;
+
 export const END_CONVERSATION_TOKEN = '##END_CONVERSATION##';
+export const SOLUTION_NAME = 'Generative AI Application Builder on AWS';
 
-export const INTERNAL_USER_GENAI_POLICY_URL = 'https://policy.a2z.com/docs/568686/publication';
+export const CHAT_LOADING_DEFAULT_MESSAGE = 'generating...';
 
-// for handling source documents
-export const SOURCE_DOCS_RESPONSE_PAYLOAD_KEY = 'sourceDocument';
+// styling for ChatInput
+export const CHAT_INPUT_MAX_ROWS = 20;
+export const CONSTRAINT_TEXT_ERROR_COLOR = '#d91515';
 
-// for socket connection
-export const SOCKET_CONNECTION_RETRIES = 15;
-export const DEFAULT_DELAY_MS = 1000;
+export const FEEDBACK_HELPFUL = 'helpful' as const;
+export const FEEDBACK_NOT_HELPFUL = 'not-helpful' as const;
+export const MAX_FEEDBACK_INPUT_LENGTH = 500
 
-export enum USE_CASE_TYPES {
-    AGENT = 'Agent',
-    TEXT = 'Text'
-}
-
-export enum USE_CASE_TYPES_ROUTE {
-    AGENT = 'invokeAgent',
-    TEXT = 'sendMessage'
-}
-
-export enum MAX_TEXT_INPUT_LENGTHS {
-    DEFAULT = 375000,
-    AGENT = 25000000,
-    TEXT = 375000
-}
+//model provider
+export const MODEL_PROVIDER = {
+    BEDROCK: 'Bedrock',
+    SAGEMAKER: 'SageMaker'
+} as const;

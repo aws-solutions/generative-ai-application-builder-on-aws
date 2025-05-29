@@ -47,7 +47,7 @@ export class DeploymentPlatformVPC extends CustomVPC {
                     'cloudformation:DescribeStackResources',
                     'cloudformation:DescribeStacks',
                     'cloudformation:ListStacks',
-                    'cloudformation:TagResource'
+                    'cloudformation:*TagResource'
                 ],
                 effect: iam.Effect.ALLOW, // NOSONAR - typescript:S6270, creating an allow policy for specific actions
                 resources: [`arn:${cdk.Aws.PARTITION}:cloudformation:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stack/*`]

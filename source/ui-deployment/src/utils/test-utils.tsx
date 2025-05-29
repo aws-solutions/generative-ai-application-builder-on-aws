@@ -11,6 +11,9 @@ import { API } from 'aws-amplify';
 
 // eslint-disable-next-line jest/no-mocks-import
 import MOCK_CONTEXT from '../components/__tests__/__mocks__/mock-context.json';
+import renderer, { ReactTestRenderer } from 'react-test-renderer';
+import { USECASE_TYPE_ROUTE } from './constants';
+import { copyIfDefined, TransformedDeployment } from './utils';
 
 export const cloudscapeRender = (component: any) => {
     const { container, ...rest } = render(component);
@@ -53,7 +56,28 @@ interface ContextProps {
     route: string;
 }
 
-export const renderWithProvider = (component: any, contextProps: ContextProps) => {
+interface RouteConfig {
+    path: string;
+    element: React.ReactNode;
+}
+
+interface MultiRouteContextProps extends Omit<ContextProps, 'route'> {
+    initialRoute: string;
+    routes: RouteConfig[];
+}
+
+/**
+ * Renders a component with multiple routes and necessary providers for testing
+ * @param contextProps - Configuration object containing:
+ *   - customState: Optional custom state to override default context
+ *   - initialRoute: Initial route path to render
+ *   - routes: Array of route configurations, each with path and element
+ * @returns Object containing:
+ *   - container: The container element
+ *   - cloudscapeWrapper: Cloudscape wrapper for the container
+ *   - Additional render properties
+ */
+export const renderWithMultipleRoutes = (contextProps: MultiRouteContextProps) => {
     const contextValue = {
         dispatch: vi.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: contextProps.customState ? contextProps.customState : MOCK_CONTEXT
@@ -66,15 +90,22 @@ export const renderWithProvider = (component: any, contextProps: ContextProps) =
             }
         }
     });
+
     const { container, ...rest } = render(
         // prettier-ignore
         <QueryClientProvider client={queryClient}>
             <HomeContext.Provider value={{ //NOSONAR - javascript:S6481 - useMemo not needed as this is used in tests only
                     ...contextValue 
                 }}>  
-                <MemoryRouter initialEntries={[contextProps.route]}>
+                <MemoryRouter initialEntries={[contextProps.initialRoute]}>
                     <Routes>
-                        <Route path={contextProps.route} element={component} />
+                        {contextProps.routes.map((routeConfig, index) => (
+                            <Route 
+                                key={`route-${index}`}
+                                path={routeConfig.path} 
+                                element={routeConfig.element} 
+                            />
+                        ))}
                     </Routes>
                 </MemoryRouter>
             </HomeContext.Provider>
@@ -84,6 +115,67 @@ export const renderWithProvider = (component: any, contextProps: ContextProps) =
     const cloudscapeWrapper = wrapper(container);
 
     return { ...rest, container, cloudscapeWrapper };
+};
+
+export const renderWithProvider = (component: any, contextProps: ContextProps) => {
+    return renderWithMultipleRoutes({
+        ...contextProps,
+        initialRoute: contextProps.route,
+        routes: [{ path: contextProps.route, element: component }]
+    });
+};
+
+/**
+ * Creates a snapshot of a React component with necessary providers for testing
+ * @param component - The React component to render
+ * @param route - The route path to render the component at
+ * @param customContextValue - Optional custom context value to override default state
+ * @returns ReactTestRenderer instance
+ */
+export const snapshotWithProvider = (
+    component: React.ReactElement,
+    route: string,
+    customContextValue?: Partial<{
+        dispatch: Dispatch<ActionType<HomeInitialState>>;
+        state: {
+            selectedDeployment: any;
+            deploymentsData: any[];
+            deploymentAction: string;
+            authorized: boolean;
+        };
+    }>
+): ReactTestRenderer => {
+    const defaultContextValue = {
+        'dispatch': vi.fn() as Dispatch<ActionType<HomeInitialState>>,
+        'state': {
+            'selectedDeployment': {},
+            'deploymentsData': [],
+            'deploymentAction': 'CREATE',
+            'authorized': true
+        }
+    };
+
+    const contextValue = customContextValue ? { ...defaultContextValue, ...customContextValue } : defaultContextValue;
+
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false
+            }
+        }
+    });
+
+    return renderer.create(
+        <QueryClientProvider client={queryClient}>
+            <HomeContext.Provider value={{ ...contextValue }}>
+                <MemoryRouter initialEntries={[route]}>
+                    <Routes>
+                        <Route path={route} element={component} />
+                    </Routes>
+                </MemoryRouter>
+            </HomeContext.Provider>
+        </QueryClientProvider>
+    );
 };
 
 export const mockedAuthenticator = () => {

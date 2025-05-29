@@ -4,9 +4,12 @@
 
 import json
 from io import BytesIO
+from unittest import mock
 
 import pytest
+
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
+from utils.custom_exceptions import JsonPathExtractionError
 
 input_schema = (
     {
@@ -222,30 +225,71 @@ def test_transform_output(output, output_jsonpath, expected_response):
 
 
 @pytest.mark.parametrize(
-    "output_jsonpath, output, expected_response",
+    "output_jsonpath, output",
     [
         (
             "$.outputs._generated_text_",
             '{"outputs": {"user_prompt": "test-prompt1", "generated_text": "This is generated text"}}',
-            "This is generated text",
         ),
         (
             "$.generated_text",
             '{"outputs": {"user_prompt": "test-prompt1", "generated_text": "This is generated text"}}',
-            "This is generated text",
         ),
     ],
 )
-def test_transform_output_raises(output, output_jsonpath, expected_response):
+def test_transform_output_raises_for_incorrect_path(output, output_jsonpath):
     response_json = json.loads(output)
     output = BytesIO(bytes(output, encoding="utf-8"))
 
     content_handler = SageMakerContentHandler(input_schema=input_schema, output_path_expression=output_jsonpath)
 
-    with pytest.raises(ValueError) as error:
-        content_handler.transform_output(output)
+    with pytest.raises(JsonPathExtractionError) as error:
+        with mock.patch("llms.models.sagemaker.content_handler.metrics.add_metric") as mock_metrics:
+            content_handler.transform_output(output)
 
     assert (
         error.value.args[0]
-        == f"The JSONPath specified: {output_jsonpath} for extracting LLM response doesn't exist in the output: {response_json}"
+        == f"There were no matches for the specified for the output JSONPath {output_jsonpath} in the LLM output received: {repr(response_json)}"
     )
+    mock_metrics.assert_called_once()
+
+
+def test_transform_output_matches_raises_keyerror():
+    response_json = {"response": "test response"}
+    output_path_expression = "$.nonexistent.path"
+    response_bytes = BytesIO(json.dumps(response_json).encode("utf-8"))
+
+    content_handler = SageMakerContentHandler(input_schema=input_schema, output_path_expression=output_path_expression)
+
+    # Mock the find method to raise KeyError
+    with mock.patch.object(content_handler.output_path_expression, "find", side_effect=KeyError("Key not found")):
+        with mock.patch("llms.models.sagemaker.content_handler.metrics.add_metric") as mock_metrics:
+            # The function should raise KeyError when no matches are found
+            with pytest.raises(JsonPathExtractionError) as error:
+                content_handler.transform_output(response_bytes)
+
+        print(f"error={error.value.args[0]}")
+        assert (
+            error.value.args[0]
+            == f"The output JSONPath specified: $.nonexistent.path for extracting LLM response text doesn't exist in the LLM output received: {repr(response_json)}\nError: 'Key not found'"
+        )
+    mock_metrics.assert_called_once()
+
+
+def test_transform_output_general_exception():
+    response_json = {"response": "test response"}
+    output_path_expression = "$.response"
+    response_bytes = BytesIO(json.dumps(response_json).encode("utf-8"))
+    content_handler = SageMakerContentHandler(input_schema=input_schema, output_path_expression=output_path_expression)
+
+    # Mock the find method to raise a general Exception
+    with mock.patch.object(content_handler.output_path_expression, "find", side_effect=Exception("General error")):
+        with mock.patch("llms.models.sagemaker.content_handler.metrics.add_metric") as mock_metrics:
+            with pytest.raises(JsonPathExtractionError) as error:
+                content_handler.transform_output(response_bytes)
+
+            assert (
+                error.value.args[0]
+                == f"There was an error parsing the output using the provided JSONPath: {output_path_expression}. Received LLM Output: {repr(response_json)}\nError: General error"
+            )
+            mock_metrics.assert_called_once()

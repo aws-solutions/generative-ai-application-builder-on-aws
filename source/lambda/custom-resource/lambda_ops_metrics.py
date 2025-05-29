@@ -23,6 +23,11 @@ def handler(*_):
     try:
         verify_env_setup()
         metric_data = get_metrics_payload(PUBLISH_METRICS_PERIOD_IN_SECONDS)
+
+        if all(value == 0 for value in metric_data.values()):
+            logger.info("Skipping metrics publishing — all metric values are empty.")
+            return
+
         builder_metrics = BuilderMetrics(
             USE_CASE_UUID, os.environ["SOLUTION_ID"], os.environ["SOLUTION_VERSION"], metric_data
         )

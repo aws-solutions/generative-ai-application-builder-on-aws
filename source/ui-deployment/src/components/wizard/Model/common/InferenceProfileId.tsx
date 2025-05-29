@@ -1,19 +1,34 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BaseFormComponentProps } from '@/components/wizard/interfaces/';
 import { updateNumFieldsInError } from '@/components/wizard/utils';
 import { Box, FormField, Input, InputProps } from '@cloudscape-design/components';
 import { InfoLink } from '@/components/commons';
-import { IG_DOCS } from '@/utils/constants';
 
 export interface InferenceProfileIdInputProps extends BaseFormComponentProps {
     modelData: any;
+    inferenceProfileIdError?: string;
+    setInferenceProfileIdError?: React.Dispatch<React.SetStateAction<string>>;
+    registerErrorSetter?: (setter: React.Dispatch<React.SetStateAction<string>>) => void;
 }
 
 export const InferenceProfileIdInput = (props: InferenceProfileIdInputProps) => {
-    const [inferenceProfileIdError, setInferenceProfileIdError] = React.useState('');
+    const [localInferenceProfileIdError, setLocalInferenceProfileIdError] = React.useState('');
+
+    // Use provided error state and setter if available, otherwise use local state
+    const inferenceProfileIdError =
+        props.inferenceProfileIdError !== undefined ? props.inferenceProfileIdError : localInferenceProfileIdError;
+
+    const setInferenceProfileIdError = props.setInferenceProfileIdError || setLocalInferenceProfileIdError;
+
+    // Register error setter with parent component if registerErrorSetter is provided
+    useEffect(() => {
+        if (props.registerErrorSetter) {
+            props.registerErrorSetter(setInferenceProfileIdError);
+        }
+    }, [props.registerErrorSetter]);
 
     const onInferenceProfileIdChange = (detail: InputProps.ChangeDetail) => {
         props.onChangeFn({ inferenceProfileId: detail.value });
@@ -41,7 +56,20 @@ export const InferenceProfileIdInput = (props: InferenceProfileIdInputProps) => 
                     ariaLabel={'Information about inference profile id.'}
                 />
             }
-            description={'ID of the inference profile you want to use.'}
+            description={
+                <span>
+                    ID of the inference profile you want to use. See the list of available inference profiles in the{' '}
+                    <a
+                        href="https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Amazon Bedrock User Guide
+                    </a>
+                    .
+                </span>
+            }
+            constraintText="Note: When using an inference profile, ensure the model is enabled in both the source and target regions. Cross-region inference requires model access in all regions involved."
             errorText={inferenceProfileIdError}
             data-testid="inference-profile-id-field"
         >

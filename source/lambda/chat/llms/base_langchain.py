@@ -5,7 +5,7 @@
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Union
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
@@ -14,26 +14,27 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.language_models import BaseChatModel
 from langchain_core.language_models.llms import LLM
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import ConfigurableFieldSpec
 from langchain_core.runnables.base import RunnableBinding
 from langchain_core.runnables.history import RunnableWithMessageHistory
+
 from llms.models.model_provider_inputs import ModelProviderInputs
 from shared.defaults.model_defaults import ModelDefaults
 from utils.constants import (
     CONVERSATION_ID_KEY,
     CONVERSATION_TRACER_KEY,
-    DEFAULT_PROMPT_PLACEHOLDERS,
-    DEFAULT_PROMPT_RAG_PLACEHOLDERS,
+    DEFAULT_RAG_ENABLED_MODE,
     DEFAULT_VERBOSE_MODE,
     HISTORY_KEY,
     INPUT_KEY,
     LLM_RESPONSE_KEY,
+    MESSAGE_ID_KEY,
     RAG_CONVERSATION_TRACER_KEY,
     TRACE_ID_ENV_VAR,
     USER_ID_KEY,
 )
-from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces
+from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client, type_cast, validate_prompt_placeholders
 
 tracer = Tracer()
@@ -55,9 +56,8 @@ class BaseLangChainModel(ABC):
         - get_runnable(): Creates a 'RunnableWithMessageHistory' (in case of non-streaming) or 'RunnableBinding' (in case of streaming) LangChain runnable that is connected to a conversation memory and the specified prompt. In case of Retrieval Augmented Generated (RAG) use cases, this is also connected to a knowledge base.
         - get_session_history(user_id, conversation_id): Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
         - generate(question, operation): Invokes the LLM to fetch a response for the given question. Operation is used for metrics.
-        - get_validated_prompt(prompt_template, prompt_template_placeholders, default_prompt_template,
-        default_prompt_template_placeholders): Generates the ChatPromptTemplate using the provided prompt template and
-        placeholders. In case of errors, falls back on default values.
+        - get_validated_prompt(prompt_template, prompt_template_placeholders, llm_provider, rag_enabled): Generates the ChatPromptTemplate using the provided prompt template and
+          placeholders. In case of errors, raises ValueError
         - get_llm(): Returns the underlying LLM object that is used by the runnable. Each child class must provide its own implementation.
         - get_clean_model_params(): Returns the cleaned and formatted model parameters that are used by the LLM. Each child class must provide its own implementation based on the model parameters it supports.
     """
@@ -76,7 +76,7 @@ class BaseLangChainModel(ABC):
             else float(model_inputs.temperature)
         )
         self.prompt_template = model_inputs.prompt_template
-        self._prompt_template_placeholders = model_inputs.prompt_placeholders
+        self._prompt_placeholders = model_inputs.prompt_placeholders
         self.conversation_history_cls = model_inputs.conversation_history_cls
         self.conversation_history_params = model_inputs.conversation_history_params
         self.callbacks = model_inputs.callbacks or None
@@ -84,6 +84,10 @@ class BaseLangChainModel(ABC):
         self.model = model_inputs.model
         self.llm = None
         self.runnable_with_history = None
+
+    @property
+    def prompt_placeholders(self) -> List[str]:
+        return self._prompt_placeholders
 
     @property
     def streaming(self) -> bool:
@@ -157,22 +161,6 @@ class BaseLangChainModel(ABC):
         self._llm = llm
 
     @property
-    def prompt_template(self) -> ChatPromptTemplate:
-        return self._prompt_template
-
-    @prompt_template.setter
-    def prompt_template(self, prompt_template) -> None:
-        prompt_placeholders = self._model_inputs.prompt_placeholders
-        default_prompt_template = self.model_defaults.prompt
-        default_prompt_placeholders = (
-            DEFAULT_PROMPT_RAG_PLACEHOLDERS if self.rag_enabled else DEFAULT_PROMPT_PLACEHOLDERS
-        )
-
-        self._prompt_template, self._prompt_template_placeholders = self.get_validated_prompt(
-            prompt_template, prompt_placeholders, default_prompt_template, default_prompt_placeholders
-        )
-
-    @property
     def callbacks(self) -> List:
         return self._callbacks
 
@@ -188,7 +176,7 @@ class BaseLangChainModel(ABC):
     def rag_enabled(self, rag_enabled) -> None:
         self._rag_enabled = rag_enabled
 
-    def get_session_history(self, user_id: str, conversation_id: str) -> BaseChatMessageHistory:
+    def get_session_history(self, user_id: str, conversation_id: str, message_id: str) -> BaseChatMessageHistory:
         """
         Retrieves the conversation history from the conversation memory based on the user_id and conversation_id.
 
@@ -201,15 +189,16 @@ class BaseLangChainModel(ABC):
         """
         self.conversation_history_params[USER_ID_KEY] = user_id
         self.conversation_history_params[CONVERSATION_ID_KEY] = conversation_id
+        self.conversation_history_params[MESSAGE_ID_KEY] = message_id
         return self.conversation_history_cls(**self.conversation_history_params)
 
-    def get_runnable(self) -> Union[RunnableWithMessageHistory, RunnableBinding]:
+    def get_runnable(self) -> RunnableBinding:
         """
-        Creates a `RunnableWithMessageHistory` (for non-streaming) or `RunnableBinding` (for streaming case) runnable that is connected to a conversation memory and the specified prompt
+        Creates a `RunnableBinding` runnable that is connected to a conversation memory and the specified prompt
         Args: None
 
         Returns:
-            RunnableWithMessageHistory/RunnableBinding: A runnable that manages chat message history
+            RunnableBinding: A runnable that manages chat message history
         """
 
         chain = self.prompt_template | self.llm | StrOutputParser()
@@ -236,11 +225,18 @@ class BaseLangChainModel(ABC):
                     default="",
                     is_shared=True,
                 ),
+                ConfigurableFieldSpec(
+                    id=MESSAGE_ID_KEY,
+                    annotation=str,
+                    name="Message ID",
+                    description="Unique identifier for the message.",
+                    default="",
+                    is_shared=True,
+                ),
             ],
         )
 
-        if self.streaming:
-            with_message_history = with_message_history.with_config(RunnableConfig(callbacks=self.callbacks))
+        with_message_history = with_message_history.with_config(RunnableConfig(callbacks=self.callbacks))
 
         return with_message_history
 
@@ -264,8 +260,9 @@ class BaseLangChainModel(ABC):
         """
         invoke_configuration = {
             "configurable": {
-                "conversation_id": self.conversation_history_params["conversation_id"],
-                "user_id": self.conversation_history_params["user_id"],
+                CONVERSATION_ID_KEY: self.conversation_history_params[CONVERSATION_ID_KEY],
+                USER_ID_KEY: self.conversation_history_params[USER_ID_KEY],
+                MESSAGE_ID_KEY: self.conversation_history_params[MESSAGE_ID_KEY],
             }
         }
         operation = RAG_CONVERSATION_TRACER_KEY if self.rag_enabled else CONVERSATION_TRACER_KEY
@@ -274,10 +271,21 @@ class BaseLangChainModel(ABC):
             subsegment.put_annotation("library", "langchain")
             subsegment.put_annotation("operation", operation)
             metrics.add_metric(name=CloudWatchMetrics.LANGCHAIN_QUERY.value, unit=MetricUnit.Count, value=1)
+            metrics.flush_metrics()
 
             response = {}
             start_time = time.time()
-            model_response = self.runnable_with_history.invoke({"input": question}, invoke_configuration)
+
+            if self.streaming:
+                # The stream() method returns a generator that lazily produces response chunks.
+                # We join these chunks into a single string because:
+                # 1. Generators use lazy evaluation - they only produce values when requested
+                # 2. Without joining, the generator would remain unconsumed and the full response wouldn't materialize
+                model_response_generator = self.runnable_with_history.stream({"input": question}, invoke_configuration)
+                model_response = "".join(model_response_generator)
+            else:
+                model_response = self.runnable_with_history.invoke({"input": question}, invoke_configuration)
+
             end_time = time.time()
             response[LLM_RESPONSE_KEY] = model_response.strip()
 
@@ -294,47 +302,66 @@ class BaseLangChainModel(ABC):
         self,
         prompt_template: str,
         prompt_template_placeholders: List[str],
-        default_prompt_template: str,
-        default_prompt_template_placeholders: List[str],
-    ) -> Tuple[ChatPromptTemplate, List[str]]:
+        llm_provider: LLMProviderTypes,
+        rag_enabled: bool = False,
+    ) -> ChatPromptTemplate:
         """
         Generates the PromptTemplate using the provided prompt template and default placeholders.
         If template is not set or if it is invalid, use the default.
         Args:
             prompt_template (str): the prompt template to be used
             prompt_template_placeholders List[str]: the list of prompt template placeholders
-            default_prompt_template (str): the default prompt template to be used in case of failures
-            default_prompt_template_placeholders (List[str]): the list of default prompt template placeholders to be used in case of failures
+            llm_provider (LLMProviderTypes): the LLM provider
+            rag_enabled (bool): whether RAG is enabled or not
+
         Returns:
             ChatPromptTemplate: the prompt template object with the prompt template and placeholders set
-            List[str]: the list of prompt template placeholders
+
+        Raises:
+            ValueError: In case of errors such as if the prompt template is invalid or if the placeholders are not provided
         """
+        metrics = get_metrics_client(CloudWatchNamespaces.LANGCHAIN_LLM)
         try:
-            if prompt_template and prompt_template_placeholders:
-                if self.rag_enabled is not None and not self.rag_enabled and "{context}" in prompt_template:
-                    error = f"Provided 'context' placeholder in prompt template for non-RAG use case. Prompt:\n{prompt_template}.\n"
+            if prompt_template:
+                if not rag_enabled and "{context}" in prompt_template:
+                    error = f"Provided 'context' placeholder in prompt template for non-RAG use case. Prompt:\n{prompt_template}"
+                    raise ValueError(error)
+                elif rag_enabled and "{context}" not in prompt_template:
+                    error = f"The prompt template does not contain the required placeholder 'context' for RAG use case. Prompt:\n{prompt_template}"
                     raise ValueError(error)
 
                 validate_prompt_placeholders(prompt_template, prompt_template_placeholders)
-                prompt_template_text = prompt_template
-                placeholders = prompt_template_placeholders
+
+                if llm_provider == LLMProviderTypes.BEDROCK:
+                    return ChatPromptTemplate.from_messages(
+                        [
+                            ("system", prompt_template),
+                            MessagesPlaceholder("history", optional=True),
+                            ("human", "{input}"),
+                        ]
+                    )
+                elif llm_provider == LLMProviderTypes.SAGEMAKER:
+                    if not prompt_template_placeholders:
+                        raise ValueError(
+                            f"Prompt template placeholders not provided for {llm_provider.value} model provider."
+                        )
+                    return ChatPromptTemplate.from_template(prompt_template)
+                else:
+                    message = f"Invalid LLM Provider type: {llm_provider}"
+                    logger.error(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+                    metrics.add_metric(
+                        name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
+                    )
+                    raise ValueError(message)
 
             else:
-                message = f"Prompt template not provided. Falling back to default prompt template."
-                logger.warning(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
-                prompt_template_text = default_prompt_template
-                placeholders = default_prompt_template_placeholders
+                message = "Prompt is empty."
+                logger.error(message, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+                metrics.add_metric(
+                    name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1
+                )
+                raise ValueError(message)
 
-            return (ChatPromptTemplate.from_template(prompt_template_text), placeholders)
-        except ValueError as ex:
-            logger.error(
-                f"Prompt validation failed: {ex}. Falling back to default prompt template.",
-                xray_trace_id=os.environ[TRACE_ID_ENV_VAR],
-            )
-            metrics.add_metric(name=CloudWatchMetrics.INCORRECT_INPUT_FAILURES.value, unit=MetricUnit.Count, value=1)
-            prompt_template_text = default_prompt_template
-            placeholders = default_prompt_template_placeholders
-            return (ChatPromptTemplate.from_template(prompt_template_text), placeholders)
         finally:
             metrics.flush_metrics()
 

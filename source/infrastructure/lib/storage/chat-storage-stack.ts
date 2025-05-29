@@ -9,7 +9,7 @@ import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
 import { BaseNestedStack } from '../framework/base-nested-stack';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
-import { DynamoDBAttributes } from '../utils/constants';
+import { DynamoDBAttributes, USE_CASE_TYPES } from '../utils/constants';
 import { UseCaseModelInfoStorage } from './use-case-model-info-storage';
 
 export class DynamoDBChatStorageParameters {
@@ -28,6 +28,11 @@ export class DynamoDBChatStorageParameters {
      */
     public readonly newModelInfoTableName: string;
 
+    /**
+     * The UseCaseType. The value is provided as 'Agent' or 'Text'
+     */
+    public readonly useCaseType: string;
+
     constructor(stack: IConstruct) {
         this.conversationTableName = new cdk.CfnParameter(stack, 'ConversationTableName', {
             type: 'String',
@@ -42,6 +47,12 @@ export class DynamoDBChatStorageParameters {
             allowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
             default: '',
             description: 'DynamoDB table name for the existing table which contains model info and defaults.'
+        }).valueAsString;
+
+        this.useCaseType = new cdk.CfnParameter(stack, 'UseCaseType', {
+            type: 'String',
+            description: 'The UseCaseType. The value is provided as Agent or Text',
+            allowedValues: Object.values(USE_CASE_TYPES)
         }).valueAsString;
     }
 }
@@ -104,6 +115,7 @@ export class DynamoDBChatStorage extends BaseNestedStack {
 
         this.modelInfoStorage = new UseCaseModelInfoStorage(this, 'ModelInfoStorage', {
             existingModelInfoTableName: stackParams.existingModelInfoTableName,
+            useCaseType: stackParams.useCaseType,
             customResourceLambdaArn: this.customResourceLambdaArn,
             customResourceRoleArn: this.customResourceLambdaRoleArn
         });

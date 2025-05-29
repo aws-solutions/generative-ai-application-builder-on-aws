@@ -56,6 +56,8 @@ class ModelDefaults:
             self.max_prompt_size = int(model_defaults.get("MaxPromptSize"))
             self.stop_sequences = model_defaults.get("DefaultStopSequences", [])
             self.disambiguation_prompt = model_defaults.get("DisambiguationPrompt")
+            self.display_name = model_defaults.get("DisplayName")
+            self.description = model_defaults.get("Description")
 
             if (
                 any(

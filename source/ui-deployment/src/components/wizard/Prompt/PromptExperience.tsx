@@ -92,7 +92,7 @@ export const PromptExperience = (props: PromptExperienceProps) => {
         >
             <SpaceBetween size="l">
                 <FormField
-                    label="Max prompt template length"
+                    label="Max system prompt template length"
                     info={
                         <InfoLink
                             onFollow={() => props.setHelpPanelContent!(maxPromptLengthInfoPanel)}
@@ -149,17 +149,17 @@ const validateUserInputNumber = (userInput: number) => {
 };
 
 const maxPromptLengthInfoPanel = {
-    title: 'Max prompt template length',
+    title: 'Max system prompt template length',
     content: (
         <div>
             <Box variant="p">
                 This setting is used to control the maximum number characters supported within the{' '}
-                <b>prompt template</b>
+                <b>system prompt template</b>
             </Box>
             <Box variant="p">
                 <i>
                     Note: this is not the same as the final prompt sent the model. What's sent to the model is a
-                    completed <b>prompt template</b>, which includes additional components such as the user input,
+                    completed <b>system prompt template</b>, which includes additional components such as the user input,
                     document <b>context</b>. etc.
                 </i>
             </Box>
@@ -184,7 +184,7 @@ const maxInputLengthInfoPanel = {
             <Box variant="p">
                 <i>
                     Note: this is not the same as the final prompt sent the model. What's sent to the model is a
-                    completed <b>prompt template</b>, which the user input is just one component of.
+                    completed <b>system prompt template</b>, which the user input is just one component of.
                 </i>
             </Box>
         </div>

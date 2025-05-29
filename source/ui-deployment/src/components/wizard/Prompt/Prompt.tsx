@@ -96,6 +96,7 @@ const Prompt = ({ info: { model, knowledgeBase, prompt }, setHelpPanelContent, o
     const modelDefaultsQueryResponse = useModelInfoQuery(
         model.modelProvider.value,
         model.modelName,
+        model.bedrockInferenceType,
         knowledgeBase.isRagRequired ? 'RAGChat' : 'Chat'
     );
 
@@ -157,6 +158,7 @@ const Prompt = ({ info: { model, knowledgeBase, prompt }, setHelpPanelContent, o
                 maxPromptTemplateLength={prompt.maxPromptTemplateLength}
                 rephraseQuestion={prompt.rephraseQuestion}
                 disambiguationEnabled={prompt.disambiguationEnabled}
+                modelProvider={model.modelProvider.value}
                 onChangeFn={onChange}
                 setHelpPanelContent={setHelpPanelContent}
                 setNumFieldsInError={setNumFieldsInError}
@@ -180,11 +182,14 @@ const Prompt = ({ info: { model, knowledgeBase, prompt }, setHelpPanelContent, o
                         humanPrefix={prompt.humanPrefix}
                         defaultAiPrefix={defaultAiPrefix}
                         aiPrefix={prompt.aiPrefix}
+                        modelProvider={model.modelProvider.value}
                         onChangeFn={onChange}
                         setHelpPanelContent={setHelpPanelContent}
                         setNumFieldsInError={setNumFieldsInError}
                         setHistoryConfigurationInError={setHistoryConfigurationInError}
                         data-testid="prompt-step-history-configuration-component"
+                        isRag={knowledgeBase.isRagRequired}
+                        disambiguationEnabled={prompt.disambiguationEnabled}
                     />
 
                     {knowledgeBase.isRagRequired && (

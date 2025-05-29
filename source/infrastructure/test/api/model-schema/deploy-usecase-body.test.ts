@@ -7,6 +7,7 @@ import { Validator } from 'jsonschema';
 import {
     AGENT_TYPES,
     AUTHENTICATION_PROVIDERS,
+    BEDROCK_INFERENCE_TYPES,
     CHAT_PROVIDERS,
     CONVERSATION_MEMORY_TYPES,
     DEFAULT_KENDRA_EDITION,
@@ -37,22 +38,23 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            ModelId: 'fakemodel'
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
             });
 
-            it('Test Bedrock deployment with an arn', () => {
+            it('Test Bedrock deployment with a provisioned model', () => {
                 const payload = {
                     UseCaseName: 'test',
                     UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            ModelId: 'fakemodel',
-                            ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111'
+                            ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.PROVISIONED
                         }
                     }
                 };
@@ -68,7 +70,8 @@ describe('Testing API schema validation', () => {
                         BedrockLlmParams: {
                             ModelId: 'fakemodel',
                             GuardrailIdentifier: 'fakeid',
-                            GuardrailVersion: 'DRAFT'
+                            GuardrailVersion: 'DRAFT',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     }
                 };
@@ -82,21 +85,78 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            InferenceProfileId: 'fakeprofile'
+                            InferenceProfileId: 'fakeprofile',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILE
                         }
                     }
                 };
                 checkValidationSucceeded(validator.validate(payload, schema));
             });
 
-            it('Test Bedrock deployment failed, missing ModelId', () => {
+            it('Test Bedrock deployment failed, missing ModelId for QUICK_START', () => {
                 const payload = {
                     UseCaseName: 'test',
                     UseCaseType: USE_CASE_TYPES.TEXT,
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            ModelArn: 'arn:aws:bedrock:us-east-1:111111111111:custom-model/test.1/111111111111'
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+            
+            it('Test Bedrock deployment failed, missing ModelId for OTHER_FOUNDATION', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+            
+            it('Test Bedrock deployment failed, missing InferenceProfileId for INFERENCE_PROFILE', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILE
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+            
+            it('Test Bedrock deployment failed, missing ModelArn for PROVISIONED', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.PROVISIONED
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+            
+            it('Test Bedrock deployment failed, missing BedrockInferenceType', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
                         }
                     }
                 };
@@ -215,6 +275,58 @@ describe('Testing API schema validation', () => {
                     }
                 };
                 checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Test Bedrock deployment, FeedbackEnabled passes', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    FeedbackParams: {
+                        FeedbackEnabled: true
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
+            });
+
+            it('Test Bedrock deployment, FeedbackParams additional fields fail', () => {
+                const payload = {
+                    UseCaseName: 'test',
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    FeedbackParams: {
+                        FeedbackEnabled: true,
+                        FeedbackParameters: { 'key': 'value' }
+                    },
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel'
+                        }
+                    }
+                };
+                checkValidationFailed(validator.validate(payload, schema));
+            });
+
+            it('Test Bedrock deployment, RestApi Id resources pass', () => {
+                const payload = {
+                    UseCaseType: USE_CASE_TYPES.TEXT,
+                    UseCaseName: 'test',
+                    ExistingRestApiId: 'test-id',
+                    LlmParams: {
+                        ModelProvider: CHAT_PROVIDERS.BEDROCK,
+                        BedrockLlmParams: {
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        }
+                    }
+                };
+                checkValidationSucceeded(validator.validate(payload, schema));
             });
         });
 
@@ -336,7 +448,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                         },
                         ModelParams: {
                             Param1: { Value: 'hello', Type: 'string' },
                             Param2: { Value: '1', Type: 'integer' },
@@ -390,7 +505,9 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel', 
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -430,7 +547,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -452,7 +572,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -530,7 +653,9 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel', 
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -570,7 +695,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -592,7 +720,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -611,7 +742,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -708,7 +842,9 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -728,7 +864,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -750,7 +889,10 @@ describe('Testing API schema validation', () => {
                     UseCaseName: 'test',
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                        BedrockLlmParams: { ModelId: 'fakemodel' },
+                        BedrockLlmParams: { 
+                            ModelId: 'fakemodel', 
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START 
+                        },
                         RAGEnabled: true
                     },
                     KnowledgeBaseParams: {
@@ -916,7 +1058,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' },
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                    },
                     RAGEnabled: false
                 },
                 KnowledgeBaseParams: {
@@ -938,7 +1083,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: {
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                    },
                 },
                 VpcParams: {
                     VpcEnabled: false
@@ -969,7 +1117,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                     }
                 },
                 VpcParams: {
                     VpcEnabled: true,
@@ -985,7 +1136,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                    },
                 },
                 VpcParams: {
                     VpcEnabled: true,
@@ -1002,7 +1156,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                     }
                 },
                 VpcParams: {
                     VpcEnabled: true,
@@ -1095,7 +1252,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                    },
                 },
                 VpcParams: {
                     VpcEnabled: true,
@@ -1134,7 +1294,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                    },
                 },
                 DefaultUserEmail: 'testuser@example.com'
             };
@@ -1162,7 +1325,10 @@ describe('Testing API schema validation', () => {
                 UseCaseName: 'test',
                 LlmParams: {
                     ModelProvider: CHAT_PROVIDERS.BEDROCK,
-                    BedrockLlmParams: { ModelId: 'fakemodel' }
+                    BedrockLlmParams: { 
+                        ModelId: 'fakemodel',
+                        BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
+                    }
                 },
                 ConversationMemoryParams: {
                     ConversationMemoryType: CONVERSATION_MEMORY_TYPES.DYNAMODB,
@@ -1377,6 +1543,62 @@ describe('Testing API schema validation', () => {
         checkValidationFailed(validator.validate(payload, schema));
     });
 
+    it('Test Agent deployment, FeedbackEnabled passes', () => {
+        const payload = {
+            UseCaseName: 'test-agent',
+            UseCaseType: USE_CASE_TYPES.AGENT,
+            FeedbackParams: {
+                FeedbackEnabled: true
+            },
+            AgentParams: {
+                AgentType: AGENT_TYPES.BEDROCK,
+                BedrockAgentParams: {
+                    AgentId: 'XXXXXX',
+                    AgentAliasId: 'XXXXXX',
+                    EnableTrace: true
+                }
+            }
+        };
+        checkValidationSucceeded(validator.validate(payload, schema));
+    });
+
+    it('Test Agent deployment, FeedbackParams additional fields fail', () => {
+        const payload = {
+            UseCaseName: 'test-agent',
+            UseCaseType: USE_CASE_TYPES.AGENT,
+            FeedbackParams: {
+                FeedbackEnabled: true,
+                FeedbackParameters: { 'key': 'value' }
+            },
+            AgentParams: {
+                AgentType: AGENT_TYPES.BEDROCK,
+                BedrockAgentParams: {
+                    AgentId: 'XXXXXX',
+                    AgentAliasId: 'XXXXXX',
+                    EnableTrace: true
+                }
+            }
+        };
+        checkValidationFailed(validator.validate(payload, schema));
+    });
+
+    it('Test Agent deployment, RestApi Id resources pass', () => {
+        const payload = {
+            UseCaseName: 'test-agent',
+            UseCaseType: USE_CASE_TYPES.AGENT,
+            ExistingRestApiId: 'test-id',
+            AgentParams: {
+                AgentType: AGENT_TYPES.BEDROCK,
+                BedrockAgentParams: {
+                    AgentId: 'XXXXXX',
+                    AgentAliasId: 'XXXXXX',
+                    EnableTrace: true
+                }
+            }
+        };
+        checkValidationSucceeded(validator.validate(payload, schema));
+    });
+
     describe('AuthenticationParams Validation', () => {
         describe('User Pool Id provided', () => {
             it('Valid User Pool Id provided', () => {
@@ -1386,7 +1608,8 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            ModelId: 'fakemodel'
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     },
                     AuthenticationParams: {
@@ -1406,7 +1629,8 @@ describe('Testing API schema validation', () => {
                     LlmParams: {
                         ModelProvider: CHAT_PROVIDERS.BEDROCK,
                         BedrockLlmParams: {
-                            ModelId: 'fakemodel'
+                            ModelId: 'fakemodel',
+                            BedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START
                         }
                     },
                     AuthenticationParams: {

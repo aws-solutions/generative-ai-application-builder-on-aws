@@ -5,7 +5,7 @@
  * Utility function to convert any success response into a Http 200 response with the
  * proper formatting and headers.
  *
- * @param {any} body Response message. This will be strigified and inserted into 'body'
+ * @param {any} body Response message. This will be stringified and inserted into 'body'
  * @param {[key: string]: string} extraHeaders any extra headers to include in response.
  *         any key in extraHeaders will override any header in the defaultHeaders with the same key.
  * @returns

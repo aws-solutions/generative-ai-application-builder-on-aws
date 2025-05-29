@@ -26,6 +26,7 @@ export interface ModelSettings extends BaseWizardProps {
     sagemakerOutputSchema: string;
     sagemakerEndpointName: string;
     inferenceProfileId: string;
+    bedrockInferenceType: string;
 }
 export class ModelStep extends BaseWizardStep {
     public id: string = 'model';
@@ -48,6 +49,7 @@ export class ModelStep extends BaseWizardStep {
         sagemakerOutputSchema: DEFAULT_STEP_INFO.model.sagemakerOutputSchema,
         sagemakerEndpointName: DEFAULT_STEP_INFO.model.sagemakerEndpointName,
         inferenceProfileId: DEFAULT_STEP_INFO.model.inferenceProfileId,
+        bedrockInferenceType: DEFAULT_STEP_INFO.model.bedrockInferenceType,
         inError: false
     };
 
@@ -92,6 +94,7 @@ export class ModelStep extends BaseWizardStep {
             sagemakerOutputSchema: this.props.sagemakerOutputSchema,
             sagemakerEndpointName: this.props.sagemakerEndpointName,
             inferenceProfileId: this.props.inferenceProfileId,
+            bedrockInferenceType: this.props.bedrockInferenceType,
             inError: this.props.inError
         } = mapModelStepInfoFromDeployment(selectedDeployment, modelProvider));
     };

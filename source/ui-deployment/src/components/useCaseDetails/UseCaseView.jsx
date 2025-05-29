@@ -1,17 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createRef, useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { createRef, useState, useContext, useEffect, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { AppLayout, Button, Container, ContentLayout, Header, SpaceBetween, Tabs } from '@cloudscape-design/components';
+import { Alert, AppLayout, Button, ContentLayout, SpaceBetween, StatusIndicator, Tabs } from '@cloudscape-design/components';
 
-import { Breadcrumbs, GeneralConfig, PageHeader, ModelDetails, KnowledgeBaseDetails } from './common-components';
-import { PromptDetails } from './PromptDetails';
-import { AgentDetails } from './AgentDetails';
-import { Navigation, InfoLink, Notifications } from '../commons/common-components';
+import { Navigation, Notifications } from '../commons/common-components';
 import { appLayoutAriaLabels } from '../../i18n-strings';
-import { ToolsContent } from './tools-content';
+import { ToolsContent } from '../../utils/tools-content';
 import HomeContext from '../../contexts/home.context';
 import { parseStackName } from '../commons/table-config';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
@@ -23,89 +20,29 @@ import {
 } from '../../utils/constants';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 
-const Model = ({ loadHelpPanelContent }) => (
-    <Container
-        header={
-            <Header
-                variant="h2"
-                info={
-                    <InfoLink
-                        onFollow={() => loadHelpPanelContent(1)}
-                        ariaLabel={'Information about deployment model.'}
-                    />
-                }
-            >
-                Model
-            </Header>
-        }
-    >
-        <ModelDetails isInProgress={true} />
-    </Container>
-);
-
-const KnowledgeBase = ({ loadHelpPanelContent }) => (
-    <Container
-        header={
-            <Header
-                variant="h2"
-                info={
-                    <InfoLink
-                        onFollow={() => loadHelpPanelContent(1)}
-                        ariaLabel={'Information about deployment knowledge base.'}
-                    />
-                }
-            >
-                Knowledge base
-            </Header>
-        }
-    >
-        <KnowledgeBaseDetails isInProgress={true} />
-    </Container>
-);
-
-const Prompt = ({ loadHelpPanelContent, selectedDeployment }) => (
-    <Container
-        header={
-            <Header
-                variant="h2"
-                info={
-                    <InfoLink
-                        onFollow={() => loadHelpPanelContent(1)}
-                        ariaLabel={'Information about deployment prompt.'}
-                    />
-                }
-            >
-                Prompt
-            </Header>
-        }
-    >
-        <PromptDetails selectedDeployment={selectedDeployment} />
-    </Container>
-);
-
-const Agent = ({ loadHelpPanelContent }) => (
-    <Container
-        header={
-            <Header
-                variant="h2"
-                info={
-                    <InfoLink
-                        onFollow={() => loadHelpPanelContent(1)}
-                        ariaLabel={'Information about deployment agent.'}
-                    />
-                }
-            >
-                Agent
-            </Header>
-        }
-    >
-        <AgentDetails />
-    </Container>
-);
+import { useUseCaseDetailsQuery } from '@/hooks/useQueries';
+import { mapApiResponseToSelectedDeployment } from '@/utils';
+import { General } from './general/General';
+import { Model } from './model/Model';
+import { KnowledgeBase } from './knowledgeBase/KnowledgeBase';
+import { Prompt } from './prompt/Prompt';
+import { PageHeader } from './layout/PageHeader';
+import { Breadcrumbs } from './layout/Breadcrumbs';
+import { Agent } from './agent/Agent';
 
 export default function UseCaseView() {
+    const { useCaseId } = useParams(); // Get useCaseId from URL params
     const {
-        state: { selectedDeployment },
+        data: apiResponse,
+        isLoading,
+        isSuccess,
+        error
+    } = useUseCaseDetailsQuery(useCaseId, {
+        refetchOnWindowFocus: false
+    });
+
+    const {
+        state: { runtimeConfig },
         dispatch: homeDispatch
     } = useContext(HomeContext);
     const navigate = useNavigate();
@@ -114,6 +51,52 @@ export default function UseCaseView() {
     const [toolsOpen, setToolsOpen] = useState(false);
     const [, setToolsIndex] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+    const hasUpdatedRef = useRef(false);
+
+    const selectedDeployment = isSuccess ? mapApiResponseToSelectedDeployment(apiResponse) : null;
+
+    // Update context when data is successfully loaded
+    useEffect(() => {
+        if (isSuccess && selectedDeployment && !hasUpdatedRef.current) {
+            homeDispatch({
+                field: 'selectedDeployment',
+                value: selectedDeployment
+            });
+            hasUpdatedRef.current = true;
+        }
+    }, [isSuccess, selectedDeployment, homeDispatch]);
+
+    // Reset the ref when the ID changes
+    useEffect(() => {
+        hasUpdatedRef.current = false;
+    }, [useCaseId]);
+
+    // Handle loading state
+    if (isLoading) {
+        return (
+            <div style={{ padding: '20px', display: 'flex', justifyContent: 'center' }}>
+                <StatusIndicator type="loading">Loading deployment details...</StatusIndicator>
+            </div>
+        );
+    }
+
+    // Handle error state
+    if (error) {
+        return (
+            <div style={{ padding: '20px' }}>
+                <Alert type="error" data-testid="use-case-view-error">
+                    Unable to load deployment details.
+                </Alert>
+            </div>
+        );
+    }
+
+    // Handle case where data is not available after loading
+    if (!selectedDeployment) {
+        return <div style={{ padding: '20px' }}>No deployment details found for ID: {useCaseId}</div>;
+    }
+
     const navigateDestination =
         USECASE_TYPE_ROUTE[selectedDeployment.UseCaseType?.toUpperCase()] ?? USECASE_TYPE_ROUTE.TEXT;
 
@@ -130,13 +113,19 @@ export default function UseCaseView() {
         {
             label: 'Model',
             id: 'model',
-            content: <Model loadHelpPanelContent={loadHelpPanelContent} />,
+            content: <Model loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />,
             key: 'model'
         },
         {
             label: 'Knowledge base',
             id: 'knowledgeBase',
-            content: <KnowledgeBase loadHelpPanelContent={loadHelpPanelContent} />,
+            content: (
+                <KnowledgeBase
+                    loadHelpPanelContent={loadHelpPanelContent}
+                    selectedDeployment={selectedDeployment}
+                    runtimeConfig={runtimeConfig}
+                />
+            ),
             key: 'knowledgeBase'
         },
         {
@@ -152,7 +141,7 @@ export default function UseCaseView() {
             {
                 label: 'Agent',
                 id: 'agent',
-                content: <Agent loadHelpPanelContent={loadHelpPanelContent} />,
+                content: <Agent loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />,
                 key: 'agent'
             }
         ];
@@ -194,6 +183,7 @@ export default function UseCaseView() {
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING ||
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.STOPPED;
+    const isDeleteEnabled = currentDeploymentStatus !== CFN_STACK_STATUS_INDICATOR.IN_PROGRESS;
 
     return (
         <AppLayout
@@ -219,7 +209,12 @@ export default function UseCaseView() {
                                 >
                                     Clone
                                 </Button>,
-                                <Button onClick={onDeleteInit} key={'delete-button'}>
+                                <Button
+                                    onClick={onDeleteInit}
+                                    key={'delete-button'}
+                                    data-testid="use-case-view-delete-btn"
+                                    disabled={!isDeleteEnabled}
+                                >
                                     Delete
                                 </Button>
                             ]}
@@ -228,7 +223,11 @@ export default function UseCaseView() {
                     }
                 >
                     <SpaceBetween size="l">
-                        <GeneralConfig />
+                        <General
+                            loadHelpPanelContent={loadHelpPanelContent}
+                            selectedDeployment={selectedDeployment}
+                            runtimeConfig={runtimeConfig}
+                        />
                         <Tabs tabs={tabs} ariaLabel="Resource details" />
                     </SpaceBetween>
                     <DeleteDeploymentModal

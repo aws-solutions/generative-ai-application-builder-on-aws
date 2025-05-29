@@ -3,15 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
-import * as api from 'aws-cdk-lib/aws-apigateway';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
-import { RestRequestProcessor } from '../api/rest-request-processor';
 import { BaseNestedStack } from '../framework/base-nested-stack';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import * as cfn_nag from '../utils/cfn-guard-suppressions';
@@ -19,7 +16,8 @@ import {
     createCustomResourceForLambdaLogRetention,
     createDefaultLambdaRole,
     generateCfnTemplateUrl,
-    generateTemplateMapping
+    generateTemplateMapping,
+    createVpcConfigForLambda
 } from '../utils/common-utils';
 import {
     ARTIFACT_BUCKET_ENV_VAR,
@@ -34,9 +32,14 @@ import {
     TEMPLATE_FILE_EXTN_ENV_VAR,
     USE_CASE_API_KEY_SUFFIX_ENV_VAR,
     USE_CASE_MANAGEMENT_NAMESPACE,
-    WEBCONFIG_SSM_KEY_ENV_VAR
+    WEBCONFIG_SSM_KEY_ENV_VAR,
+    COGNITO_POLICY_TABLE_ENV_VAR,
+    CLIENT_ID_ENV_VAR,
+    USER_POOL_ID_ENV_VAR
 } from '../utils/constants';
 import { ExistingVPCParameters } from '../vpc/exisiting-vpc-params';
+import { CognitoSetup } from '../auth/cognito-setup';
+import { SearchAndReplaceRefactorAspect } from '../utils/search-and-replace-refactor-aspect';
 
 export class UseCaseManagementParameters {
     /**
@@ -95,11 +98,6 @@ export class UseCaseManagementParameters {
     existingCognitoUserPoolId: cdk.CfnParameter;
 
     /**
-     * Name of table which stores policies for cognito user groups. Required if existingCognitoUserPoolId is provided.
-     */
-    existingCognitoGroupPolicyTableName: cdk.CfnParameter;
-
-    /**
      * If provided, will use the provided UserPoolClient instead of creating a new one.
      */
     existingCognitoUserPoolClientId: cdk.CfnParameter;
@@ -124,7 +122,7 @@ export class UseCaseManagementParameters {
             type: 'String',
             description: 'SSM key where template file list is stored as web config',
             allowedPattern: '^(\\/[^\\/ ]*)+\\/?$',
-            maxLength: 63,
+            maxLength: 128,
             constraintDescription: 'Please provide a valid web config SSM key'
         }).valueAsString;
 
@@ -173,11 +171,11 @@ export class UseCaseManagementParameters {
             default: ''
         });
 
-        const captureExistingVPCParamerters = new ExistingVPCParameters(stack);
-        this.existingVpcId = captureExistingVPCParamerters.existingVpcId;
-        this.existingPrivateSubnetIds = captureExistingVPCParamerters.existingPrivateSubnetIds;
-        this.existingSecurityGroupIds = captureExistingVPCParamerters.securityGroupIds;
-        this.vpcAzs = captureExistingVPCParamerters.vpcAzs;
+        const captureExistingVPCParameters = new ExistingVPCParameters(stack);
+        this.existingVpcId = captureExistingVPCParameters.existingVpcId;
+        this.existingPrivateSubnetIds = captureExistingVPCParameters.existingPrivateSubnetIds;
+        this.existingSecurityGroupIds = captureExistingVPCParameters.securityGroupIds;
+        this.vpcAzs = captureExistingVPCParameters.vpcAzs;
     }
 }
 
@@ -197,34 +195,19 @@ export class UseCaseManagement extends BaseNestedStack {
     public readonly modelInfoApiLambda: lambda.Function;
 
     /**
-     * The API being served to allow use case management
+     * condition to check if vpc configuration should be applied to lambda functions
      */
-    public readonly restApi: api.LambdaRestApi;
+    public readonly deployVPCCondition: cdk.CfnCondition;
 
     /**
-     * The root resource interface of the API Gateway
+     * Parameters for nested stack
      */
-    public readonly apiRootResource: api.IResource;
+    public readonly stackParameters: UseCaseManagementParameters;
 
     /**
-     * Cognito UserPool for users
+     * Dead letter Queue for handling lambda failures
      */
-    public readonly userPool: cognito.IUserPool;
-
-    /**
-     * Cognito UserPool domain name
-     */
-    public readonly cognitoUserPoolDomainName: string;
-
-    /**
-     * Cognito UserPoolClient for client apps requesting sign-in.
-     */
-    public readonly userPoolClient: cognito.IUserPoolClient;
-
-    /**
-     * Cognito authorizer for users
-     */
-    public readonly userAuthorizer: api.CognitoUserPoolsAuthorizer;
+    public readonly dlq: sqs.Queue;
 
     /**
      * Location of the asset bucket to be used for deploy use case chats
@@ -236,20 +219,11 @@ export class UseCaseManagement extends BaseNestedStack {
      */
     public readonly objectPrefix: string;
 
-    /**
-     * condition to check if vpc configuration should be applied to lambda functions
-     */
-    protected readonly deployVPCCondition: cdk.CfnCondition;
 
     /**
-     * Parameters for nested stack
+     * The CognitoSetup construct to use for user pool and client setup
      */
-    protected readonly stackParameters: UseCaseManagementParameters;
-
-    /**
-     * Hold instance of the RestRequestProcess construct. This construct creates API GW and also sets up Cognito pool resources.
-     */
-    public readonly requestProcessor: RestRequestProcessor;
+    cognitoSetup: CognitoSetup;
 
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
@@ -275,7 +249,7 @@ export class UseCaseManagement extends BaseNestedStack {
             this.objectPrefix = `${cdk.Fn.findInMap('Template', 'General', 'KeyPrefix')}`;
         }
 
-        const lambdaDlq = new sqs.Queue(this, 'UseCaseManagementDLQ', {
+        this.dlq = new sqs.Queue(this, 'UseCaseManagementDLQ', {
             encryption: sqs.QueueEncryption.KMS_MANAGED,
             enforceSSL: true
         });
@@ -304,6 +278,46 @@ export class UseCaseManagement extends BaseNestedStack {
                 )
             )
         });
+
+        // create the cognito user pool and group for admin
+        this.cognitoSetup = new CognitoSetup(this, 'DeploymentPlatformCognitoSetup', {
+            userPoolProps: {
+                defaultUserEmail: this.stackParameters.defaultUserEmail,
+                applicationTrademarkName: this.stackParameters.applicationTrademarkName,
+                userGroupName: 'admin',
+                usernameSuffix: 'admin',
+                customResourceLambdaArn: this.customResourceLambdaArn,
+                cognitoDomainPrefix: this.stackParameters.cognitoDomainPrefix.valueAsString,
+                existingCognitoUserPoolId: this.stackParameters.existingCognitoUserPoolId.valueAsString,
+                existingCognitoGroupPolicyTableName: ''
+            },
+            userPoolClientProps: {
+                logoutUrl: this.stackParameters.cloudFrontUrl.valueAsString,
+                callbackUrl: this.stackParameters.cloudFrontUrl.valueAsString,
+                existingCognitoUserPoolClientId: this.stackParameters.existingCognitoUserPoolClientId.valueAsString
+            },
+            deployWebApp: this.stackParameters.deployWebApp.valueAsString
+        });
+
+        //this construct has undergone a refactor from its original definition and many
+        //of the resources have new logical IDs. To prevent customers that upgrade existing
+        //stacks from experience a resource replacement, leveraging this aspect to search and
+        //replace the most critical resources. Examples include, userpool, DDB table, etc.
+        cdk.Aspects.of(this.cognitoSetup).add(
+            new SearchAndReplaceRefactorAspect({
+                // prettier-ignore
+                logicalIdMappings: {
+                    'DeploymentPlatformCognitoSetupNewUserPool250C9C56': 'RequestProcessorDeploymentPlatformCognitoSetupNewUserPoolB1636A90', //Cognito::UserPool
+                    'DeploymentPlatformCognitoSetupCognitoGroupPolicyStore2FB7858C': 'RequestProcessorDeploymentPlatformCognitoSetupCognitoGroupPolicyStore172C3A6A',  //DynamoDB::Table
+                    'DeploymentPlatformCognitoSetupDomainPrefixResource4453775F': 'RequestProcessorDeploymentPlatformCognitoSetupDomainPrefixResource314428BF',  //Custom::CognitoDomainPrefix
+                    'DeploymentPlatformCognitoSetupUserPoolDomain08A6E8A9': 'RequestProcessorDeploymentPlatformCognitoSetupUserPoolDomain9A80A149',  //Cognito::UserPoolDomain
+                    'DeploymentPlatformCognitoSetupDefaultUser49511A3D': 'RequestProcessorDeploymentPlatformCognitoSetupDefaultUser66D30662',  //Cognito::UserPoolUser
+                    'DeploymentPlatformCognitoSetupUserGroupF4017C2D': 'RequestProcessorDeploymentPlatformCognitoSetupUserGroup051C1C83',  //Cognito::UserPoolGroup
+                    'DeploymentPlatformCognitoSetupUseCaseUserToGroupAttachment5A319E5E': 'RequestProcessorDeploymentPlatformCognitoSetupUseCaseUserToGroupAttachmentE9BBA286',  //Cognito::UserPoolUserToGroupAttachment
+                    'DeploymentPlatformCognitoSetupCfnAppClient8E7A08D1': 'RequestProcessorDeploymentPlatformCognitoSetupCfnAppClientD53990B2',  //Cognito::UserPoolClient
+                }
+            })
+        );
 
         const useCaseMgmtRole = createDefaultLambdaRole(this, 'UCMLRole', this.deployVPCCondition);
         const cfnDeployRole = buildCfnDeployRole(this, useCaseMgmtRole);
@@ -337,8 +351,19 @@ export class UseCaseManagement extends BaseNestedStack {
                     'false'
                 ).toString()
             },
-            deadLetterQueue: lambdaDlq
+            deadLetterQueue: this.dlq
         });
+
+        // Env vars which need to be passed to use cases on deployment
+        this.useCaseManagementApiLambda.addEnvironment(
+            COGNITO_POLICY_TABLE_ENV_VAR,
+            this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName
+        );
+        this.useCaseManagementApiLambda.addEnvironment(USER_POOL_ID_ENV_VAR, this.cognitoSetup.getUserPool(this).userPoolId);
+        this.useCaseManagementApiLambda.addEnvironment(
+            CLIENT_ID_ENV_VAR,
+            this.cognitoSetup.getUserPoolClient(this).userPoolClientId
+        );
 
         createCustomResourceForLambdaLogRetention(
             this,
@@ -350,7 +375,12 @@ export class UseCaseManagement extends BaseNestedStack {
         // Since creating a L2 vpc construct from `fromAttributes` is difficult with conditions, resorting
         // to L1 construct and using escape hatches to set vpc configuration. The L1 construct only requires
         // security group ids, subnet ids to create and configure the ENI for the lambda.
-        this.createVpcConfigForLambda(this.useCaseManagementApiLambda);
+        createVpcConfigForLambda(
+            this.useCaseManagementApiLambda,
+            this.deployVPCCondition,
+            cdk.Fn.join(',', this.stackParameters.existingPrivateSubnetIds.valueAsList),
+            cdk.Fn.join(',', this.stackParameters.existingSecurityGroupIds.valueAsList)
+        );
 
         // allows writing and updating the config params for deployed use cases
         const lambdaDDBPolicy = new iam.Policy(this, 'UseCaseConfigAccess', {
@@ -360,9 +390,8 @@ export class UseCaseManagement extends BaseNestedStack {
                         'dynamodb:CreateTable',
                         'dynamodb:DeleteTable',
                         'dynamodb:DescribeTable',
-                        'dynamodb:DescribeTimeToLive',
+                        'dynamodb:*TimeToLive', // Describe|Update TimeToLive
                         'dynamodb:ListTagsOfResource',
-                        'dynamodb:UpdateTimeToLive',
                         'dynamodb:TagResource'
                     ],
                     resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`]
@@ -373,6 +402,11 @@ export class UseCaseManagement extends BaseNestedStack {
                     resources: [
                         `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter${this.stackParameters.webConfigSSMKey}`
                     ]
+                }),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['apigateway:GET'],
+                    resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/restapis/*`]
                 })
             ]
         });
@@ -392,7 +426,7 @@ export class UseCaseManagement extends BaseNestedStack {
             handler: 'index.handler',
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
             tracing: lambda.Tracing.ACTIVE,
-            deadLetterQueue: lambdaDlq
+            deadLetterQueue: this.dlq
         });
 
         createCustomResourceForLambdaLogRetention(
@@ -405,42 +439,12 @@ export class UseCaseManagement extends BaseNestedStack {
         // Since creating a L2 vpc construct from `fromAttributes` is difficult with conditions, resorting
         // to L1 construct and using escape hatches to set vpc configuration. The L1 construct only requires
         // security group ids, subnet ids to create and configure the ENI for the lambda.
-        this.createVpcConfigForLambda(this.modelInfoApiLambda);
-
-        // api related resources
-        this.requestProcessor = new RestRequestProcessor(this, 'RequestProcessor', {
-            useCaseManagementAPILambda: this.useCaseManagementApiLambda,
-            modelInfoAPILambda: this.modelInfoApiLambda,
-            defaultUserEmail: this.stackParameters.defaultUserEmail,
-            applicationTrademarkName: this.stackParameters.applicationTrademarkName,
-            customResourceLambdaArn: this.customResourceLambdaArn,
-            customResourceRoleArn: this.customResourceLambdaRoleArn,
-            cognitoDomainPrefix: this.stackParameters.cognitoDomainPrefix.valueAsString,
-            cloudFrontUrl: this.stackParameters.cloudFrontUrl.valueAsString,
-            deployWebApp: this.stackParameters.deployWebApp.valueAsString,
-            existingCognitoUserPoolId: this.stackParameters.existingCognitoUserPoolId.valueAsString,
-            existingCognitoUserPoolClientId: this.stackParameters.existingCognitoUserPoolClientId.valueAsString
-        });
-
-        this.restApi = this.requestProcessor.restEndpoint.restApi;
-        this.apiRootResource = this.requestProcessor.restEndpoint.apiRootResource;
-        this.userPool = this.requestProcessor.userPool;
-        this.userPoolClient = this.requestProcessor.userPoolClient;
-        this.userAuthorizer = this.requestProcessor.userAuthorizer;
-        this.cognitoUserPoolDomainName = this.requestProcessor.getCognitoDomainName();
-
-        // add cfnOutputs
-        const cognitoResourcesGeneratedCondition = new cdk.CfnCondition(this, 'CognitoResourcesGenerated', {
-            expression: cdk.Fn.conditionEquals(this.stackParameters.existingCognitoUserPoolId.valueAsString, '')
-        });
-        new cdk.CfnOutput(cdk.Stack.of(this), 'GeneratedUserPoolId', {
-            value: this.userPool.userPoolId,
-            condition: cognitoResourcesGeneratedCondition
-        });
-        new cdk.CfnOutput(cdk.Stack.of(this), 'GeneratedUserPoolClientId', {
-            value: this.userPoolClient.userPoolClientId,
-            condition: cognitoResourcesGeneratedCondition
-        });
+        createVpcConfigForLambda(
+            this.modelInfoApiLambda,
+            this.deployVPCCondition,
+            cdk.Fn.join(',', this.stackParameters.existingPrivateSubnetIds.valueAsList),
+            cdk.Fn.join(',', this.stackParameters.existingSecurityGroupIds.valueAsList)
+        );
 
         NagSuppressions.addResourceSuppressions(
             this.useCaseManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
@@ -465,11 +469,11 @@ export class UseCaseManagement extends BaseNestedStack {
         NagSuppressions.addResourceSuppressions(lambdaDDBPolicy, [
             {
                 id: 'AwsSolutions-IAM5',
-                reason: 'The resource arn contains wild card because table name is not known. However the arn uses a pre-defined prefix and is narrowed down to the table names starting with that prefix'
+                reason: 'The resource arn contains wild card because table name is not known. However the arn uses a pre-defined prefix and is narrowed down to the table names starting with that prefix. Also, the API Gateway GET permission requires access to list resources from all REST APIs.'
             }
         ]);
 
-        NagSuppressions.addResourceSuppressions(lambdaDlq, [
+        NagSuppressions.addResourceSuppressions(this.dlq, [
             {
                 id: 'AwsSolutions-SQS3',
                 reason: 'This queue is being used as a DLQ on the UseCaseMgmt lambda function.'
@@ -483,7 +487,7 @@ export class UseCaseManagement extends BaseNestedStack {
             }
         ]);
 
-        cfn_nag.addCfnSuppressRules(lambdaDlq, [
+        cfn_nag.addCfnSuppressRules(this.dlq, [
             {
                 id: 'W48',
                 reason: 'The queue is encrypted using AWS Managed encryption key'
@@ -518,23 +522,6 @@ export class UseCaseManagement extends BaseNestedStack {
                 reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
             }
         ]);
-    }
-
-    /**
-     * Method to add vpc configuration to lambda functions
-     *
-     * @param lambdaFunction
-     */
-    protected createVpcConfigForLambda(lambdaFunction: lambda.Function) {
-        const cfnLambdaFunction = lambdaFunction.node.defaultChild as lambda.CfnFunction;
-        cfnLambdaFunction.vpcConfig = cdk.Fn.conditionIf(
-            this.deployVPCCondition.logicalId,
-            {
-                SubnetIds: this.stackParameters.existingPrivateSubnetIds,
-                SecurityGroupIds: this.stackParameters.existingSecurityGroupIds
-            } as lambda.CfnFunction.VpcConfigProperty,
-            cdk.Aws.NO_VALUE
-        );
     }
 }
 
@@ -605,9 +592,8 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     'iam:DeleteRole*',
                     'iam:DetachRolePolicy',
                     'iam:GetRole',
-                    'iam:GetRolePolicy',
                     'iam:ListRoleTags',
-                    'iam:PutRolePolicy',
+                    'iam:*tRolePolicy', // Get|Put RolePolicy
                     'iam:TagRole',
                     'iam:UpdateAssumeRolePolicy'
                 ],
@@ -661,10 +647,9 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     'lambda:CreateFunction',
                     'lambda:Delete*',
                     'lambda:GetFunction',
-                    'lambda:GetLayerVersion',
+                    'lambda:*LayerVersion', // Get|Publish LayerVersion
                     'lambda:InvokeFunction',
                     'lambda:ListTags',
-                    'lambda:PublishLayerVersion',
                     'lambda:RemovePermission',
                     'lambda:TagResource',
                     'lambda:UpdateEventSourceMapping',
@@ -687,10 +672,9 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     's3:GetBucketAcl',
                     's3:GetBucketPolicy*',
                     's3:GetBucketVersioning',
-                    's3:GetEncryptionConfiguration',
+                    's3:*EncryptionConfiguration', // Get|Put EncryptionConfiguration
                     's3:GetObject',
-                    's3:PutBucket*',
-                    's3:PutEncryptionConfiguration'
+                    's3:PutBucket*'
                 ],
                 resources: [`arn:${cdk.Aws.PARTITION}:s3:::*`]
             }),
@@ -700,8 +684,7 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     'events:DeleteRule',
                     'events:DescribeRule',
                     'events:PutRule',
-                    'events:PutTargets',
-                    'events:RemoveTargets'
+                    'events:*Targets' // Put|Remove Targets
                 ],
                 resources: [`arn:${cdk.Aws.PARTITION}:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:rule/*`]
             }),
@@ -726,9 +709,17 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     'apigateway:GET',
                     'apigateway:PATCH',
                     'apigateway:POST',
-                    'apigateway:TagResource'
+                    'apigateway:PUT',
+                    'apigateway:SetWebACL',
+                    'apigateway:TagResource',
+                    'wafv2:*ForResource',
+                    'wafv2:*WebACL',
+                    'wafv2:TagResource'
                 ],
-                resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/*`],
+                resources: [
+                    `arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/*`,
+                    `arn:${cdk.Aws.PARTITION}:wafv2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:regional/*/*/*`
+                ],
                 conditions: {
                     ...awsCalledViaCondition
                 }
@@ -745,10 +736,9 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
                     'cognito-idp:CreateGroup',
                     'cognito-idp:CreateUserPool*',
                     'cognito-idp:Delete*',
-                    'cognito-idp:DescribeUserPoolClient',
                     'cognito-idp:GetGroup',
                     'cognito-idp:SetUserPoolMfaConfig',
-                    'cognito-idp:UpdateUserPoolClient'
+                    'cognito-idp:*UserPoolClient' // Describe|Update UserPoolClient
                 ],
                 resources: [`arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`],
                 conditions: {
@@ -825,14 +815,7 @@ const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role =>
             }),
             new iam.PolicyStatement({
                 effect: iam.Effect.ALLOW,
-                actions: [
-                    'cloudwatch:DeleteDashboards',
-                    'cloudwatch:GetDashboard',
-                    'cloudwatch:GetMetricData',
-                    'cloudwatch:ListDashboards',
-                    'cloudwatch:PutDashboard',
-                    'cloudwatch:TagResource'
-                ],
+                actions: ['cloudwatch:*Dashboard*', 'cloudwatch:GetMetricData', 'cloudwatch:TagResource'],
                 resources: [`arn:${cdk.Aws.PARTITION}:cloudwatch::${cdk.Aws.ACCOUNT_ID}:dashboard/*`],
                 conditions: {
                     ...awsCalledViaCondition

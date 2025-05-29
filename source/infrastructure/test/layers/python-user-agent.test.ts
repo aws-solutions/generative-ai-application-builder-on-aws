@@ -23,11 +23,15 @@ describe('When python user agent config layer is injected as an aspect', () => {
         const layerCapture = new Capture();
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: [
-                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
-                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
-                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
-            ],
+            CompatibleRuntimes: Array.from(
+                new Map(
+                    [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.toString(),
+                        LANGCHAIN_LAMBDA_PYTHON_RUNTIME.toString(),
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.toString()
+                    ].map((value) => [value, value])
+                ).values()
+            ),
             Content: Match.anyValue(),
             Description: 'This layer configures AWS Python SDK initialization to send user-agent information'
         });
@@ -58,11 +62,15 @@ describe('When local build fails', () => {
     it('should use docker image to build assets when local build fails', () => {
         template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
         template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-            CompatibleRuntimes: [
-                GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name,
-                LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name,
-                COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name
-            ],
+            CompatibleRuntimes: Array.from(
+                new Map(
+                    [
+                        GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.toString(),
+                        LANGCHAIN_LAMBDA_PYTHON_RUNTIME.toString(),
+                        COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.toString()
+                    ].map((value) => [value, value])
+                ).values()
+            ),
             Content: Match.anyValue(),
             Description: 'This layer configures AWS Python SDK initialization to send user-agent information'
         });
@@ -79,7 +87,7 @@ describe('When a non-supported runtime is provided', () => {
             const stack = new cdk.Stack();
             new lambda.Function(stack, 'TestFunction', {
                 code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/python-lambda'),
-                runtime: lambda.Runtime.PYTHON_3_7,
+                runtime: lambda.Runtime.PYTHON_3_10,
                 handler: 'index.handler',
                 layers: [
                     new PythonUserAgentLayer(stack, 'AWSUserAgentConfigLayer', {
@@ -90,8 +98,17 @@ describe('When a non-supported runtime is provided', () => {
                 ]
             });
         } catch (error) {
+            // prettier-ignore
             expect((error as Error).message).toEqual(
-                `This lambda function uses a runtime that is incompatible with this layer (python3.7 is not in [${GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME.name}, ${LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name}, ${COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME.name}])`
+                `This lambda function uses a runtime that is incompatible with this layer (python3.10 is not in [${Array.from(
+                    new Map(
+                        [
+                            GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+                            LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+                            COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
+                        ].map((value) => [value,value])
+                    ).values()
+                ).join(', ')}])`
             );
         }
     });
@@ -107,11 +124,15 @@ function buildStack(): cdk.Stack {
             new PythonUserAgentLayer(stack, 'AWSUserAgentConfigLayer', {
                 entry: '../lambda/layers/custom_boto3_init',
                 description: 'This layer configures AWS Python SDK initialization to send user-agent information',
-                compatibleRuntimes: [
-                    GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
-                    LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
-                    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
-                ]
+                compatibleRuntimes: Array.from(
+                    new Map(
+                        [
+                            GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME,
+                            LANGCHAIN_LAMBDA_PYTHON_RUNTIME,
+                            COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME
+                        ].map((value) => [value, value])
+                    ).values()
+                )
             })
         ]
     });

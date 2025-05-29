@@ -39,6 +39,7 @@ export const UserEmail = (props: UserEmailProps) => {
                 <InfoLink
                     onFollow={() => props.setHelpPanelContent!(emailInfoPanel)}
                     ariaLabel={'Use case email address.'}
+                    data-testid="user-email-field-info-link"
                 />
             }
             description="Optional: the email address of a user you want to give access to this deployment."

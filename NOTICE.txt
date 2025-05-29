@@ -16,6 +16,7 @@ This software includes third party software subject to the following copyrights:
 @adobe/css-tools under the MIT license.
 @alloc/quick-lru under the MIT license.
 @ampproject/remapping under the Apache-2.0 license.
+@asamuzakjp/css-color under the MIT license.
 @aws-amplify/analytics under the Apache-2.0 license.
 @aws-amplify/api under the Apache-2.0 license.
 @aws-amplify/api-graphql under the Apache-2.0 license.
@@ -23,6 +24,8 @@ This software includes third party software subject to the following copyrights:
 @aws-amplify/auth under the Apache-2.0 license.
 @aws-amplify/cache under the Apache-2.0 license.
 @aws-amplify/core under the Apache-2.0 license.
+@aws-amplify/data-schema under the Apache-2.0 license.
+@aws-amplify/data-schema-types under the Apache-2.0 license.
 @aws-amplify/datastore under the Apache-2.0 license.
 @aws-amplify/geo under the Apache-2.0 license.
 @aws-amplify/interactions under the Apache-2.0 license.
@@ -53,6 +56,7 @@ This software includes third party software subject to the following copyrights:
 @aws-lambda-powertools/metrics under the MIT-0 license.
 @aws-lambda-powertools/tracer under the MIT-0 license.
 @aws-sdk/abort-controller under the Apache-2.0 license.
+@aws-sdk/client-api-gateway under the Apache-2.0 license.
 @aws-sdk/client-cloudformation under the Apache-2.0 license.
 @aws-sdk/client-cloudwatch-logs under the Apache-2.0 license.
 @aws-sdk/client-cognito-identity-provider under the Apache-2.0 license.
@@ -110,6 +114,7 @@ This software includes third party software subject to the following copyrights:
 @aws-sdk/middleware-logger under the Apache-2.0 license.
 @aws-sdk/middleware-recursion-detection under the Apache-2.0 license.
 @aws-sdk/middleware-retry under the Apache-2.0 license.
+@aws-sdk/middleware-sdk-api-gateway under the Apache-2.0 license.
 @aws-sdk/middleware-sdk-s3 under the Apache-2.0 license.
 @aws-sdk/middleware-sdk-sts under the Apache-2.0 license.
 @aws-sdk/middleware-serde under the Apache-2.0 license.
@@ -117,6 +122,7 @@ This software includes third party software subject to the following copyrights:
 @aws-sdk/middleware-ssec under the Apache-2.0 license.
 @aws-sdk/middleware-stack under the Apache-2.0 license.
 @aws-sdk/middleware-user-agent under the Apache-2.0 license.
+@aws-sdk/nested-clients under the Apache-2.0 license.
 @aws-sdk/node-config-provider under the Apache-2.0 license.
 @aws-sdk/node-http-handler under the Apache-2.0 license.
 @aws-sdk/property-provider under the Apache-2.0 license.
@@ -293,18 +299,32 @@ This software includes third party software subject to the following copyrights:
 @babel/types under the MIT license.
 @balena/dockerignore under the Apache-2.0 license.
 @bcoe/v8-coverage under the MIT license.
+@bundled-es-modules/cookie under the ISC license.
+@bundled-es-modules/statuses under the ISC license.
+@bundled-es-modules/tough-cookie under the ISC license.
+@cloudscape-design/chat-components under the Apache-2.0 license.
 @cloudscape-design/code-view under the Apache-2.0 license.
 @cloudscape-design/collection-hooks under the Apache-2.0 license.
 @cloudscape-design/component-toolkit under the Apache-2.0 license.
 @cloudscape-design/components under the Apache-2.0 license.
+@cloudscape-design/design-tokens under the Apache-2.0 license.
 @cloudscape-design/global-styles under the Apache-2.0 license.
 @cloudscape-design/test-utils-core under the Apache-2.0 license.
 @cloudscape-design/theming-runtime under the Apache-2.0 license.
+@colors/colors under the MIT license.
 @cspotcode/source-map-support under the MIT license.
+@csstools/color-helpers under the MIT-0 license.
+@csstools/css-calc under the MIT license.
+@csstools/css-color-parser under the MIT license.
+@csstools/css-parser-algorithms under the MIT license.
+@csstools/css-tokenizer under the MIT license.
+@cypress/request under the Apache-2.0 license.
+@cypress/xvfb under the MIT license.
 @dnd-kit/accessibility under the MIT license.
 @dnd-kit/core under the MIT license.
 @dnd-kit/sortable under the MIT license.
 @dnd-kit/utilities under the MIT license.
+@es-joy/jsdoccomment under the MIT license.
 @esbuild/aix-ppc64 under the MIT license.
 @esbuild/android-arm under the MIT license.
 @esbuild/android-arm64 under the MIT license.
@@ -333,6 +353,7 @@ This software includes third party software subject to the following copyrights:
 @eslint-community/eslint-utils under the MIT license.
 @eslint-community/regexpp under the MIT license.
 @eslint/config-array under the Apache-2.0 license.
+@eslint/config-helpers under the Apache-2.0 license.
 @eslint/core under the Apache-2.0 license.
 @eslint/eslintrc under the MIT license.
 @eslint/js under the MIT license.
@@ -341,6 +362,7 @@ This software includes third party software subject to the following copyrights:
 @floating-ui/core under the MIT license.
 @floating-ui/dom under the MIT license.
 @floating-ui/react-dom under the MIT license.
+@floating-ui/utils under the MIT license.
 @formatjs/ecma402-abstract under the MIT license.
 @formatjs/fast-memoize under the MIT license.
 @formatjs/icu-messageformat-parser under the MIT license.
@@ -352,6 +374,10 @@ This software includes third party software subject to the following copyrights:
 @humanfs/node under the Apache-2.0 license.
 @humanwhocodes/module-importer under the Apache-2.0 license.
 @humanwhocodes/retry under the Apache-2.0 license.
+@inquirer/confirm under the MIT license.
+@inquirer/core under the MIT license.
+@inquirer/figures under the MIT license.
+@inquirer/type under the MIT license.
 @isaacs/cliui under the ISC license.
 @isaacs/ttlcache under the ISC license.
 @istanbuljs/load-nyc-config under the ISC license.
@@ -377,13 +403,34 @@ This software includes third party software subject to the following copyrights:
 @jridgewell/source-map under the MIT license.
 @jridgewell/sourcemap-codec under the MIT license.
 @jridgewell/trace-mapping under the MIT license.
+@jsep-plugin/assignment under the MIT license.
+@jsep-plugin/regex under the MIT license.
 @juggle/resize-observer under the Apache-2.0 license.
 @middy/core under the MIT license.
+@mswjs/interceptors under the MIT license.
 @nicolo-ribaudo/semver-v6 under the ISC license.
 @nodelib/fs.scandir under the MIT license.
 @nodelib/fs.stat under the MIT license.
 @nodelib/fs.walk under the MIT license.
+@open-draft/deferred-promise under the MIT license.
+@open-draft/logger under the MIT license.
+@open-draft/until under the MIT license.
+@parcel/watcher under the MIT license.
+@parcel/watcher-android-arm64 under the MIT license.
+@parcel/watcher-darwin-arm64 under the MIT license.
+@parcel/watcher-darwin-x64 under the MIT license.
+@parcel/watcher-freebsd-x64 under the MIT license.
+@parcel/watcher-linux-arm-glibc under the MIT license.
+@parcel/watcher-linux-arm-musl under the MIT license.
+@parcel/watcher-linux-arm64-glibc under the MIT license.
+@parcel/watcher-linux-arm64-musl under the MIT license.
+@parcel/watcher-linux-x64-glibc under the MIT license.
+@parcel/watcher-linux-x64-musl under the MIT license.
+@parcel/watcher-win32-arm64 under the MIT license.
+@parcel/watcher-win32-ia32 under the MIT license.
+@parcel/watcher-win32-x64 under the MIT license.
 @pkgjs/parseargs under the MIT license.
+@pkgr/core under the MIT license.
 @popperjs/core under the MIT license.
 @radix-ui/number under the MIT license.
 @radix-ui/primitive under the MIT license.
@@ -440,6 +487,8 @@ This software includes third party software subject to the following copyrights:
 @react-native/metro-babel-transformer under the MIT license.
 @react-native/normalize-colors under the MIT license.
 @react-native/virtualized-lists under the MIT license.
+@reduxjs/toolkit under MIT license.
+@reduxjs/toolkit under the MIT license.
 @remix-run/router under the MIT license.
 @restart/hooks under the MIT license.
 @restart/ui under the MIT license.
@@ -447,18 +496,23 @@ This software includes third party software subject to the following copyrights:
 @rollup/rollup-android-arm64 under the MIT license.
 @rollup/rollup-darwin-arm64 under the MIT license.
 @rollup/rollup-darwin-x64 under the MIT license.
+@rollup/rollup-freebsd-arm64 under the MIT license.
+@rollup/rollup-freebsd-x64 under the MIT license.
 @rollup/rollup-linux-arm-gnueabihf under the MIT license.
 @rollup/rollup-linux-arm-musleabihf under the MIT license.
 @rollup/rollup-linux-arm64-gnu under the MIT license.
 @rollup/rollup-linux-arm64-musl under the MIT license.
+@rollup/rollup-linux-loongarch64-gnu under the MIT license.
 @rollup/rollup-linux-powerpc64le-gnu under the MIT license.
 @rollup/rollup-linux-riscv64-gnu under the MIT license.
+@rollup/rollup-linux-riscv64-musl under the MIT license.
 @rollup/rollup-linux-s390x-gnu under the MIT license.
 @rollup/rollup-linux-x64-gnu under the MIT license.
 @rollup/rollup-linux-x64-musl under the MIT license.
 @rollup/rollup-win32-arm64-msvc under the MIT license.
 @rollup/rollup-win32-ia32-msvc under the MIT license.
 @rollup/rollup-win32-x64-msvc under the MIT license.
+@rtsao/scc under the MIT license.
 @sideway/address under the BSD-3-Clause license.
 @sideway/formula under the BSD-3-Clause license.
 @sideway/pinpoint under the BSD-3-Clause license.
@@ -517,7 +571,20 @@ This software includes third party software subject to the following copyrights:
 @smithy/util-uri-escape under the Apache-2.0 license.
 @smithy/util-utf8 under the Apache-2.0 license.
 @smithy/util-waiter under the Apache-2.0 license.
+@swc/core under the Apache-2.0 license.
+@swc/core-darwin-arm64 under the Apache-2.0 AND MIT licenses.
+@swc/core-darwin-x64 under the Apache-2.0 AND MIT licenses.
+@swc/core-linux-arm-gnueabihf under the Apache-2.0 license.
+@swc/core-linux-arm64-gnu under the Apache-2.0 AND MIT licenses.
+@swc/core-linux-arm64-musl under the Apache-2.0 AND MIT licenses.
+@swc/core-linux-x64-gnu under the Apache-2.0 AND MIT licenses.
+@swc/core-linux-x64-musl under the Apache-2.0 AND MIT licenses.
+@swc/core-win32-arm64-msvc under the Apache-2.0 AND MIT licenses.
+@swc/core-win32-ia32-msvc under the Apache-2.0 AND MIT licenses.
+@swc/core-win32-x64-msvc under the Apache-2.0 AND MIT licenses.
+@swc/counter under the Apache-2.0 license.
 @swc/helpers under the Apache-2.0 license.
+@swc/types under the Apache-2.0 license.
 @tabler/icons under the MIT license.
 @tabler/icons-react under the MIT license.
 @tailwindcss/typography under the MIT license.
@@ -526,8 +593,11 @@ This software includes third party software subject to the following copyrights:
 @tanstack/react-query under the MIT license.
 @tanstack/react-query-devtools under the MIT license.
 @testing-library/dom under the MIT license.
+@testing-library/jest-dom under MIT license.
 @testing-library/jest-dom under the MIT license.
+@testing-library/react under MIT license.
 @testing-library/react under the MIT license.
+@testing-library/user-event under MIT license.
 @testing-library/user-event under the MIT license.
 @tsconfig/node10 under the MIT license.
 @tsconfig/node12 under the MIT license.
@@ -544,7 +614,10 @@ This software includes third party software subject to the following copyrights:
 @types/babel__traverse under the MIT license.
 @types/cls-hooked under the MIT license.
 @types/cookie under the MIT license.
+@types/cypress under the MIT license.
 @types/debug under the MIT license.
+@types/eslint under the MIT license.
+@types/eslint-scope under the MIT license.
 @types/estree under the MIT license.
 @types/estree-jsx under the MIT license.
 @types/graceful-fs under the MIT license.
@@ -554,12 +627,14 @@ This software includes third party software subject to the following copyrights:
 @types/istanbul-reports under the MIT license.
 @types/jest under the MIT license.
 @types/json-schema under the MIT license.
+@types/json5 under the MIT license.
 @types/katex under the MIT license.
 @types/lodash under the MIT license.
 @types/mdast under the MIT license.
 @types/mock-fs under the MIT license.
 @types/ms under the MIT license.
 @types/node under the MIT license.
+@types/node-cache under the MIT license.
 @types/node-fetch under the MIT license.
 @types/node-forge under the MIT license.
 @types/npmlog under the MIT license.
@@ -571,12 +646,17 @@ This software includes third party software subject to the following copyrights:
 @types/react-transition-group under the MIT license.
 @types/sinon under the MIT license.
 @types/sinonjs__fake-timers under the MIT license.
+@types/sizzle under the MIT license.
 @types/stack-utils under the MIT license.
+@types/statuses under the MIT license.
+@types/tough-cookie under the MIT license.
 @types/unist under the MIT license.
+@types/use-sync-external-store under the MIT license.
 @types/uuid under the MIT license.
 @types/warning under the MIT license.
 @types/yargs under the MIT license.
 @types/yargs-parser under the MIT license.
+@types/yauzl under the MIT license.
 @typescript-eslint/eslint-plugin under the MIT license.
 @typescript-eslint/parser under the BSD-2-Clause license.
 @typescript-eslint/scope-manager under the MIT license.
@@ -587,8 +667,12 @@ This software includes third party software subject to the following copyrights:
 @typescript-eslint/visitor-keys under the MIT license.
 @ungap/structured-clone under the ISC license.
 @vitejs/plugin-react under the MIT license.
+@vitejs/plugin-react-swc under MIT license.
+@vitejs/plugin-react-swc under the MIT license.
+@vitest/coverage-v8 under MIT license.
 @vitest/coverage-v8 under the MIT license.
 @vitest/expect under the MIT license.
+@vitest/mocker under the MIT license.
 @vitest/pretty-format under the MIT license.
 @vitest/runner under the MIT license.
 @vitest/snapshot under the MIT license.
@@ -621,14 +705,17 @@ acorn-import-attributes under the MIT license.
 acorn-jsx under the MIT license.
 acorn-walk under the MIT license.
 agent-base under the MIT license.
+aggregate-error under the MIT license.
 aiohappyeyeballs under the Other/Proprietary License license(s).
 aiohttp under the Apache-2.0 license.
 aiosignal under the Apache-2.0 license.
 ajv under the MIT license.
+ajv-formats under the MIT license.
 ajv-keywords under the MIT license.
 amazon-cognito-identity-js under the Apache-2.0 license.
 annotated-types under the MIT license.
 anser under the MIT license.
+ansi-colors under the MIT license.
 ansi-escapes under the MIT license.
 ansi-fragments under the MIT license.
 ansi-regex under the MIT license.
@@ -638,20 +725,32 @@ anyio under the MIT license.
 anymatch under the ISC license.
 appdirsjs under the MIT license.
 aproba under the ISC license.
+arch under the MIT license.
+are-docs-informative under the MIT license.
 are-we-there-yet under the ISC license.
 arg under the MIT license.
 argparse under the MIT license.
 aria-hidden under the MIT license.
 aria-query under the Apache-2.0 license.
+array-buffer-byte-length under the MIT license.
+array-includes under the MIT license.
 array-union under the MIT license.
+array.prototype.findlastindex under the MIT license.
+array.prototype.flat under the MIT license.
+array.prototype.flatmap under the MIT license.
+arraybuffer.prototype.slice under the MIT license.
 asap under the MIT license.
+asn1 under the MIT license.
+assert-plus under the MIT license.
 assertion-error under the MIT license.
 ast-types under the MIT license.
 astral-regex under the MIT license.
 async under the MIT license.
+async-function under the MIT license.
 async-hook-jl under the MIT license.
 async-limiter under the MIT license.
 asynckit under the MIT license.
+at-least-node under the ISC license.
 atomic-batcher under the MIT license.
 attrs under the MIT license.
 available-typed-arrays under the MIT license.
@@ -663,9 +762,10 @@ aws-lambda-powertools under the MIT license.
 aws-sdk under the Apache-2.0 license.
 aws-sdk-client-mock under the MIT license.
 aws-sdk-client-mock-jest under the MIT license.
-aws-sdk-mock under the Apache-2.0 license.
+aws-sign2 under the Apache-2.0 license.
 aws-xray-sdk under the Apache-2.0 license.
 aws-xray-sdk-core under the Apache-2.0 license.
+aws4 under the MIT license.
 axios under the MIT license.
 babel-core under the MIT license.
 babel-jest under the MIT license.
@@ -681,9 +781,12 @@ bail under the MIT license.
 balanced-match under the MIT license.
 base-64 under the MIT license.
 base64-js under the MIT license.
+bcrypt-pbkdf under the BSD-3-Clause license.
 big.js under the MIT license.
 binary-extensions under the MIT license.
 bl under the MIT license.
+blob-util under the Apache-2.0 license.
+bluebird under the MIT license.
 bootstrap under the MIT license.
 boto3 under the Apache-2.0 license.
 botocore under the Apache-2.0 license.
@@ -694,10 +797,14 @@ browserslist under the MIT license.
 bs-logger under the MIT license.
 bser under the Apache-2.0 license.
 buffer under the MIT license.
+buffer-crc32 under the MIT license.
 buffer-from under the MIT license.
 bytes under the MIT license.
 cac under the MIT license.
+cachedir under the MIT license.
 call-bind under the MIT license.
+call-bind-apply-helpers under the MIT license.
+call-bound under the MIT license.
 caller-callsite under the MIT license.
 caller-path under the MIT license.
 callsites under the MIT license.
@@ -705,9 +812,10 @@ camel-case under the MIT license.
 camelcase under the MIT license.
 camelcase-css under the MIT license.
 camelcase-keys under the MIT license.
-caniuse-lite under the CC-BY-4.0 license.
+caniuse-lite under the CC-BY-4.0 license (source: caniuse.com).
 capital-case under the MIT license.
 case under the MIT license.
+caseless under the Apache-2.0 license.
 ccount under the MIT license.
 cdk under the Apache-2.0 license.
 cdk-nag under the Apache-2.0 license.
@@ -723,6 +831,7 @@ character-entities-legacy under the MIT license.
 character-reference-invalid under the MIT license.
 charset-normalizer under the MIT license.
 check-error under the MIT license.
+check-more-types under the MIT license.
 chokidar under the MIT license.
 chrome-launcher under the Apache-2.0 license.
 chrome-trace-event under the MIT license.
@@ -730,8 +839,12 @@ chromium-edge-launcher under the Apache-2.0 license.
 ci-info under the MIT license.
 cjs-module-lexer under the MIT license.
 classnames under the MIT license.
+clean-stack under the MIT license.
 cli-cursor under the MIT license.
 cli-spinners under the MIT license.
+cli-table3 under the MIT license.
+cli-truncate under the MIT license.
+cli-width under the ISC license.
 cliui under the ISC license.
 clone under the MIT license.
 clone-deep under the MIT license.
@@ -748,6 +861,8 @@ combined-stream under the MIT license.
 comma-separated-tokens under the MIT license.
 command-exists under the MIT license.
 commander under the MIT license.
+comment-parser under the MIT license.
+common-tags under the MIT license.
 commondir under the MIT license.
 compressible under the MIT license.
 compression under the MIT license.
@@ -763,6 +878,7 @@ core-js-compat under the MIT license.
 core-util-is under the MIT license.
 cosmiconfig under the MIT license.
 coverage under the Apache-2.0 license.
+crc-32 under the Apache-2.0 license.
 create-jest under the MIT license.
 create-require under the MIT license.
 cross-spawn under the MIT license.
@@ -773,9 +889,15 @@ cssesc under the MIT license.
 cssstyle under the MIT license.
 csstype under the MIT license.
 custom-resource under the MIT license.
+cypress under the MIT license.
 d3-path under the BSD-3-Clause license.
 d3-shape under the BSD-3-Clause license.
+dashdash under the MIT license.
+data-uri-to-buffer under the MIT license.
 data-urls under the MIT license.
+data-view-buffer under the MIT license.
+data-view-byte-length under the MIT license.
+data-view-byte-offset under the MIT license.
 date-fns under the MIT license.
 dayjs under the MIT license.
 debug under the MIT license.
@@ -788,11 +910,14 @@ deep-eql under the MIT license.
 deep-is under the MIT license.
 deepmerge under the MIT license.
 defaults under the MIT license.
+define-data-property under the MIT license.
+define-properties under the MIT license.
 delayed-stream under the MIT license.
 denodeify under the MIT license.
 depd under the MIT license.
 dequal under the MIT license.
 destroy under the MIT license.
+detect-libc under the Apache-2.0 license.
 detect-newline under the MIT license.
 detect-node-es under the MIT license.
 devlop under the MIT license.
@@ -802,11 +927,14 @@ diff-sequences under the MIT license.
 dijkstrajs under the MIT license.
 dir-glob under the MIT license.
 dlv under the MIT license.
+doctrine under the Apache-2.0 license.
 docutils under the BSD license.
 dom-accessibility-api under the MIT license.
 dom-helpers under the MIT license.
 dot-case under the MIT license.
+dunder-proto under the MIT license.
 eastasianwidth under the MIT license.
+ecc-jsbn under the MIT license.
 ee-first under the MIT license.
 ejs under the Apache-2.0 license.
 electron-to-chromium under the ISC license.
@@ -816,20 +944,55 @@ emoji-regex under the MIT license.
 emojis-list under the MIT license.
 encode-utf8 under the MIT license.
 encodeurl under the MIT license.
+end-of-stream under the MIT license.
 enhanced-resolve under the MIT license.
+enquirer under the MIT license.
 entities under the BSD-2-Clause license.
 env-paths under the MIT license.
 envinfo under the MIT license.
 error-ex under the MIT license.
 error-stack-parser under the MIT license.
 errorhandler under the MIT license.
+es-abstract under the MIT license.
+es-define-property under the MIT license.
+es-errors under the MIT license.
 es-module-lexer under the MIT license.
+es-object-atoms under the MIT license.
+es-set-tostringtag under the MIT license.
+es-shim-unscopables under the MIT license.
+es-to-primitive under the MIT license.
 esbuild under the MIT license.
 escalade under the MIT license.
 escape-html under the MIT license.
 escape-string-regexp under the MIT license.
 eslint under the MIT license.
+eslint-compat-utils under the MIT license.
+eslint-config-prettier under MIT license.
+eslint-config-prettier under the MIT license.
+eslint-import-resolver-node under the MIT license.
+eslint-module-utils under the MIT license.
+eslint-plugin-es under the MIT license.
+eslint-plugin-es-x under the MIT license.
+eslint-plugin-header under MIT license.
+eslint-plugin-header under the MIT license.
+eslint-plugin-import under MIT license.
+eslint-plugin-import under the MIT license.
+eslint-plugin-jsdoc under MIT license.
+eslint-plugin-jsdoc under the BSD-3-Clause license.
+eslint-plugin-n under MIT license.
+eslint-plugin-n under the MIT license.
+eslint-plugin-node under MIT license.
+eslint-plugin-node under the MIT license.
+eslint-plugin-prettier under MIT license.
+eslint-plugin-prettier under the MIT license.
+eslint-plugin-promise under MIT license.
+eslint-plugin-promise under the ISC license.
+eslint-plugin-react-hooks under MIT license.
+eslint-plugin-react-hooks under the MIT license.
+eslint-plugin-react-refresh under MIT license.
+eslint-plugin-react-refresh under the MIT license.
 eslint-scope under the BSD-2-Clause license.
+eslint-utils under the MIT license.
 eslint-visitor-keys under the Apache-2.0 license.
 espree under the BSD-2-Clause license.
 esprima under the BSD-2-Clause license.
@@ -841,14 +1004,20 @@ estree-walker under the MIT license.
 esutils under the BSD-2-Clause license.
 etag under the MIT license.
 event-target-shim under the MIT license.
+eventemitter2 under the MIT license.
 events under the MIT license.
 execa under the MIT license.
+executable under the MIT license.
 exit under the MIT license.
 expect under the MIT license.
+expect-type under the Apache-2.0 license.
 exponential-backoff under the Apache-2.0 license.
 extend under the MIT license.
+extract-zip under the BSD-2-Clause license.
+extsprintf under the MIT license.
 fast-base64-decode under the MIT license.
 fast-deep-equal under the MIT license.
+fast-diff under the Apache-2.0 license.
 fast-glob under the MIT license.
 fast-json-stable-stringify under the MIT license.
 fast-levenshtein under the MIT license.
@@ -858,7 +1027,11 @@ fastparse under the MIT license.
 fastq under the ISC license.
 fault under the MIT license.
 fb-watchman under the Apache-2.0 license.
+fd-slicer under the MIT license.
+fdir under the MIT license.
+fetch-blob under the MIT license.
 fflate under the MIT license.
+figures under the MIT license.
 file-entry-cache under the MIT license.
 file-loader under the MIT license.
 filelist under the Apache-2.0 license.
@@ -873,8 +1046,10 @@ flow-parser under the MIT license.
 follow-redirects under the MIT license.
 for-each under the MIT license.
 foreground-child under the ISC license.
+forever-agent under the Apache-2.0 license.
 form-data under the MIT license.
 format under the MIT license.
+formdata-polyfill under the MIT license.
 freezegun under the Apache-2.0 license.
 fresh under the MIT license.
 frozenlist under the Apache-2.0 license.
@@ -882,6 +1057,8 @@ fs-extra under the MIT license.
 fs.realpath under the ISC license.
 fsevents under the MIT license.
 function-bind under the MIT license.
+function.prototype.name under the MIT license.
+functions-have-names under the MIT license.
 gauge under the ISC license.
 gensync under the MIT license.
 get-caller-file under the ISC license.
@@ -889,11 +1066,18 @@ get-func-name under the MIT license.
 get-intrinsic under the MIT license.
 get-nonce under the MIT license.
 get-package-type under the MIT license.
+get-proto under the MIT license.
 get-stream under the MIT license.
+get-symbol-description under the MIT license.
+get-tsconfig under the MIT license.
+getos under the MIT license.
+getpass under the MIT license.
 glob under the ISC license.
 glob-parent under the ISC license.
 glob-to-regexp under the BSD-2-Clause license.
+global-dirs under the MIT license.
 globals under the MIT license.
+globalthis under the MIT license.
 globby under the MIT license.
 globrex under the MIT license.
 gopd under the MIT license.
@@ -904,7 +1088,9 @@ greenlet under the MIT license.
 h11 under the MIT license.
 harmony-reflect under the Apache-2.0 license.
 has under the MIT license.
+has-bigints under the MIT license.
 has-flag under the MIT license.
+has-property-descriptors under the MIT license.
 has-proto under the MIT license.
 has-symbols under the MIT license.
 has-tostringtag under the MIT license.
@@ -916,19 +1102,26 @@ hast-util-to-jsx-runtime under the MIT license.
 hast-util-whitespace under the MIT license.
 hastscript under the MIT license.
 header-case under the MIT license.
+headers-polyfill under the MIT license.
 hermes-estree under the MIT license.
 hermes-parser under the MIT license.
 highlight.js under the BSD-3-Clause license.
 highlightjs-vue under the BSD-3-Clause license.
 html-encoding-sniffer under the MIT license.
 html-escaper under the MIT license.
+html-parse-stringify under the MIT license.
 html-url-attributes under the MIT license.
 http-errors under the MIT license.
 http-proxy-agent under the MIT license.
+http-signature under the MIT license.
 httpcore under the 0BSD license.
 https-proxy-agent under the MIT license.
 httpx under the 0BSD license.
 human-signals under the Apache-2.0 license.
+i18next under MIT license.
+i18next under the MIT license.
+i18next-browser-languagedetector under MIT license.
+i18next-browser-languagedetector under the MIT license.
 iconv-lite under the MIT license.
 idb under the ISC license.
 identity-obj-proxy under the MIT license.
@@ -937,47 +1130,71 @@ ieee754 under the BSD-3-Clause license.
 ignore under the MIT license.
 image-size under the MIT license.
 immer under the MIT license.
+immutable under the MIT license.
 import-fresh under the MIT license.
 import-local under the MIT license.
 imurmurhash under the MIT license.
 indent-string under the MIT license.
 inflight under the ISC license.
 inherits under the ISC license.
+ini under the ISC license.
 iniconfig under the MIT license.
 inline-style-parser under the MIT license.
+internal-slot under the MIT license.
 intl-messageformat under the BSD-3-Clause license.
 invariant under the MIT license.
 is-absolute-url under the MIT license.
 is-alphabetical under the MIT license.
 is-alphanumerical under the MIT license.
 is-arguments under the MIT license.
+is-array-buffer under the MIT license.
 is-arrayish under the MIT license.
+is-async-function under the MIT license.
+is-bigint under the MIT license.
 is-binary-path under the MIT license.
+is-boolean-object under the MIT license.
 is-callable under the MIT license.
 is-core-module under the MIT license.
+is-data-view under the MIT license.
+is-date-object under the MIT license.
 is-decimal under the MIT license.
 is-directory under the MIT license.
 is-docker under the MIT license.
 is-extglob under the MIT license.
+is-finalizationregistry under the MIT license.
 is-fullwidth-code-point under the MIT license.
 is-generator-fn under the MIT license.
 is-generator-function under the MIT license.
 is-glob under the MIT license.
 is-hexadecimal under the MIT license.
+is-installed-globally under the MIT license.
 is-interactive under the MIT license.
+is-map under the MIT license.
+is-node-process under the MIT license.
 is-number under the MIT license.
+is-number-object under the MIT license.
 is-path-inside under the MIT license.
 is-plain-obj under the MIT license.
 is-plain-object under the MIT license.
 is-potential-custom-element-name under the MIT license.
+is-regex under the MIT license.
+is-set under the MIT license.
+is-shared-array-buffer under the MIT license.
 is-stream under the MIT license.
+is-string under the MIT license.
+is-symbol under the MIT license.
 is-typed-array under the MIT license.
+is-typedarray under the MIT license.
 is-unicode-supported under the MIT license.
+is-weakmap under the MIT license.
+is-weakref under the MIT license.
+is-weakset under the MIT license.
 is-wsl under the MIT license.
 isarray under the MIT license.
 isexe under the ISC license.
 isobject under the MIT license.
 isomorphic-unfetch under the MIT license.
+isstream under the MIT license.
 istanbul-lib-coverage under the BSD-3-Clause license.
 istanbul-lib-instrument under the BSD-3-Clause license.
 istanbul-lib-report under the BSD-3-Clause license.
@@ -1019,24 +1236,33 @@ joserfc under the 0BSD license.
 js-cookie under the MIT license.
 js-tokens under the MIT license.
 js-yaml under the MIT license.
+jsbn under the MIT license.
 jsc-android under the BSD-2-Clause license.
 jsc-safe-url under the 0BSD license.
 jscodeshift under the MIT license.
+jsdoc-type-pratt-parser under the MIT license.
+jsdom under MIT license.
 jsdom under the MIT license.
+jsep under the MIT license.
 jsesc under the MIT license.
 json-buffer under the MIT license.
 json-parse-better-errors under the MIT license.
 json-parse-even-better-errors under the MIT license.
+json-schema under the BSD-3-Clause license.
 json-schema-traverse under the MIT license.
 json-stable-stringify-without-jsonify under the MIT license.
+json-stringify-safe under the ISC license.
 json5 under the MIT license.
 jsonc-parser under the MIT license.
 jsonfile under the MIT license.
 jsonpatch under the 0BSD license.
 jsonpath-ng under the Apache-2.0 license.
+jsonpath-plus under the MIT license.
 jsonpointer under the 0BSD license.
 jsonschema under the MIT license.
+jsprim under the MIT license.
 just-extend under the MIT license.
+jwt-decode under the MIT license.
 katex under the MIT license.
 keyv under the MIT license.
 kind-of under the MIT license.
@@ -1046,11 +1272,13 @@ langchain-aws under the MIT license.
 langchain-core under the MIT license.
 langchain-text-splitters under the MIT license.
 langsmith under the MIT license.
+lazy-ass under the MIT license.
 leven under the MIT license.
 levn under the MIT license.
 lighthouse-logger under the Apache-2.0 license.
 lilconfig under the MIT license.
 lines-and-columns under the MIT license.
+listr2 under the MIT license.
 loader-runner under the MIT license.
 loader-utils under the MIT license.
 local-pkg under the MIT license.
@@ -1062,9 +1290,11 @@ lodash.get under the MIT license.
 lodash.isplainobject under the MIT license.
 lodash.memoize under the MIT license.
 lodash.merge under the MIT license.
+lodash.once under the MIT license.
 lodash.throttle under the MIT license.
 lodash.truncate under the MIT license.
 log-symbols under the MIT license.
+log-update under the MIT license.
 logkitty under the MIT license.
 longest-streak under the MIT license.
 loose-envify under the MIT license.
@@ -1082,6 +1312,7 @@ map-obj under the MIT license.
 markdown-table under the MIT license.
 markupsafe under the 0BSD license.
 marky under the Apache-2.0 license.
+math-intrinsics under the MIT license.
 mdast-util-find-and-replace under the MIT license.
 mdast-util-from-markdown under the MIT license.
 mdast-util-gfm under the MIT license.
@@ -1162,7 +1393,10 @@ mock-fs under the MIT license.
 mock-socket under the MIT license.
 moto under the Apache-2.0 license.
 ms under the MIT license.
+msw under MIT license.
+msw under the MIT license.
 multidict under the Apache-2.0 license.
+mute-stream under the ISC license.
 mz under the MIT license.
 nanoid under the MIT license.
 natural-compare under the MIT license.
@@ -1173,7 +1407,11 @@ nise under the BSD-3-Clause license.
 no-case under the MIT license.
 nocache under the MIT license.
 node-abort-controller under the MIT license.
+node-addon-api under the MIT license.
+node-cache under the MIT license.
 node-dir under the MIT license.
+node-domexception under the MIT license.
+node-fetch under MIT license.
 node-fetch under the MIT license.
 node-forge under the BSD-3-Clause license.
 node-int64 under the MIT license.
@@ -1188,6 +1426,12 @@ nwsapi under the MIT license.
 ob1 under the MIT license.
 object-assign under the MIT license.
 object-hash under the MIT license.
+object-inspect under the MIT license.
+object-keys under the MIT license.
+object.assign under the MIT license.
+object.fromentries under the MIT license.
+object.groupby under the MIT license.
+object.values under the MIT license.
 obliterator under the MIT license.
 on-finished under the MIT license.
 on-headers under the MIT license.
@@ -1197,8 +1441,12 @@ open under the MIT license.
 optionator under the MIT license.
 ora under the MIT license.
 orjson under the Apache-2.0 license.
+ospath under the MIT license.
+outvariant under the MIT license.
+own-keys under the MIT license.
 p-limit under the MIT license.
 p-locate under the MIT license.
+p-map under the MIT license.
 p-try under the MIT license.
 package-json-from-dist under the BlueOak-1.0.0 license.
 packaging under the Apache-2.0 license.
@@ -1206,6 +1454,7 @@ pako under the (MIT AND Zlib) licenses.
 param-case under the MIT license.
 parent-module under the MIT license.
 parse-entities under the MIT license.
+parse-imports under the Apache-2.0 AND MIT licenses.
 parse-json under the MIT license.
 parse5 under the MIT license.
 parseurl under the MIT license.
@@ -1220,6 +1469,8 @@ path-to-regexp under the MIT license.
 path-type under the MIT license.
 pathe under the MIT license.
 pathval under the MIT license.
+pend under the MIT license.
+performance-now under the MIT license.
 picocolors under the ISC license.
 picomatch under the MIT license.
 pify under the MIT license.
@@ -1230,6 +1481,7 @@ pluggy under the MIT license.
 ply under the 0BSD license.
 pngjs under the MIT license.
 portfinder under the MIT license.
+possible-typed-array-names under the MIT license.
 postcss under the MIT license.
 postcss-import under the MIT license.
 postcss-js under the MIT license.
@@ -1238,9 +1490,13 @@ postcss-nested under the MIT license.
 postcss-selector-parser under the MIT license.
 postcss-value-parser under the MIT license.
 prelude-ls under the MIT license.
+prettier under MIT license.
 prettier under the MIT license.
+prettier-linter-helpers under the MIT license.
+pretty-bytes under the MIT license.
 pretty-format under the MIT license.
 prismjs under the MIT license.
+process under the MIT license.
 process-nextick-args under the MIT license.
 promise under the MIT license.
 prompts under the MIT license.
@@ -1250,6 +1506,7 @@ propcache under the Apache-2.0 license.
 property-information under the MIT license.
 proxy-from-env under the MIT license.
 psl under the MIT license.
+pump under the MIT license.
 punycode under the MIT license.
 pure-rand under the MIT license.
 pyasn1 under the BSD-2-Clause license.
@@ -1264,6 +1521,7 @@ pytest-env under the MIT license.
 python-dateutil under the Dual License license(s).
 pyyaml under the MIT license.
 qrcode under the MIT license.
+qs under the BSD-3-Clause license.
 querystring under the MIT license.
 querystringify under the MIT license.
 queue under the MIT license.
@@ -1276,6 +1534,9 @@ react-bootstrap under the MIT license.
 react-devtools-core under the MIT license.
 react-dom under the MIT license.
 react-generate-context under the MIT license.
+react-hook-form under the MIT license.
+react-i18next under MIT license.
+react-i18next under the MIT license.
 react-is under the MIT license.
 react-keyed-flatten-children under the MIT license.
 react-lifecycles-compat under the MIT license.
@@ -1283,55 +1544,79 @@ react-markdown under the MIT license.
 react-native under the MIT license.
 react-native-get-random-values under the MIT license.
 react-native-url-polyfill under the MIT license.
+react-redux under MIT license.
+react-redux under the MIT license.
 react-refresh under the MIT license.
 react-remove-scroll under the MIT license.
 react-remove-scroll-bar under the MIT license.
 react-router under the MIT license.
+react-router-dom under MIT license.
 react-router-dom under the MIT license.
 react-shallow-renderer under the MIT license.
 react-style-singleton under the MIT license.
 react-syntax-highlighter under the MIT license.
 react-test-renderer under the MIT license.
 react-transition-group under the BSD-3-Clause license.
+react-use-websocket under MIT license.
+react-use-websocket under the MIT license.
 read-cache under the MIT license.
 readable-stream under the MIT license.
 readdirp under the MIT license.
-readline under the BSD license(s).
+readline under the BSD license.
 recast under the MIT license.
 redent under the MIT license.
+redux under the MIT license.
+redux-thunk under the MIT license.
+reflect.getprototypeof under the MIT license.
 refractor under the MIT license.
 regenerate under the MIT license.
 regenerate-unicode-properties under the MIT license.
 regenerator-runtime under the MIT license.
 regenerator-transform under the MIT license.
+regexp.prototype.flags under the MIT license.
+regexpp under the MIT license.
 regexpu-core under the MIT license.
 regjsparser under the BSD-2-Clause license.
 rehype-external-links under the MIT license.
+remark-gfm under MIT license.
 remark-gfm under the MIT license.
+remark-math under MIT license.
 remark-math under the MIT license.
 remark-parse under the MIT license.
 remark-rehype under the MIT license.
 remark-stringify under the MIT license.
+request-progress under the MIT license.
 requests under the Apache-2.0 license.
 requests-toolbelt under the Apache-2.0 license.
 require-directory under the MIT license.
 require-from-string under the MIT license.
 require-main-filename under the ISC license.
 requires-port under the MIT license.
+reselect under the MIT license.
 resolve under the MIT license.
 resolve-cwd under the MIT license.
 resolve-from under the MIT license.
+resolve-pkg-maps under the MIT license.
 resolve.exports under the MIT license.
 responses under the Apache-2.0 license.
 restore-cursor under the MIT license.
 reusify under the MIT license.
+rfdc under the MIT license.
 rimraf under the ISC license.
 rollup under the MIT license.
 rrweb-cssom under the MIT license.
 run-parallel under the MIT license.
+rxjs under the Apache-2.0 license.
 s3transfer under the Apache-2.0 license.
+safe-array-concat under the MIT license.
 safe-buffer under the MIT license.
+safe-push-apply under the MIT license.
+safe-regex-test under the MIT license.
 safer-buffer under the MIT license.
+sass under MIT license.
+sass under the MIT license.
+sass-loader under MIT license.
+sass-loader under the MIT license.
 sax under the ISC license.
 saxes under the ISC license.
 scheduler under the MIT license.
@@ -1344,6 +1629,10 @@ serialize-error under the MIT license.
 serialize-javascript under the BSD-3-Clause license.
 serve-static under the MIT license.
 set-blocking under the ISC license.
+set-cookie-parser under the MIT license.
+set-function-length under the MIT license.
+set-function-name under the MIT license.
+set-proto under the MIT license.
 setprototypeof under the ISC license.
 setuptools under the MIT license.
 shallow-clone under the MIT license.
@@ -1351,12 +1640,17 @@ shebang-command under the MIT license.
 shebang-regex under the MIT license.
 shell-quote under the MIT license.
 shimmer under the BSD-2-Clause license.
+side-channel under the MIT license.
+side-channel-list under the MIT license.
+side-channel-map under the MIT license.
+side-channel-weakmap under the MIT license.
 siginfo under the ISC license.
 signal-exit under the ISC license.
 sinon under the BSD-3-Clause license.
 sisteransi under the MIT license.
 six under the MIT license.
 slash under the MIT license.
+slashes under the ISC license.
 slice-ansi under the MIT license.
 snake-case under the MIT license.
 sniffio under the Apache-2.0 license.
@@ -1364,8 +1658,12 @@ source-map under the BSD-3-Clause license.
 source-map-js under the BSD-3-Clause license.
 source-map-support under the MIT license.
 space-separated-tokens under the MIT license.
+spdx-exceptions under the CC-BY-3.0 license (source: https://github.com/jslicense/spdx-exceptions.json).
+spdx-expression-parse under the MIT license.
+spdx-license-ids under the CC0-1.0 license.
 sprintf-js under the BSD-3-Clause license.
 sqlalchemy under the MIT license.
+sshpk under the MIT license.
 stack-chain under the MIT license.
 stack-utils under the MIT license.
 stackback under the MIT license.
@@ -1373,9 +1671,13 @@ stackframe under the MIT license.
 stacktrace-parser under the MIT license.
 statuses under the MIT license.
 std-env under the MIT license.
+strict-event-emitter under the MIT license.
 string_decoder under the MIT license.
 string-length under the MIT license.
 string-width under the MIT license.
+string.prototype.trim under the MIT license.
+string.prototype.trimend under the MIT license.
+string.prototype.trimstart under the MIT license.
 stringify-entities under the MIT license.
 strip-ansi under the MIT license.
 strip-bom under the MIT license.
@@ -1391,6 +1693,7 @@ sudo-prompt under the MIT license.
 supports-color under the MIT license.
 supports-preserve-symlinks-flag under the MIT license.
 symbol-tree under the MIT license.
+synckit under the MIT license.
 table under the BSD-3-Clause license.
 tailwindcss under the MIT license.
 tapable under the MIT license.
@@ -1403,12 +1706,19 @@ text-table under the MIT license.
 thenify under the MIT license.
 thenify-all under the MIT license.
 throat under the MIT license.
+throttleit under the MIT license.
+through under the MIT license.
 through2 under the MIT license.
 tinybench under the MIT license.
 tinycolor2 under the MIT license.
+tinyexec under the MIT license.
+tinyglobby under the MIT license.
 tinypool under the MIT license.
 tinyrainbow under the MIT license.
 tinyspy under the MIT license.
+tldts under the MIT license.
+tldts-core under the MIT license.
+tmp under the MIT license.
 tmpl under the BSD-3-Clause license.
 to-fast-properties under the MIT license.
 to-regex-range under the MIT license.
@@ -1416,6 +1726,7 @@ toidentifier under the MIT license.
 tough-cookie under the BSD-3-Clause license.
 tr46 under the MIT license.
 traverse under the MIT license.
+tree-kill under the MIT license.
 trim-lines under the MIT license.
 trough under the MIT license.
 ts-api-utils under the MIT license.
@@ -1423,14 +1734,24 @@ ts-interface-checker under the Apache-2.0 license.
 ts-jest under the MIT license.
 ts-node under the MIT license.
 tsconfck under the MIT license.
+tsconfig-paths under the MIT license.
 tslib under the 0BSD license.
+tunnel-agent under the Apache-2.0 license.
+turbo-stream under the ISC license.
+tweetnacl under the Unlicense license.
 type-check under the MIT license.
 type-detect under the MIT license.
 type-fest under the MIT license.
+typed-array-buffer under the MIT license.
+typed-array-byte-length under the MIT license.
+typed-array-byte-offset under the MIT license.
+typed-array-length under the MIT license.
 typescript under the Apache-2.0 license.
 typing-extensions under the PSF-2.0 license.
+typing-inspection under the MIT license.
 ufo under the MIT license.
 ulid under the MIT license.
+unbox-primitive under the MIT license.
 uncontrollable under the MIT license.
 undici-types under the MIT license.
 unfetch under the MIT license.
@@ -1448,6 +1769,7 @@ unist-util-visit-parents under the MIT license.
 universal-cookie under the MIT license.
 universalify under the MIT license.
 unpipe under the MIT license.
+untildify under the MIT license.
 update-browserslist-db under the MIT license.
 upper-case under the MIT license.
 upper-case-first under the MIT license.
@@ -1466,18 +1788,23 @@ uuid under the MIT license.
 v8-compile-cache-lib under the MIT license.
 v8-to-istanbul under the ISC license.
 vary under the MIT license.
+verror under the MIT license.
 vfile under the MIT license.
 vfile-message under the MIT license.
+vite under MIT license.
 vite under the MIT license.
 vite-node under the MIT license.
 vite-tsconfig-paths under the MIT license.
+vitest under MIT license.
 vitest under the MIT license.
 vlq under the MIT license.
+void-elements under the MIT license.
 w3c-xmlserializer under the MIT license.
 walker under the Apache-2.0 license.
 warning under the MIT license.
 watchpack under the MIT license.
 wcwidth under the MIT license.
+web-streams-polyfill under the MIT license.
 webidl-conversions under the BSD-2-Clause license.
 webpack under the MIT license.
 webpack-sources under the MIT license.
@@ -1489,6 +1816,9 @@ whatwg-mimetype under the MIT license.
 whatwg-url under the MIT license.
 whatwg-url-without-unicode under the MIT license.
 which under the ISC license.
+which-boxed-primitive under the MIT license.
+which-builtin-type under the MIT license.
+which-collection under the MIT license.
 which-module under the ISC license.
 which-typed-array under the MIT license.
 why-is-node-running under the MIT license.
@@ -1512,13 +1842,16 @@ yaml under the ISC license.
 yargs under the MIT license.
 yargs-parser under the ISC license.
 yarl under the Apache-2.0 license.
+yauzl under the MIT license.
 yn under the MIT license.
 yocto-queue under the MIT license.
+yoctocolors-cjs under the MIT license.
 zen-observable under the MIT license.
 zen-observable-ts under the MIT license.
 zen-push under the MIT license.
-zstandard under the BSD license.
+zstandard under the 0BSD license.
 zwitch under the MIT license.
+
 
 
 ********************
@@ -1531,6 +1864,7 @@ BlueOak-1.0.0 - https://spdx.org/licenses/BlueOak-1.0.0.html
 BSD-2-Clause - https://spdx.org/licenses/BSD-2-Clause.html
 BSD-3-Clause - https://spdx.org/licenses/BSD-3-Clause.html
 CC0-1.0 - https://spdx.org/licenses/CC0-1.0.html
+CC-BY-3.0 - https://spdx.org/licenses/CC-BY-3.0.html
 CC-BY-4.0 - https://spdx.org/licenses/CC-BY-4.0.html
 ISC - https://spdx.org/licenses/ISC.html
 MIT - https://spdx.org/licenses/MIT.html

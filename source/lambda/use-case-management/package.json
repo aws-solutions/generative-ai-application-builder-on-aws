@@ -1,6 +1,6 @@
 {
-  "name": "use-case-management",
-  "version": "2.1.9",
+  "name": "@amzn/use-case-management",
+  "version": "3.0.0",
   "description": "This lambda supports APIs that provide the capability to deploy GenAI use cases",
   "main": "index.ts",
   "scripts": {
@@ -28,7 +28,6 @@
     "@typescript-eslint/parser": "^8.18.0",
     "aws-sdk-client-mock": "^4.1.0",
     "aws-sdk-client-mock-jest": "^4.1.0",
-    "aws-sdk-mock": "^6.2.0",
     "eslint": "^9.16.0",
     "jest": "^29.7.0",
     "lodash": "^4.17.21",
@@ -36,5 +35,8 @@
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "aws-jwt-verify": "^5.0.0"
   }
 }

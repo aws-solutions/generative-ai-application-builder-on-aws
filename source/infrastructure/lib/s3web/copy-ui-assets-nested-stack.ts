@@ -163,7 +163,7 @@ export abstract class CopyUIAssets extends BaseNestedStack {
             resourceType: 'Custom::CopyWebUI',
             serviceToken: this.customResourceLambdaArn,
             properties: {
-                ...resourceProperties,
+                ...resourceProperties.properties,
                 Resource: 'COPY_WEB_UI',
                 DESTINATION_BUCKET_NAME: this.websiteBucket.bucketName,
                 WEBSITE_CONFIG_PARAM_KEY: webRuntimeConfigKey.valueAsString,
@@ -179,12 +179,13 @@ export abstract class CopyUIAssets extends BaseNestedStack {
             ?.node.addDependency(customResourceWebsiteBucketPolicy);
         copyUseCaseWebUICustomResource.node.tryFindChild('Default')?.node.addDependency(ssmParameterPolicy);
         copyUseCaseWebUICustomResource.node.tryFindChild('Default')?.node.addDependency(ddbReadPolicy);
+        copyUseCaseWebUICustomResource.node.tryFindChild('Default')?.node.addDependency(resourceProperties.policy);
 
         const copyDasbboardWebUICustomResource = new cdk.CustomResource(this, 'CopyDashboardUI', {
             resourceType: 'Custom::CopyWebUI',
             serviceToken: this.customResourceLambdaArn,
             properties: {
-                ...resourceProperties,
+                ...resourceProperties.properties,
                 Resource: 'COPY_WEB_UI',
                 DESTINATION_BUCKET_NAME: this.websiteBucket.bucketName,
                 WEBSITE_CONFIG_PARAM_KEY: webRuntimeConfigKey.valueAsString

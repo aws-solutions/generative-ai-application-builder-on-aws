@@ -20,16 +20,6 @@ import {
 
 export interface DeploymentPlatformStorageProps extends BaseStackProps {
     /**
-     * Lambda which backs API calls interacting with the use cases
-     */
-    deploymentApiLambda: lambda.Function;
-
-    /**
-     * Lambda which backs API calls for retrieving model info
-     */
-    modelInfoApiLambda: lambda.Function;
-
-    /**
      * Lambda function to use for custom resource implementation.
      */
     customResourceLambda: lambda.Function;
@@ -43,6 +33,21 @@ export interface DeploymentPlatformStorageProps extends BaseStackProps {
      * access logging bucket for any s3 resources
      */
     accessLoggingBucket: s3.Bucket;
+}
+
+export interface LambdaDependencies {
+    /**
+     * Lambda which backs API calls interacting with the use cases
+     */
+    deploymentApiLambda: lambda.Function;
+    /**
+     * Lambda which backs API calls for retrieving model info
+     */
+    modelInfoApiLambda: lambda.Function;
+    /**
+     * Lambda which backs API calls for retrieving feedback
+     */
+    feedbackApiLambda: lambda.Function;
 }
 
 /**
@@ -72,8 +77,10 @@ export class DeploymentPlatformStorageSetup extends Construct {
                 AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn
             }
         });
+    }
 
-        // connecting the lambdas to the necessary tables
+    public addLambdaDependencies(lambdas: LambdaDependencies): void {
+        // Create and attach the DDB policy for the Lambda functions
         const ddbUCMLPolicy = new iam.Policy(this, 'DDBUCMLPolicy', {
             statements: [
                 new iam.PolicyStatement({
@@ -95,31 +102,55 @@ export class DeploymentPlatformStorageSetup extends Construct {
                 })
             ]
         });
-        ddbUCMLPolicy.attachToRole(props.deploymentApiLambda.role!);
+        ddbUCMLPolicy.attachToRole(lambdas.deploymentApiLambda.role!);
 
-        props.deploymentApiLambda.addEnvironment(
+        // Add environment variables to the deployment API Lambda
+        lambdas.deploymentApiLambda.addEnvironment(
             USE_CASES_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.useCasesTable.tableName
         );
 
-        props.deploymentApiLambda.addEnvironment(
+        lambdas.deploymentApiLambda.addEnvironment(
             MODEL_INFO_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.modelInfoTable.tableName
         );
 
-        props.deploymentApiLambda.addEnvironment(
+        lambdas.deploymentApiLambda.addEnvironment(
             USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.useCaseConfigTable.tableName
         );
 
-        // prettier-ignore
-        new LambdaToDynamoDB(this, 'ModelInfoLambdaToModelInfoDDB', { // NOSONAR - typescript:S1848, required for CDK.
-            existingLambdaObj: props.modelInfoApiLambda,
+        // Set up model info Lambda with DynamoDB
+        new LambdaToDynamoDB(this, 'ModelInfoLambdaToModelInfoDDB', {
+            existingLambdaObj: lambdas.modelInfoApiLambda,
             existingTableObj: this.deploymentPlatformStorage.modelInfoTable,
             tablePermissions: 'Read',
             tableEnvironmentVariableName: MODEL_INFO_TABLE_NAME_ENV_VAR
         });
 
+        // Add permissions for feedback API Lambda
+        lambdas.feedbackApiLambda.addToRolePolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['dynamodb:GetItem', 'dynamodb:Query'],
+                resources: [
+                    this.deploymentPlatformStorage.useCaseConfigTable.tableArn,
+                    this.deploymentPlatformStorage.useCasesTable.tableArn
+                ]
+            })
+        );
+
+        lambdas.feedbackApiLambda.addEnvironment(
+            USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.useCaseConfigTable.tableName
+        );
+
+        lambdas.feedbackApiLambda.addEnvironment(
+            USE_CASES_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.useCasesTable.tableName
+        );
+
+        // Add NAG suppressions
         NagSuppressions.addResourceSuppressions(ddbUCMLPolicy, [
             {
                 id: 'AwsSolutions-IAM5',

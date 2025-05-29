@@ -12,9 +12,10 @@ import {
 import { ReviewSectionProps } from '../interfaces/Steps';
 import { DEFAULT_STEP_INFO, KNOWLEDGE_BASE_PROVIDERS, WIZARD_PAGE_INDEX } from '../steps-config';
 import JsonCodeView from '@/components/commons/json-code-view';
-import { ValueWithLabel } from '@/components/useCaseDetails/common-components';
+
 import { scoreToKendraMapping } from '../KnowledgeBase/helpers';
 import { getBooleanString } from '../utils';
+import { ValueWithLabel } from '@/utils/ValueWithLabel';
 
 interface KnowledgeBaseReviewProps extends ReviewSectionProps {
     knowledgeBaseData: any;

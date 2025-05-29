@@ -97,12 +97,12 @@ export class CognitoSetup extends Construct {
     /**
      * Cognito UserPool for external users
      */
-    public userPool: cognito.IUserPool;
+    private userPool: cognito.IUserPool;
 
     /**
      * Cognito UserPoolClient for client apps requesting sign-in.
      */
-    public userPoolClient: cognito.IUserPoolClient;
+    private userPoolClient: cognito.IUserPoolClient;
 
     /**
      * The domain associated with the user pool
@@ -122,7 +122,7 @@ export class CognitoSetup extends Construct {
     /**
      * Table which stores policies that apply to
      */
-    public cognitoGroupPolicyTable: dynamodb.ITable;
+    private cognitoGroupPolicyTable: dynamodb.ITable;
 
     /**
      * The condition of web apps are deployed. If not deployed, it will not pass callback/ logout urls to app client
@@ -139,6 +139,22 @@ export class CognitoSetup extends Construct {
     public createUserPoolClientCondition: cdk.CfnCondition;
 
     public createCognitoGroupPolicyTableCondition: cdk.CfnCondition;
+
+    /**
+     * Cognito UserPool export
+     */
+    private readonly userPoolExport: cognito.IUserPool;
+
+    /**
+     * Cognito UserPoolClient export for client apps requesting sign-in.
+     */
+    private userPoolClientExport: cognito.IUserPoolClient;
+
+    /**
+     * Export Table which stores policies that apply to
+     */
+    private cognitoGroupPolicyTableExport: dynamodb.ITable;
+
 
     constructor(scope: Construct, id: string, props: CognitoSetupProps) {
         super(scope, id);
@@ -171,6 +187,19 @@ export class CognitoSetup extends Construct {
             userPool.userPoolId,
             props.userPoolProps!.existingCognitoUserPoolId
         ).toString();
+        
+        // Use CfnOutput for conditional UserPool in nested stack, allowing cross stack access without dependency on underlying condition
+        if (cdk.Stack.of(this).nestedStackResource) {
+            const output = new cdk.CfnOutput(this, 'UserPoolId', { value: userPoolId });
+            this.userPoolExport = cognito.UserPool.fromUserPoolId(
+                cdk.Stack.of(this).nestedStackParent!,
+                'UserPool',
+                cdk.Fn.getAtt(
+                    cdk.Stack.of(this).nestedStackResource!.logicalId,
+                    `Outputs.${output.logicalId}`
+                ).toString()
+            );
+        }
         this.userPool = cognito.UserPool.fromUserPoolId(this, 'UserPool', userPoolId);
 
         const CognitoGroupPolicyTableName = cdk.Fn.conditionIf(
@@ -178,6 +207,19 @@ export class CognitoSetup extends Construct {
             cognitoGroupPolicyTable.tableName,
             props.userPoolProps!.existingCognitoGroupPolicyTableName
         ).toString();
+
+        // Use CfnOutput for conditional GroupPolicyTable in nested stack, allowing cross stack access without dependency on underlying condition
+        if (cdk.Stack.of(this).nestedStackResource) {
+            const output = new cdk.CfnOutput(this, 'CognitoGroupPolicyTableName', { value: CognitoGroupPolicyTableName });
+            this.cognitoGroupPolicyTableExport = dynamodb.Table.fromTableName(
+                cdk.Stack.of(this).nestedStackParent!,
+                'CognitoGroupPolicyTable',
+                cdk.Fn.getAtt(
+                    cdk.Stack.of(this).nestedStackResource!.logicalId,
+                    `Outputs.${output.logicalId}`
+                ).toString()
+            );
+        }
         this.cognitoGroupPolicyTable = dynamodb.Table.fromTableName(
             this,
             'CognitoGroupPolicyTable',
@@ -538,7 +580,63 @@ export class CognitoSetup extends Construct {
             props.existingCognitoUserPoolClientId
         ).toString();
 
+        // Use CfnOutput for conditional UserPoolClient in nested stack, allowing cross stack access without dependency on underlying condition
+        if (cdk.Stack.of(this).nestedStackResource) {
+            const output = new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClientId });
+            this.userPoolClientExport = cognito.UserPoolClient.fromUserPoolClientId(
+                cdk.Stack.of(this).nestedStackParent!,
+                'UserPoolClient',
+                cdk.Fn.getAtt(
+                    cdk.Stack.of(this).nestedStackResource!.logicalId,
+                    `Outputs.${output.logicalId}`
+                ).toString()
+            );
+        }
         this.userPoolClient = cognito.UserPoolClient.fromUserPoolClientId(this, 'UserPoolClient', userPoolClientId);
+    }
+
+    /**
+     * Method to return the CognitoSetup user pool. Returns the direct reference (including the conditional), if accessed from the same stack.
+     * When accessed from a different stack, returns the CfnOutput reference to remove dependency on the conditional.
+     *
+     * @param construct The calling construct
+     * @returns The user pool
+     */
+    getUserPool(construct: Construct): cognito.IUserPool {
+        if(cdk.Stack.of(this) == cdk.Stack.of(construct)) {
+            return this.userPool;
+        }
+        return this.userPoolExport;
+    }
+
+    /**
+     * Method to return the CognitoSetup user pool client. Returns the direct reference (including the conditional), if accessed from the same stack.
+     * When accessed from a different stack, returns the CfnOutput reference to remove dependency on the conditional.
+     *
+     * @param construct The calling construct
+     * @returns The user pool client
+     */
+    getUserPoolClient(construct: Construct): cognito.IUserPoolClient {
+
+        if(cdk.Stack.of(this) == cdk.Stack.of(construct)) {
+            return this.userPoolClient;
+        }
+        return this.userPoolClientExport;
+    }
+
+
+    /**
+     * Method to return the CognitoSetup group policy table. Returns the direct reference (including the conditional), if accessed from the same stack.
+     * When accessed from a different stack, returns the CfnOutput reference to remove dependency on the conditional.
+     *
+     * @param construct The calling construct
+     * @returns The cognito group policy table
+     */
+    getCognitoGroupPolicyTable(construct: Construct): dynamodb.ITable {
+        if(cdk.Stack.of(this) == cdk.Stack.of(construct)) {
+            return this.cognitoGroupPolicyTable;
+        }
+        return this.cognitoGroupPolicyTableExport;
     }
 
     /**

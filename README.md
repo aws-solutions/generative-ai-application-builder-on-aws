@@ -14,7 +14,7 @@ Some of the features of GAAB are:
 -   Rapid experimentation with ability to productionize at scale
 -   Extendable and modularized architecture using nested [Amazon CloudFormation](https://aws.amazon.com/cloudformation/) stacks
 -   Enterprise ready for company-specific data to tackle real-world business problems
--   Integration with [Amazon Bedrock](https://aws.amazon.com/bedrock/) and [Amazon SageMaker](https://aws.amazon.com/sagemaker/) as LLM providers
+-   Integration with [Amazon Bedrock](https://aws.amazon.com/bedrock/) and [Amazon SageMaker AI](https://aws.amazon.com/sagemaker-ai/) as LLM providers
 -   Multi-LLM comparison and experimentation with metric tracking using [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) dashboards
 -   Growing list of model providers and Gen AI use cases
 
@@ -49,16 +49,16 @@ When the DevOps user deploys the Deployment Dashboard, the following components 
 
 ![Diagram](docs/architecture/deployment_dashboard_architecture.png)
 
-1. The admin users can log in to the deployed Deployment Dashboard UI.
-2. [Amazon CloudFront](http://aws.amazon.com/cloudfront/) delivers the web UI which is hosted in an [Amazon S3](http://aws.amazon.com/s3/) bucket.
-3. [AWS WAF](https://aws.amazon.com/waf/) protects the APIs from attacks. This solution configures a set of rules called a web access control list (web ACL) that allows, blocks, or counts web requests based on configurable, user-defined web security rules and conditions.
+1. Admin users log in to the Deployment Dashboard user interface (UI).
+2. [Amazon CloudFront](https://aws.amazon.com/cloudfront/) delivers the web UI which is hosted in an [Amazon Simple Storage Service (Amazon S3)](https://aws.amazon.com/s3/) bucket.
+3. [AWS WAF](https://aws.amazon.com/waf/) protects the APIs from attacks. This solution configures a set of rules called a web access control list (web ACL) that allows, blocks, or counts web requests based on configurable, user defined web security rules and conditions.
 4. The web UI leverages a set of REST APIs that are exposed using [Amazon API Gateway](https://aws.amazon.com/api-gateway/).
-5. [Amazon Cognito](https://aws.amazon.com/cognito/) authenticates users and backs both the Cloudfront web UI and API Gateway. An [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) table is used to store the [AWS IAM](https://aws.amazon.com/iam/) policy of authorized users.
-6. [AWS Lambda](https://aws.amazon.com/lambda/) is used to provide the business logic for the REST endpoints. This Backing Lambda will manage and create the necessary resources to perform use case deployments using AWS Cloudformation.
-7. [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) is used to store the list of deployments.
-8. When a new use case is created by the admin user, the Backing Lambda will initiate a CloudFormation stack creation event for the requested use case.
+5. [Amazon Cognito](https://aws.amazon.com/cognito/) authenticates users and backs both the CloudFront web UI and API Gateway.
+6. [AWS Lambda](https://aws.amazon.com/lambda/) provides the business logic for the REST endpoints. This backing Lambda function manages and creates the necessary resources to perform use case deployments using [AWS CloudFormation](https://aws.amazon.com/cloudformation/).
+7. [Amazon DynamoDB](https://aws.amazon.com/dynamodb) stores the list of deployments.
+8. When a new use case is created by the admin user, the backing Lambda function initiates a CloudFormation stack creation event for the requested use case.
 9. All of the LLM configuration options provided by the admin user in the deployment wizard are saved in DynamoDB. The deployment uses this DynamoDB table to configure the LLM at runtime.
-10. Using [Amazon Cloudwatch](https://aws.amazon.com/cloudwatch/), this solution collects operational metrics from various services to generate custom dashboards that allow you to monitor the solution's performance and operational health.
+10. Using [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), this solution collects operational metrics from various services to generate custom dashboards that allow you to monitor the solution's performance and operational health.
 
 ```
 Note: Although the Deployment dashboard can be launched in most AWS regions, the deployed use cases have some restrictions based on service availability. See Supported AWS Regions in the Implementation Guide for more details.
@@ -68,18 +68,38 @@ Note: Although the Deployment dashboard can be launched in most AWS regions, the
 
 Once the Deployment Dashboard is deployed, the admin user can then deploy multiple use case stacks. When a use case stack is deployed by the admin user, the following components are deployed in the AWS account:
 
-![Diagram](docs/architecture/usecase_architecture.png)
+#### Text Use Case
 
-1. Admin users deploy the use case using the Deployment dashboard. Business users log in to the use case UI.
-2. [Amazon CloudFront](http://aws.amazon.com/cloudfront/) delivers the web UI which is hosted in an Amazon S3 bucket.
-3. The web UI leverages a WebSocket integration built using [Amazon API Gateway](https://aws.amazon.com/api-gateway/). The API Gateway is backed by a custom Lambda Authorizer function, which returns the appropriate AWS IAM policy based on the Amazon Cognito group the authenticating user is part of. The policy is stored in Amazon DynamoDB.
-4. [Amazon Cognito](https://aws.amazon.com/cognito/) authenticates users and backs both the Cloudfront web UI and API Gateway.
-5. Incoming requests from the business user are passed from API Gateway to an [Amazon SQS queue](https://aws.amazon.com/sqs/) and then to the **_LangChain Orchestrator_**. The **_LangChain Orchestrator_** is a collection of Lambda functions and layers that provide the business logic for fulfilling requests coming from the business user. The queue enables the asynchronous operation of the API Gateway to Lambda integration. The queue passes connection information to the Lambda functions which will then post results directly back to the API Gateway websocket connection to support long running inference calls.
-6. The **_LangChain Orchestrator_** uses Amazon DynamoDB to get the configured LLM options and necessary session information (such as the chat history).
-7. If the deployment has a knowledge base configured, then the **_LangChain Orchestrator_** leverages [Amazon Kendra](https://aws.amazon.com/kendra/) or [Knowledge Bases for Amazon Bedrock](https://aws.amazon.com/bedrock/knowledge-bases/) to run a search query to retrieve document excerpts.
-8. Using the chat history, query, and context from the knowledge base, the **_LangChain Orchestrator_** creates the final prompt and sends the request to the LLM hosted on [Amazon Bedrock](https://aws.amazon.com/bedrock/) or [Amazon SageMaker](https://aws.amazon.com/sagemaker/).
-9. When the response comes back from the LLM, the **_LangChain Orchestrator_** streams the response back through the API Gateway WebSocket to be consumed by the client application.
+![Diagram](docs/architecture/text_usecase_architecture.png)
+
+1. Admin users deploy the use case using the Deployment Dashboard. [Business users](https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/concepts-and-definitions.html) log in to the use case UI.
+2. CloudFront delivers the web UI which is hosted in an S3 bucket.
+3. The web UI leverages a WebSocket integration built using API Gateway. The API Gateway is backed by a custom Lambda Authorizer function, which returns the appropriate [AWS Identity and Access Management](https://aws.amazon.com/iam/) (IAM) policy based on the Amazon Cognito group the authenticating user belongs to. The policy is stored in DynamoDB.
+4. Amazon Cognito authenticates users and backs both the CloudFront web UI and API Gateway.
+5. Incoming requests from the business user are passed from API Gateway to an [Amazon SQS queue](https://aws.amazon.com/sqs/) and then to the LangChain Orchestrator. The LangChain Orchestrator is a collection of Lambda functions and layers that provide the business logic for fulfilling requests coming from the business user. The queue enables the asynchronous operation of the API Gateway to Lambda integration. The queue passes connection information to the Lambda functions which will then post results directly back to the API Gateway websocket connection to support long running inference calls.
+6. The LangChain Orchestrator uses Amazon DynamoDB to get the configured LLM options and necessary session information (such as the chat history).
+7. If the deployment has a knowledge base enabled, then the LangChain Orchestrator leverages [Amazon Kendra](https://aws.amazon.com/kendra/) or [Knowledge Bases for Amazon Bedrock](https://aws.amazon.com/bedrock/knowledge-bases/) to run a search query to retrieve document excerpts.
+8. Using the chat history, query, and context from the knowledge base, the LangChain Orchestrator creates the final prompt and sends the request to the LLM hosted on [Amazon Bedrock](https://aws.amazon.com/bedrock/) or [Amazon SageMaker AI](https://aws.amazon.com/sagemaker-ai/).
+9. When the response comes back from the LLM, the LangChain Orchestrator streams the response back through the API Gateway WebSocket to be consumed by the client application.
 10. Using Amazon CloudWatch, this solution collects operational metrics from various services to generate custom dashboards that allow you to monitor the deployment’s performance and operational health.
+11. If feedback collection is enabled, a REST API endpoint, leveraging Amazon API Gateway is made available for the collection of user feedback.
+12. The feedback backing lambda, augments the submitted feedback with additional use case specific metadata (e.g. model used) and stores the data in Amazon S3 for later analysis and reporting by the DevOps users.
+
+#### Agent Use Case
+
+![Diagram](docs/architecture/agent_usecase_architecture.png)
+
+1. Admin users deploy the use case using the Deployment Dashboard. [Business users](https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/concepts-and-definitions.html) log in to the use case UI.
+2. CloudFront delivers the web UI which is hosted in an S3 bucket.
+3. The web UI leverages a WebSocket integration built using API Gateway. The API Gateway is backed by a custom Lambda Authorizer function, which returns the appropriate [AWS Identity and Access Management](https://aws.amazon.com/iam/) (IAM) policy based on the Amazon Cognito group the authenticating user belongs to. The policy is stored in DynamoDB.
+4. Amazon Cognito authenticates users and backs both the CloudFront web UI and API Gateway.
+5. Incoming requests from the business user are passed from API Gateway to an [Amazon SQS queue](https://aws.amazon.com/sqs/) and then to the AWS Lambda function. The queue enables the asynchronous operation of the API Gateway to Lambda integration. The queue passes connection information to the Lambda function which will then post results directly back to the API Gateway websocket connection to support long running inference calls.
+6. The AWS Lambda function uses Amazon DynamoDB to get the use case configurations as needed
+7. Using the user input and any relevant use case configurations, the AWS Lambda function builds and sends a request payload to the configured [Amazon Bedrock Agent](https://aws.amazon.com/bedrock/agents/) to fulfill the user intent.
+8. When the response comes back from the Amazon Bedrock Agent, the Lambda function streams the response back through the API Gateway WebSocket to be consumed by the client application.
+9. Using Amazon CloudWatch, this solution collects operational metrics from various services to generate custom dashboards that allow you to monitor the deployment’s performance and operational health.
+10. If feedback collection is enabled, a REST API endpoint, leveraging Amazon API Gateway is made available for the collection of user feedback.
+11. The feedback backing lambda, augments the submitted feedback with additional use case specific metadata and stores the data in Amazon S3 for later analysis and reporting by the DevOps users.
 
 ## Deployment
 
@@ -97,7 +117,7 @@ Following are pre-requisites to build and deploy locally:
 -   [Docker](https://www.docker.com/get-started/)
 -   [Nodejs 20.x](https://nodejs.org/en)
 -   [CDK v2.118.0](https://github.com/aws/aws-cdk)
--   [Python >= 3.11, <=3.12.1](https://www.python.org/)
+-   [Python 3.13.x](https://www.python.org/)
     -   _Note: normal python installations should include support for `ensurepip` and `pip`; however, if running in an environment without these packages you will need to manually install them (e.g. a minimal docker image). See [pip's installation guide](https://pip.pypa.io/en/stable/installation/) for details._
 -   [AWS CLI](https://aws.amazon.com/cli/)
 -   [jq](https://jqlang.github.io/jq/)
@@ -110,12 +130,7 @@ After cloning the repo from GitHub, complete the following steps:
 
 > **_NOTE:_**
 
--   Please update the `cdk-asset-bucket` property in `source/infrastructure/cdk.json`. The value of this property should be the bucket name that `cdk bootstrap` process created. Unless a bucket name is configured, the `cdk bootstrap` process creates a bucket in the following
-    format: `cdk-hnb659fds-assets-<aws-account-number>-<region>` (where <aws-account-number> is the AWS Account ID where the solution is being deployed in the specific <region>). The repo currently has the value set as the following:
-    ```
-    "cdk-asset-bucket": "cdk-hnb659fds-assets-123456789012-us-east-1"
-    ```
-    If deployed with this default value, the use case creation from deployment dashboards would fail.
+-   If you've customized the CDK bootstrap bucket name, update the `cdk-asset-bucket` property in `source/infrastructure/cdk.json`. If left empty, the solution will use the default CDK asset bucket name: `cdk-hnb659fds-assets-${ACCOUNT_ID}-${REGION}`, where `${ACCOUNT_ID}` is your AWS Account ID and `${REGION}` is your deployment region.
 
 ```
   cd <project-directory>/source/infrastructure
@@ -198,7 +213,7 @@ The input schemas are essentially your model's payload, with placeholders for th
 
 The model's output [JSONPath](https://goessner.net/articles/JsonPath/) provides the solution a path to retrieve the LLM's textual response from the model response.
 
-Please always refer to model documentation and SageMaker JumpStart jupyter notebook samples to see the most up-to-date model payloads and supported parameters.
+Please refer to the documentation of the model used to get the most up-to-date model payloads and supported parameters.
 
 ## Creating a custom build
 

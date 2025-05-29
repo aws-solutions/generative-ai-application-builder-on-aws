@@ -10,5 +10,7 @@ export enum ModelInfoTableKeys {
     MODEL_INFO_TABLE_PARTITION_KEY = 'UseCase',
     MODEL_INFO_TABLE_SORT_KEY = 'SortKey',
     MODEL_INFO_TABLE_PROVIDER_NAME_KEY = 'ModelProviderName',
-    MODEL_INFO_TABLE_MODEL_NAME_KEY = 'ModelName'
+    MODEL_INFO_TABLE_MODEL_NAME_KEY = 'ModelName',
+    MODEL_INFO_TABLE_DISPLAY_NAME_KEY = 'DisplayName',
+    MODEL_INFO_TABLE_DESCRIPTION_KEY = 'Description',
 }

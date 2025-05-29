@@ -17,17 +17,24 @@ import { createDeployRequestPayload, createUpdateRequestPayload } from './utils'
 import { generateToken } from '@/utils/utils';
 import { API } from 'aws-amplify';
 import { InfoLink, Notifications, Navigation } from '../commons';
-import { AppLayout, Wizard, Box, Alert, SpaceBetween, WizardProps } from '@cloudscape-design/components';
+import {
+    AppLayout,
+    Wizard,
+    Box,
+    Alert,
+    SpaceBetween,
+    WizardProps,
+    StatusIndicator
+} from '@cloudscape-design/components';
 import { Breadcrumbs } from './wizard-components';
 import { ConfirmDeployModal } from '../commons/deploy-confirmation-modal';
 import { appLayoutAriaLabels } from '@/i18n-strings';
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUseCaseDetailsQuery } from '@/hooks/useQueries';
 import { UseCaseType } from './interfaces/UseCaseTypes/UseCaseType';
 import { ToolHelpPanelContent } from './interfaces/Steps';
 import { BaseWizardProps } from './interfaces/Steps/BaseWizardStep';
-
-const queryClient = new QueryClient();
+import { ErrorBoundary } from '../commons/ErrorBoundary';
 
 const getWizardStepsInfo = (useCase: UseCaseType, selectedDeployment: any, deploymentAction: string) => {
     let wizardStepsInfo: { [key: string]: BaseWizardProps } = {};
@@ -51,15 +58,63 @@ export const useWizard = (
     setFormattedToolsContent: { (tools: ToolHelpPanelContent): void }
 ) => {
     const {
-        state: { selectedDeployment, deploymentAction }
+        state: { selectedDeployment, deploymentAction, runtimeConfig }
     } = useContext(HomeContext);
+
+    const shouldFetchDeploymentInfo =
+        deploymentAction === DEPLOYMENT_ACTIONS.EDIT || deploymentAction === DEPLOYMENT_ACTIONS.CLONE;
+
+    const { data: deploymentInfo, isLoading: isLoadingDeploymentInfo } = useUseCaseDetailsQuery(
+        selectedDeployment.UseCaseId,
+        {
+            refetchOnWindowFocus: false,
+            enabled: shouldFetchDeploymentInfo
+        }
+    );
 
     const [activeStepIndex, setActiveStepIndex] = useState(0);
     const [showErrorAlert, setShowErrorAlert] = useState(false);
     const [useCaseDeployStatus, setUseCaseDeployStatus] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [stepsInfo, setStepsInfo] = useState({});
 
-    const wizardStepsInfo = getWizardStepsInfo(useCase, selectedDeployment, deploymentAction);
-    const [stepsInfo, setStepsInfo] = useState(wizardStepsInfo);
+    useEffect(() => {
+        if (!shouldFetchDeploymentInfo) {
+            const init = async () => {
+                try {
+                    const wizardStepsInfo = getWizardStepsInfo(useCase, selectedDeployment, deploymentAction);
+                    setStepsInfo(wizardStepsInfo);
+                } catch (error) {
+                    console.log(error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            init();
+            return;
+        }
+
+        if (!isLoadingDeploymentInfo && deploymentInfo) {
+            const init = async () => {
+                try {
+                    const wizardStepsInfo = getWizardStepsInfo(useCase, deploymentInfo, deploymentAction);
+                    setStepsInfo(wizardStepsInfo);
+                } catch (error) {
+                    console.log(error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            init();
+        }
+    }, [
+        deploymentInfo,
+        isLoadingDeploymentInfo,
+        deploymentAction,
+        useCase,
+        selectedDeployment,
+        shouldFetchDeploymentInfo
+    ]);
 
     const onStepInfoChange = useCallback(
         (stateKey: string, newStepState: any) => {
@@ -101,12 +156,12 @@ export const useWizard = (
         try {
             if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
                 const endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.UPDATE_USE_CASE.route(selectedDeployment.UseCaseId);
-                const requestPayload = createUpdateRequestPayload(stepsInfo);
+                const requestPayload = createUpdateRequestPayload(stepsInfo, runtimeConfig);
                 scrollToTop();
                 await updateUseCasePatchRequest(endpoint, requestPayload);
             } else {
                 const endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.CREATE_USE_CASE.route;
-                const requestPayload = createDeployRequestPayload(stepsInfo);
+                const requestPayload = createDeployRequestPayload(stepsInfo, runtimeConfig);
                 scrollToTop();
                 await deployUseCasePostRequest(endpoint, requestPayload);
             }
@@ -158,7 +213,8 @@ export const useWizard = (
         setActiveStepIndexAndCloseTools,
         onStepInfoChange,
         onNavigate,
-        onSubmit
+        onSubmit,
+        isLoading: isLoading || isLoadingDeploymentInfo
     };
 };
 
@@ -169,6 +225,8 @@ const WizardView = (props: WizardViewProps) => {
     const useCase = props.useCase;
     const infoPanel = generateToolsForStep(useCase.steps[0]);
 
+    const queryClient = useQueryClient();
+
     const {
         activeStepIndex,
         stepsInfo,
@@ -177,8 +235,21 @@ const WizardView = (props: WizardViewProps) => {
         setActiveStepIndexAndCloseTools,
         onStepInfoChange,
         onNavigate,
-        onSubmit
+        onSubmit,
+        isLoading
     } = useWizard(useCase, infoPanel.close, infoPanel.setContent);
+
+    useEffect(() => {
+        if (useCaseDeployStatus === DEPLOYMENT_STATUS_NOTIFICATION.SUCCESS) {
+            setTimeout(() => {
+                homeDispatch({
+                    field: 'reloadData',
+                    value: true
+                });
+                navigate('/');
+            }, DELAY_AFTER_SUCCESS_DEPLOYMENT);
+        }
+    }, [useCaseDeployStatus]);
 
     const {
         state: { deploymentAction },
@@ -192,6 +263,14 @@ const WizardView = (props: WizardViewProps) => {
     const onConfirmDeployDiscard = () => setShowConfirmDeployModal(false);
 
     const [isWizardNextStepLoading, setIsWizardNextStepLoading] = useState(false);
+
+    if (isLoading) {
+        return (
+            <div style={{ padding: '20px', display: 'flex', justifyContent: 'center' }}>
+                <StatusIndicator type="loading">Loading deployment details...</StatusIndicator>
+            </div>
+        );
+    }
 
     const wizardSteps = useCase.steps.map((step) => ({
         title: step.title,
@@ -215,7 +294,6 @@ const WizardView = (props: WizardViewProps) => {
             deploymentAction === DEPLOYMENT_ACTIONS.CLONE ||
             step.isOptional
     }));
-
     const i18nStrings = {
         stepNumberLabel: (stepNumber: number) => `Step ${stepNumber}`,
         collapsedStepsLabel: (stepNumber: number, stepsCount: number) => `Step ${stepNumber} of ${stepsCount}`,
@@ -242,64 +320,56 @@ const WizardView = (props: WizardViewProps) => {
         navigate('/');
     };
 
-    useEffect(() => {
-        if (useCaseDeployStatus === DEPLOYMENT_STATUS_NOTIFICATION.SUCCESS) {
-            setTimeout(() => {
-                homeDispatch({
-                    field: 'reloadData',
-                    value: true
-                });
-                navigate('/');
-            }, DELAY_AFTER_SUCCESS_DEPLOYMENT);
-        }
-    }, [useCaseDeployStatus]);
-
     return (
-        <QueryClientProvider client={queryClient}>
-            <AppLayout
-                ref={infoPanel.appLayoutRef}
-                navigation={<Navigation />}
-                tools={infoPanel.content}
-                toolsOpen={infoPanel.isOpen}
-                onToolsChange={({ detail }) => infoPanel.onChange(detail)}
-                breadcrumbs={<Breadcrumbs />}
-                contentType="wizard"
-                data-testid="wizard-view"
-                content={
-                    <Box>
-                        <SpaceBetween size="m">
-                            <>
-                                <Wizard
-                                    steps={wizardSteps}
-                                    activeStepIndex={activeStepIndex}
-                                    i18nStrings={i18nStrings}
-                                    onNavigate={({ detail }) => onNavigate(detail)}
-                                    onCancel={onCancel}
-                                    onSubmit={onConfirmDeployInit}
-                                    isLoadingNextStep={isWizardNextStepLoading}
-                                />
-                                {showErrorAlert && (
-                                    <Alert
-                                        statusIconAriaLabel="Error"
-                                        type="error"
-                                        header="Please fill out any missing required fields and address any errors shown"
-                                    ></Alert>
-                                )}
-                                <ConfirmDeployModal
-                                    visible={showConfirmDeployModal}
-                                    onDiscard={onConfirmDeployDiscard}
-                                    onConfirm={onSubmit}
-                                    deploymentAction={deploymentAction}
-                                    isThirdPartyProvider={false}
-                                />
-                            </>
-                        </SpaceBetween>
-                    </Box>
-                }
-                ariaLabels={appLayoutAriaLabels}
-                notifications={<Notifications status={useCaseDeployStatus} onSuccessButtonAction={onSuccessAction} />}
-            />
-        </QueryClientProvider>
+        <AppLayout
+            ref={infoPanel.appLayoutRef}
+            navigation={<Navigation />}
+            tools={infoPanel.content}
+            toolsOpen={infoPanel.isOpen}
+            onToolsChange={({ detail }) => infoPanel.onChange(detail)}
+            breadcrumbs={<Breadcrumbs />}
+            contentType="wizard"
+            data-testid="wizard-view"
+            content={
+                <Box>
+                    <SpaceBetween size="m">
+                        <>
+                            <ErrorBoundary componentName="Wizard">
+                                <SpaceBetween size="m">
+                                    <Wizard
+                                        steps={wizardSteps}
+                                        activeStepIndex={activeStepIndex}
+                                        i18nStrings={i18nStrings}
+                                        onNavigate={({ detail }) => onNavigate(detail)}
+                                        onCancel={onCancel}
+                                        onSubmit={onConfirmDeployInit}
+                                        isLoadingNextStep={isWizardNextStepLoading}
+                                        data-testid="wizard-component"
+                                    />
+                                    {showErrorAlert && (
+                                        <Alert
+                                            statusIconAriaLabel="Error"
+                                            type="error"
+                                            header="Please fill out any missing required fields and address any errors shown"
+                                            data-testid="wizard-error-alert"
+                                        ></Alert>
+                                    )}
+                                </SpaceBetween>
+                            </ErrorBoundary>
+                            <ConfirmDeployModal
+                                visible={showConfirmDeployModal}
+                                onDiscard={onConfirmDeployDiscard}
+                                onConfirm={onSubmit}
+                                deploymentAction={deploymentAction}
+                                isThirdPartyProvider={false}
+                            />
+                        </>
+                    </SpaceBetween>
+                </Box>
+            }
+            ariaLabels={appLayoutAriaLabels}
+            notifications={<Notifications status={useCaseDeployStatus} onSuccessButtonAction={onSuccessAction} />}
+        />
     );
 };
 

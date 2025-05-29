@@ -1,4 +1,4 @@
-build
-public/runtimeConfig.json
-
-
+# build artifact, used by Mock Service Worker
+public/mockServiceWorker.js
+**/.vite/
+**/runtimeConfig.json

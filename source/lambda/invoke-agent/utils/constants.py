@@ -8,6 +8,7 @@ from enum import Enum
 USE_CASE_UUID_ENV_VAR = "USE_CASE_UUID"
 WEBSOCKET_CALLBACK_URL_ENV_VAR = "WEBSOCKET_CALLBACK_URL"
 TRACE_ID_ENV_VAR = "_X_AMZN_TRACE_ID"
+CONVERSATION_TABLE_NAME_ENV_VAR = "CONVERSATION_TABLE_NAME"
 
 # metrics
 METRICS_SERVICE_NAME = f"GAABUseCase-{os.getenv(USE_CASE_UUID_ENV_VAR)}"
@@ -19,12 +20,16 @@ MESSAGE_KEY = "message"
 AUTH_TOKEN_KEY = "authToken"
 CONVERSATION_ID_KEY = "conversationId"
 INPUT_TEXT_KEY = "inputText"
+USER_ID_KEY = "userId"
+MESSAGE_ID_KEY = "messageId"
 
 # chat related constants
 END_CONVERSATION_TOKEN = "##END_CONVERSATION##"
 
+# TTL for DynamoDB Conversation History records. Default TTI is 24 hours in seconds
+DEFAULT_DDB_MESSAGE_TTL = 60 * 60 * 24
 # threshold for aborting lambda processing
-LAMBA_REMAINING_TIME_THRESHOLD_MS = 20000
+LAMBDA_REMAINING_TIME_THRESHOLD_MS = 20000
 
 
 class CloudWatchNamespaces(str, Enum):

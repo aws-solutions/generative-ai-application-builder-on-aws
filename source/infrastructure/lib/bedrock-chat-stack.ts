@@ -137,7 +137,7 @@ export class BedrockChat extends TextUseCase {
             allowedValues: ['Yes', 'No'],
             default: 'No',
             description:
-                'If the model configured is Bedrock, you can indicate if you are using Bedrock Inference Profile. This will ensure that the required IAM policies will be configured during stack deployment. For more details refer the following https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html'
+                'If the model configured is Bedrock, you can indicate if you are using Bedrock Inference Profile. This will ensure that the required IAM policies will be configured during stack deployment. For more details, refer to the following https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html'
         });
 
         const existingParameterGroups =

@@ -17,7 +17,7 @@ tracer = Tracer()
 
 # constants defining the minimum required properties for the custom resource
 SSM_KEY = "SSMKey"
-API_ENDPOINT = "ApiEndpoint"
+API_ENDPOINT = "RestApiEndpoint"
 USER_POOL_ID = "UserPoolId"
 USER_POOL_CLIENT_ID = "UserPoolClientId"
 SERVICE_TOKEN = "ServiceToken"

@@ -180,6 +180,14 @@ export class DeploymentPlatformStack extends BaseStack {
         });
 
         const webConfigSsmKey: string = `${WEB_CONFIG_PREFIX}/${cdk.Aws.STACK_NAME}`;
+
+        this.deploymentPlatformStorageSetup = new DeploymentPlatformStorageSetup(this, 'DeploymentPlatformStorage', {
+            customResourceLambda: this.applicationSetup.customResourceLambda,
+            customResourceRole: this.applicationSetup.customResourceRole,
+            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
+            ...this.baseStackProps
+        });
+
         this.useCaseManagementSetup = new UseCaseManagementSetup(this, 'UseCaseManagementSetup', {
             defaultUserEmail: adminUserEmail.valueAsString,
             webConfigSSMKey: webConfigSsmKey,
@@ -193,16 +201,14 @@ export class DeploymentPlatformStack extends BaseStack {
             accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
             existingCognitoUserPoolId: existingCognitoUserPoolId.valueAsString,
             existingCognitoUserPoolClientId: existingUserPoolClientId.valueAsString,
+            llmConfigTable: this.deploymentPlatformStorageSetup.deploymentPlatformStorage.useCaseConfigTable,
             ...this.baseStackProps
         });
 
-        this.deploymentPlatformStorageSetup = new DeploymentPlatformStorageSetup(this, 'DeploymentPlatformStorage', {
+        this.deploymentPlatformStorageSetup.addLambdaDependencies({
             deploymentApiLambda: this.useCaseManagementSetup.useCaseManagement.useCaseManagementApiLambda,
             modelInfoApiLambda: this.useCaseManagementSetup.useCaseManagement.modelInfoApiLambda,
-            customResourceLambda: this.applicationSetup.customResourceLambda,
-            customResourceRole: this.applicationSetup.customResourceRole,
-            accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
-            ...this.baseStackProps
+            feedbackApiLambda: this.useCaseManagementSetup.feedbackSetupStack.feedbackAPILambda
         });
 
         this.applicationSetup.scheduledMetricsLambda.addEnvironment(
@@ -210,29 +216,8 @@ export class DeploymentPlatformStack extends BaseStack {
             `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`
         );
 
-        const cognitoResourcesGeneratedCondition = new cdk.CfnCondition(
-            this,
-            'DeploymentDashboardCognitoResourcesGenerated',
-            {
-                expression: cdk.Fn.conditionEquals(existingCognitoUserPoolId.valueAsString, '')
-            }
-        );
-        const userPoolId = cdk.Fn.conditionIf(
-            cognitoResourcesGeneratedCondition.logicalId,
-            cdk.Fn.getAtt(
-                this.useCaseManagementSetup.useCaseManagement.nestedStackResource!.logicalId,
-                'Outputs.GeneratedUserPoolId'
-            ),
-            existingCognitoUserPoolId.valueAsString
-        ).toString();
-        const userPoolClientId = cdk.Fn.conditionIf(
-            cognitoResourcesGeneratedCondition.logicalId,
-            cdk.Fn.getAtt(
-                this.useCaseManagementSetup.useCaseManagement.nestedStackResource!.logicalId,
-                'Outputs.GeneratedUserPoolClientId'
-            ),
-            existingUserPoolClientId.valueAsString
-        ).toString();
+        const userPoolId = this.useCaseManagementSetup.userPool.userPoolId;
+        const userPoolClientId = this.useCaseManagementSetup.userPoolClient.userPoolClientId;
 
         this.applicationSetup.addCustomDashboard(
             {
@@ -245,7 +230,7 @@ export class DeploymentPlatformStack extends BaseStack {
 
         this.applicationSetup.createWebConfigStorage(
             {
-                apiEndpoint: this.useCaseManagementSetup.useCaseManagement.restApi.url,
+                restApiEndpoint: this.useCaseManagementSetup.restApi.url,
                 userPoolId: userPoolId,
                 userPoolClientId: userPoolClientId,
                 cognitoRedirectUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
@@ -300,8 +285,12 @@ export class DeploymentPlatformStack extends BaseStack {
             value: userPoolClientId
         });
 
+        new cdk.CfnOutput(cdk.Stack.of(this), 'CognitoUserPoolId', {
+            value: userPoolId
+        });
+
         new cdk.CfnOutput(cdk.Stack.of(this), 'RestEndpointUrl', {
-            value: this.useCaseManagementSetup.useCaseManagement.restApi.url
+            value: this.useCaseManagementSetup.restApi.url
         });
 
         new cdk.CfnOutput(cdk.Stack.of(this), 'LLMConfigTableName', {
