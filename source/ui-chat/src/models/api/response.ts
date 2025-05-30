@@ -23,7 +23,12 @@ export interface ChatErrorResponse extends ChatResponse {
 }
 
 export const isChatSuccessResponse = (response: ChatResponse): response is ChatSuccessResponse => {
-    return (response as ChatSuccessResponse).data !== undefined;
+    const message = response as ChatSuccessResponse;
+    return (
+        message &&
+        typeof message === 'object' &&
+        ('data' in message || 'sourceDocument' in message || 'rephrased_query' in message)
+    );
 };
 
 export const isErrorResponse = (response: ChatResponse): response is ChatErrorResponse => {
