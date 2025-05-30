@@ -37,7 +37,7 @@ export const DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY = 0;
 export const DEFAULT_SCORE_THRESHOLD = 0.0;
 
 //prompt wizard step default values
-export const DEFAULT_REPHRASE_QUESTION_STATE = true;
+export const DEFAULT_REPHRASE_QUESTION_STATE = false;
 export const DEFAULT_CHAT_HISTORY_LENGTH = 20;
 export const DEFAULT_DISAMBIGUATION_PROMPT_ENABLED = true;
 
