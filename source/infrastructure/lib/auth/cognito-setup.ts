@@ -428,6 +428,10 @@ export class CognitoSetup extends Construct {
                 {
                     name: 'email',
                     value: props.defaultUserEmail
+                },
+                {
+                    name: 'email_verified',
+                    value: 'true'
                 }
             ],
             username: this.buildUserName(props)
