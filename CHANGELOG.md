@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2025-06-26
+
+### Security
+
+- Upgraded urllib3 to `2.5.0`
+- Upgraded requests to `2.32.4`
+- Upgraded brace-expansion to `2.0.2`
+
+### Added
+
+- Support for Kendra GenAI Index backed Bedrock knowledge bases.
+
+### Changed
+
+- Deployment UI to show an error when a regular user attempts to log in.
+- Custom Resource IAM Role to be scoped down to only necessary DynamoDB Tables.
+
+### Fixed
+
+- Bug where CloudFormation deployment would fail using existing Cognito resources due to user/group creation conflict. ([#193](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/193)).
+- Bug where history in prompt for SageMaker models was being replaced by LangChain BaseMessage objects instead of just the content of the messages.
+- Bug where context in prompt was being replaced by LangChain Document objects instead of the content of the documents.
+- Bug where Langchain layer poetry lock wasn't being respected.
+
 ## [3.0.0] - 2025-05-29
 
 ### Added

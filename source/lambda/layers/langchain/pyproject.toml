@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "langchain-layer"
-version = "3.0.0"
+version = "3.0.1"
 authors = [ "Amazon Web Services" ]
 description = "Layer for LangChain libraries"
 packages = [
@@ -20,6 +20,8 @@ langchain = "0.3.23"
 langchain-core = "0.3.51"
 langchain-aws = "0.2.18"
 pydantic = "2.11.0"
+requests="2.32.4"
+urllib3="2.5.0"
 
 [build-system]
 requires = [ "poetry-core>=1.9.0" ]

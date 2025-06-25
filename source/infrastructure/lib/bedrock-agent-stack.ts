@@ -126,6 +126,18 @@ export class BedrockAgent extends UseCaseStack {
                 CONVERSATION_TABLE_NAME: this.chatStorageSetup.chatStorage.conversationTable.tableName
             }
         });
+        const updateLLMConfigTablePolicy = new iam.Policy(this, 'UpdateLLMConfigTablePolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['dynamodb:UpdateItem'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${this.stackParameters.useCaseConfigTableName.valueAsString}`
+                    ]
+                })
+            ]
+        });
+        updateLLMConfigTablePolicy.attachToRole(this.applicationSetup.customResourceRole);
 
         const feedbackEnabledCondition = new cdk.CfnCondition(this, 'FeedbackEnabledCondition', {
             expression: cdk.Fn.conditionEquals(this.stackParameters.feedbackEnabled, 'Yes')

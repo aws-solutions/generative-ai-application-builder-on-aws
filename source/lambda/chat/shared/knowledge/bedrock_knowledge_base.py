@@ -107,9 +107,11 @@ class BedrockKnowledgeBase(KnowledgeBase):
                     doc_location = doc.metadata.get("location", {}).get("salesforceLocation", {}).get("url")
                 case "SHAREPOINT":
                     doc_location = doc.metadata.get("location", {}).get("sharePointLocation", {}).get("url")
+                case "KENDRA":
+                    doc_location = doc.metadata.get("location", {}).get("kendraDocumentLocation", {}).get("uri")
                 case _:
                     logger.warning(
-                        f"Unsupported Bedrock location type ${location_type} detected. No location will be returned."
+                        f"Unsupported Bedrock location type '{location_type}' detected. No location will be returned."
                     )
 
             doc = SourceDocument(

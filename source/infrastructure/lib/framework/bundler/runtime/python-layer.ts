@@ -45,7 +45,10 @@ export class PythonLayerDockerBuild extends PythonDockerBuild {
             commandList.push('python3 -m pip install poetry --upgrade');
         }
 
-        commandList.push(`poetry run pip install -t ${outputDir}/python/ dist/*.whl`);
+        commandList.push('python3 -m pip install poetry-plugin-export --upgrade')
+        commandList.push(`poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`);
+        commandList.push(`poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}/python/`);
+        commandList.push(`poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`)
         return commandList;
     }
 }
@@ -61,6 +64,12 @@ export class PythonLayerLocalBuild extends PythonLocalBuild {
     }
 
     protected postBuild(moduleName: string, outputDir: string): string[] {
-        return [`cd ${moduleName}`, `poetry run pip install -t ${outputDir}/python/ dist/*.whl`];
+        return [
+            `cd ${moduleName}`,
+            `python3 -m pip install poetry poetry-plugin-export --upgrade`,
+            `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
+            `poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}/python/`,
+            `poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`
+        ];
     }
 }

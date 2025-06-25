@@ -12,15 +12,21 @@ from aws_lambda_powertools.metrics import MetricUnit
 from langchain.chains.combine_documents.base import (
     DEFAULT_DOCUMENT_PROMPT,
     DEFAULT_DOCUMENT_SEPARATOR,
-    DOCUMENTS_KEY,
     _validate_prompt,
 )
 from langchain.schema.runnable import RunnableConfig
+from langchain_core.documents import Document
 from langchain_core.language_models import LLM, LanguageModelLike
 from langchain_core.output_parsers import BaseOutputParser, StrOutputParser
-from langchain_core.prompts import BasePromptTemplate, ChatPromptTemplate, format_document
+from langchain_core.prompts import BasePromptTemplate, ChatPromptTemplate, PromptTemplate, format_document
 from langchain_core.retrievers import BaseRetriever, RetrieverLike, RetrieverOutput, RetrieverOutputLike
-from langchain_core.runnables import ConfigurableFieldSpec, Runnable, RunnableBranch, RunnablePassthrough
+from langchain_core.runnables import (
+    ConfigurableFieldSpec,
+    Runnable,
+    RunnableBranch,
+    RunnableLambda,
+    RunnablePassthrough,
+)
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
 from llms.base_langchain import BaseLangChainModel
@@ -28,6 +34,7 @@ from llms.models.model_provider_inputs import ModelProviderInputs
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.knowledge_base import KnowledgeBase
 from utils.constants import (
+    CONTEXT_KEY,
     CONVERSATION_ID_KEY,
     DEFAULT_DISAMBIGUATION_ENABLED_MODE,
     DISAMBIGUATION_PROMPT_PLACEHOLDERS,
@@ -93,6 +100,7 @@ class RetrievalLLM(BaseLangChainModel):
         self.disambiguation_prompt_template = model_inputs.disambiguation_prompt_template
         # Child classes set these variables
         self.disambiguation_llm = None
+        self.chain = None
         self.runnable_with_history = None
         self._prompt_placeholders = model_inputs.prompt_placeholders
 
@@ -148,6 +156,33 @@ class RetrievalLLM(BaseLangChainModel):
             self.disambiguation_prompt_enabled,
         )
 
+    def get_document_prompt(self):
+        """
+        Provides the prompt for formatting the documents which are passed into the LLM
+
+        Returns:
+            (PromptTemplate) A LangChain PromptTemplate which will be used for each of the documents received from the knowledge base
+        """
+        return PromptTemplate(
+            input_variables=["page_content"],
+            template="Document Content: {page_content}",
+        )
+
+    def format_source_document(self, doc: Document, prompt: BasePromptTemplate[str]) -> str:
+        """
+        Formats each incoming document using the prompt provided. Specifically, the page content is extracted leaving behind any additional metadata such as request ID, source doc URLs. etc.
+        as the prompt going to the LLM doesn't require these fields to respond to user's request
+
+        Args:
+            doc: The Document which is retrieved from the knowledge base
+            prompt: The prompt with which to format the document data.
+
+        Returns:
+            (str) a formatted prompt with the document content
+        """
+        page_content = doc.page_content or ""
+        return prompt.format(page_content=page_content)
+
     def enhanced_create_history_aware_retriever(
         self,
         llm: LanguageModelLike,
@@ -155,7 +190,8 @@ class RetrievalLLM(BaseLangChainModel):
         prompt: BasePromptTemplate,
     ) -> RetrieverOutputLike:
         """
-        Enhancement of langchain.chains.create_history_aware_retriever that allows passing of the intermediate rephrased question into the output using RunnablePassthrough
+        langchain.chains.create_history_aware_retriever allows history, when available to be retrieved and passed as input
+        This enhancement of langchain.chains.create_history_aware_retriever that allows passing of the intermediate rephrased question into the output using RunnablePassthrough
 
         If there is no `history`, then the `input` is just passed directly to the retriever. If there is `chat_history`, then the prompt and LLM will be used to generate a search query. That search query is then passed to the retriever.
 
@@ -180,8 +216,10 @@ class RetrievalLLM(BaseLangChainModel):
                 # If no chat history, then we just pass input to retriever
                 (lambda x: x[INPUT_KEY]),
             ),
-            # If chat history, then we pass inputs to LLM chain, then to retriever
-            prompt | llm | StrOutputParser(),
+            # If chat history is available, formats it for disambiguation to get the rephrased query
+            # RunnableLambda runs the format_chat_history on the HISTORY key to get the formatted history
+            # When disambiguation is enabled, the formatted history is used as input to the LLM
+            RunnableLambda(self.format_chat_history) | prompt | llm | StrOutputParser(),
         ).with_config(run_name="chat_retriever_chain")
 
         retrieve_documents_with_rephrased_question: RetrieverOutputLike = (
@@ -203,7 +241,7 @@ class RetrievalLLM(BaseLangChainModel):
         output_parser: Optional[BaseOutputParser] = None,
         document_prompt: Optional[BasePromptTemplate] = None,
         document_separator: str = DEFAULT_DOCUMENT_SEPARATOR,
-        document_variable_name: str = DOCUMENTS_KEY,
+        document_variable_name: str = CONTEXT_KEY,
     ) -> Runnable[Dict[str, Any], Any]:
         """
         Enhancement of the langchain.chains.combine_documents.create_stuff_documents_chain that allows rephrased question to be passed as an input to the LLM when a rephrased question is passed to it and stops the chain
@@ -237,7 +275,7 @@ class RetrievalLLM(BaseLangChainModel):
 
         def format_docs(inputs: dict) -> str:
             return document_separator.join(
-                format_document(doc, _document_prompt) for doc in inputs[document_variable_name]
+                self.format_source_document(doc, _document_prompt) for doc in inputs[document_variable_name]
             )
 
         llm_chain = (
@@ -254,11 +292,13 @@ class RetrievalLLM(BaseLangChainModel):
             default_chain = llm_chain
         else:
             default_chain = lambda x: self.response_if_no_docs_found
-
-        # RunnableBranch allows conditional logic: if documents are available then follow the first branch else
-        # return default_chain
+        
         retrieval_chain = (
-            RunnablePassthrough.assign(document_variable_name=format_docs)
+            # source_documents key allows unformatted source documents to be passed
+            # context allows message content to be sent to the LLM
+            RunnablePassthrough.assign(source_documents=lambda x: x[document_variable_name])
+            | RunnablePassthrough.assign(context=format_docs)
+            # RunnableBranch allows conditional logic: if documents are available then follow the first branch else return default_chain
             | RunnableBranch(
                 (
                     lambda x: len(x[document_variable_name]),
@@ -278,7 +318,8 @@ class RetrievalLLM(BaseLangChainModel):
         rephrased_question: Optional[str] = None,
     ) -> Runnable:
         """
-        Enhancement of the langchain.chains.create_retrieval_chain that allows rephrased question to be passed into the final output from the model
+        langchain.chains.create_retrieval_chain fetches documents from the knowledge base
+        This enhancement of the create_retrieval_chain allows rephrased question to be passed into the final output from the model
 
         Args:
             retriever: Retriever-like object that returns list of documents. Should
@@ -315,7 +356,7 @@ class RetrievalLLM(BaseLangChainModel):
 
         return retrieval_chain.with_config(run_name="retrieval_chain")
 
-    def get_runnable(self) -> RunnableWithMessageHistory:
+    def get_chain(self) -> RunnableWithMessageHistory:
         """
         Creates a `RunnableWithMessageHistory` runnable that is connected to a conversation memory and the specified prompt
         Args: None
@@ -343,12 +384,21 @@ class RetrievalLLM(BaseLangChainModel):
             retriever = self.knowledge_base.retriever
             rephrased_question = None
 
-        qa_chain = self.enhanced_create_stuff_documents_chain(self.llm, self.prompt_template, rephrased_question)
+        qa_chain = self.enhanced_create_stuff_documents_chain(
+            llm=self.llm,
+            prompt=self.prompt_template,
+            rephrased_question=rephrased_question,
+            document_prompt=self.get_document_prompt(),
+        )
+
         qa_chain = qa_chain.with_config(RunnableConfig(callbacks=self.callbacks))
         conversation_qa_chain = self.enhanced_create_retrieval_chain(retriever, qa_chain, rephrased_question)
 
+        return conversation_qa_chain
+
+    def get_runnable(self):
         with_message_history = RunnableWithMessageHistory(
-            conversation_qa_chain,
+            self.chain,
             get_session_history=self.get_session_history,
             input_messages_key=INPUT_KEY,
             history_messages_key=HISTORY_KEY,

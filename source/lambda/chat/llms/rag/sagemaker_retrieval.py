@@ -3,21 +3,36 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError, EndpointConnectionError
 from helper import get_service_client
+from langchain.chains.combine_documents.base import (
+    DEFAULT_DOCUMENT_PROMPT,
+    DEFAULT_DOCUMENT_SEPARATOR,
+    _validate_prompt,
+)
 from langchain_aws.llms.sagemaker_endpoint import SagemakerEndpoint
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
+from langchain_core.language_models import LanguageModelLike
+from langchain_core.output_parsers import BaseOutputParser, StrOutputParser
+from langchain_core.prompts import BasePromptTemplate, ChatPromptTemplate, PromptTemplate
+from langchain_core.runnables import Runnable, RunnableBranch, RunnableLambda, RunnablePassthrough
 from pydantic_core import ValidationError
 
 from llms.models.model_provider_inputs import SageMakerInputs
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
 from llms.rag.retrieval_llm import RetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
-from utils.constants import SAGEMAKER_ENDPOINT_ARGS, TEMPERATURE_PLACEHOLDER_STR, TRACE_ID_ENV_VAR
+from utils.constants import (
+    CONTEXT_KEY,
+    INPUT_KEY,
+    SAGEMAKER_ENDPOINT_ARGS,
+    TEMPERATURE_PLACEHOLDER_STR,
+    TRACE_ID_ENV_VAR,
+)
 from utils.custom_exceptions import LLMInvocationError
 from utils.enum_types import CloudWatchMetrics, CloudWatchNamespaces, LLMProviderTypes
 from utils.helpers import get_metrics_client
@@ -92,6 +107,7 @@ class SageMakerRetrievalLLM(RetrievalLLM):
         self.model_params, self.endpoint_params = self.get_clean_model_params(model_inputs.model_params)
         self.llm = self.get_llm()
         self.disambiguation_llm = self.get_llm(condense_prompt_model=True)
+        self.chain = RunnableLambda(self.format_chat_history) | self.get_chain()
         self.runnable_with_history = self.get_runnable()
 
     @property

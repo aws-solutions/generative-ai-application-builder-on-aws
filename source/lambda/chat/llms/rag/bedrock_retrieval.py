@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
 from langchain_aws import ChatBedrockConverse
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate
 
 from llms.models.model_provider_inputs import ModelProviderInputs
 from llms.rag.retrieval_llm import RetrievalLLM
@@ -86,6 +86,7 @@ class BedrockRetrievalLLM(RetrievalLLM):
 
         self.llm = self.get_llm()
         self.disambiguation_llm = self.get_llm()
+        self.chain = self.get_chain()
         self.runnable_with_history = self.get_runnable()
 
     @property

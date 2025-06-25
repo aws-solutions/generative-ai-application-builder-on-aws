@@ -411,15 +411,24 @@ export class CognitoSetup extends Construct {
     }
 
     protected createUserAndUserGroup(props: UserPoolProps) {
-        // cognito user is created only if user provides their own email address for notifications
-        const cognitoUserCondition = new cdk.CfnCondition(this, 'CognitoUserCondition', {
+
+        const cognitoGroupCondition = new cdk.CfnCondition(this, 'CognitoGroupCondition', {
             expression: cdk.Fn.conditionNot(
-                cdk.Fn.conditionOr(
-                    cdk.Fn.conditionEquals(props.defaultUserEmail, PLACEHOLDER_EMAIL),
-                    cdk.Fn.conditionEquals(props.defaultUserEmail, '')
-                )
+                cdk.Fn.conditionEquals(props.defaultUserEmail, '')
             )
         });
+
+        const cognitoUserCondition = new cdk.CfnCondition(this, 'CognitoUserCondition', {
+            expression: 
+                cdk.Fn.conditionAnd(
+                    cdk.Fn.conditionNot(
+                        cdk.Fn.conditionEquals(props.defaultUserEmail, PLACEHOLDER_EMAIL)
+                    ),
+                    cognitoGroupCondition
+                )
+
+        });
+
         const cognitoUser = new CfnUserPoolUser(this, 'DefaultUser', {
             desiredDeliveryMediums: ['EMAIL'],
             forceAliasCreation: false,
@@ -440,6 +449,7 @@ export class CognitoSetup extends Construct {
             groupName: props.userGroupName,
             precedence: 1
         });
+        this.userPoolGroup.cfnOptions.condition = cognitoGroupCondition;
 
         const userPoolUserToGroupAttachment = new cognito.CfnUserPoolUserToGroupAttachment(
             this,

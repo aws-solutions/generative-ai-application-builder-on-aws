@@ -258,7 +258,7 @@ export class UseCaseManagement extends BaseNestedStack {
             expression: cdk.Fn.conditionEquals(
                 cdk.Fn.select(
                     0,
-                    cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', this.stackParameters.defaultUserEmail)))
+                    cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', cdk.Fn.join("", [this.stackParameters.defaultUserEmail, "@example.com"]))))
                 ),
                 INTERNAL_EMAIL_DOMAIN
             )

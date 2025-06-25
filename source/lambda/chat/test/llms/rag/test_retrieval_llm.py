@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables.utils import AddableDict
 
@@ -679,3 +679,112 @@ def test_exceptional_disambiguation_prompt_validations(
         error.value.args[0]
         == "The prompt template contains more than one occurrence of the required placeholder: {input}"
     )
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
+    [
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            False,
+            model_id,
+            False,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
+    ],
+)
+def test_format_source_document(
+    use_case,
+    prompt,
+    is_streaming,
+    return_source_docs,
+    model_id,
+    setup_environment,
+    bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+    disambiguation_prompt,
+    response_if_no_docs_found,
+    model_inputs,
+):
+    """Test the format_source_document method formats documents correctly"""
+    chat = BedrockRetrievalLLM(
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+    )
+
+    test_doc = Document(
+        page_content="This is the main content of the document.",
+        metadata={
+            "title": "Test Document Title",
+            "excerpt": "This is a brief excerpt from the document.",
+            "source": "https://example.com/doc1",
+            "score": 0.95,
+            "other_metadata": "should be ignored",
+        },
+    )
+
+    document_prompt = PromptTemplate(
+        input_variables=["page_content"],
+        template="Document Content: {page_content}",
+    )
+
+    formatted_doc = chat.format_source_document(test_doc, document_prompt)
+
+    expected_format = "Document Content: This is the main content of the document."
+    assert formatted_doc == expected_format
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
+    [
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            False,
+            model_id,
+            False,
+            DISAMBIGUATION_PROMPT_TEMPLATE,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
+    ],
+)
+def test_format_source_document_empty_content(
+    use_case,
+    prompt,
+    is_streaming,
+    return_source_docs,
+    model_id,
+    setup_environment,
+    bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+    disambiguation_prompt,
+    response_if_no_docs_found,
+    model_inputs,
+):
+    """Test the format_source_document method handles empty page content"""
+    chat = BedrockRetrievalLLM(
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+    )
+
+    test_doc = Document(
+        page_content="",
+        metadata={
+            "title": "Empty Document",
+            "excerpt": "This document has no content.",
+        },
+    )
+
+    document_prompt = PromptTemplate(
+        input_variables=["title", "excerpt", "page_content"],
+        template="Document Content: {page_content}",
+    )
+
+    formatted_doc = chat.format_source_document(test_doc, document_prompt)
+
+    expected_format = "Document Content: "
+    assert formatted_doc == expected_format

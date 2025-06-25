@@ -94,7 +94,7 @@ export abstract class ModelInfoStorage extends Construct {
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
-                    actions: ['dynamodb:Scan', 'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem'],
+                    actions: ['dynamodb:Scan', 'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem', 'dynamodb:PutItem'],
                     resources: [modelInfoTable.tableArn]
                 })
             ]

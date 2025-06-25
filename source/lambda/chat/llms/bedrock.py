@@ -9,7 +9,9 @@ from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
 from langchain_aws import ChatBedrockConverse
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables.base import RunnableSerializable
 
 from llms.base_langchain import BaseLangChainModel
 from llms.models.model_provider_inputs import BedrockInputs
@@ -67,6 +69,7 @@ class BedrockLLM(BaseLangChainModel):
         self.guardrails = model_inputs.guardrails
         self.model_params = self.get_clean_model_params(model_inputs.model_params)
         self.llm = self.get_llm()
+        self.chain = self.get_chain()
         self.runnable_with_history = self.get_runnable()
 
     @property
@@ -87,6 +90,10 @@ class BedrockLLM(BaseLangChainModel):
     @model_family.setter
     def model_family(self, model_family) -> None:
         self._model_family = model_family
+
+    def get_chain(self) -> RunnableSerializable:
+        chain = self.prompt_template | self.llm | StrOutputParser()
+        return chain
 
     def get_llm(self, *args, **kwargs) -> ChatBedrockConverse:
         """
