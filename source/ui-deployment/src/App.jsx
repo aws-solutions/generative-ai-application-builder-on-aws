@@ -57,7 +57,7 @@ function App({ runtimeConfig }) {
         });
     };
 
-    const { user } = useContext(UserContext);
+    const { user, isAdmin } = useContext(UserContext);
 
     if (!user) {
         Auth.federatedSignIn().catch((error) => {
@@ -73,6 +73,48 @@ function App({ runtimeConfig }) {
             </>
         );
     } else {
+        // If user is not an admin, show unauthorized access alert
+        if (!isAdmin) {
+            return (
+                <>
+                    <TopNavigation
+                        identity={{
+                            href: '/',
+                            title: APP_TRADEMARK_NAME
+                        }}
+                        utilities={[
+                            {
+                                type: 'button',
+                                text: 'Sign out',
+                                ariaLabel: 'Sign out',
+                                disableTextCollapse: true,
+                                disableUtilityCollapse: true,
+                                onClick: onSignout,
+                                variant: 'link'
+                            }
+                        ]}
+                        i18nStrings={{
+                            overflowMenuTriggerText: 'More',
+                            overflowMenuTitleText: 'All',
+                            searchIconAriaLabel: 'Search',
+                            searchDismissIconAriaLabel: 'Close search'
+                        }}
+                    />
+                    <div style={{ margin: '20px' }}>
+                        <Alert
+                            statusIconAriaLabel="Error"
+                            type="error"
+                            header="Not Authorized"
+                        >
+                            You do not have permission to access the Deployment Dashboard. 
+                            This interface is restricted to admin users only. 
+                            Please contact your administrator if you believe this is an error.
+                        </Alert>
+                    </div>
+                </>
+            );
+        }
+        
         return (
             <>
                 <HomeContextProvider

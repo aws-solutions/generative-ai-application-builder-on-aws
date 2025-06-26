@@ -16,7 +16,7 @@ import { UseCaseManagementSetup } from './use-case-management/setup';
 import { generateSourceCodeMapping } from './utils/common-utils';
 import {
     INTERNAL_EMAIL_DOMAIN,
-    MANDATORY_EMAIL_REGEX_PATTERN,
+    OPTIONAL_EMAIL_REGEX_PATTERN,
     REST_API_NAME_ENV_VAR,
     UIAssetFolders,
     USE_CASE_UUID_ENV_VAR,
@@ -73,8 +73,8 @@ export class DeploymentPlatformStack extends BaseStack {
 
         const adminUserEmail = new cdk.CfnParameter(this, 'AdminUserEmail', {
             type: 'String',
-            description: 'Email required to create the default user for the admin platform',
-            allowedPattern: MANDATORY_EMAIL_REGEX_PATTERN,
+            description: 'Optional - Email used to create the default cognito user for the admin platform. If empty, the Cognito User, Group and Attachment will not be created.',
+            allowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             constraintDescription: 'Please provide a valid email'
         });
 
@@ -148,7 +148,7 @@ export class DeploymentPlatformStack extends BaseStack {
         existingParameterGroups.push({
             Label: {
                 default:
-                    'Optional: If you would like to provide a Cognito UserPool and UserPoolClient, you can pass their IDs here. Otherwise, a new pool and client will be created for you'
+                    'Optional: Provide existing Cognito UserPool and UserPoolClient IDs if you want to use your own managed resources. If left empty, the solution will manage these resources for you. Note: To prevent the creation of Cognito resources within the user pool (Users/Groups), simply leave the AdminUserEmail parameter empty.'
             },
             Parameters: [existingCognitoUserPoolId.logicalId, existingUserPoolClientId.logicalId]
         });
@@ -156,7 +156,7 @@ export class DeploymentPlatformStack extends BaseStack {
         // internal users are identified by being of the form "X@amazon.Y"
         const isInternalUserCondition: cdk.CfnCondition = new cdk.CfnCondition(this, 'IsInternalUserCondition', {
             expression: cdk.Fn.conditionEquals(
-                cdk.Fn.select(0, cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', adminUserEmail.valueAsString)))),
+                cdk.Fn.select(0, cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', cdk.Fn.join("", [adminUserEmail.valueAsString, "@example.com"]))))),
                 INTERNAL_EMAIL_DOMAIN
             )
         });

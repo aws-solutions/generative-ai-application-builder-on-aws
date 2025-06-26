@@ -156,7 +156,7 @@ def test_implement_error_not_raised(
             "table_name": "fake-table",
             "user_id": "fake-user-id",
             "conversation_id": "fake-conversation-id",
-            "message_id": "fake-message-id"
+            "message_id": "fake-message-id",
         }
     except NotImplementedError as ex:
         raise Exception(ex)
@@ -187,6 +187,67 @@ def test_generate(use_case, prompt, is_streaming, chat_fixture, request, bedrock
         return_value="I'm doing well, how are you?",
     ):
         assert model.generate("Hi there") == {"answer": "I'm doing well, how are you?"}
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, model_id",
+    [
+        (CHAT_IDENTIFIER, BEDROCK_PROMPT, False, MODEL_ID),
+    ],
+)
+def test_model_params_configuration(
+    use_case,
+    prompt,
+    is_streaming,
+    model_id,
+    setup_environment,
+    bedrock_stubber,
+    bedrock_dynamodb_defaults_table,
+):
+    """Test that successful Bedrock model invocations pass correct parameters"""
+    # Successful Bedrock response
+    bedrock_stubber.add_response(
+        "converse",
+        expected_params={
+            "additionalModelRequestFields": {"modelSpecific": "test"},
+            "inferenceConfig": {"temperature": 0.0, "topP": 0.2, "maxTokens": 512, "stopSequences": ["Human:"]},
+            "messages": [
+                {
+                    "content": [{"text": "What is the weather in Seattle?"}],
+                    "role": "user",
+                }
+            ],
+            "modelId": model_id,
+            "system": [{"text": BEDROCK_PROMPT.replace("{input}", "What is the weather in Seattle?")}],
+        },
+        service_response={
+            "output": {
+                "message": {
+                    "content": [{"text": "Rainy today, carry an umbrella!"}],
+                    "role": "assistant",
+                }
+            },
+            "stopReason": "end_turn",
+            "usage": {
+                "inputTokens": 10,
+                "outputTokens": 8,
+                "totalTokens": 18,
+            },
+            "metrics": {
+                "latencyMs": 500,
+            },
+        },
+    )
+
+    model_inputs.streaming = False
+    chat = BedrockLLM(
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, RAG_ENABLED),
+    )
+
+    # Test the actual Bedrock call through the stubber
+    response = chat.generate("What is the weather in Seattle?")
+    assert response == {"answer": "Rainy today, carry an umbrella!"}
 
 
 @pytest.mark.parametrize(

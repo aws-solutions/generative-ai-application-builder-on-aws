@@ -332,7 +332,15 @@ describe('When deployment platform stack is created', () => {
                                                 'Fn::Split': [
                                                     '@',
                                                     {
-                                                        'Ref': 'AdminUserEmail'
+                                                        'Fn::Join': [
+                                                            '',
+                                                            [
+                                                                {
+                                                                    'Ref': 'AdminUserEmail'
+                                                                },
+                                                                '@example.com'
+                                                            ]
+                                                        ]
                                                     }
                                                 ]
                                             }

@@ -23,6 +23,8 @@ moto = "5.0.28"
 pytest = "8.3.4"
 pytest-cov = "6.0.0"
 pytest-env = "1.1.5"
+requests="2.32.4"
+urllib3="2.5.0"
 
 [tool.black]
 line-length = 120

@@ -43,7 +43,7 @@ describe('When bundling JS lambda functions', () => {
                     .slice(0, -3)
                     .join(
                         '/'
-                    )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && poetry run pip install --python-version 3.13 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t /asset-output/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf`
+                    )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt --python-version 3.13 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t /asset-output/ && poetry run pip install --no-deps -t /asset-output/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt`
             ])
         );
     });
@@ -72,8 +72,10 @@ describe('When bundling JS lambda functions', () => {
                 'poetry build',
                 'poetry install --only main',
                 'cd fake-module',
-                'python3 -m pip install poetry --upgrade',
-                'poetry run pip install -t fake-output-dir dist/*.whl',
+                'python3 -m pip install poetry poetry-plugin-export --upgrade',
+                'poetry export -f requirements.txt --output fake-output-dir/requirements.txt --without-hashes',
+                'poetry run pip install -r fake-output-dir/requirements.txt --python-version 3.13 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t fake-output-dir/',
+                'poetry run pip install --no-deps -t fake-output-dir/ dist/*.whl',
                 'deactivate',
                 'find fake-output-dir | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$|dist$|.venv*$)" | xargs rm -rf',
                 'rm -fr fake-output-dir/requirements.txt'

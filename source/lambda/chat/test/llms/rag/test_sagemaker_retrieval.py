@@ -2,10 +2,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import io
+import json
 import os
 from unittest import mock
 
 import pytest
+from helper import get_service_client
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.base import RunnableBinding
@@ -61,10 +64,8 @@ MOCKED_SOURCE_DOCS_DICT = [
 INPUT_SCHEMA = {
     "inputs": "<<prompt>>",
     "parameters": {
-        "param-1": "<<param-1>>",
-        "param-2": "<<param-2>>",
-        "param-3": "<<param-1>>",
-        "param-5": "<<param-5>>",
+        "topP": "<<topP>>",
+        "maxTokenCount": "<<maxTokenCount>>",
     },
 }
 
@@ -434,3 +435,90 @@ def test_generate_error(
             chat_model.generate("What is lambda?")
 
     assert error.value.args[0] == "Error occurred while invoking SageMaker endpoint: 'fake-endpoint'. fake-error"
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, model_id, return_source_docs, chat_fixture, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
+    [
+        (
+            RAG_CHAT_IDENTIFIER,
+            SAGEMAKER_RAG_PROMPT,
+            False,
+            MODEL_ID,
+            False,
+            "sagemaker_model",
+            True,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
+    ],
+)
+def test_successful_model_invocation_params(
+    use_case,
+    prompt,
+    is_streaming,
+    model_id,
+    return_source_docs,
+    chat_fixture,
+    request,
+    setup_environment,
+    sagemaker_stubber,
+    sagemaker_dynamodb_defaults_table,
+    disambiguation_enabled,
+    disambiguation_prompt,
+    response_if_no_docs_found,
+):
+    """Test that successful SageMaker RAG model invocations pass correct parameters"""
+
+    test_docs = [Document(
+        page_content="Lambda is a serverless compute service.",
+        metadata={
+            "title": "AWS Lambda Overview",
+            "excerpt": "Introduction to AWS Lambda",
+            "source": "https://docs.aws.amazon.com/lambda",
+        },
+    )]
+
+    input_prompt = (
+        SAGEMAKER_RAG_PROMPT.replace("{history}", "")
+        .replace(
+            "{context}",
+            "Document Content: Lambda is a serverless compute service.",
+        )
+        .replace("{input}", "What is lambda?")
+    )
+    input_body = {"inputs": "Human: " + input_prompt, "parameters": {"topP": 0.9, "maxTokenCount": 200}}
+
+    # Create a BytesIO object that simulates the streaming body response
+    response_body = io.BytesIO(
+        json.dumps(
+            {"generated_text": "Lambda is a serverless compute service that runs code in response to events."}
+        ).encode("utf-8")
+    )
+
+    sagemaker_stubber.add_response(
+        "invoke_endpoint",
+        expected_params={
+            "Accept": "application/json",
+            "Body": json.dumps(input_body).encode("utf-8"),
+            "ContentType": "application/json",
+            "EndpointName": "fake-endpoint",
+        },
+        service_response={
+            "Body": response_body,
+            "ContentType": "application/json",
+        },
+    )
+
+    model = request.getfixturevalue(chat_fixture)
+
+    with mock.patch.object(model.knowledge_base.retriever, "_get_relevant_documents", return_value=test_docs):
+        response = model.generate("What is lambda?")
+
+        assert "answer" in response
+        assert response["answer"] == "Lambda is a serverless compute service that runs code in response to events."
+
+        if return_source_docs:
+            assert SOURCE_DOCUMENTS_OUTPUT_KEY in response
+        else:
+            assert SOURCE_DOCUMENTS_OUTPUT_KEY not in response

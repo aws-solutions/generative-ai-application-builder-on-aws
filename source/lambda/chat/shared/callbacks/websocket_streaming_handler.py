@@ -189,6 +189,9 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         chunk = kwargs.get("chunk")
         self._update_cw_dashboard(chunk)
 
+    def on_llm_start(self, serialized, prompts, **kwargs):
+        logger.debug(f"Prompt sent to the LLM: {prompts}")
+
     def _update_cw_dashboard(self, generation: AIMessageChunk):
         if generation and hasattr(generation, "message"):
             response_metadata = getattr(generation.message, "response_metadata", {}) or {}

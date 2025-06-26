@@ -3,14 +3,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError, EndpointConnectionError
 from helper import get_service_client
 from langchain_aws.llms.sagemaker_endpoint import SagemakerEndpoint
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables.base import RunnableSerializable
 from pydantic_core import ValidationError
 
 from llms.base_langchain import BaseLangChainModel
@@ -76,6 +79,7 @@ class SageMakerLLM(BaseLangChainModel):
         self._response_jsonpath = model_inputs.response_jsonpath
         self.model_params, self.endpoint_params = self.get_clean_model_params(model_inputs.model_params)
         self.llm = self.get_llm()
+        self.chain = self.get_chain()
         self.runnable_with_history = self.get_runnable()
 
     @property
@@ -113,6 +117,10 @@ class SageMakerLLM(BaseLangChainModel):
     def endpoint_params(self, endpoint_params) -> None:
         self._endpoint_params = endpoint_params
 
+    def get_chain(self) -> RunnableSerializable:
+        chain = RunnableLambda(self.format_chat_history) | self.prompt_template | self.llm | StrOutputParser()
+        return chain
+
     def get_llm(self, *args, **kwargs) -> SagemakerEndpoint:
         """
         Creates a SagemakerEndpoint LLM based on supplied params
@@ -133,6 +141,7 @@ class SageMakerLLM(BaseLangChainModel):
             content_handler=content_handler,
             streaming=self.streaming,
             endpoint_kwargs=self.endpoint_params,
+            verbose=self.verbose,
         )
 
     @tracer.capture_method(capture_response=True)

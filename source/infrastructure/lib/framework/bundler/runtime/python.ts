@@ -138,7 +138,10 @@ export class PythonDockerBuild extends DockerBuildTemplate {
         commandList.push(
             ...[
                 `cp -au /asset-input/* ${outputDir}/`,
-                `poetry run pip install -t ${outputDir} dist/*.whl`
+                `python3 -m pip install poetry-plugin-export --upgrade`,
+                `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
+                `poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}`,
+                `poetry run pip install --no-deps -t ${outputDir} dist/*.whl`
             ]
         );
         return commandList;
@@ -151,7 +154,7 @@ export class PythonDockerBuild extends DockerBuildTemplate {
      * @returns
      */
     protected cleanup(moduleName: string, outputDir: string): string[] {
-        return [`find ${outputDir} | grep -E "(/__pycache__$|\.pyc$|\.pyo$|\.coverage$)" | xargs rm -rf`];
+        return [`find ${outputDir} | grep -E "(/__pycache__$|\.pyc$|\.pyo$|\.coverage$)" | xargs rm -rf`, `rm -fr ${outputDir}/requirements.txt`];
     }
 }
 
@@ -201,8 +204,10 @@ export class PythonLocalBuild extends LocalBuildTemplate {
     protected postBuild(moduleName: string, outputDir: string): string[] {
         return [
             `cd ${moduleName}`,
-            'python3 -m pip install poetry --upgrade',
-            `poetry run pip install -t ${outputDir} dist/*.whl`
+            `python3 -m pip install poetry poetry-plugin-export --upgrade`,
+            `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
+            `poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}`,
+            `poetry run pip install --no-deps -t ${outputDir} dist/*.whl`
         ];
     }
 

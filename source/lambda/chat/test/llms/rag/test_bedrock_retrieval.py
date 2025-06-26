@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from unittest import mock
 
 import pytest
 from langchain_core.documents import Document
@@ -14,7 +15,12 @@ from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import DEFAULT_REPHRASE_RAG_QUESTION, MODEL_INFO_TABLE_NAME_ENV_VAR, RAG_CHAT_IDENTIFIER
+from utils.constants import (
+    DEFAULT_REPHRASE_RAG_QUESTION,
+    MODEL_INFO_TABLE_NAME_ENV_VAR,
+    RAG_CHAT_IDENTIFIER,
+    SOURCE_DOCUMENTS_OUTPUT_KEY,
+)
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 RAG_ENABLED = True
@@ -412,3 +418,124 @@ def test_provisioned_model(
     assert chat.model == MODEL_ID
     assert chat.model_arn == test_provisioned_arn
     assert chat.model_family == BedrockModelProviders.AMAZON.value
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, return_source_docs, model_id, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found",
+    [
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            False,
+            MODEL_ID,
+            False,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
+        (
+            RAG_CHAT_IDENTIFIER,
+            BEDROCK_RAG_PROMPT,
+            False,
+            True,
+            MODEL_ID,
+            False,
+            DISAMBIGUATION_PROMPT,
+            RESPONSE_IF_NO_DOCS_FOUND,
+        ),
+    ],
+)
+def test_successful_model_invocation_params(
+    use_case,
+    prompt,
+    is_streaming,
+    return_source_docs,
+    model_id,
+    setup_environment,
+    bedrock_stubber,
+    bedrock_dynamodb_defaults_table,
+    disambiguation_enabled,
+    disambiguation_prompt,
+    response_if_no_docs_found,
+    model_inputs,
+):
+    chat = BedrockRetrievalLLM(
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(MODEL_PROVIDER, model_id, RAG_ENABLED),
+    )
+
+    test_docs = [
+        Document(
+            page_content="Lambda is a serverless compute service.",
+            metadata={
+                "title": "AWS Lambda Overview",
+                "excerpt": "Introduction to AWS Lambda",
+                "source": "https://docs.aws.amazon.com/lambda",
+            },
+        )
+    ]
+
+    bedrock_stubber.add_response(
+        "converse",
+        expected_params={
+            "additionalModelRequestFields": {"maxTokenCount": 200},
+            "inferenceConfig": {
+                "temperature": 0.25,
+                "topP": 0.9,
+            },
+            "messages": [
+                {
+                    "content": [{"text": "What is lambda?"}],
+                    "role": "user",
+                }
+            ],
+            "modelId": model_id,
+            "system": [
+                {
+                    "text": BEDROCK_RAG_PROMPT.replace(
+                        "{context}",
+                        "Document Content: Lambda is a serverless compute service.",
+                    ).replace("{input}", "What is lambda?")
+                }
+            ],
+        },
+        service_response={
+            "output": {
+                "message": {
+                    "content": [
+                        {"text": "Lambda is a serverless compute service that runs code in response to events."}
+                    ],
+                    "role": "assistant",
+                }
+            },
+            "stopReason": "end_turn",
+            "usage": {
+                "inputTokens": 25,
+                "outputTokens": 15,
+                "totalTokens": 40,
+            },
+            "metrics": {
+                "latencyMs": 800,
+            },
+        },
+    )
+
+    with mock.patch.object(chat.knowledge_base.retriever, "_get_relevant_documents", return_value=test_docs):
+        response = chat.generate("What is lambda?")
+
+        assert "answer" in response
+        assert response["answer"] == "Lambda is a serverless compute service that runs code in response to events."
+
+        if return_source_docs:
+            assert response[SOURCE_DOCUMENTS_OUTPUT_KEY] == [
+                {
+                    "additional_attributes": None,
+                    "document_id": None,
+                    "document_title": "AWS Lambda Overview",
+                    "excerpt": "Introduction to AWS Lambda",
+                    "location": "https://docs.aws.amazon.com/lambda",
+                    "score": None,
+                },
+            ]
+        else:
+            assert SOURCE_DOCUMENTS_OUTPUT_KEY not in response

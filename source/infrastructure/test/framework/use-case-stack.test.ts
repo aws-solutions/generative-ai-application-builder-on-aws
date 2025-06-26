@@ -125,7 +125,7 @@ describe('When Chat use case is created', () => {
         template.hasParameter('DefaultUserEmail', {
             Type: 'String',
             Description:
-                'Email of the default user for this use case. A cognito user for this email will be created to access the use case.',
+                'Optional - Email of the default user for this use case. A cognito user for this email will be created to access the use case.',
             Default: PLACEHOLDER_EMAIL,
             AllowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             ConstraintDescription: 'Please provide a valid email'
@@ -528,7 +528,15 @@ describe('When Chat use case is created', () => {
                                                 'Fn::Split': [
                                                     '@',
                                                     {
-                                                        'Ref': 'DefaultUserEmail'
+                                                        'Fn::Join': [
+                                                            '',
+                                                            [
+                                                                {
+                                                                    'Ref': 'DefaultUserEmail'
+                                                                },
+                                                                '@example.com'
+                                                            ]
+                                                        ]
                                                     }
                                                 ]
                                             }

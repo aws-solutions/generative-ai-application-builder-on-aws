@@ -50,11 +50,6 @@ export class CustomInfraSetup extends Construct {
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
-                    actions: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
-                    resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`]
-                }),
-                new iam.PolicyStatement({
-                    effect: iam.Effect.ALLOW,
                     actions: ['lambda:GetFunction'],
                     resources: [`arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:function:*`]
                 }),
@@ -188,7 +183,6 @@ export class CustomInfraSetup extends Construct {
                 id: 'AwsSolutions-IAM5',
                 reason: 'Lambda role policy is to read and write dynamodb buckets for model info and configuration',
                 appliesTo: [
-                    'Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*',
                     'Resource::arn:<AWS::Partition>:lambda:<AWS::Region>:<AWS::AccountId>:function:*',
                     'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/*',
                     'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group::log-stream:*'
