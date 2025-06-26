@@ -239,17 +239,17 @@ describe('When cognito resources are created', () => {
         expect(notificationSubscriptionEmailCapture.asString()).toEqual('fake-user@example.com');
 
         template.hasCondition('TestCognitoSetupCognitoUserConditionB1C2FD89', {
-            'Fn::Not': [
+            'Fn::And': [
                 {
-                    'Fn::Or': [
+                    'Fn::Not': [
                         {
                             'Fn::Equals': [notificationSubscriptionEmailCapture.asString(), 'placeholder@example.com']
                         },
-                        {
-                            'Fn::Equals': [notificationSubscriptionEmailCapture.asString(), '']
-                        }
                     ]
-                }
+
+                },
+                {"Condition":"TestCognitoSetupCognitoGroupConditionD133761D"}
+
             ]
         });
 
@@ -279,17 +279,17 @@ describe('When cognito resources are created', () => {
 
         // test that the condition resolves to false, showing user will not be created
         template.hasCondition('TestCognitoSetupCognitoUserConditionB1C2FD89', {
-            'Fn::Not': [
+            'Fn::And': [
                 {
-                    'Fn::Or': [
+                    'Fn::Not': [
                         {
                             'Fn::Equals': ['', 'placeholder@example.com']
                         },
-                        {
-                            'Fn::Equals': ['', '']
-                        }
                     ]
-                }
+
+                },
+                {"Condition":"TestCognitoSetupCognitoGroupConditionD133761D"}
+
             ]
         });
     });

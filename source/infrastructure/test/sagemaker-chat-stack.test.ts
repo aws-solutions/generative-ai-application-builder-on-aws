@@ -136,6 +136,51 @@ describe('When Chat use case is created', () => {
             }
         });
     });
+
+    it('should create UpdateLlmConfig custom resource with correct properties', () => {
+        template.hasResourceProperties('Custom::UpdateLlmConfig', {
+            ServiceToken: Match.anyValue(),
+            Resource: 'UPDATE_LLM_CONFIG',
+            USE_CASE_CONFIG_TABLE_NAME: { 'Ref': 'UseCaseConfigTableName' },
+            USE_CASE_CONFIG_RECORD_KEY: { 'Ref': 'UseCaseConfigRecordKey' },
+            USE_CASE_UUID: { 'Ref': 'UseCaseUUID' },
+            CONVERSATION_TABLE_NAME: Match.anyValue()
+        });
+    });
+
+    it('should have DynamoDB permissions for updating LLM config table', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    {
+                        Action: 'dynamodb:UpdateItem',
+                        Effect: 'Allow',
+                        Resource: Match.objectLike({
+                            'Fn::Join': Match.arrayWith([
+                                '',
+                                Match.arrayWith([
+                                    'arn:',
+                                    { Ref: 'AWS::Partition' },
+                                    ':dynamodb:',
+                                    { Ref: 'AWS::Region' },
+                                    ':',
+                                    { Ref: 'AWS::AccountId' },
+                                    ':table/',
+                                    { 'Ref': 'UseCaseConfigTableName' }
+                                ])
+                            ])
+                        })
+                    }
+                ])
+            },
+            PolicyName: 'UpdateLLMConfigTablePolicy3BA02B6F',
+            Roles: Match.arrayWith([
+                {
+                    Ref: 'UseCaseSetupCustomResourceLambdaRole043CC005'
+                }
+            ])
+        });
+    });
 });
 
 function buildStack(): [Template, cdk.Stack] {

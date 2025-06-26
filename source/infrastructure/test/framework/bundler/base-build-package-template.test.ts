@@ -73,7 +73,7 @@ describe("When a bundling stage's environment variables are set", () => {
                         .slice(0, -2)
                         .join(
                             '/'
-                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && poetry run pip install -t /asset-output dist/*.whl`
+                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl`
                 ])
             );
         });
@@ -103,12 +103,12 @@ describe("When a bundling stage's environment variables are set", () => {
             envValues.restoreEnv();
         });
 
-        it('should not have clean up stage in the list of commands', () => {
+        it('should have clean up stage in the list of commands', () => {
             expect(JSON.stringify(assetOption.bundling?.command)).toBe(
                 JSON.stringify([
                     'bash',
                     '-c',
-                    'find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf'
+                    'find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt'
                 ])
             );
         });
@@ -143,7 +143,7 @@ describe("When a bundling stage's environment variables are set", () => {
                 JSON.stringify([
                     'bash',
                     '-c',
-                    'python3 -m pip install poetry --upgrade && cp -au /asset-input/* /asset-output/ && poetry run pip install -t /asset-output dist/*.whl'
+                    'python3 -m pip install poetry --upgrade && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl'
                 ])
             );
         });
@@ -179,7 +179,7 @@ describe("When a bundling stage's environment variables are set", () => {
                         .slice(0, -2)
                         .join(
                             '/'
-                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && poetry run pip install -t /asset-output dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf`
+                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt`
                 ])
             );
         });
@@ -268,7 +268,7 @@ describe("When a bundling stage's cdk.json variables are set", () => {
                         .slice(0, -2)
                         .join(
                             '/'
-                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && poetry run pip install -t /asset-output dist/*.whl`
+                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl`
                 ])
             );
         });
@@ -306,7 +306,7 @@ describe("When a bundling stage's cdk.json variables are set", () => {
                 JSON.stringify([
                     'bash',
                     '-c',
-                    'cp -au /asset-input/* /asset-output/ && poetry run pip install -t /asset-output dist/*.whl'
+                    'cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl'
                 ])
             );
         });

@@ -13,10 +13,10 @@ from langchain.schema.runnable import RunnableConfig
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.language_models import BaseChatModel
 from langchain_core.language_models.llms import LLM
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import ConfigurableFieldSpec
-from langchain_core.runnables.base import RunnableBinding
+from langchain_core.runnables.base import RunnableBinding, RunnableSerializable
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
 from llms.models.model_provider_inputs import ModelProviderInputs
@@ -83,6 +83,7 @@ class BaseLangChainModel(ABC):
         self.model_params = model_inputs.model_params
         self.model = model_inputs.model
         self.llm = None
+        self.chain = None
         self.runnable_with_history = None
 
     @property
@@ -192,6 +193,34 @@ class BaseLangChainModel(ABC):
         self.conversation_history_params[MESSAGE_ID_KEY] = message_id
         return self.conversation_history_cls(**self.conversation_history_params)
 
+    @abstractmethod
+    def get_chain(self) -> RunnableSerializable:
+        """
+        Child classes provide implementation for the chain.
+        """
+        pass
+
+    def format_chat_history(self, input_dict):
+        """
+        Formats chat history by extracting only the content from messages.
+
+        Args:
+            input_dict (dict): Input dictionary containing 'history' and 'input' keys
+
+        Returns:
+            dict: Dictionary with formatted history
+        """
+        chat_history = input_dict.get(HISTORY_KEY, [])
+        formatted_history = []
+        for message in chat_history:
+            if issubclass(type(message), BaseMessage):
+                formatted_history.append(message.content)
+
+        return {
+            HISTORY_KEY: "\n".join(formatted_history) if formatted_history else "",
+            INPUT_KEY: input_dict[INPUT_KEY],
+        }
+
     def get_runnable(self) -> RunnableBinding:
         """
         Creates a `RunnableBinding` runnable that is connected to a conversation memory and the specified prompt
@@ -200,11 +229,8 @@ class BaseLangChainModel(ABC):
         Returns:
             RunnableBinding: A runnable that manages chat message history
         """
-
-        chain = self.prompt_template | self.llm | StrOutputParser()
-
         with_message_history = RunnableWithMessageHistory(
-            chain,
+            self.chain,
             get_session_history=self.get_session_history,
             input_messages_key=INPUT_KEY,
             history_messages_key=HISTORY_KEY,
@@ -237,7 +263,6 @@ class BaseLangChainModel(ABC):
         )
 
         with_message_history = with_message_history.with_config(RunnableConfig(callbacks=self.callbacks))
-
         return with_message_history
 
     @tracer.capture_method(capture_response=True)

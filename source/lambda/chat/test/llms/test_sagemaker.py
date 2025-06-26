@@ -2,6 +2,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 import json
 from unittest import mock
 
@@ -25,10 +26,8 @@ DEFAULT_PROMPT_PLACEHOLDERS = ["history", "input"]
 input_schema = {
     "inputs": "<<prompt>>",
     "parameters": {
-        "param-1": "<<param-1>>",
-        "param-2": "<<param-2>>",
-        "param-3": "<<param-1>>",
-        "param-5": "<<param-5>>",
+        "topP": "<<topP>>",
+        "maxTokenCount": "<<maxTokenCount>>",
     },
 }
 
@@ -41,7 +40,7 @@ model_inputs = SageMakerInputs(
             "table_name": "fake-table",
             "user_id": "fake-user-id",
             "conversation_id": "fake-conversation-id",
-            "message_id": "fake-message-id"
+            "message_id": "fake-message-id",
         },
         "rag_enabled": RAG_ENABLED,
         "model": model_id,
@@ -109,7 +108,7 @@ def test_implement_error_not_raised(
             "table_name": "fake-table",
             "user_id": "fake-user-id",
             "conversation_id": "fake-conversation-id",
-            "message_id": "fake-message-id"
+            "message_id": "fake-message-id",
         }
     except NotImplementedError as ex:
         raise Exception(ex)
@@ -140,6 +139,63 @@ def test_generate(
 @pytest.mark.parametrize(
     "use_case, prompt, is_streaming, model_id",
     [
+        (CHAT_IDENTIFIER, SAGEMAKER_PROMPT, False, model_id),
+    ],
+)
+def test_successful_model_invocation_params(
+    use_case,
+    prompt,
+    is_streaming,
+    model_id,
+    setup_environment,
+    sagemaker_stubber,
+    sagemaker_dynamodb_defaults_table,
+):
+    """Test that successful SageMaker model invocations pass correct parameters"""
+
+    # The prompt template is "\n\n{history}\n\n{input}" and history is empty for first invocation
+    expected_input = {
+        "inputs": "Human: \n\n\n\nWhat is the weather in Seattle?",
+        "parameters": {
+            "topP": 0.2,
+            "maxTokenCount": 512,
+        },
+    }
+    model_inputs.streaming = False
+    model_inputs.model_params = {
+        "topP": {"Type": "float", "Value": "0.2"},
+        "maxTokenCount": {"Type": "integer", "Value": "512"},
+    }
+
+    response_body = io.BytesIO(json.dumps({"generated_text": "Rainy today, carry an umbrella!"}).encode("utf-8"))
+
+    # Successful SageMaker response
+    sagemaker_stubber.add_response(
+        "invoke_endpoint",
+        expected_params={
+            "Accept": "application/json",
+            "Body": json.dumps(expected_input).encode("utf-8"),
+            "ContentType": "application/json",
+            "EndpointName": "fake-endpoint",
+        },
+        service_response={
+            "Body": response_body,
+            "ContentType": "application/json",
+        },
+    )
+
+    chat = SageMakerLLM(
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED),
+    )
+
+    response = chat.generate("What is the weather in Seattle?")
+    assert response == {"answer": "Rainy today, carry an umbrella!"}
+
+
+@pytest.mark.parametrize(
+    "use_case, prompt, is_streaming, model_id",
+    [
         (
             CHAT_IDENTIFIER,
             SAGEMAKER_PROMPT,
@@ -156,24 +212,32 @@ def test_exception_for_failed_model_response(
     sagemaker_stubber,
     sagemaker_dynamodb_defaults_table,
 ):
+    expected_input = {
+        "inputs": "Human: \n\n\n\nWhat is the weather in Seattle?",
+        "parameters": {
+            "topP": 0.2,
+            "maxTokenCount": 512,
+        },
+    }
+    model_inputs.streaming = False
+    model_inputs.model_params = {
+        "topP": {"Type": "float", "Value": "0.2"},
+        "maxTokenCount": {"Type": "integer", "Value": "512"},
+    }
+    endpoint_name = "fake-endpoint"
+
     sagemaker_stubber.add_client_error(
         "invoke_endpoint",
         service_error_code="InternalServerError",
         service_message="some-error",
         expected_params={
             "Accept": "application/json",
-            "Body": json.dumps(
-                {
-                    "inputs": "Human: "
-                    + SAGEMAKER_PROMPT.replace("{history}", "[]").replace("{input}", "What is the weather in Seattle?")
-                }
-            ).encode("utf-8"),
+            "Body": json.dumps(expected_input).encode("utf-8"),
             "ContentType": "application/json",
             "EndpointName": "fake-endpoint",
         },
     )
-    model_inputs.streaming = False
-    endpoint_name = "fake-endpoint"
+
     chat = SageMakerLLM(model_inputs=model_inputs, model_defaults=ModelDefaults(model_provider, model_id, RAG_ENABLED))
 
     with pytest.raises(LLMInvocationError) as error:

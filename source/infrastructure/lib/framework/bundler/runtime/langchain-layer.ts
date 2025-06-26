@@ -73,8 +73,13 @@ export class LangChainLayerDockerBuild extends PythonLayerDockerBuild {
         if (process.env.SKIP_PRE_BUILD?.toLowerCase() === 'true') {
             commandList.push('python3 -m pip install poetry --upgrade');
         }
+        commandList.push('python3 -m pip install poetry-plugin-export --upgrade');
+        commandList.push(`poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`);
         commandList.push(
-            `poetry run pip install --python-version ${this.evaluatedPipOptions.pythonVersion} --platform ${this.evaluatedPipOptions.platform} --implementation ${this.evaluatedPipOptions.implementation} --only-binary=${this.evaluatedPipOptions.onlyBinary} -t ${outputDir}/python/ dist/*.whl`
+           `poetry run pip install -r ${outputDir}/requirements.txt --python-version ${this.evaluatedPipOptions.pythonVersion} --platform ${this.evaluatedPipOptions.platform} --implementation ${this.evaluatedPipOptions.implementation} --only-binary=${this.evaluatedPipOptions.onlyBinary} -t ${outputDir}/python/`
+        );
+        commandList.push(
+            `poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`
         );
         return commandList;
     }
@@ -94,8 +99,10 @@ export class LangChainLayerLocalBuild extends PythonLayerLocalBuild {
     protected postBuild(moduleName: string, outputDir: string): string[] {
         return [
             `cd ${moduleName}`,
-            `python3 -m pip install poetry --upgrade`,
-            `poetry run pip install --python-version ${this.evaluatedPipOptions.pythonVersion} --platform ${this.evaluatedPipOptions.platform} --implementation ${this.evaluatedPipOptions.implementation} --only-binary=${this.evaluatedPipOptions.onlyBinary} -t ${outputDir}/python/ dist/*.whl`
+            `python3 -m pip install poetry poetry-plugin-export --upgrade`,
+            `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
+            `poetry run pip install -r ${outputDir}/requirements.txt --python-version ${this.evaluatedPipOptions.pythonVersion} --platform ${this.evaluatedPipOptions.platform} --implementation ${this.evaluatedPipOptions.implementation} --only-binary=${this.evaluatedPipOptions.onlyBinary} -t ${outputDir}/python/`,
+            `poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`
         ];
     }
 }

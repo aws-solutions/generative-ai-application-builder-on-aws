@@ -152,7 +152,7 @@ export class UseCaseParameters extends BaseParameters {
         this.defaultUserEmail = new cdk.CfnParameter(stack, 'DefaultUserEmail', {
             type: 'String',
             description:
-                'Email of the default user for this use case. A cognito user for this email will be created to access the use case.',
+                'Optional - Email of the default user for this use case. A cognito user for this email will be created to access the use case.',
             default: PLACEHOLDER_EMAIL,
             allowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             constraintDescription: 'Please provide a valid email'
@@ -392,7 +392,7 @@ export abstract class UseCaseStack extends BaseStack {
                     0,
                     cdk.Fn.split(
                         '.',
-                        cdk.Fn.select(1, cdk.Fn.split('@', this.stackParameters.defaultUserEmail.valueAsString))
+                        cdk.Fn.select(1, cdk.Fn.split('@', cdk.Fn.join("", [this.stackParameters.defaultUserEmail.valueAsString, "@example.com"])))
                     )
                 ),
                 INTERNAL_EMAIL_DOMAIN

@@ -8,18 +8,21 @@ import { createContext, useEffect, useMemo, useState } from 'react';
 type UserContextType = {
     user: any;
     setUser: (user: any) => void;
+    isAdmin: boolean;
 };
 
-export const UserContext = createContext<UserContextType>({ user: null, setUser: () => {} });
+export const UserContext = createContext<UserContextType>({ user: null, setUser: () => {}, isAdmin: false });
 
 // User Context Provider component to wrap the application and make the user context available to all child components
 export const UserContextProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<any>(null);
     const [busy, setBusy] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     Hub.listen('auth', (data) => {
         if (data.payload.event === 'signOut') {
             setUser(null);
+            setIsAdmin(false);
         }
     });
 
@@ -29,6 +32,7 @@ export const UserContextProvider = ({ children }: { children: React.ReactNode })
                 checkUser();
             } else if (event === 'signOut') {
                 setUser(null);
+                setIsAdmin(false);
             }
         });
         checkUser();
@@ -38,15 +42,23 @@ export const UserContextProvider = ({ children }: { children: React.ReactNode })
         try {
             const responseUser = await Auth.currentAuthenticatedUser();
             setUser(responseUser);
+            
+            // Check if user belongs to admin group
+            const groups = responseUser.signInUserSession.accessToken.payload['cognito:groups'] || [];
+            const userIsAdmin = groups.some(group => 
+                group.toLowerCase().includes('admin')
+            );
+            setIsAdmin(userIsAdmin);
+            
             setBusy(false);
         } catch (error) {
             setUser(null);
+            setIsAdmin(false);
             setBusy(false);
         }
     };
 
-    // Wrap the value object in useMemo to memoize it
-    const contextValue = useMemo(() => ({ user, setUser }), [user, setUser]);
+    const contextValue = useMemo(() => ({ user, setUser, isAdmin }), [user, setUser, isAdmin]);
 
     if (busy) {
         return <div>Loading...</div>;

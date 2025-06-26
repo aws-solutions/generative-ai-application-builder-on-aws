@@ -182,6 +182,40 @@ describe('BedrockAgent Stack', () => {
         });
     });
 
+    it('should have DynamoDB permissions for updating LLM config table', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    {
+                        Action: 'dynamodb:UpdateItem',
+                        Effect: 'Allow',
+                        Resource: Match.objectLike({
+                            'Fn::Join': Match.arrayWith([
+                                '',
+                                Match.arrayWith([
+                                    'arn:',
+                                    { Ref: 'AWS::Partition' },
+                                    ':dynamodb:',
+                                    { Ref: 'AWS::Region' },
+                                    ':',
+                                    { Ref: 'AWS::AccountId' },
+                                    ':table/',
+                                    { 'Ref': 'UseCaseConfigTableName' }
+                                ])
+                            ])
+                        })
+                    }
+                ])
+            },
+            PolicyName: 'UpdateLLMConfigTablePolicy3BA02B6F',
+            Roles: Match.arrayWith([
+                {
+                    Ref: 'UseCaseSetupCustomResourceLambdaRole043CC005'
+                }
+            ])
+        });
+    });
+
     it('should create FeedbackEnabledCondition for UpdateLlmConfig custom resource', () => {
         template.hasCondition('FeedbackEnabledCondition', {
             'Fn::Equals': [{ 'Ref': 'FeedbackEnabled' }, 'Yes']

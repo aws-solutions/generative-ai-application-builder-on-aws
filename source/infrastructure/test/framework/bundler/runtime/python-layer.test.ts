@@ -32,7 +32,7 @@ describe('When bundling JS lambda functions', () => {
             JSON.stringify([
                 'bash',
                 '-c',
-                `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install poetry && poetry install && poetry run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path.dirname(__dirname).split('/').slice(0, -3).join('/')}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && poetry run pip install -t /asset-output/python/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf`
+                `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install poetry && poetry install && poetry run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path.dirname(__dirname).split('/').slice(0, -3).join('/')}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output/python/ && poetry run pip install --no-deps -t /asset-output/python/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt`
             ])
         );
     });
@@ -61,7 +61,10 @@ describe('When bundling JS lambda functions', () => {
                 'poetry build',
                 'poetry install --only main',
                 'cd fake-module',
-                'poetry run pip install -t fake-output-dir/python/ dist/*.whl',
+                'python3 -m pip install poetry poetry-plugin-export --upgrade',
+                'poetry export -f requirements.txt --output fake-output-dir/requirements.txt --without-hashes',
+                'poetry run pip install -r fake-output-dir/requirements.txt -t fake-output-dir/python/',
+                'poetry run pip install --no-deps -t fake-output-dir/python/ dist/*.whl',
                 'deactivate',
                 'find fake-output-dir | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$|dist$|.venv*$)" | xargs rm -rf',
                 'rm -fr fake-output-dir/requirements.txt'

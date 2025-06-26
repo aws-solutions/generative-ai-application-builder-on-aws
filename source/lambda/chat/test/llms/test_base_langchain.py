@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from llms.bedrock import BedrockLLM
@@ -11,7 +12,7 @@ from llms.rag.bedrock_retrieval import BedrockRetrievalLLM
 from shared.defaults.model_defaults import ModelDefaults
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase
 from shared.memory.ddb_enhanced_message_history import DynamoDBChatMessageHistory
-from utils.constants import CHAT_IDENTIFIER, DEFAULT_REPHRASE_RAG_QUESTION, RAG_CHAT_IDENTIFIER
+from utils.constants import CHAT_IDENTIFIER, DEFAULT_REPHRASE_RAG_QUESTION, HISTORY_KEY, INPUT_KEY, RAG_CHAT_IDENTIFIER
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
 
 DEFAULT_PROMPT_PLACEHOLDERS = []
@@ -464,3 +465,82 @@ def test_get_clean_model_params_success(
 ):
     chat = request.getfixturevalue(chat_fixture)
     assert chat.get_clean_model_params(params) == expected_response
+
+
+@pytest.mark.parametrize(
+    "use_case, model_id, prompt, is_streaming, return_source_docs, disambiguation_enabled, disambiguation_prompt, response_if_no_docs_found, expected_input, expected_output",
+    [
+        # Test with empty history
+        (
+            CHAT_IDENTIFIER,
+            MODEL_ID,
+            PROMPT,
+            False,
+            False,
+            False,
+            None,
+            None,
+            {INPUT_KEY: "What is AWS?"},
+            {HISTORY_KEY: "", INPUT_KEY: "What is AWS?"},
+        ),
+        # Test with missing history key defaults to empty history
+        (
+            CHAT_IDENTIFIER,
+            MODEL_ID,
+            PROMPT,
+            False,
+            False,
+            False,
+            None,
+            None,
+            {INPUT_KEY: "What is AWS?"},
+            {
+                INPUT_KEY: "What is AWS?",
+                HISTORY_KEY: "",
+            },
+        ),
+        # Test with chat history
+        (
+            CHAT_IDENTIFIER,
+            MODEL_ID,
+            PROMPT,
+            False,
+            False,
+            False,
+            None,
+            None,
+            {
+                INPUT_KEY: "What is AWS?",
+                HISTORY_KEY: [
+                    HumanMessage(content="Human: Hello"),
+                    AIMessage(content="AI: Hi there! How can I help you?"),
+                    HumanMessage(content="Human: Tell me about Lambda"),
+                ],
+            },
+            {
+                INPUT_KEY: "What is AWS?",
+                HISTORY_KEY: "Human: Hello\nAI: Hi there! How can I help you?\nHuman: Tell me about Lambda",
+            },
+        ),
+    ],
+)
+def test_format_chat_history(
+    use_case,
+    model_id,
+    prompt,
+    is_streaming,
+    return_source_docs,
+    disambiguation_enabled,
+    disambiguation_prompt,
+    response_if_no_docs_found,
+    setup_environment,
+    bedrock_dynamodb_defaults_table,
+    model_inputs,
+    expected_input,
+    expected_output,
+):
+    chat = BedrockLLM(
+        model_inputs=model_inputs,
+        model_defaults=ModelDefaults(LLMProviderTypes.BEDROCK.value, model_id, False),
+    )
+    assert chat.format_chat_history(expected_input) == expected_output

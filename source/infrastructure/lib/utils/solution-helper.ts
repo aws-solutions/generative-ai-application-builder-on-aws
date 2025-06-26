@@ -4,6 +4,7 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 export interface SolutionHelperProps {
@@ -51,6 +52,21 @@ export class SolutionHelper extends Construct {
                 ...(props.resourceProperties && props.resourceProperties) // NOSONAR - use of `&&` in conjunction with spread operator.
             }
         });
+        //if props.resourceProperties has the key 'USE_CASE_CONFIG_TABLE_NAME' then add a DDB GetItem permissions to the custom resource role
+        if (props.resourceProperties && props.resourceProperties.USE_CASE_CONFIG_TABLE_NAME) {
+            const ddbPolicy = new iam.Policy(this, 'DynamoDBGetItemPolicy', {
+                statements: [
+                    new iam.PolicyStatement({
+                        actions: ['dynamodb:GetItem'],
+                        resources: [
+                            `arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/${props.resourceProperties.USE_CASE_CONFIG_TABLE_NAME}`
+                        ]
+                    })
+                ]
+            });
+
+            ddbPolicy.attachToRole(props.customResource.role!);
+        }
 
         (anonymousData.node.tryFindChild('Default') as cdk.CfnCustomResource).cfnOptions.condition =
             props.sendAnonymousMetricsCondition;

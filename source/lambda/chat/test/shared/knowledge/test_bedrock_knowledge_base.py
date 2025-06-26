@@ -7,6 +7,7 @@ import os
 import pytest
 from langchain_aws.retrievers.bedrock import RetrievalConfig, VectorSearchConfig
 from langchain_core.documents import Document
+
 from shared.knowledge.bedrock_knowledge_base import BedrockKnowledgeBase
 from utils.constants import BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR
 
@@ -149,6 +150,13 @@ def test_source_docs_formatter():
                 "score": 0.9,
             },
         ),
+        Document(
+            page_content="this is a seventh excerpt",
+            metadata={
+                "location": {"type": "KENDRA", "kendraDocumentLocation": {"uri": "https://kendra.example.com/doc1"}},
+                "score": 0.8,
+            },
+        ),
     ]
     knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
     formatted_docs = knowledge_base.source_docs_formatter(bedrock_kb_results)
@@ -200,5 +208,96 @@ def test_source_docs_formatter():
             "document_id": None,
             "location": "https://example.com/4",
             "score": 0.9,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "this is a seventh excerpt",
+            "document_id": None,
+            "location": "https://kendra.example.com/doc1",
+            "score": 0.8,
+        },
+    ]
+
+
+def test_source_docs_formatter_with_unsupported_location_type(setup_environment, caplog):
+    import logging
+
+    bedrock_kb_results = [
+        Document(
+            page_content="this is an excerpt with unsupported location type",
+            metadata={"location": {"type": "UNSUPPORTED_TYPE"}, "score": 0.7},
+        ),
+    ]
+
+    knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
+
+    with caplog.at_level(logging.WARNING):
+        formatted_docs = knowledge_base.source_docs_formatter(bedrock_kb_results)
+
+    assert "Unsupported Bedrock location type 'UNSUPPORTED_TYPE' detected. No location will be returned." in caplog.text
+
+    # Check that the document is still processed but with no location
+    assert formatted_docs == [
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "this is an excerpt with unsupported location type",
+            "document_id": None,
+            "location": None,
+            "score": 0.7,
+        },
+    ]
+
+
+def test_source_docs_formatter_edge_cases(setup_environment):
+    bedrock_kb_results = [
+        # Normal document
+        Document(
+            page_content="normal kendra document",
+            metadata={
+                "location": {"type": "KENDRA", "kendraDocumentLocation": {"uri": "https://kendra.aws.com/doc1"}},
+                "score": 0.9,
+            },
+        ),
+        # Document with missing kendraDocumentLocation
+        Document(
+            page_content="kendra document with missing location",
+            metadata={"location": {"type": "KENDRA"}, "score": 0.8},
+        ),
+        # Document with empty kendraDocumentLocation
+        Document(
+            page_content="kendra document with empty location",
+            metadata={"location": {"type": "KENDRA", "kendraDocumentLocation": {}}, "score": 0.7},
+        ),
+    ]
+
+    knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
+    formatted_docs = knowledge_base.source_docs_formatter(bedrock_kb_results)
+
+    assert formatted_docs == [
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "normal kendra document",
+            "document_id": None,
+            "location": "https://kendra.aws.com/doc1",
+            "score": 0.9,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "kendra document with missing location",
+            "document_id": None,
+            "location": None,
+            "score": 0.8,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "kendra document with empty location",
+            "document_id": None,
+            "location": None,
+            "score": 0.7,
         },
     ]

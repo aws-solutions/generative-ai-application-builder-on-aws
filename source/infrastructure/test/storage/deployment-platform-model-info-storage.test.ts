@@ -76,7 +76,10 @@ describe('Creating a conditional model store', () => {
                     Ref: Match.stringLikeRegexp('TestSetupModelInfoStore*')
                 }
             },
-            DependsOn: [Match.stringLikeRegexp('TestSetupAssetRead*'), Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*')],
+            DependsOn: [
+                Match.stringLikeRegexp('TestSetupAssetRead*'),
+                Match.stringLikeRegexp('TestSetupModelInfoDDBScanDelete*')
+            ],
             UpdateReplacePolicy: 'Delete',
             DeletionPolicy: 'Delete'
         });
@@ -87,7 +90,7 @@ describe('Creating a conditional model store', () => {
             PolicyDocument: {
                 Statement: [
                     {
-                        Action: ['dynamodb:Scan', 'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem'],
+                        Action: ['dynamodb:Scan', 'dynamodb:DeleteItem', 'dynamodb:BatchWriteItem', 'dynamodb:PutItem'],
                         Effect: 'Allow',
                         Resource: {
                             'Fn::GetAtt': [Match.stringLikeRegexp('TestSetupModelInfoStore*'), 'Arn']

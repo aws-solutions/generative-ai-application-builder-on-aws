@@ -98,6 +98,9 @@ class WebsocketHandler(BaseCallbackHandler):
             )
             raise ex
 
+    def on_llm_start(self, serialized, prompts, **kwargs):
+        logger.debug(f"Prompt sent to the LLM: {prompts}")
+
     def on_llm_end(self, response: LLMResult, **kwargs: any) -> None:
         """
         on_llm_end publishes token usage and llm stop reason metrics to cloudwatch
@@ -159,5 +162,9 @@ class WebsocketHandler(BaseCallbackHandler):
             payload (str): The value of the "data" key in the websocket payload
         """
         return json.dumps(
-            {payload_key: payload, CONVERSATION_ID_EVENT_KEY: self.conversation_id, MESSAGE_ID_EVENT_KEY: self.message_id}
+            {
+                payload_key: payload,
+                CONVERSATION_ID_EVENT_KEY: self.conversation_id,
+                MESSAGE_ID_EVENT_KEY: self.message_id,
+            }
         )

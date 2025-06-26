@@ -151,30 +151,6 @@ describe('When creating the custom resource infrastructure construct', () => {
             PolicyDocument: {
                 Statement: [
                     {
-                        Action: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem'],
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':dynamodb:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':table/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
                         Action: 'lambda:GetFunction',
                         Effect: 'Allow',
                         Resource: {
