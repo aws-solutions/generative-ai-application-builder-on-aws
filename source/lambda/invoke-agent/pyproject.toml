@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "invoke-agent"
-version = "3.0.1"
+version = "3.0.2"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation for chat feature"
 packages = [
