@@ -428,11 +428,27 @@ describe('NewUseCaseRestEndpointDeployment', () => {
                                 {
                                     'NotStatement': {
                                         'Statement': {
-                                            'ByteMatchStatement': {
-                                                'FieldToMatch': { 'UriPath': {} },
-                                                'PositionalConstraint': 'ENDS_WITH',
-                                                'SearchString': '/deployments',
-                                                'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
+                                            'OrStatement': {
+                                                'Statements': [
+                                                    {
+                                                        'ByteMatchStatement': {
+                                                            'FieldToMatch': { 'UriPath': {} },
+                                                            'PositionalConstraint': 'ENDS_WITH',
+                                                            'SearchString': '/deployments',
+                                                            'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
+                                                        }
+                                                    },
+                                                    {
+                                                        'RegexMatchStatement': {
+                                                            'FieldToMatch': {
+                                                                'UriPath': {}
+                                                            },
+                                                            'RegexString':
+                                                                '/deployments/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+                                                            'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
+                                                        }
+                                                    }
+                                                ]
                                             }
                                         }
                                     }
