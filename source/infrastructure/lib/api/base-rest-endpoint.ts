@@ -9,7 +9,7 @@ import { Construct } from 'constructs';
 import {
     CUSTOM_RULE_PRIORITY,
     HEADERS_NOT_ALLOWED_KEY,
-    INVALID_REQUEST_HEADER_RESPONSE_CODE,
+    INVALID_REQUEST_HEADER_RESPONSE_CODE
 } from '../utils/constants';
 
 import { WafwebaclToApiGateway } from '@aws-solutions-constructs/aws-wafwebacl-apigateway';
@@ -200,18 +200,39 @@ export abstract class BaseRestEndpoint extends Construct {
                         {
                             notStatement: {
                                 statement: {
-                                    byteMatchStatement: {
-                                        searchString: '/deployments',
-                                        fieldToMatch: {
-                                            uriPath: {}
-                                        },
-                                        textTransformations: [
+                                    orStatement: {
+                                        statements: [
                                             {
-                                                priority: 0,
-                                                type: 'NONE'
+                                                byteMatchStatement: {
+                                                    searchString: '/deployments',
+                                                    fieldToMatch: {
+                                                        uriPath: {}
+                                                    },
+                                                    textTransformations: [
+                                                        {
+                                                            priority: 0,
+                                                            type: 'NONE'
+                                                        }
+                                                    ],
+                                                    positionalConstraint: 'ENDS_WITH'
+                                                }
+                                            },
+                                            {
+                                                regexMatchStatement: {
+                                                    fieldToMatch: {
+                                                        uriPath: {}
+                                                    },
+                                                    regexString:
+                                                        '/deployments/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+                                                    textTransformations: [
+                                                        {
+                                                            priority: 0,
+                                                            type: 'NONE'
+                                                        }
+                                                    ]
+                                                }
                                             }
-                                        ],
-                                        positionalConstraint: 'ENDS_WITH'
+                                        ]
                                     }
                                 }
                             }
