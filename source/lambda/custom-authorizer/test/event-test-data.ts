@@ -8,13 +8,13 @@ import { APIGatewayRequestAuthorizerEvent } from 'aws-lambda';
 
 export const mockValidWebsocketRequestEvent: Partial<APIGatewayRequestAuthorizerEvent> = {
     type: 'REQUEST',
-    methodArn: 'mock-method-arn',
+    methodArn: 'arn:aws:execute-api:us-east-1:111111111111:fake-api-id/test/GET/users',
     queryStringParameters: { Authorization: 'very-secret-auth-token' }
 };
 
 export const mockValidRestRequestEvent: Partial<APIGatewayRequestAuthorizerEvent> = {
     type: 'REQUEST',
-    methodArn: 'mock-method-arn',
+    methodArn: 'arn:aws:execute-api:us-east-1:111111111111:fake-api-id/test/GET/users',
     headers: {
         Authorization: 'very-secret-auth-token'
     }
@@ -22,7 +22,7 @@ export const mockValidRestRequestEvent: Partial<APIGatewayRequestAuthorizerEvent
 
 export const mockInvalidRequestEvent: Partial<APIGatewayRequestAuthorizerEvent> = {
     type: 'REQUEST',
-    methodArn: 'mock-method-arn'
+    methodArn: 'arn:aws:execute-api:us-east-1:111111111111:fake-api-id/test/GET/users'
 };
 
 export const batchGetItemResponse = {

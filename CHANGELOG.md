@@ -5,9 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.4] - 2025-08-14
+
+### Fixed
+
+- Bug where the IAM policy being returned by the REST and Websocket custom authorizers to grant access to API endpoints exceeded the role policy character limit, leading to failures when a large number use cases were deployed.
+- Bug where updates to a use case deployed with VPC failed due to an incorrect API request.
+
+### Security
+
+- Upgraded aws-cdk-lib to `2.193.0`
+- Upgraded aws-cdk to `2.1024.0`
+
 ## [3.0.3] - 2025-07-31
 
 ### Fixed
+
 - Bug where oversized limit WAF rule was preventing update of use cases deployed with very large prompts.
 - Removed model-info files for unsupported mistral models to remove from quick start list.
 

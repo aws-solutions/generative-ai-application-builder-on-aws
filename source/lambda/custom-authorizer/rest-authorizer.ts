@@ -3,7 +3,8 @@
 
 import { AuthResponse, APIGatewayRequestAuthorizerEvent } from 'aws-lambda';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
-import { getPolicyDocument } from './utils/get-policy';
+import { denyAllPolicy, getPolicyDocument } from './utils/get-policy';
+import { matchArnWithValidation } from './utils/match-policy';
 import {
     CognitoIdentityProviderClient,
     DescribeUserPoolClientCommand
@@ -35,6 +36,7 @@ export const jwtVerifier = CognitoJwtVerifier.create({
  */
 export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<AuthResponse> => {
     try {
+        const methodArn = event.methodArn;
         const encodedToken = event.headers?.Authorization;
         if (!encodedToken) {
             throw new Error('Authorization header value is missing');
@@ -61,7 +63,24 @@ export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<
             clientId: clientId
         });
 
-        return getPolicyDocument(decodedTokenPayload);
+        const policyDocument = await getPolicyDocument(decodedTokenPayload);
+        const matchedStatements = []
+        for (const statement of policyDocument.policyDocument.Statement) {
+            const statementWithResource = statement as any
+            
+            for (const resource of statementWithResource.Resource) {
+                if(matchArnWithValidation(methodArn, resource)) {
+                    matchedStatements.push(statementWithResource);
+                    break;
+                }
+            }
+        }
+        if(matchedStatements.length > 0) {
+            policyDocument.policyDocument.Statement = matchedStatements;
+            return policyDocument;
+        }
+        return denyAllPolicy();
+
     } catch (error: any) {
         console.error(error.message);
         // apigateway needs this exact error so it returns a 401 response instead of a 500

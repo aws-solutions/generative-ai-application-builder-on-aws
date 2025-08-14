@@ -702,7 +702,6 @@ export const updateVpcApiParams = (vpcStepInfo) => {
         if (!createNewVpc) {
             return {
                 VpcParams: {
-                    ExistingVpcId: vpcStepInfo.vpcId,
                     ExistingPrivateSubnetIds: formatVpcAttributeItemsToArray(vpcStepInfo.subnetIds),
                     ExistingSecurityGroupIds: formatVpcAttributeItemsToArray(vpcStepInfo.securityGroupIds)
                 }

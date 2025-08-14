@@ -63,12 +63,6 @@ describe('When the websocket handler receives an authorization event', () => {
                         'Effect': 'Allow',
                         'Action': 'execute-api:Invoke',
                         'Sid': 'use-case-management-api-admin-policy-statement'
-                    },
-                    {
-                        'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id2/*/*'],
-                        'Effect': 'Allow',
-                        'Action': 'execute-api:Invoke',
-                        'Sid': 'BedrockChatStack-Users-policy-statement'
                     }
                 ]
             },
@@ -160,12 +154,6 @@ describe('When the rest handler receives an authorization event', () => {
                         'Effect': 'Allow',
                         'Action': 'execute-api:Invoke',
                         'Sid': 'use-case-management-api-admin-policy-statement'
-                    },
-                    {
-                        'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id2/*/*'],
-                        'Effect': 'Allow',
-                        'Action': 'execute-api:Invoke',
-                        'Sid': 'BedrockChatStack-Users-policy-statement'
                     }
                 ]
             },
@@ -204,12 +192,6 @@ describe('When the rest handler receives an authorization event', () => {
                         'Action': 'execute-api:Invoke',
                         'Sid': 'use-case-management-api-admin-policy-statement'
                     },
-                    {
-                        'Resource': ['arn:aws:execute-api:us-east-1:111111111111:fake-api-id2/*/*'],
-                        'Effect': 'Allow',
-                        'Action': 'execute-api:Invoke',
-                        'Sid': 'BedrockChatStack-Users-policy-statement'
-                    }
                 ]
             },
             context: {

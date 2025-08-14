@@ -56,6 +56,9 @@
       "@aws-sdk/client-cognito-identity-provider": [
         "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-cognito-identity-provider"
       ],
+      "@aws-sdk/util-arn-parser": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/util-arn-parser"
+      ],
     }
   }
 }
