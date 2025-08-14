@@ -794,7 +794,6 @@ describe('createUpdateRequestPayload', () => {
                 RAGEnabled: true
             },
             VpcParams: {
-                ExistingVpcId: sampleDeployUseCaseFormData.vpc.vpcId,
                 ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
                 ExistingSecurityGroupIds: ['sg-24234']
             },
@@ -865,7 +864,6 @@ describe('createUpdateRequestPayload', () => {
                 RAGEnabled: true
             },
             VpcParams: {
-                ExistingVpcId: sampleDeployUseCaseFormData.vpc.vpcId,
                 ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
                 ExistingSecurityGroupIds: ['sg-24234']
             },
@@ -894,7 +892,6 @@ describe('createUpdateRequestPayload', () => {
         });
         expect(payload).toEqual({
             VpcParams: {
-                ExistingVpcId: formDataCopy.vpc.vpcId,
                 ExistingPrivateSubnetIds: ['subnet-asdf', 'subnet-asdf34r'],
                 ExistingSecurityGroupIds: ['sg-24234']
             },
