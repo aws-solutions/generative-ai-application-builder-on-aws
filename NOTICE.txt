@@ -1849,7 +1849,7 @@ yoctocolors-cjs under the MIT license.
 zen-observable under the MIT license.
 zen-observable-ts under the MIT license.
 zen-push under the MIT license.
-zstandard under the 0BSD license.
+zstandard under the BSD-3-Clause license.
 zwitch under the MIT license.
 
 
