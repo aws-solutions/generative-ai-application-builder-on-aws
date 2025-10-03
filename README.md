@@ -383,7 +383,7 @@ When you're ready to deploy your customized UI projects, follow the instructions
 
 ## Anonymized data collection
 
-This solution collects anonymized operational metrics to help AWS improve the quality and features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/enhanced-document-understanding-on-aws/reference.html).
+This solution collects anonymized operational metrics to help AWS improve the quality and features of the solution. For more information, including how to disable this capability, please see the [implementation guide](https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/anonymized-data-collection.html).
 
 ---
 
