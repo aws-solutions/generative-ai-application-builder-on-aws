@@ -96,6 +96,23 @@ const MARKDOWN_COMPONENTS: Components = {
      */
     td({ children }) {
         return <td className="markdown-td">{children}</td>;
+    },
+    /**
+     * Renders links with external links opening in new tabs
+     */
+    a({ href, children, ...props }) {
+        const isExternal = href && (href.startsWith('http://') || href.startsWith('https://'));
+        
+        return (
+            <a
+                href={href}
+                target={isExternal ? '_blank' : undefined}
+                rel={isExternal ? 'noopener noreferrer' : undefined}
+                {...props}
+            >
+                {children}
+            </a>
+        );
     }
 };
 
