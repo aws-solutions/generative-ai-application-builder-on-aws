@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom_boto3_init"
-version = "3.0.5"
+version = "3.0.6"
 authors = [ "Amazon Web Services" ]
 description = "Initialize boto config for AWS Python SDK with custom configuration"
 packages = [
@@ -15,7 +15,7 @@ classifiers = [
 license = "Apache-2.0"
 
 [tool.poetry.dependencies]
-aws-lambda-powertools = "3.3.0"
+aws-lambda-powertools = "3.19.0"
 aws-xray-sdk = "2.14.0"
 python = "^3.13"
 pyjwt = "^2.10.1"

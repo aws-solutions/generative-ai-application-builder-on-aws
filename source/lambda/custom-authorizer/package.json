@@ -1,6 +1,6 @@
 {
   "name": "@amzn/custom-authorizer",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "This lambda function is used as a custom REQUEST authorizer for APIs",
   "main": "rest-handler.ts",
   "scripts": {

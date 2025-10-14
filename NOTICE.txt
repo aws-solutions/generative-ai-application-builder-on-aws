@@ -1310,7 +1310,7 @@ make-error under the ISC license.
 makeerror under the BSD-3-Clause license.
 map-obj under the MIT license.
 markdown-table under the MIT license.
-markupsafe under the 0BSD license.
+markupsafe under the BSD-3-Clause license.
 marky under the Apache-2.0 license.
 math-intrinsics under the MIT license.
 mdast-util-find-and-replace under the MIT license.
