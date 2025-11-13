@@ -467,6 +467,8 @@ This software includes third party software subject to the following copyrights:
 @react-native-community/cli under the MIT license.
 @react-native-community/cli-clean under the MIT license.
 @react-native-community/cli-config under the MIT license.
+@react-native-community/cli-config-android under the MIT license.
+@react-native-community/cli-config-apple under the MIT license.
 @react-native-community/cli-debugger-ui under the MIT license.
 @react-native-community/cli-doctor under the MIT license.
 @react-native-community/cli-platform-android under the MIT license.
@@ -678,6 +680,7 @@ This software includes third party software subject to the following copyrights:
 @vitest/snapshot under the MIT license.
 @vitest/spy under the MIT license.
 @vitest/utils under the MIT license.
+@vscode/sudo-prompt under the MIT license.
 @webassemblyjs/ast under the MIT license.
 @webassemblyjs/floating-point-hex-parser under the MIT license.
 @webassemblyjs/helper-api-error under the MIT license.
@@ -696,6 +699,7 @@ This software includes third party software subject to the following copyrights:
 @xstate/react under the MIT license.
 @xtuc/ieee754 under the BSD-3-Clause license.
 @xtuc/long under the Apache-2.0 license.
+@yarnpkg/lockfile under the BSD-2-Clause license.
 abort-controller under the MIT license.
 accepts under the MIT license.
 ace-builds under the BSD-3-Clause license.
@@ -787,6 +791,7 @@ binary-extensions under the MIT license.
 bl under the MIT license.
 blob-util under the Apache-2.0 license.
 bluebird under the MIT license.
+body-parser under the MIT license.
 bootstrap under the MIT license.
 boto3 under the Apache-2.0 license.
 botocore under the Apache-2.0 license.
@@ -872,6 +877,7 @@ connect under the MIT license.
 console-control-strings under the ISC license.
 constant-case under the MIT license.
 constructs under the Apache-2.0 license.
+content-type under the MIT license.
 convert-source-map under the MIT license.
 cookie under the MIT license.
 core-js-compat under the MIT license.
@@ -1039,6 +1045,7 @@ fill-range under the MIT license.
 finalhandler under the MIT license.
 find-cache-dir under the MIT license.
 find-up under the MIT license.
+find-yarn-workspace-root under the Apache-2.0 license.
 flat-cache under the MIT license.
 flatted under the ISC license.
 flow-enums-runtime under the MIT license.
@@ -1125,7 +1132,7 @@ i18next-browser-languagedetector under the MIT license.
 iconv-lite under the MIT license.
 idb under the ISC license.
 identity-obj-proxy under the MIT license.
-idna under the 0BSD license.
+idna under the BSD-3-Clause license.
 ieee754 under the BSD-3-Clause license.
 ignore under the MIT license.
 image-size under the MIT license.
@@ -1250,11 +1257,13 @@ json-parse-better-errors under the MIT license.
 json-parse-even-better-errors under the MIT license.
 json-schema under the BSD-3-Clause license.
 json-schema-traverse under the MIT license.
+json-stable-stringify under the MIT license.
 json-stable-stringify-without-jsonify under the MIT license.
 json-stringify-safe under the ISC license.
 json5 under the MIT license.
 jsonc-parser under the MIT license.
 jsonfile under the MIT license.
+jsonify under the Public Domain license.
 jsonpatch under the 0BSD license.
 jsonpath-ng under the Apache-2.0 license.
 jsonpath-plus under the MIT license.
@@ -1266,12 +1275,14 @@ jwt-decode under the MIT license.
 katex under the MIT license.
 keyv under the MIT license.
 kind-of under the MIT license.
+klaw-sync under the MIT license.
 kleur under the MIT license.
 langchain under the MIT license.
 langchain-aws under the MIT license.
 langchain-core under the MIT license.
 langchain-text-splitters under the MIT license.
 langsmith under the MIT license.
+launch-editor under the MIT license.
 lazy-ass under the MIT license.
 leven under the MIT license.
 levn under the MIT license.
@@ -1329,6 +1340,7 @@ mdast-util-phrasing under the MIT license.
 mdast-util-to-hast under the MIT license.
 mdast-util-to-markdown under the MIT license.
 mdast-util-to-string under the MIT license.
+media-typer under the MIT license.
 memoize-one under the MIT license.
 merge-stream under the MIT license.
 merge2 under the MIT license.
@@ -1459,6 +1471,7 @@ parse-json under the MIT license.
 parse5 under the MIT license.
 parseurl under the MIT license.
 pascal-case under the MIT license.
+patch-package under the MIT license.
 path-case under the MIT license.
 path-exists under the MIT license.
 path-is-absolute under the MIT license.
@@ -1529,6 +1542,7 @@ queue-microtask under the MIT license.
 quick-lru under the MIT license.
 randombytes under the MIT license.
 range-parser under the MIT license.
+raw-body under the MIT license.
 react under the MIT license.
 react-bootstrap under the MIT license.
 react-devtools-core under the MIT license.
@@ -1742,6 +1756,7 @@ tweetnacl under the Unlicense license.
 type-check under the MIT license.
 type-detect under the MIT license.
 type-fest under the MIT license.
+type-is under the MIT license.
 typed-array-buffer under the MIT license.
 typed-array-byte-length under the MIT license.
 typed-array-byte-offset under the MIT license.
@@ -1826,7 +1841,7 @@ wide-align under the ISC license.
 word-wrap under the MIT license.
 wrap-ansi under the MIT license.
 wrappy under the ISC license.
-wrapt under the 0BSD license.
+wrapt under the BSD-2-Clause license.
 write-file-atomic under the ISC license.
 ws under the MIT license.
 xml-name-validator under the Apache-2.0 license.
