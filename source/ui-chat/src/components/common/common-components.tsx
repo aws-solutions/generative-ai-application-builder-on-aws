@@ -5,6 +5,7 @@ import { forwardRef } from 'react';
 import { Avatar } from '@cloudscape-design/chat-components';
 import { ButtonGroup, StatusIndicator } from '@cloudscape-design/components';
 import { AuthorAvatarProps, AUTHORS } from '../../pages/chat/config';
+export { ExternalLinkWarningModal } from './external-link-warning-modal';
 
 /**
  * Base props interface for container components

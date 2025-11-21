@@ -2,10 +2,47 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import HelpPanel from '@cloudscape-design/components/help-panel';
+import {
+    MULTIMODAL_MAX_IMAGES,
+    MULTIMODAL_MAX_DOCUMENTS,
+    MULTIMODAL_SUPPORTED_IMAGE_FORMATS,
+    MULTIMODAL_SUPPORTED_DOCUMENT_FORMATS
+} from '../../utils/constants';
 
 export const NoHelp = () => (
     <HelpPanel header={<h2>Help panel</h2>}>
         <p>There is no help content available for this page. </p>
+    </HelpPanel>
+);
+
+export const FileUploadHelp = () => (
+    <HelpPanel header={<h2>File Upload</h2>}>
+        <p>
+            Filenames must start with an alphanumeric character, up to 255 characters long and can contain:
+            <ul>
+                <li>Spaces</li>
+                <li>Hyphens ( - )</li>
+                <li>Underscores ( _ )</li>
+            </ul>
+        </p>
+        <p>
+            <b>Not allowed:</b>
+            <ul>
+                <li>Unicode or any other special characters</li>
+                <li>
+                    Uppercase extensions (e.g. <code>png</code> is allowed but not <code>PNG</code>)
+                </li>
+            </ul>
+        </p>
+        <p>
+            <b>Supported file extensions:</b>
+        </p>
+        <p>
+            <code>{[...MULTIMODAL_SUPPORTED_IMAGE_FORMATS, ...MULTIMODAL_SUPPORTED_DOCUMENT_FORMATS].join(', ')}</code>
+        </p>
+        <p>
+            Only supports up to {MULTIMODAL_MAX_IMAGES} images and {MULTIMODAL_MAX_DOCUMENTS} documents per conversation.
+        </p>
     </HelpPanel>
 );
 

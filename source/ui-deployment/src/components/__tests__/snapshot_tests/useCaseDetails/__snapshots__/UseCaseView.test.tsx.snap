@@ -9,5 +9,7 @@ exports[`Snapshot test 1`] = `
   }
 >
   No deployment details found for ID: 
+   (Type: 
+  )
 </div>
 `;

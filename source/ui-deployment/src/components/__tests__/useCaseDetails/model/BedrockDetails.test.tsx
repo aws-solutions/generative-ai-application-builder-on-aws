@@ -56,24 +56,6 @@ describe('BedrockDetails', () => {
         expect(screen.queryByText('Inference Type')).not.toBeInTheDocument();
     });
 
-    test('displays QUICK_START inference type with ModelId as Model Name', () => {
-        const mockDeployment = {
-            LlmParams: {
-                BedrockLlmParams: {
-                    BedrockInferenceType: 'QUICK_START',
-                    ModelId: 'amazon.titan-text-express-v1'
-                }
-            }
-        };
-
-        render(<BedrockDetails selectedDeployment={mockDeployment} />);
-
-        expect(screen.getByText('Inference Type')).toBeInTheDocument();
-        expect(screen.getByText('Quick Start Models')).toBeInTheDocument();
-        expect(screen.getByText('Model Name')).toBeInTheDocument();
-        expect(screen.getByText('amazon.titan-text-express-v1')).toBeInTheDocument();
-    });
-
     test('displays OTHER_FOUNDATION inference type with ModelId as Model ID', () => {
         const mockDeployment = {
             LlmParams: {
@@ -87,7 +69,7 @@ describe('BedrockDetails', () => {
         render(<BedrockDetails selectedDeployment={mockDeployment} />);
 
         expect(screen.getByText('Inference Type')).toBeInTheDocument();
-        expect(screen.getByText('Other Foundation Models')).toBeInTheDocument();
+        expect(screen.getByText('Foundation Models')).toBeInTheDocument();
         expect(screen.getByText('Model ID')).toBeInTheDocument();
         expect(screen.getByText('anthropic.claude-3-sonnet-20240229-v1:0')).toBeInTheDocument();
     });
@@ -148,7 +130,7 @@ describe('BedrockDetails', () => {
         const mockDeployment = {
             LlmParams: {
                 BedrockLlmParams: {
-                    BedrockInferenceType: 'QUICK_START',
+                    BedrockInferenceType: 'OTHER_FOUNDATION',
                     ModelId: 'amazon.titan-text-express-v1',
                     GuardrailIdentifier: 'test-guardrail',
                     GuardrailVersion: '1.0'
@@ -168,7 +150,7 @@ describe('BedrockDetails', () => {
         const mockDeployment = {
             LlmParams: {
                 BedrockLlmParams: {
-                    BedrockInferenceType: 'QUICK_START',
+                    BedrockInferenceType: 'OTHER_FOUNDATION',
                     ModelId: 'amazon.titan-text-express-v1',
                     InferenceProfileId: 'test-inference-profile',
                     ModelArn: 'arn:aws:bedrock:us-east-1:123456789012:custom-model/test-model',
@@ -183,8 +165,8 @@ describe('BedrockDetails', () => {
         // Check if all fields are displayed
         expect(screen.getByText(BEDROCK_MODEL_PROVIDER_NAME)).toBeInTheDocument();
         expect(screen.getByText('Inference Type')).toBeInTheDocument();
-        expect(screen.getByText('Quick Start Models')).toBeInTheDocument();
-        expect(screen.getByText('Model Name')).toBeInTheDocument();
+        expect(screen.getByText('Foundation Models')).toBeInTheDocument();
+        expect(screen.getByText('Model ID')).toBeInTheDocument();
         expect(screen.getByText('amazon.titan-text-express-v1')).toBeInTheDocument();
         expect(screen.getByText('Inference Profile ID')).toBeInTheDocument();
         expect(screen.getByText('test-inference-profile')).toBeInTheDocument();

@@ -36,8 +36,8 @@ export function castToResponse(params: any): DetailsResponse {
         FeedbackParams: params.FeedbackParams
     };
 
+    let cleanedLlmParams: any = {};
     if (useCaseDetails.LlmParams) {
-        let cleanedLlmParams: any = {};
 
         if (useCaseDetails.LlmParams.PromptParams) {
             const { PromptParams } = useCaseDetails.LlmParams;
@@ -55,8 +55,12 @@ export function castToResponse(params: any): DetailsResponse {
             cleanedLlmParams.RAGEnabled = useCaseDetails.LlmParams.RAGEnabled;
         }
 
-        useCaseDetails.LlmParams = Object.keys(cleanedLlmParams).length > 0 ? cleanedLlmParams : undefined;
+        if ('MultimodalParams' in useCaseDetails.LlmParams) {
+            cleanedLlmParams.MultimodalParams = useCaseDetails.LlmParams.MultimodalParams;
+        }
     }
+    
+    useCaseDetails.LlmParams = Object.keys(cleanedLlmParams).length > 0 ? cleanedLlmParams : undefined;
 
     return useCaseDetails;
 }

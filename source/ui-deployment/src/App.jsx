@@ -17,6 +17,9 @@ import { useEffect, useContext } from 'react';
 import { UserContext } from './UserContext';
 import { TextUseCaseType } from './components/wizard/interfaces/UseCaseTypes/Text';
 import { AgentUseCaseType } from './components/wizard/interfaces/UseCaseTypes/Agent';
+import { MCPServerUseCaseType } from './components/wizard/interfaces/UseCaseTypes/MCPHost';
+import { AgentBuilderUseCaseType } from './components/wizard/interfaces/UseCaseTypes/AgentBuilder';
+import { WorkflowUseCaseType } from './components/wizard/interfaces/UseCaseTypes/Workflow';
 import UseCaseSelection from './components/wizard/UseCaseSelection';
 import UseCaseView from './components/useCaseDetails/UseCaseView';
 
@@ -101,20 +104,15 @@ function App({ runtimeConfig }) {
                         }}
                     />
                     <div style={{ margin: '20px' }}>
-                        <Alert
-                            statusIconAriaLabel="Error"
-                            type="error"
-                            header="Not Authorized"
-                        >
-                            You do not have permission to access the Deployment Dashboard. 
-                            This interface is restricted to admin users only. 
-                            Please contact your administrator if you believe this is an error.
+                        <Alert statusIconAriaLabel="Error" type="error" header="Not Authorized">
+                            You do not have permission to access the Deployment Dashboard. This interface is restricted
+                            to admin users only. Please contact your administrator if you believe this is an error.
                         </Alert>
                     </div>
                 </>
             );
         }
-        
+
         return (
             <>
                 <HomeContextProvider
@@ -164,7 +162,22 @@ function App({ runtimeConfig }) {
                                             path={USECASE_TYPE_ROUTE.AGENT}
                                             element={<WizardView useCase={new AgentUseCaseType()} />}
                                         />
-                                        <Route path="/deployment-details/:useCaseId" element={<UseCaseView />} />
+                                        <Route
+                                            path={USECASE_TYPE_ROUTE.MCP_SERVER}
+                                            element={<WizardView useCase={new MCPServerUseCaseType()} />}
+                                        />
+                                        <Route
+                                            path={USECASE_TYPE_ROUTE.AGENT_BUILDER}
+                                            element={<WizardView useCase={new AgentBuilderUseCaseType()} />}
+                                        />
+                                        <Route
+                                            path={USECASE_TYPE_ROUTE.WORKFLOW}
+                                            element={<WizardView useCase={new WorkflowUseCaseType()} />}
+                                        />
+                                        <Route
+                                            path="/deployment-details/:useCaseType/:useCaseId"
+                                            element={<UseCaseView />}
+                                        />
                                         <Route path="/change-password" element={<ChangePasswordView />} />
                                         <Route path="*" element={<Navigate to="/" />} />
                                     </Routes>

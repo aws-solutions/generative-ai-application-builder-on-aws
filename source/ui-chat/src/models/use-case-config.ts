@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-export type UseCaseType = 'Agent' | 'Text';
+export type UseCaseType = 'Agent' | 'Text' | 'AgentBuilder' | 'Workflow';
 
 export interface BaseUseCaseConfig {
     UseCaseName: string;
@@ -9,6 +9,14 @@ export interface BaseUseCaseConfig {
     FeedbackParams?: {
         FeedbackEnabled: boolean;
     };
+}
+
+export interface MultimodalParams {
+    MultimodalEnabled: boolean;
+    FileUploadEnabled?: boolean;
+    MaxFiles?: number;
+    MaxFileSize?: number;
+    SupportedFileTypes?: string[];
 }
 
 export interface TextUseCaseConfig extends BaseUseCaseConfig {
@@ -34,4 +42,20 @@ export interface AgentUseCaseConfig extends BaseUseCaseConfig {
             UserPromptEditingEnabled?: boolean;
         };
     };
+}
+
+export interface AgentBuilderUseCaseConfig extends BaseUseCaseConfig {
+    UseCaseType: 'AgentBuilder';
+    LlmParams: {
+        RAGEnabled: boolean;
+        MultimodalParams?: MultimodalParams;
+    }
+}
+
+export interface WorkflowUseCaseConfig extends BaseUseCaseConfig {
+    UseCaseType: 'Workflow';
+    LlmParams: {
+        RAGEnabled: boolean;
+        MultimodalParams?: MultimodalParams;
+    }
 }

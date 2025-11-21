@@ -9,6 +9,9 @@ import {
     useModelTemperatureQuery,
     useModelProvidersQuery,
     useUseCaseDetailsQuery,
+    useMcpServersQuery,
+    useMcpServerDetailsQuery,
+    useAgentResourcesQuery,
     getEffectiveModelId
 } from '../useQueries';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -43,15 +46,6 @@ describe('getEffectiveModelId function', () => {
             BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS
         );
         expect(result).toBe('inference-profile');
-    });
-
-    test('returns original modelId for Bedrock with QUICK_START_MODELS', () => {
-        const result = getEffectiveModelId(
-            MODEL_PROVIDER_NAME_MAP.Bedrock,
-            'model-1',
-            BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS
-        );
-        expect(result).toBe('model-1');
     });
 
     test('returns original modelId for non-Bedrock provider', () => {
@@ -131,7 +125,7 @@ describe('When using hook to fetch model info', () => {
 
     test('it should return model info with default bedrockInferenceType', async () => {
         const { result } = renderHook(
-            () => useModelInfoQuery('Bedrock', 'model-1', BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS),
+            () => useModelInfoQuery('Bedrock', 'model-1', BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES),
             { wrapper }
         );
 
@@ -139,7 +133,7 @@ describe('When using hook to fetch model info', () => {
             expect(result.current.isSuccess).toBe(true);
         });
         expect(mockAPI.get).toHaveBeenCalledTimes(1);
-        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/Bedrock/model-1', {
+        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/Bedrock/inference-profile', {
             headers: {
                 Authorization: 'fake-token'
             }
@@ -168,22 +162,12 @@ describe('When using hook to fetch model info', () => {
         });
     });
 
-    test('it should not make API call for Bedrock with QUICK_START_MODELS when modelId is not provided', () => {
-        const { result } = renderHook(
-            () => useModelInfoQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS),
-            { wrapper }
-        );
-        
-        // Just check that the API wasn't called
-        expect(mockAPI.get).not.toHaveBeenCalled();
-    });
-    
     test('it should make API call for Bedrock with INFERENCE_PROFILES even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelInfoQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -194,13 +178,13 @@ describe('When using hook to fetch model info', () => {
             }
         });
     });
-    
+
     test('it should make API call for Bedrock with PROVISIONED_MODELS even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelInfoQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -211,13 +195,13 @@ describe('When using hook to fetch model info', () => {
             }
         });
     });
-    
+
     test('it should make API call for Bedrock with OTHER_FOUNDATION_MODELS even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelInfoQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -228,16 +212,13 @@ describe('When using hook to fetch model info', () => {
             }
         });
     });
-    
+
     test('it should make API call for SageMaker even when modelId is not provided', async () => {
         // Mock the MODEL_PROVIDER_NAME_MAP.SageMaker value to ensure it matches exactly
         const sageMakerProvider = 'SageMaker';
-        
-        const { result } = renderHook(
-            () => useModelInfoQuery(sageMakerProvider, '', ''),
-            { wrapper }
-        );
-        
+
+        const { result } = renderHook(() => useModelInfoQuery(sageMakerProvider, '', ''), { wrapper });
+
         // Verify that the API was called
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -271,7 +252,7 @@ describe('When using hook to fetch model streaming', () => {
 
     test('it should return model streaming info with default bedrockInferenceType', async () => {
         const { result } = renderHook(
-            () => useModelStreamingQuery('Bedrock', 'model-1', BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS),
+            () => useModelStreamingQuery('Bedrock', 'model-1', BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES),
             { wrapper }
         );
 
@@ -279,7 +260,7 @@ describe('When using hook to fetch model streaming', () => {
             expect(result.current.isSuccess).toBe(true);
         });
         expect(mockAPI.get).toHaveBeenCalledTimes(1);
-        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/Bedrock/model-1', {
+        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/Bedrock/inference-profile', {
             headers: {
                 Authorization: 'fake-token'
             }
@@ -303,22 +284,12 @@ describe('When using hook to fetch model streaming', () => {
         });
     });
 
-    test('it should not make API call for Bedrock with QUICK_START_MODELS when modelId is not provided', () => {
-        const { result } = renderHook(
-            () => useModelStreamingQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS),
-            { wrapper }
-        );
-        
-        // Check that the API wasn't called
-        expect(mockAPI.get).not.toHaveBeenCalled();
-    });
-    
     test('it should make API call for Bedrock with INFERENCE_PROFILES even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelStreamingQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -329,13 +300,13 @@ describe('When using hook to fetch model streaming', () => {
             }
         });
     });
-    
+
     test('it should make API call for Bedrock with PROVISIONED_MODELS even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelStreamingQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -346,13 +317,13 @@ describe('When using hook to fetch model streaming', () => {
             }
         });
     });
-    
+
     test('it should make API call for Bedrock with OTHER_FOUNDATION_MODELS even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelStreamingQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -367,11 +338,8 @@ describe('When using hook to fetch model streaming', () => {
     test('it should make API call for SageMaker even when modelId is not provided', async () => {
         // Mock the MODEL_PROVIDER_NAME_MAP.SageMaker value to ensure it matches exactly
         const sageMakerProvider = 'SageMaker';
-        
-        const { result } = renderHook(
-            () => useModelStreamingQuery(sageMakerProvider, '', ''),
-            { wrapper }
-        );
+
+        const { result } = renderHook(() => useModelStreamingQuery(sageMakerProvider, '', ''), { wrapper });
 
         // Verify that the API was called
         await waitFor(() => {
@@ -408,7 +376,7 @@ describe('When using hook to fetch model temperature', () => {
 
     test('it should return model temperature info with default bedrockInferenceType', async () => {
         const { result } = renderHook(
-            () => useModelTemperatureQuery('Bedrock', 'model-1', BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS),
+            () => useModelTemperatureQuery('Bedrock', 'model-1', BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES),
             { wrapper }
         );
 
@@ -416,7 +384,7 @@ describe('When using hook to fetch model temperature', () => {
             expect(result.current.isSuccess).toBe(true);
         });
         expect(mockAPI.get).toHaveBeenCalledTimes(1);
-        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/Bedrock/model-1', {
+        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/model-info/Chat/Bedrock/inference-profile', {
             headers: {
                 Authorization: 'fake-token'
             }
@@ -440,22 +408,12 @@ describe('When using hook to fetch model temperature', () => {
         });
     });
 
-    test('it should not make API call for Bedrock with QUICK_START_MODELS when modelId is not provided', () => {
-        const { result } = renderHook(
-            () => useModelTemperatureQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS),
-            { wrapper }
-        );
-        
-        // Check that the API wasn't called
-        expect(mockAPI.get).not.toHaveBeenCalled();
-    });
-    
     test('it should make API call for Bedrock with INFERENCE_PROFILES even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelTemperatureQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -466,13 +424,13 @@ describe('When using hook to fetch model temperature', () => {
             }
         });
     });
-    
+
     test('it should make API call for Bedrock with PROVISIONED_MODELS even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelTemperatureQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -483,13 +441,13 @@ describe('When using hook to fetch model temperature', () => {
             }
         });
     });
-    
+
     test('it should make API call for Bedrock with OTHER_FOUNDATION_MODELS even when modelId is not provided', async () => {
         const { result } = renderHook(
             () => useModelTemperatureQuery('Bedrock', '', BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS),
             { wrapper }
         );
-        
+
         // Verify that the API was called with inference-profile
         await waitFor(() => {
             expect(mockAPI.get).toHaveBeenCalled();
@@ -504,11 +462,8 @@ describe('When using hook to fetch model temperature', () => {
     test('it should make API call for SageMaker even when modelId is not provided', async () => {
         // Mock the MODEL_PROVIDER_NAME_MAP.SageMaker value to ensure it matches exactly
         const sageMakerProvider = 'SageMaker';
-        
-        const { result } = renderHook(
-            () => useModelTemperatureQuery(sageMakerProvider, '', ''),
-            { wrapper }
-        );
+
+        const { result } = renderHook(() => useModelTemperatureQuery(sageMakerProvider, '', ''), { wrapper });
 
         // Verify that the API was called
         await waitFor(() => {
@@ -683,6 +638,520 @@ describe('When using hook to fetch use case details', () => {
         const hasCorrectKey = queries.some(
             ([key]) => Array.isArray(key) && key[0] === 'useCaseDetails' && key[1] === mockUseCaseId
         );
+
+        expect(hasCorrectKey).toBe(true);
+    });
+});
+
+describe('When using hook to fetch MCP servers', () => {
+    const mockAPI = {
+        get: vi.fn()
+    };
+
+    let wrapper: any;
+    const mockMcpServersData = {
+        mcpServers: [
+            {
+                useCaseId: 'mcp-healthcare-001',
+                useCaseName: 'Healthcare Management System',
+                url: 'https://api.healthcare.example.com/mcp',
+                type: 'gateway',
+                status: 'ACTIVE'
+            },
+            {
+                useCaseId: 'mcp-database-001',
+                useCaseName: 'Database Connector',
+                url: 'https://api.database.example.com/mcp',
+                type: 'runtime',
+                status: 'ACTIVE'
+            },
+            {
+                useCaseId: 'mcp-finance-001',
+                useCaseName: 'Financial Services',
+                url: 'https://api.finance.example.com/mcp',
+                type: 'gateway',
+                status: 'INACTIVE'
+            },
+            {
+                useCaseId: 'mcp-weather-001',
+                useCaseName: 'Weather API',
+                url: 'https://api.weather.example.com/mcp',
+                type: 'runtime',
+                status: 'ACTIVE'
+            }
+        ],
+        strandsTools: [
+            {
+                name: 'Calculator',
+                description: 'Perform mathematical calculations and operations',
+                value: 'calculator',
+                category: 'Math',
+                isDefault: true
+            },
+            {
+                name: 'Current Time',
+                description: 'Get current date and time information',
+                value: 'current_time',
+                category: 'Utilities',
+                isDefault: true
+            },
+            {
+                name: 'Environment',
+                description: 'Access environment variables and system information',
+                value: 'environment',
+                category: 'System',
+                isDefault: false
+            }
+        ]
+    };
+
+    beforeEach(() => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false
+                }
+            }
+        });
+        mockAPI.get.mockResolvedValue(mockMcpServersData);
+        API.get = mockAPI.get;
+        Auth.currentAuthenticatedUser = mockedAuthenticator();
+
+        wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    test('it should return MCP servers list', async () => {
+        const { result } = renderHook(() => useMcpServersQuery(), { wrapper });
+
+        await waitFor(() => {
+            expect(result.current.isSuccess).toBe(true);
+        });
+
+        expect(result.current.data).toEqual(mockMcpServersData);
+    });
+
+    test('it should respect the enabled option', async () => {
+        const { result } = renderHook(() => useMcpServersQuery({ enabled: false }), { wrapper });
+
+        // The query should be disabled
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isFetched).toBe(false);
+        expect(mockAPI.get).not.toHaveBeenCalled();
+    });
+
+    test('it should handle API errors', async () => {
+        const mockError = new Error('API error');
+        mockAPI.get.mockRejectedValue(mockError);
+
+        const errorQueryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                    throwOnError: false
+                }
+            }
+        });
+
+        const errorWrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={errorQueryClient}>{children}</QueryClientProvider>
+        );
+
+        const { result } = renderHook(() => useMcpServersQuery(), {
+            wrapper: errorWrapper
+        });
+
+        await waitFor(
+            () => {
+                return result.current.isError === true;
+            },
+            { timeout: 3000 }
+        );
+
+        expect(result.current.error).toBeDefined();
+    });
+});
+
+describe('When using hook to fetch MCP server details', () => {
+    const mockAPI = {
+        get: vi.fn()
+    };
+
+    let wrapper: any;
+    const mockMcpId = 'mcp-healthcare-001';
+    const mockMcpServersData = {
+        mcpServers: [
+            {
+                useCaseId: 'mcp-healthcare-001',
+                useCaseName: 'Healthcare Management System',
+                url: 'https://api.healthcare.example.com/mcp',
+                type: 'gateway',
+                status: 'ACTIVE'
+            },
+            {
+                useCaseId: 'mcp-database-001',
+                useCaseName: 'Database Connector',
+                url: 'https://api.database.example.com/mcp',
+                type: 'runtime',
+                status: 'ACTIVE'
+            },
+            {
+                useCaseId: 'mcp-weather-001',
+                useCaseName: 'Weather API',
+                url: 'https://api.weather.example.com/mcp',
+                type: 'runtime',
+                status: 'ACTIVE'
+            }
+        ],
+        strandsTools: [
+            {
+                name: 'Calculator',
+                description: 'Perform mathematical calculations and operations',
+                value: 'calculator',
+                category: 'Math',
+                isDefault: true
+            },
+            {
+                name: 'Current Time',
+                description: 'Get current date and time information',
+                value: 'current_time',
+                category: 'Utilities',
+                isDefault: true
+            }
+        ]
+    };
+    const mockMcpServerData = {
+        useCaseId: mockMcpId,
+        useCaseName: 'Healthcare Management System',
+        url: 'https://api.healthcare.example.com/mcp',
+        type: 'gateway',
+        status: 'ACTIVE'
+    };
+
+    beforeEach(() => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false
+                }
+            }
+        });
+        mockAPI.get.mockResolvedValue(mockMcpServersData);
+        API.get = mockAPI.get;
+        Auth.currentAuthenticatedUser = mockedAuthenticator();
+
+        wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    test('it should return MCP server details', async () => {
+        const { result } = renderHook(() => useMcpServerDetailsQuery(mockMcpId), { wrapper });
+
+        await waitFor(() => {
+            expect(result.current.isSuccess).toBe(true);
+        });
+
+        expect(result.current.data).toEqual(mockMcpServerData);
+    });
+
+    test('it should not fetch when mcpId is empty', async () => {
+        const { result } = renderHook(() => useMcpServerDetailsQuery(''), { wrapper });
+
+        // The query should be disabled
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isFetched).toBe(false);
+        expect(mockAPI.get).not.toHaveBeenCalled();
+    });
+
+    test('it should respect the enabled option', async () => {
+        const { result } = renderHook(() => useMcpServerDetailsQuery(mockMcpId, { enabled: false }), { wrapper });
+
+        // The query should be disabled
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isFetched).toBe(false);
+        expect(mockAPI.get).not.toHaveBeenCalled();
+    });
+
+    test('it should handle API errors', async () => {
+        const mockError = new Error('API error');
+        mockAPI.get.mockRejectedValue(mockError);
+
+        const errorQueryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                    throwOnError: false
+                }
+            }
+        });
+
+        const errorWrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={errorQueryClient}>{children}</QueryClientProvider>
+        );
+
+        const { result } = renderHook(() => useMcpServerDetailsQuery(mockMcpId), {
+            wrapper: errorWrapper
+        });
+
+        await waitFor(
+            () => {
+                return result.current.isError === true;
+            },
+            { timeout: 3000 }
+        );
+
+        expect(result.current.error).toBeDefined();
+    });
+
+    test('it should use the correct query key', async () => {
+        const queryClient = new QueryClient();
+
+        const customWrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+
+        renderHook(() => useMcpServerDetailsQuery(mockMcpId), { wrapper: customWrapper });
+
+        await waitFor(() => {
+            const queries = queryClient.getQueriesData({ queryKey: ['mcpServerDetails'] });
+            return queries.length > 0;
+        });
+
+        const queries = queryClient.getQueriesData({ queryKey: ['mcpServerDetails'] });
+        const hasCorrectKey = queries.some(
+            ([key]) => Array.isArray(key) && key[0] === 'mcpServerDetails' && key[1] === mockMcpId
+        );
+
+        expect(hasCorrectKey).toBe(true);
+    });
+});
+
+describe('When using hook to fetch agent resources', () => {
+    const mockAPI = {
+        get: vi.fn()
+    };
+
+    let wrapper: any;
+    const mockMcpServersData = {
+        mcpServers: [
+            {
+                useCaseId: 'mcp-healthcare-001',
+                useCaseName: 'Healthcare Management System',
+                url: 'https://api.healthcare.example.com/mcp',
+                type: 'gateway',
+                status: 'ACTIVE'
+            },
+            {
+                useCaseId: 'mcp-database-001',
+                useCaseName: 'Database Connector',
+                url: 'https://api.database.example.com/mcp',
+                type: 'runtime',
+                status: 'ACTIVE'
+            },
+            {
+                useCaseId: 'mcp-weather-001',
+                useCaseName: 'Weather API',
+                url: 'https://api.weather.example.com/mcp',
+                type: 'runtime',
+                status: 'ACTIVE'
+            }
+        ],
+        strandsTools: [
+            {
+                name: 'HTTP Request',
+                value: 'http_request',
+                description: 'Make HTTP requests to external APIs and web services',
+                category: 'Network',
+                isDefault: false,
+                type: 'STRANDS_TOOL'
+            },
+            {
+                name: 'Date/Time Utils',
+                value: 'current_time',
+                description: 'Date and time manipulation utilities',
+                category: 'Utilities',
+                isDefault: true,
+                type: 'STRANDS_TOOL'
+            },
+            {
+                name: 'Math Operations',
+                value: 'calculator',
+                description: 'Mathematical calculations and operations',
+                category: 'Math',
+                isDefault: true,
+                type: 'STRANDS_TOOL'
+            }
+        ]
+    };
+    const mockAgentResourcesData = [
+        {
+            label: 'MCP Servers',
+            options: [
+                {
+                    label: 'GATEWAY: Healthcare Management System',
+                    value: 'mcp-healthcare-001',
+                    description: 'https://api.healthcare.example.com/mcp',
+                    useCaseId: 'mcp-healthcare-001',
+                    useCaseName: 'Healthcare Management System',
+                    url: 'https://api.healthcare.example.com/mcp',
+                    type: 'gateway',
+                    status: 'ACTIVE',
+                    iconName: 'share'
+                },
+                {
+                    label: 'RUNTIME: Database Connector',
+                    value: 'mcp-database-001',
+                    description: 'https://api.database.example.com/mcp',
+                    useCaseId: 'mcp-database-001',
+                    useCaseName: 'Database Connector',
+                    url: 'https://api.database.example.com/mcp',
+                    type: 'runtime',
+                    status: 'ACTIVE',
+                    iconName: 'share'
+                },
+                {
+                    label: 'RUNTIME: Weather API',
+                    value: 'mcp-weather-001',
+                    description: 'https://api.weather.example.com/mcp',
+                    useCaseId: 'mcp-weather-001',
+                    useCaseName: 'Weather API',
+                    url: 'https://api.weather.example.com/mcp',
+                    type: 'runtime',
+                    status: 'ACTIVE',
+                    iconName: 'share'
+                }
+            ]
+        },
+        {
+            label: 'Tools provided out of the box',
+            options: [
+                {
+                    label: 'HTTP Request',
+                    value: 'http_request',
+                    description: 'Make HTTP requests to external APIs and web services',
+                    iconName: 'settings',
+                    type: 'STRANDS_TOOL'
+                },
+                {
+                    label: 'Date/Time Utils',
+                    value: 'current_time',
+                    description: 'Date and time manipulation utilities',
+                    iconName: 'settings',
+                    type: 'STRANDS_TOOL'
+                },
+                {
+                    label: 'Math Operations',
+                    value: 'calculator',
+                    description: 'Mathematical calculations and operations',
+                    iconName: 'settings',
+                    type: 'STRANDS_TOOL'
+                }
+            ]
+        }
+    ];
+
+    beforeEach(() => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false
+                }
+            }
+        });
+
+        mockAPI.get.mockResolvedValue(mockMcpServersData);
+        API.get = mockAPI.get;
+        Auth.currentAuthenticatedUser = mockedAuthenticator();
+
+        wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    test('it should return formatted agent resources', async () => {
+        const { result } = renderHook(() => useAgentResourcesQuery(), { wrapper });
+
+        await waitFor(() => {
+            expect(result.current.isSuccess).toBe(true);
+        });
+
+        // Hook now returns an object with formatted and raw properties
+        expect(result.current.data).toHaveProperty('formatted');
+        expect(result.current.data).toHaveProperty('raw');
+        expect(result.current.data?.formatted).toEqual(mockAgentResourcesData);
+        expect(result.current.data?.raw).toEqual(mockMcpServersData);
+    });
+
+    test('it should respect the enabled option', async () => {
+        const { result } = renderHook(() => useAgentResourcesQuery({ enabled: false }), { wrapper });
+
+        // The query should be disabled
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isFetched).toBe(false);
+        expect(mockAPI.get).not.toHaveBeenCalled();
+    });
+
+    test('it should handle API errors', async () => {
+        const mockError = new Error('API error');
+        mockAPI.get.mockRejectedValue(mockError);
+
+        const errorQueryClient = new QueryClient({
+            defaultOptions: {
+                queries: {
+                    retry: false,
+                    throwOnError: false
+                }
+            }
+        });
+
+        const errorWrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={errorQueryClient}>{children}</QueryClientProvider>
+        );
+
+        const { result } = renderHook(() => useAgentResourcesQuery(), {
+            wrapper: errorWrapper
+        });
+
+        await waitFor(
+            () => {
+                return result.current.isError === true;
+            },
+            { timeout: 3000 }
+        );
+
+        expect(result.current.error).toBeDefined();
+    });
+
+    test('it should use the correct query key', async () => {
+        const queryClient = new QueryClient();
+
+        const customWrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        );
+
+        renderHook(() => useAgentResourcesQuery(), { wrapper: customWrapper });
+
+        await waitFor(() => {
+            const queries = queryClient.getQueriesData({ queryKey: ['agentResources'] });
+            return queries.length > 0;
+        });
+
+        const queries = queryClient.getQueriesData({ queryKey: ['agentResources'] });
+        const hasCorrectKey = queries.some(([key]) => Array.isArray(key) && key[0] === 'agentResources');
 
         expect(hasCorrectKey).toBe(true);
     });

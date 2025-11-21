@@ -10,6 +10,7 @@ export const createAgentUseCaseEvent = {
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
         DeployUI: false,
+        ProvisionedConcurrencyValue: 0,
         FeedbackParams: {
             FeedbackEnabled: true
         },
@@ -149,6 +150,7 @@ export const createUseCaseEvent = {
         UseCaseDescription: 'fake-description',
         DefaultUserEmail: 'fake-email@example.com',
         DeployUI: true,
+        ProvisionedConcurrencyValue: 0,
         FeedbackParams: {
             FeedbackEnabled: true
         },
@@ -648,6 +650,207 @@ export const permanentlyDeleteUseCaseEvent = {
 
 export const getUseCaseApiEvent = {
     resource: '/deployments',
+    httpMethod: 'GET',
+    queryStringParameters: {
+        pageNumber: '1'
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+// Agent Builder test events
+export const createAgentBuilderUseCaseEvent = {
+    body: {
+        UseCaseType: 'AgentBuilder',
+        UseCaseName: 'fake-agent-builder',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        DeployUI: true,
+        FeedbackParams: {
+            FeedbackEnabled: true
+        },
+        LlmParams: {
+            ModelProvider: 'Bedrock',
+            BedrockLlmParams: { ModelId: 'fake-model' },
+            Temperature: 0.1,
+            RAGEnabled: false,
+            Streaming: true
+        },
+        AgentParams: {
+            SystemPrompt: 'You are a helpful assistant',
+            MCPServers: [],
+            Tools: [],
+            MemoryConfig: {
+                LongTermEnabled: true
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentBuilderUseCaseWithCognitoEvent = {
+    body: {
+        UseCaseType: 'AgentBuilder',
+        UseCaseName: 'fake-agent-builder',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        DeployUI: true,
+        FeedbackParams: {
+            FeedbackEnabled: true
+        },
+        LlmParams: {
+            ModelProvider: 'Bedrock',
+            BedrockLlmParams: { ModelId: 'fake-model' },
+            Temperature: 0.1,
+            RAGEnabled: false,
+            Streaming: true
+        },
+        AgentParams: {
+            SystemPrompt: 'You are a helpful assistant',
+            MCPServers: [],
+            Tools: [],
+            MemoryConfig: {
+                LongTermEnabled: true
+            }
+        },
+        AuthenticationParams: {
+            AuthenticationProvider: AUTHENTICATION_PROVIDERS.COGNITO,
+            CognitoParams: {
+                ExistingUserPoolId: 'fake-user-pool-id',
+                ExistingUserPoolClientId: 'fake-user-pool-client-id'
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentBuilderUseCaseWithApiEvent = {
+    body: {
+        UseCaseType: 'AgentBuilder',
+        UseCaseName: 'fake-agent-builder',
+        UseCaseDescription: 'fake-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        DeployUI: true,
+        ExistingRestApiId: 'fake-api-id',
+        ExistingApiRootResourceId: 'fake-root-resource-id',
+        FeedbackParams: {
+            FeedbackEnabled: true
+        },
+        LlmParams: {
+            ModelProvider: 'Bedrock',
+            BedrockLlmParams: { ModelId: 'fake-model' },
+            Temperature: 0.1,
+            RAGEnabled: false,
+            Streaming: true
+        },
+        AgentParams: {
+            SystemPrompt: 'You are a helpful assistant',
+            MCPServers: [],
+            Tools: [],
+            MemoryConfig: {
+                LongTermEnabled: false
+            }
+        }
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentBuilderUseCaseApiEvent = {
+    body: JSON.stringify(createAgentBuilderUseCaseEvent.body),
+    resource: '/deployments/agents',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentBuilderUseCaseApiEventWithCognito = {
+    body: JSON.stringify(createAgentBuilderUseCaseWithCognitoEvent.body),
+    resource: '/deployments/agents',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const createAgentBuilderUseCaseApiEventWithApi = {
+    body: JSON.stringify(createAgentBuilderUseCaseWithApiEvent.body),
+    resource: '/deployments/agents',
+    httpMethod: 'POST',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const updateAgentBuilderUseCaseEvent = {
+    body: {
+        UseCaseType: 'AgentBuilder',
+        UseCaseName: 'updated-agent-builder',
+        UseCaseDescription: 'updated-description',
+        DefaultUserEmail: 'fake-email@example.com',
+        LlmParams: {
+            ModelProvider: 'Bedrock',
+            BedrockLlmParams: { ModelId: 'fake-model' },
+            Temperature: 0.2,
+            RAGEnabled: false,
+            Streaming: true
+        },
+        AgentParams: {
+            SystemPrompt: 'You are an updated helpful assistant',
+            MCPServers: [],
+            Tools: [],
+            MemoryConfig: {
+                LongTermEnabled: false
+            }
+        }
+    },
+    pathParameters: {
+        useCaseId: '11111111-2222-2222-3333-333344444444'
+    },
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const updateAgentBuilderUseCaseApiEvent = {
+    body: JSON.stringify(updateAgentBuilderUseCaseEvent.body),
+    resource: '/deployments/agents/{useCaseId}',
+    pathParameters: {
+        useCaseId: '11111111-2222-2222-3333-333344444444'
+    },
+    httpMethod: 'PATCH',
+    requestContext: {
+        authorizer: {
+            UserId: 'fake-user-id'
+        }
+    }
+};
+
+export const getAgentBuilderUseCaseApiEvent = {
+    resource: '/deployments/agents',
     httpMethod: 'GET',
     queryStringParameters: {
         pageNumber: '1'

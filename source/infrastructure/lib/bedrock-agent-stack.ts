@@ -58,14 +58,52 @@ export class BedrockAgentParameters extends UseCaseParameters {
 
         const existingParameterGroups =
             this.cfnStack.templateOptions.metadata !== undefined &&
-            Object.hasOwn(this.cfnStack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
-            this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
+                Object.hasOwn(this.cfnStack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
+                this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
                 ? this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
                 : [];
 
         existingParameterGroups.unshift({
             Label: { default: 'Please provide Bedrock Agent configuration' },
             Parameters: [this.bedrockAgentId.logicalId, this.bedrockAgentAliasId.logicalId]
+        });
+
+        // Multimodal parameters are not supported for Bedrock Agent Use Cases
+        new cdk.CfnRule(this.cfnStack, 'NoMultimodalEnabledForBedrockAgentRule', {
+            ruleCondition: cdk.Fn.conditionEquals(this.multimodalEnabled.valueAsString, 'Yes'),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals('false', 'true'),
+                    assertDescription:
+                        'Multimodal functionality is not supported for Bedrock Agent Use Cases. Please set MultimodalEnabled to No.'
+                }
+            ]
+        });
+
+        new cdk.CfnRule(this.cfnStack, 'NoMultimodalBucketForBedrockAgentRule', {
+            ruleCondition: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.existingMultimodalDataBucket.valueAsString, '')
+            ),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals('false', 'true'),
+                    assertDescription:
+                        'Multimodal data bucket is not supported for Bedrock Agent Use Cases. Please leave ExistingMultimodalDataBucket empty.'
+                }
+            ]
+        });
+
+        new cdk.CfnRule(this.cfnStack, 'NoMultimodalTableForBedrockAgentRule', {
+            ruleCondition: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.existingMultimodalDataMetadataTable.valueAsString, '')
+            ),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals('false', 'true'),
+                    assertDescription:
+                        'Multimodal metadata table is not supported for Bedrock Agent Use Cases. Please leave ExistingMultimodalDataMetadataTable empty.'
+                }
+            ]
         });
     }
 }
@@ -79,15 +117,15 @@ export class BedrockAgent extends UseCaseStack {
     constructor(stack: Construct, id: string, props: BaseStackProps) {
         super(stack, id, props);
         this.withAdditionalResourceSetup(props);
-        this.withAnonymousMetrics(props);
+        this.withMetrics(props);
     }
 
     /**
      * setting websocket route for agent stack
      * @returns
      */
-    protected getWebSocketRoutes(): Map<string, lambda.Function> {
-        return new Map().set('invokeAgent', this.chatLlmProviderLambda);
+    protected getWebSocketRoutes(): Map<string, lambda.Function | lambda.Alias> {
+        return new Map().set('invokeAgent', this.chatLlmProviderAlias);
     }
 
     /**
@@ -198,11 +236,11 @@ export class BedrockAgent extends UseCaseStack {
         // connection to the conversation memory
         // prettier-ignore
         new LambdaToDynamoDB(this, 'ChatProviderLambdaToConversationTable', { // NOSONAR - construct instantiation
-                existingLambdaObj: this.chatLlmProviderLambda,
-                existingTableObj: this.chatStorageSetup.chatStorage.conversationTable,
-                tablePermissions: 'ReadWrite',
-                tableEnvironmentVariableName: CONVERSATION_TABLE_NAME_ENV_VAR
-            });
+            existingLambdaObj: this.chatLlmProviderLambda,
+            existingTableObj: this.chatStorageSetup.chatStorage.conversationTable,
+            tablePermissions: 'ReadWrite',
+            tableEnvironmentVariableName: CONVERSATION_TABLE_NAME_ENV_VAR
+        });
     }
 
     protected initializeCfnParameters(): void {

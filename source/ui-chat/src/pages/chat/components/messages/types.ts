@@ -3,6 +3,7 @@
 
 import { ChatBubbleMessage } from '../../types';
 import { FeedbackFormData } from '../input/FeedbackForm';
+import { ToolUsageInfo } from '../../../../models';
 
 interface BaseMessageProps {
     message: ChatBubbleMessage;
@@ -18,8 +19,11 @@ interface BaseMessageProps {
 export interface IncomingMessageProps extends BaseMessageProps {
     showActions: boolean;
     conversationId: string;
+    toolUsage?: ToolUsageInfo[];
 }
 
 export interface OutgoingMessageProps extends BaseMessageProps {
     previewHeight?: number;
+    conversationId?: string;
+    hasFileError?: boolean;
 }

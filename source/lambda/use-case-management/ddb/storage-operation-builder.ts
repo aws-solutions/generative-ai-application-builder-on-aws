@@ -9,6 +9,7 @@ import {
     UpdateItemCommandInput
 } from '@aws-sdk/client-dynamodb';
 import { UseCase } from '../model/use-case';
+import { AgentBuilderUseCaseConfiguration, UseCaseConfiguration } from '../model/types';
 import { logger, tracer } from '../power-tools-init';
 import {
     CfnParameterKeys,
@@ -52,6 +53,7 @@ export class PutItemCommandInputBuilder extends CommandInputBuilder {
             TableName: process.env[USE_CASES_TABLE_NAME_ENV_VAR],
             Item: {
                 UseCaseId: { S: this.useCase.useCaseId },
+                UseCaseType: { S: this.useCase.useCaseType },
                 StackId: { S: this.useCase.stackId },
                 Name: { S: this.useCase.name },
                 ...(this.useCase.description && {
@@ -189,23 +191,37 @@ export class GetModelInfoCommandInputBuilder extends CommandInputBuilder {
     @tracer.captureMethod({ captureResponse: false, subSegmentName: '###getModelInfoRecord' })
     public build(): GetItemCommandInput {
         logger.debug('Building GetItemCommandInput');
-        let sortKey = `${this.useCase.configuration.LlmParams!.ModelProvider}#`;
-        switch (this.useCase.configuration.LlmParams!.ModelProvider) {
-            case CHAT_PROVIDERS.BEDROCK:
-                sortKey += this.useCase.configuration.LlmParams!.BedrockLlmParams!.ModelId ?? INFERENCE_PROFILE;
-                break;
-            case CHAT_PROVIDERS.SAGEMAKER:
-                sortKey += 'default';
-                break;
-            default:
-                logger.error(`Unknown model provider: ${this.useCase.configuration.LlmParams!.ModelProvider}`);
-                break;
+
+        // Handle different configuration types
+        let modelProvider: string;
+        let modelId: string | undefined;
+        let ragEnabled: boolean = false;
+
+        if (this.useCase.useCaseType === UseCaseTypes.AGENT_BUILDER) {
+            const config = this.useCase.configuration as AgentBuilderUseCaseConfiguration;
+            modelProvider = config.LlmParams?.ModelProvider || CHAT_PROVIDERS.AGENT_CORE;
+            modelId = config.LlmParams?.BedrockLlmParams?.ModelId;
+            ragEnabled = config.LlmParams?.RAGEnabled || false;
+        } else if (this.useCase.useCaseType === UseCaseTypes.AGENT) {
+            modelProvider = CHAT_PROVIDERS.BEDROCK_AGENT;
+            modelId = 'default';
+        } else {
+            // Text/Chat use cases
+            const config = this.useCase.configuration as UseCaseConfiguration;
+            modelProvider = config.LlmParams!.ModelProvider!;
+            modelId = config.LlmParams!.BedrockLlmParams?.ModelId;
+            ragEnabled = config.LlmParams!.RAGEnabled || false;
         }
+
+        const sortKey = `${modelProvider}#${
+            modelProvider === CHAT_PROVIDERS.BEDROCK ? (modelId ?? INFERENCE_PROFILE) : 'default'
+        }`;
+
         return {
             TableName: process.env[MODEL_INFO_TABLE_NAME_ENV_VAR],
             Key: {
                 UseCase: {
-                    S: this.useCase.configuration.LlmParams!.RAGEnabled ? UseCaseTypes.RAGChat : UseCaseTypes.CHAT
+                    S: ragEnabled ? UseCaseTypes.RAGChat : UseCaseTypes.CHAT
                 },
                 SortKey: {
                     S: sortKey

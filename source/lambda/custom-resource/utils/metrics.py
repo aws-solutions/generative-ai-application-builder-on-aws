@@ -39,6 +39,7 @@ def push_builder_metrics(builder_metrics: BuilderMetrics):
             {
                 "Solution": builder_metrics.solution_id,
                 "Version": builder_metrics.version,
+                "AccountId": builder_metrics.account_id,
                 "TimeStamp": datetime.now(timezone.utc).strftime(METRICS_TIMESTAMP_FORMAT),
                 "Data": builder_metrics.data,
                 "UUID": builder_metrics.uuid,

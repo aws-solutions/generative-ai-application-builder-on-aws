@@ -29,7 +29,7 @@ describe('When creating the nested stack for chat storage with useCaseType as Te
         template = Template.fromStack(nestedStack);
     });
 
-    it('should template to have following parameters', () => {
+    it('template should have the following parameters', () => {
         template.hasParameter('ConversationTableName', {
             Type: 'String',
             MaxLength: 255,

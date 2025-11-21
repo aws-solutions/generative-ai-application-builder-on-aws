@@ -14,6 +14,7 @@ import { logger, tracer } from '../power-tools-init';
 import {
     DYNAMODB_TTL_ATTRIBUTE_NAME,
     TTL_SECONDS,
+    CONFIG_TTL_SECONDS,
     USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 } from '../utils/constants';
@@ -42,7 +43,7 @@ export abstract class CommandInputBuilder {
 export class GetConfigItemBuilder extends CommandInputBuilder {
     @tracer.captureMethod({ captureResponse: false, subSegmentName: '###getUseCaseConfigRecord' })
     public build(): GetItemCommandInput {
-        console.debug('Building GetConfigItemBuilder');
+        logger.debug('Building GetConfigItemBuilder');
         return {
             TableName: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR],
             Key: {
@@ -73,13 +74,42 @@ export class PutConfigItemBuilder extends CommandInputBuilder {
 export class DeleteConfigItemBuilder extends CommandInputBuilder {
     @tracer.captureMethod({ captureResponse: false, subSegmentName: '###deleteUseCaseConfigRecord' })
     public build(): DeleteItemCommandInput {
-        console.debug('Building DeleteConfigItemBuilder');
+        logger.debug('Building DeleteConfigItemBuilder');
         return {
             TableName: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR],
             Key: {
                 [USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME]: { S: this.useCase.getUseCaseConfigRecordKey() }
             }
         } as DeleteItemCommandInput;
+    }
+}
+
+/**
+ * Builder to build input to mark a use case config for deletion by setting the TTL
+ */
+export class MarkConfigItemForDeletionCommandBuilder extends CommandInputBuilder {
+    /**
+     * Method to create input to update an existing config record in dynamodb setting the TTL
+     * @returns
+     */
+    @tracer.captureMethod({ captureResponse: false, subSegmentName: '###updateUseCaseConfigRecordForDelete' })
+    public build(): UpdateItemCommandInput {
+        logger.debug('Building UpdateItemCommandInput for config deletion');
+        const currentTime = new Date();
+        const expiryTime = Math.floor(currentTime.getTime() / 1000) + CONFIG_TTL_SECONDS;
+        return {
+            TableName: process.env[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR],
+            Key: {
+                [USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME]: { S: this.useCase.getUseCaseConfigRecordKey() }
+            },
+            UpdateExpression: 'SET #TTL = :expiry_time',
+            ExpressionAttributeNames: {
+                ['#TTL']: DYNAMODB_TTL_ATTRIBUTE_NAME
+            },
+            ExpressionAttributeValues: {
+                [':expiry_time']: { N: expiryTime.toString() }
+            }
+        } as UpdateItemCommandInput;
     }
 }
 

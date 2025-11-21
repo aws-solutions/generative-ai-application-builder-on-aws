@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom-resource"
-version = "3.0.7"
+version = "4.0.0"
 authors = [ "Amazon Web Services" ]
 description = "Perform specific operations triggered by AWS CloudFormation events"
 packages = [
@@ -28,7 +28,6 @@ pytest-env = "1.1.5"
 PyYAML = "6.0.2"
 setuptools = "80.8.0"
 pyjwt = "^2.10.1"
-requests="2.32.4"
 urllib3="2.5.0"
 boto3-layer =  { path = "../layers/aws_boto3/", develop = true }
 custom_boto3_init = { path = "../layers/custom_boto3_init", develop = true }

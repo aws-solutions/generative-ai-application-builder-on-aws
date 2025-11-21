@@ -7,7 +7,7 @@ import * as rawCdkJson from '../cdk.json';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 
 import { DeploymentPlatformStack } from '../lib/deployment-platform-stack';
-import { INTERNAL_EMAIL_DOMAIN } from '../lib/utils/constants';
+import { INTERNAL_EMAIL_DOMAIN, MULTIMODAL_FILE_EXPIRATION_DAYS } from '../lib/utils/constants';
 
 describe('When deployment platform stack is created', () => {
     let template: Template;
@@ -113,8 +113,23 @@ describe('When deployment platform stack is created', () => {
             }
         });
 
-        // Ensure you expected to add a new CfnOutput before incrementing this value
-        expect(Object.keys(template.findOutputs('*')).length).toEqual(11);
+        template.hasOutput('MultimodalDataBucketName', {
+            'Value': {
+                'Ref': Match.stringLikeRegexp(
+                    'UseCaseManagementSetupMultimodalSetupFactoriesMultimodalDataBucketS3Bucket'
+                )
+            },
+            'Description': 'S3 bucket for storing multimodal files'
+        });
+
+        template.hasOutput('MultimodalDataMetadataTable', {
+            'Value': {
+                'Ref': Match.stringLikeRegexp('UseCaseManagementSetupMultimodalSetupMultimodalDataMetadataTable')
+            },
+            'Description': 'DynamoDB table for storing multimodal files metadata'
+        });
+
+        expect(Object.keys(template.findOutputs('*')).length).toEqual(14);
     });
 
     describe('when nested stacks are created', () => {
@@ -373,6 +388,7 @@ describe('When deployment platform stack is created', () => {
 describe('With all environment variables and context.json available', () => {
     let template: Template;
     let jsonTemplate: { [key: string]: any };
+    let stack: cdk.Stack;
 
     beforeAll(() => {
         process.env.DIST_OUTPUT_BUCKET = 'fake-artifact-bucket';
@@ -380,7 +396,7 @@ describe('With all environment variables and context.json available', () => {
         process.env.SOLUTION_NAME = 'fake-solution-name';
         process.env.VERSION = 'v9.9.9';
 
-        [template, jsonTemplate] = buildStack();
+        [template, jsonTemplate, stack] = buildStack();
     });
 
     afterAll(() => {
@@ -393,7 +409,6 @@ describe('With all environment variables and context.json available', () => {
 
     describe('When synthesizing through standard pipeline, it should generate necessary mapping', () => {
         it('has mapping for "Data"', () => {
-            expect(jsonTemplate['Mappings']['Solution']['Data']['SendAnonymousUsageData']).toEqual('Yes');
             expect(jsonTemplate['Mappings']['Solution']['Data']['ID']).toEqual(process.env.SOLUTION_ID);
             expect(jsonTemplate['Mappings']['Solution']['Data']['Version']).toEqual(process.env.VERSION);
             expect(jsonTemplate['Mappings']['Solution']['Data']['SolutionName']).toEqual(process.env.SOLUTION_NAME);
@@ -414,6 +429,104 @@ describe('With all environment variables and context.json available', () => {
         });
     });
 
+    it('should create API Gateway resources with correct configuration for multimodal files', () => {
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: 'files'
+        });
+
+        // Should have POST, DELETE, and GET methods for files
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            AuthorizationType: 'CUSTOM',
+            OperationName: 'UploadFiles'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'DELETE',
+            AuthorizationType: 'CUSTOM',
+            OperationName: 'DeleteFiles'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'GET',
+            AuthorizationType: 'CUSTOM',
+            OperationName: 'GetFile'
+        });
+    });
+
+    it('should create shared ECR Pull-Through Cache for AgentCore images', () => {
+        // Import the resolver to get environment-aware values
+        const {
+            resolveUpstreamRegistryUrl,
+            resolveUpstreamRepositoryPrefix
+        } = require('../lib/use-case-stacks/agent-core/utils/image-uri-resolver');
+
+        template.hasResourceProperties('AWS::ECR::PullThroughCacheRule', {
+            'EcrRepositoryPrefix': {
+                'Fn::GetAtt': [
+                    Match.stringLikeRegexp('SharedECRPullThroughCacheEcrRepoPrefixGenerator.*'),
+                    'EcrRepoPrefix'
+                ]
+            },
+            'UpstreamRegistry': 'ecr-public',
+            'UpstreamRegistryUrl': resolveUpstreamRegistryUrl(),
+            'UpstreamRepositoryPrefix': resolveUpstreamRepositoryPrefix()
+        });
+    });
+
+    it('should output shared ECR cache prefix for use by agent deployments', () => {
+        template.hasOutput('SharedECRCachePrefix', {
+            'Description': 'Shared ECR Pull-Through Cache repository prefix for AgentCore images'
+        });
+    });
+
+    it('should configure agent management lambda with shared ECR cache prefix environment variable', () => {
+        // Verify the shared ECR cache resource exists in the main template
+        template.hasResourceProperties('AWS::ECR::PullThroughCacheRule', {
+            'EcrRepositoryPrefix': {
+                'Fn::GetAtt': [
+                    Match.stringLikeRegexp('SharedECRPullThroughCacheEcrRepoPrefixGenerator.*'),
+                    'EcrRepoPrefix'
+                ]
+            }
+        });
+
+        // Access the nested stack template to verify the lambda environment variable
+        const deploymentPlatformStack = stack as DeploymentPlatformStack;
+        const useCaseManagementTemplate = Template.fromStack(
+            deploymentPlatformStack.useCaseManagementSetup.useCaseManagement
+        );
+
+        // Verify the agent management lambda has the shared ECR cache prefix environment variable
+        useCaseManagementTemplate.hasResourceProperties('AWS::Lambda::Function', {
+            Handler: 'agents-handler.agentsHandler',
+            Environment: {
+                Variables: Match.objectLike({
+                    'SHARED_ECR_CACHE_PREFIX': {
+                        'Ref': Match.stringLikeRegexp('referencetoDeploymentPlatformStack.*EcrRepoPrefix')
+                    }
+                })
+            }
+        });
+    });
+
+    it('should configure agent management lambda with model info table environment variable', () => {
+        const deploymentPlatformStack = stack as DeploymentPlatformStack;
+        const useCaseManagementTemplate = Template.fromStack(
+            deploymentPlatformStack.useCaseManagementSetup.useCaseManagement
+        );
+
+        // Verify the agent management lambda has model info table environment variable
+        useCaseManagementTemplate.hasResourceProperties('AWS::Lambda::Function', {
+            Handler: 'agents-handler.agentsHandler',
+            Environment: {
+                Variables: Match.objectLike({
+                    MODEL_INFO_TABLE_NAME: Match.anyValue()
+                })
+            }
+        });
+    });
+
     it('should create API Gateway method with correct properties for feedback submission', () => {
         template.hasResourceProperties('AWS::ApiGateway::Method', {
             HttpMethod: 'POST',
@@ -422,6 +535,185 @@ describe('With all environment variables and context.json available', () => {
             RequestParameters: {
                 'method.request.header.authorization': true
             }
+        });
+    });
+
+    describe('Strands Tools SSM Parameter', () => {
+        it('should create SSM parameter with correct path', () => {
+            template.hasResourceProperties('AWS::SSM::Parameter', {
+                Type: 'String',
+                Name: {
+                    'Fn::Join': [
+                        '',
+                        [
+                            '/gaab/',
+                            {
+                                'Ref': 'AWS::StackName'
+                            },
+                            '/strands-tools'
+                        ]
+                    ]
+                },
+                Description: 'Available Strands SDK tools for Agent Builder and Workflow use cases'
+            });
+        });
+
+        it('should create SSM parameter with valid JSON array structure', () => {
+            const ssmParameters = template.findResources('AWS::SSM::Parameter', {
+                Properties: {
+                    Name: {
+                        'Fn::Join': [
+                            '',
+                            [
+                                '/gaab/',
+                                {
+                                    'Ref': 'AWS::StackName'
+                                },
+                                '/strands-tools'
+                            ]
+                        ]
+                    }
+                }
+            });
+
+            const parameterKeys = Object.keys(ssmParameters);
+            expect(parameterKeys.length).toBeGreaterThan(0);
+
+            const parameterValue = ssmParameters[parameterKeys[0]].Properties.Value;
+            const tools = JSON.parse(parameterValue);
+
+            // Verify it's an array
+            expect(Array.isArray(tools)).toBe(true);
+
+            // Verify structure of tools
+            tools.forEach((tool: any) => {
+                expect(tool).toHaveProperty('name');
+                expect(tool).toHaveProperty('description');
+                expect(tool).toHaveProperty('value');
+                expect(tool).toHaveProperty('category');
+                expect(tool).toHaveProperty('isDefault');
+                expect(typeof tool.name).toBe('string');
+                expect(typeof tool.description).toBe('string');
+                expect(typeof tool.value).toBe('string');
+                expect(typeof tool.category).toBe('string');
+                expect(typeof tool.isDefault).toBe('boolean');
+            });
+
+            // Verify expected tools are present
+            const toolValues = tools.map((t: any) => t.value);
+            expect(toolValues).toContain('calculator');
+            expect(toolValues).toContain('current_time');
+            expect(toolValues).toContain('environment');
+
+            // Verify default tools
+            const defaultTools = tools.filter((t: any) => t.isDefault);
+            const defaultToolValues = defaultTools.map((t: any) => t.value);
+            expect(defaultToolValues).toContain('calculator');
+            expect(defaultToolValues).toContain('current_time');
+        });
+
+        it('should configure MCP management lambda with STRANDS_TOOLS_SSM_PARAM environment variable', () => {
+            const deploymentPlatformStack = stack as DeploymentPlatformStack;
+            const useCaseManagementTemplate = Template.fromStack(
+                deploymentPlatformStack.useCaseManagementSetup.useCaseManagement
+            );
+
+            // Verify the MCP management lambda has the STRANDS_TOOLS_SSM_PARAM environment variable
+            useCaseManagementTemplate.hasResourceProperties('AWS::Lambda::Function', {
+                Handler: 'mcp-handler.mcpHandler',
+                Environment: {
+                    Variables: Match.objectLike({
+                        STRANDS_TOOLS_SSM_PARAM: {
+                            'Ref': Match.stringLikeRegexp('referencetoDeploymentPlatformStackStrandsToolsParameter*')
+                        }
+                    })
+                }
+            });
+        });
+
+        it('should grant MCP management lambda ssm:GetParameter permission', () => {
+            const deploymentPlatformStack = stack as DeploymentPlatformStack;
+            const useCaseManagementTemplate = Template.fromStack(
+                deploymentPlatformStack.useCaseManagementSetup.useCaseManagement
+            );
+
+            // Verify IAM Policy exists with SSM GetParameter permission
+            useCaseManagementTemplate.hasResourceProperties('AWS::IAM::Policy', {
+                PolicyDocument: {
+                    Statement: Match.arrayWith([
+                        Match.objectLike({
+                            Action: 'ssm:GetParameter',
+                            Effect: 'Allow',
+                            Resource: Match.objectLike({
+                                'Fn::Join': Match.arrayWith([
+                                    Match.arrayWith([
+                                        Match.stringLikeRegexp('arn:'),
+                                        Match.objectLike({
+                                            Ref: 'AWS::Partition'
+                                        }),
+                                        Match.stringLikeRegexp(':ssm:')
+                                    ])
+                                ])
+                            })
+                        })
+                    ])
+                }
+            });
+        });
+
+        it('should create multimodal DynamoDB table for file metadata', () => {
+            template.hasResourceProperties('AWS::DynamoDB::Table', {
+                BillingMode: 'PAY_PER_REQUEST',
+                AttributeDefinitions: [
+                    {
+                        AttributeName: 'fileKey',
+                        AttributeType: 'S'
+                    },
+                    {
+                        AttributeName: 'fileName',
+                        AttributeType: 'S'
+                    }
+                ],
+                KeySchema: [
+                    {
+                        AttributeName: 'fileKey',
+                        KeyType: 'HASH'
+                    },
+                    {
+                        AttributeName: 'fileName',
+                        KeyType: 'RANGE'
+                    }
+                ]
+            });
+        });
+
+        it('should create multimodal S3 bucket for data storage', () => {
+            template.hasResourceProperties('AWS::S3::Bucket', {
+                BucketEncryption: {
+                    ServerSideEncryptionConfiguration: [
+                        {
+                            ServerSideEncryptionByDefault: {
+                                SSEAlgorithm: 'AES256'
+                            }
+                        }
+                    ]
+                },
+                PublicAccessBlockConfiguration: {
+                    BlockPublicAcls: true,
+                    BlockPublicPolicy: true,
+                    IgnorePublicAcls: true,
+                    RestrictPublicBuckets: true
+                },
+                LifecycleConfiguration: {
+                    Rules: [
+                        {
+                            Id: 'DeleteFilesAfter48Hours',
+                            Status: 'Enabled',
+                            ExpirationInDays: MULTIMODAL_FILE_EXPIRATION_DAYS
+                        }
+                    ]
+                }
+            });
         });
     });
 });

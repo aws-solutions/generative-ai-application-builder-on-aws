@@ -28,8 +28,8 @@ describe('When deploying', () => {
         });
     });
 
-    it('Should have lambdas for custom resource, management APIs, and Authorization', () => {
-        template.resourceCountIs('AWS::Lambda::Function', 4);
+    it('Should have lambdas for custom resource, management APIs, AgentCore auth, and Authorization', () => {
+        template.resourceCountIs('AWS::Lambda::Function', 7);
 
         template.hasResourceProperties('AWS::Lambda::Function', {
             'Role': {
@@ -219,6 +219,9 @@ function createTemplate(props: Partial<UserPoolProps>): [cdk.assertions.Template
     new RestRequestProcessor(stack, 'WebSocketEndpoint', {
         useCaseManagementAPILambda: new lambda.Function(stack, 'chatLambda', mockLambdaFuncProps),
         modelInfoAPILambda: new lambda.Function(stack, 'modelInfoLambda', mockLambdaFuncProps),
+        mcpManagementAPILambda: new lambda.Function(stack, 'mcpManagementLambda', mockLambdaFuncProps),
+        agentManagementAPILambda: new lambda.Function(stack, 'agentManagementLambda', mockLambdaFuncProps),
+        workflowManagementAPILambda: new lambda.Function(stack, 'workflowManagementLambda', mockLambdaFuncProps),
         applicationTrademarkName: 'fake-name',
         defaultUserEmail: 'testuser@example.com',
         customResourceLambdaArn: crLambda.functionArn,

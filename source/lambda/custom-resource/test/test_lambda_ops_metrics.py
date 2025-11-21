@@ -14,7 +14,7 @@ from lambda_ops_metrics import handler
 def test_lambda_handler_success(mock_lambda_context, monkeypatch, caplog):
     envs = {
         "UNIT_TEST_ENV": "yes",
-        "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
+        "POWERTOOLS_SERVICE_NAME": "CW-METRICS",
         "SOLUTION_ID": "SO0999",
         "SOLUTION_VERSION": "v99.99.99",
     }
@@ -38,7 +38,7 @@ def test_lambda_handler_empty_metrics(mock_lambda_context, monkeypatch, caplog):
     # When error is thrown for env variables not set, it doesn't raise Exception
     envs = {
         "UNIT_TEST_ENV": "yes",
-        "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
+        "POWERTOOLS_SERVICE_NAME": "CW-METRICS",
         "SOLUTION_ID": "SO0999",
         "SOLUTION_VERSION": "v99.99.99",
     }
@@ -47,3 +47,25 @@ def test_lambda_handler_empty_metrics(mock_lambda_context, monkeypatch, caplog):
         assert handler({}, mock_lambda_context) == None
         # Making sure to log NOT publishing the metrics
         assert "Skipping metrics publishing — all metric values are empty." in caplog.text
+
+
+@mock.patch("lambda_ops_metrics.get_metrics_payload", return_value={"fake-metric-1": 5, "fake-metric-2": 10})
+@mock.patch("lambda_ops_metrics.push_builder_metrics")
+def test_lambda_handler_includes_account_id(mock_push, mock_get_payload, mock_lambda_context, monkeypatch):
+    """Test that scheduled metrics include account ID in BuilderMetrics"""
+    envs = {
+        "UNIT_TEST_ENV": "yes",
+        "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
+        "SOLUTION_ID": "SO0999",
+        "SOLUTION_VERSION": "v99.99.99",
+        "USE_CASE_UUID": "test-uuid-123",
+    }
+    monkeypatch.setattr(os, "environ", envs)
+    
+    handler({}, mock_lambda_context)
+    
+    assert mock_push.called
+    
+    builder_metrics_arg = mock_push.call_args[0][0]
+    assert builder_metrics_arg.account_id is not None
+    assert isinstance(builder_metrics_arg.account_id, str)

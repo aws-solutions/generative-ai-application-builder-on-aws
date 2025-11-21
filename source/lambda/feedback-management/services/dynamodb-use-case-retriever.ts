@@ -3,6 +3,7 @@
 
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { AWSClientManager } from 'aws-sdk-lib';
 import { logger, tracer } from '../power-tools-init';
 import { TIME_5_MINS } from '../utils/constants';
 import { CacheManager } from '../utils/cache-manager';
@@ -15,10 +16,7 @@ export class UseCaseRetriever {
     private static readonly CACHE_TTL = TIME_5_MINS;
 
     constructor(region?: string) {
-        this.dynamoDBClient = new DynamoDBClient({
-            region: region || process.env.AWS_REGION,
-            maxAttempts: 3
-        });
+        this.dynamoDBClient = AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb', tracer);
 
         if (!process.env.USE_CASE_CONFIG_TABLE_NAME) {
             throw new Error('USE_CASE_CONFIG_TABLE_NAME is required');

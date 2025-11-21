@@ -3,6 +3,18 @@
 
 import React from 'react';
 
+export interface ComponentVisibility {
+    showUseCaseOptions: boolean;
+    showDeployUI: boolean;
+    showManageUserAccess: boolean;
+    showCollectUserFeedback: boolean;
+    showPerformanceOptimization: boolean;
+}
+
+export interface ModelComponentVisibility {
+    showMultimodalInputSupport: boolean;
+}
+
 export interface ToolHelpPanelContent {
     title: string;
     links: {
@@ -17,6 +29,8 @@ export interface StepContentProps {
     onChange: (e: any) => void;
     setHelpPanelContent: (e: any) => void;
     handleWizardNextStepLoading?: (e: boolean) => void;
+    visibility?: ComponentVisibility | null;
+    modelVisibility?: ModelComponentVisibility | null;
 }
 
 /**
@@ -49,4 +63,5 @@ export interface ReviewProps extends StepContentProps {
 export interface ReviewSectionProps {
     header: string;
     setActiveStepIndex: (e: number) => void;
+    stepIndex?: number; // Optional step index to override the default
 }

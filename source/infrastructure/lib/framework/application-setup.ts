@@ -139,11 +139,6 @@ export class ApplicationSetup extends Construct {
     public readonly scheduledMetricsLambda: lambda.Function;
 
     /**
-     * Condition to determine if anonymous metrics should be collected
-     */
-    private sendAnonymousMetricsCondition: cdk.CfnCondition;
-
-    /**
      * This instance is created only after 'createWebConfigStorage' is called. This instance refers
      * to the CustomResource that writes the web configuration required for the UI project in to
      * SSM Parameter Store.
@@ -151,7 +146,7 @@ export class ApplicationSetup extends Construct {
     private webConfigResource: cdk.CustomResource;
 
     /**
-     * This Construct refers to the Anonymous Metrics Solution Helper which is used to send metrics
+     * This Construct refers to the Metrics Solution Helper which is used to send metrics
      * at cloudformation events of create, update and delete
      */
     public solutionHelper: Construct;
@@ -159,10 +154,6 @@ export class ApplicationSetup extends Construct {
     constructor(scope: Construct, id: string, props: ApplicationProps) {
         super(scope, id);
         this.scope = scope;
-
-        this.sendAnonymousMetricsCondition = new cdk.CfnCondition(cdk.Stack.of(this), 'AnonymousDataAWSCondition', {
-            expression: cdk.Fn.conditionEquals(cdk.Fn.findInMap('Solution', 'Data', 'SendAnonymousUsageData'), 'Yes')
-        });
 
         this.accessLoggingBucket = new s3.Bucket(this, 'AccessLog', {
             versioned: false, // NOSONAR - bucket versioning is recommended in the IG, but is not enforced
@@ -178,7 +169,6 @@ export class ApplicationSetup extends Construct {
             solutionID: props.solutionID,
             solutionVersion: props.solutionVersion,
             useCaseUUID: props.useCaseUUID,
-            sendAnonymousMetricsCondition: this.sendAnonymousMetricsCondition
         });
         this.customResourceLambda = customInfraSetup.customResourceLambda;
         this.customResourceRole = customInfraSetup.lambdaServiceRole;
@@ -229,12 +219,12 @@ export class ApplicationSetup extends Construct {
     }
 
     /**
-     * This method adds the Anonymous Metrics lambda function to the solution.
+     * This method adds the Metrics lambda function to the solution.
      *
      * @param solutionId - The solution id for the AWS solution
      * @param solutionVersion - The solution version for the AWS solution
      */
-    public addAnonymousMetricsCustomLambda(
+    public addMetricsCustomLambda(
         solutionId: string,
         solutionVersion: string,
         additionalProperties?: { [key: string]: any }
@@ -243,8 +233,7 @@ export class ApplicationSetup extends Construct {
             customResource: this.customResourceLambda,
             solutionID: solutionId,
             version: solutionVersion,
-            resourceProperties: additionalProperties,
-            sendAnonymousMetricsCondition: this.sendAnonymousMetricsCondition
+            resourceProperties: additionalProperties
         });
     }
 

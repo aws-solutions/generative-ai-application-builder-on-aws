@@ -10,20 +10,30 @@ from cfn_response import send_response
 from custom_config import DEFAULT_APP_NAME
 from operations import (
     admin_policy,
-    anonymous_metrics,
+    agentcore_oauth_client,
+    agentcore_outbound_permissions,
+    send_metrics,
     copy_model_info_to_ddb,
     copy_web_ui,
     cw_log_retention,
-    update_llm_config,
+    deploy_agent_core,
+    deploy_agent_core_memory,
+    deploy_mcp_gateway,
+    deploy_mcp_runtime,
     gen_domain_prefix,
+    gen_ecr_repo_prefix,
     gen_uuid,
     get_arns_for_inference_profile,
     get_compatible_azs,
+    lambda_version_generator,
+    multimodal_bucket_notifications,
     operation_types,
     redeploy_api,
+    update_llm_config,
     update_s3_policy,
     use_case_policy,
     webconfig,
+    sleep
 )
 from operations.operation_types import FAILED, RESOURCE, RESOURCE_PROPERTIES
 
@@ -35,7 +45,8 @@ metrics = Metrics(namespace=os.environ.get("STACK_NAME", DEFAULT_APP_NAME))
 # A dictionary for all custom resource operations invoked from CloudFormation
 operations_dictionary = {
     operation_types.GEN_UUID: gen_uuid.execute,
-    operation_types.ANONYMOUS_METRIC: anonymous_metrics.execute,
+    operation_types.METRIC: send_metrics.execute,
+    operation_types.ANONYMOUS_METRIC: send_metrics.execute, # Support deletion of existing resources with this type.
     operation_types.WEBCONFIG: webconfig.execute,
     operation_types.COPY_WEB_UI: copy_web_ui.execute,
     operation_types.UPDATE_BUCKET_POLICY: update_s3_policy.execute,
@@ -44,10 +55,20 @@ operations_dictionary = {
     operation_types.COPY_MODEL_INFO: copy_model_info_to_ddb.execute,
     operation_types.GET_COMPATIBLE_AZS: get_compatible_azs.execute,
     operation_types.GEN_DOMAIN_PREFIX: gen_domain_prefix.execute,
+    operation_types.GEN_ECR_REPO_PREFIX: gen_ecr_repo_prefix.execute,
     operation_types.CW_LOG_RETENTION: cw_log_retention.execute,
     operation_types.UPDATE_LLM_CONFIG: update_llm_config.execute,
     operation_types.GET_MODEL_RESOURCE_ARNS: get_arns_for_inference_profile.execute,
     operation_types.REDEPLOY_API: redeploy_api.execute,
+    operation_types.DEPLOY_AGENT_CORE: deploy_agent_core.execute,
+    operation_types.DEPLOY_AGENT_CORE_MEMORY: deploy_agent_core_memory.execute,
+    operation_types.DEPLOY_MCP_GATEWAY: deploy_mcp_gateway.execute,
+    operation_types.DEPLOY_MCP_RUNTIME: deploy_mcp_runtime.execute,
+    operation_types.LAMBDA_VERSION_GENERATOR: lambda_version_generator.execute,
+    operation_types.AGENTCORE_OAUTH_CLIENT: agentcore_oauth_client.execute,
+    operation_types.AGENTCORE_OUTBOUND_PERMISSIONS: agentcore_outbound_permissions.execute,
+    operation_types.MULTIMODAL_BUCKET_NOTIFICATIONS: multimodal_bucket_notifications.execute,
+    operation_types.SLEEP: sleep.execute,
 }
 
 

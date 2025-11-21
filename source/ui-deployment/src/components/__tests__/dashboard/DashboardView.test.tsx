@@ -35,9 +35,19 @@ vi.mock('@/hooks/useQueries', async () => {
     const actual = await vi.importActual('@/hooks/useQueries');
     return {
         ...actual,
-        useUseCaseDetailsQuery: vi.fn()
+        useUseCaseDetailsQuery: vi.fn(),
+        useExportTemplatesQuery: vi.fn().mockReturnValue({
+            data: null,
+            isLoading: false,
+            error: null,
+            refetch: vi.fn()
+        })
     };
 });
+
+vi.mock('@/components/useCaseDetails/export/ExportDropdownButton', () => ({
+    ExportButtonDropdown: () => <div data-testid="mock-export-dropdown">Export</div>
+}));
 
 let WizardView: any;
 
@@ -155,9 +165,7 @@ describe('Dashboard', () => {
             minute: 'numeric'
         });
         expect(table?.findBodyCell(deploymentRow, 6)?.getElement().textContent).toEqual(dateString);
-        expect(table?.findBodyCell(deploymentRow, 7)?.getElement().textContent).toEqual(
-            firstDeployment.ModelProvider
-        );
+        expect(table?.findBodyCell(deploymentRow, 7)?.getElement().textContent).toEqual(firstDeployment.ModelProvider);
 
         let agentDeployment = mockContext.deploymentsData[2];
 
@@ -193,12 +201,15 @@ describe('Dashboard', () => {
             data: mockSelectedDeployment,
             refetch: vi.fn(),
             status: 'success'
-        } as Partial<UseQueryResult<typeof mockSelectedDeployment, Error>> as UseQueryResult<typeof mockSelectedDeployment, Error>);
+        } as Partial<UseQueryResult<typeof mockSelectedDeployment, Error>> as UseQueryResult<
+            typeof mockSelectedDeployment,
+            Error
+        >);
         renderWithMultipleRoutes({
             initialRoute: '/',
             routes: [
                 { path: '/', element: <DashboardView /> },
-                { path: '/deployment-details/:useCaseId', element: <UseCaseView /> }
+                { path: '/deployment-details/:useCaseType/:useCaseId', element: <UseCaseView /> }
             ],
             customState: contextValue.state
         });

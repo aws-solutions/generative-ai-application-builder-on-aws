@@ -262,4 +262,40 @@ describe('parseTraceId', () => {
         expect(result.rootId).toBe('1-2345');
         expect(result.parentId).toBe('abcd');
     });
+
+    it('should parse new AgentCore format with trace ID', () => {
+        const errorMessage = 'Chat service failed to respond. Please contact your administrator for support and quote the following trace id: 1-abc123-def456';
+        const expected: TraceDetails = {
+            rootId: '1-abc123-def456',
+            parentId: '',
+            sampled: false,
+            lineage: '',
+            message: 'Chat service failed to respond.'
+        };
+        expect(parseTraceId(errorMessage)).toEqual(expected);
+    });
+
+    it('should parse new AgentCore format with different error message', () => {
+        const errorMessage = 'AgentCore invocation failed. Please contact your administrator for support and quote the following trace id: trace-xyz789';
+        const expected: TraceDetails = {
+            rootId: 'trace-xyz789',
+            parentId: '',
+            sampled: false,
+            lineage: '',
+            message: 'AgentCore invocation failed.'
+        };
+        expect(parseTraceId(errorMessage)).toEqual(expected);
+    });
+
+    it('should handle case insensitive trace ID matching', () => {
+        const errorMessage = 'Error occurred. Please contact your administrator for support and Quote The Following Trace ID: test-123';
+        const expected: TraceDetails = {
+            rootId: 'test-123',
+            parentId: '',
+            sampled: false,
+            lineage: '',
+            message: 'Error occurred.'
+        };
+        expect(parseTraceId(errorMessage)).toEqual(expected);
+    });
 });

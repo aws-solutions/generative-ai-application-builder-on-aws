@@ -10,6 +10,7 @@ export const sampleDeployUseCaseFormData = {
         'useCaseDescription': 'test use case description',
         'deployUI': true,
         'feedbackEnabled': false,
+        'provisionedConcurrencyValue': 0,
         'inError': true
     },
     'knowledgeBase': {
@@ -38,7 +39,7 @@ export const sampleDeployUseCaseFormData = {
             'value': 'Bedrock'
         },
         'modelName': 'fake-model',
-        'bedrockInferenceType': BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS,
+        'bedrockInferenceType': BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS,
         'modelParameters': [
             {
                 'key': 'fake-param',

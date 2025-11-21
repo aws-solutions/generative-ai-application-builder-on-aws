@@ -26,6 +26,9 @@ import { ChatResponse } from '@/models';
 import { LoadingStatus, LoadingState, LoadingErrorType } from './components/alerts/LoadingStatus';
 import { SerializedError } from '@reduxjs/toolkit';
 import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { UploadedFile } from '@/types/file-upload';
+import { useFileUpload } from '@/hooks/use-file-upload';
+import { getMultimodalEnabledState } from '@/store/configSlice';
 
 /**
  * ChatPage component handles the main chat interface and WebSocket communication.
@@ -55,6 +58,8 @@ export default function ChatPage() {
 
     const runtimeConfig = useSelector((state: RootState) => state.config.runtimeConfig);
     const promptTemplate = useSelector((state: RootState) => selectPromptTemplate(state));
+
+    const isMultimodalEnabled = useSelector((state: RootState) => getMultimodalEnabledState(state));
 
     /**
      * Retrieves the WebSocket URL with authentication token.
@@ -94,8 +99,13 @@ export default function ChatPage() {
         handleMessage,
         conversationId,
         addUserMessage,
-        resetChat
+        resetChat,
+        thinking,
+        toolUsage,
+        setConversationId
     } = useChatMessages();
+
+    const { generateMessageId } = useFileUpload();
 
     /**
      * WebSocket hook configuration for handling real-time communication
@@ -111,21 +121,33 @@ export default function ChatPage() {
      * Handles sending user prompts through WebSocket connection.
      * Validates connection state and handles error scenarios.
      * @param value The user's message to be sent
+     * @param files Optional files attached to the message
+     * @param providedMessageId Optional message ID from file upload
      */
     const handlePromptSend = useCallback(
-        (value: string) => {
+        (value: string, files?: UploadedFile[], providedMessageId?: string) => {
             if (readyState !== ReadyState.OPEN) {
                 return;
             }
 
             try {
-                addUserMessage(value);
+                addUserMessage(value, files);
+
+                // Use existing conversation ID
+                let currentConversationId = conversationId;
+
+                // Use provided message ID from file upload, or generate new one
+                const messageIdToUse = providedMessageId || generateMessageId();
+
                 const payload = constructPayload({
                     useCaseConfig: runtimeConfig?.UseCaseConfig!,
                     message: value,
-                    conversationId,
+                    conversationId: currentConversationId,
+                    messageId: messageIdToUse,
                     promptTemplate,
-                    authToken: authToken
+                    authToken: authToken,
+                    files: files,
+                    useCaseId: runtimeConfig?.UseCaseId
                 });
 
                 sendJsonMessage(payload);
@@ -145,7 +167,14 @@ export default function ChatPage() {
             conversationId,
             setMessages,
             setIsGenAiResponseLoading,
-            runtimeConfig?.UseCaseConfig
+            runtimeConfig?.UseCaseConfig,
+            addUserMessage,
+            messages,
+            promptTemplate,
+            authToken,
+            generateMessageId,
+            setConversationId,
+            isMultimodalEnabled
         ]
     );
 
@@ -184,16 +213,24 @@ export default function ChatPage() {
      * Effect hook to update status of Details API result
      */
     useEffect(() => {
+        let errorMessage: string | undefined;
+
+        if (detailsError) {
+            errorMessage = (detailsError as SerializedError).message ?? 'Failed to load deployment';
+        } else if (runtimeConfig && !runtimeConfig.UseCaseConfigKey && !runtimeConfig.UseCaseId) {
+            errorMessage = 'Use case configuration is missing. Please check your deployment configuration.';
+        }
+
         setLoadingState({
             isLoading: !runtimeConfig?.UseCaseConfig && !detailsError,
-            error: detailsError
+            error: errorMessage
                 ? {
                       type: LoadingErrorType.DATA_FETCH_ERROR,
-                      message: (detailsError as FetchBaseQueryError).data as string
+                      message: errorMessage
                   }
                 : undefined
         });
-    }, [runtimeConfig?.UseCaseConfig, detailsError]);
+    }, [runtimeConfig?.UseCaseConfig, runtimeConfig?.UseCaseConfigKey, runtimeConfig?.UseCaseId, detailsError]);
 
     useLayoutEffect(() => {
         if (!loadingState.isLoading && !loadingState.error && runtimeConfig?.UseCaseConfig) {
@@ -212,9 +249,24 @@ export default function ChatPage() {
                 <Container
                     header={<ChatHeader onRefresh={resetChat} onSettings={openSettings} />}
                     fitHeight
-                    footer={<ChatInput isLoading={isGenAiResponseLoading} onSend={handlePromptSend} />}
+                    footer={
+                        <ChatInput
+                            isLoading={isGenAiResponseLoading}
+                            onSend={(value: string) => handlePromptSend(value)}
+                            onSendWithFiles={(value: string, files: UploadedFile[], messageId?: string) =>
+                                handlePromptSend(value, files, messageId)
+                            }
+                            conversationId={conversationId}
+                            onSetConversationId={setConversationId}
+                        />
+                    }
                 >
-                    <ChatMessagesContainer messages={messages} conversationId={conversationId} />
+                    <ChatMessagesContainer
+                        messages={messages}
+                        conversationId={conversationId}
+                        thinking={thinking}
+                        toolUsage={toolUsage}
+                    />
                 </Container>
             </div>
         </ContentLayout>

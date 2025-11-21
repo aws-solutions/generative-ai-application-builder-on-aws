@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * Utility function to convert any success response into a Http 200/201 response with the
+ * Utility function to convert any success response into a Http 200/201 response with
  * proper formatting and headers.
  *
  * @param {any} body Response message. This will be stringified and inserted into 'body'

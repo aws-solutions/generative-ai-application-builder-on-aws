@@ -1,0 +1,118 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+.thinking-indicator {
+    opacity: 1;
+    transform: translateY(0);
+    margin-bottom: 8px;
+
+    &--completed {
+        opacity: 0.6;
+    }
+
+    &__content {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    &__toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 6px;
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+        font-size: 13px;
+        color: var(--color-text-body-secondary, #5f6b7a);
+
+        &:hover {
+            background: var(--color-background-container-header, #f9fafb);
+        }
+
+        &:focus {
+            outline: 2px solid var(--color-border-item-focused, #0972d3);
+            outline-offset: 1px;
+        }
+
+        &:active {
+            background: var(--color-background-control-default, #e9ebed);
+        }
+    }
+
+    &__text {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 400;
+    }
+
+    &__duration {
+        font-size: 12px;
+        color: var(--color-text-status-info, #0972d3);
+        font-weight: 500;
+    }
+
+    &__details {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 4px;
+        margin-left: 24px;
+        padding: 8px 12px;
+        background: var(--color-background-container-content, #ffffff);
+        border: 1px solid var(--color-border-divider-default, #e9ebed);
+        border-radius: 4px;
+        font-size: 12px;
+        animation: slideDown 0.15s ease-out;
+    }
+
+    &__list {
+        list-style: disc;
+        margin: 0;
+        padding-left: 20px;
+        color: var(--color-text-body-default, #000716);
+    }
+
+    &__list-item {
+        margin-bottom: 4px;
+        line-height: 1.5;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-2px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+// Responsive design for mobile devices
+@media (max-width: 768px) {
+    .thinking-indicator {
+        &__details {
+            margin-left: 0;
+            font-size: 11px;
+        }
+
+        &__toggle {
+            font-size: 12px;
+        }
+
+        &__duration {
+            font-size: 11px;
+        }
+    }
+}

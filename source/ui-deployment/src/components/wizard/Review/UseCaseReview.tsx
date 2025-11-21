@@ -6,6 +6,7 @@ import { ReviewSectionProps } from '../interfaces/Steps';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
 import { ValueWithLabel } from '@/utils/ValueWithLabel';
 import { getBooleanString } from '../utils';
+import { PROVISIONED_CONCURRENCY_SUPPORTED_USE_CASES } from '@/utils/constants';
 
 interface UseCaseReviewProps extends ReviewSectionProps {
     useCaseData: any;
@@ -17,7 +18,17 @@ export const UseCaseReview = (props: UseCaseReviewProps) => {
             <Header
                 variant="h3"
                 headingTagOverride="h2"
-                actions={<Button onClick={() => props.setActiveStepIndex(WIZARD_PAGE_INDEX.USE_CASE)}>Edit</Button>}
+                actions={
+                    <Button
+                        onClick={() =>
+                            props.setActiveStepIndex(
+                                props.stepIndex !== undefined ? props.stepIndex : WIZARD_PAGE_INDEX.USE_CASE
+                            )
+                        }
+                    >
+                        Edit
+                    </Button>
+                }
             >
                 {props.header}
             </Header>
@@ -58,7 +69,17 @@ export const UseCaseReview = (props: UseCaseReviewProps) => {
 
                     <ValueWithLabel label="Deploy UI">{getBooleanString(props.useCaseData.deployUI)}</ValueWithLabel>
 
-                    <ValueWithLabel label="Enable Feedback">{getBooleanString(props.useCaseData.feedbackEnabled)}</ValueWithLabel>
+                    {PROVISIONED_CONCURRENCY_SUPPORTED_USE_CASES.includes(props.useCaseData.useCaseType) && (
+                        <ValueWithLabel label="Provisioned Concurrency">
+                            {props.useCaseData.provisionedConcurrencyValue > 0
+                                ? `Enabled (${props.useCaseData.provisionedConcurrencyValue})`
+                                : 'Disabled'}
+                        </ValueWithLabel>
+                    )}
+
+                    <ValueWithLabel label="Enable Feedback">
+                        {getBooleanString(props.useCaseData.feedbackEnabled)}
+                    </ValueWithLabel>
                 </ColumnLayout>
             </Container>
         </SpaceBetween>

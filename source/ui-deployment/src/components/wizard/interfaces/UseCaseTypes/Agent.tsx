@@ -7,15 +7,17 @@ import { AgentFlowReviewStep } from '../Steps/AgentFlowReviewStep';
 import { UseCaseStep } from '../Steps/UseCaseStep';
 import { VpcStep } from '../Steps/VpcStep';
 import { UseCaseType } from './UseCaseType';
-import { USECASE_TYPES } from '@/utils/constants';
+import { USECASE_TYPES, DEFAULT_COMPONENT_VISIBILITY } from '@/utils/constants';
 
 export class AgentUseCaseType extends UseCaseType {
     steps: BaseWizardStep[] = [];
+    type: string = USECASE_TYPES.AGENT;
 
     constructor() {
         super();
+
         const orderedListOfStepClasses: [new (...args: any[]) => BaseWizardStep, any[]][] = [
-            [UseCaseStep, [USECASE_TYPES.AGENT]],
+            [UseCaseStep, [this.type, DEFAULT_COMPONENT_VISIBILITY]],
             [VpcStep, []],
             [AgentStep, []],
             [AgentFlowReviewStep, []]

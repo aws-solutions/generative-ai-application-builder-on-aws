@@ -1,6 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+jest.mock('aws-node-user-agent-config', () => ({
+    customAwsConfig: jest.fn(() => ({ region: 'us-east-1' }))
+}));
+
 import { mockClient } from 'aws-sdk-client-mock';
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -32,7 +36,8 @@ jest.mock('../utils/cache-manager', () => {
 
 jest.mock('@aws-lambda-powertools/tracer', () => ({
     Tracer: jest.fn().mockImplementation(() => ({
-        getRootXrayTraceId: jest.fn().mockReturnValue('fake-trace-id')
+        getRootXrayTraceId: jest.fn().mockReturnValue('fake-trace-id'),
+        captureAWSv3Client: jest.fn((client) => client)
     }))
 }));
 

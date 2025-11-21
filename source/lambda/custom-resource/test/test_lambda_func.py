@@ -19,7 +19,12 @@ def patch_powertools():
     os.environ["STACK_NAME"] = "fake_stack_name"
 
 
-@pytest.mark.parametrize("resource", [operation_types.COPY_WEB_UI, operation_types.UPDATE_LLM_CONFIG, "NOT_SUPPORTED_OPERATION"])
+@pytest.mark.parametrize("resource", [
+    operation_types.COPY_WEB_UI, 
+    operation_types.UPDATE_LLM_CONFIG, 
+    operation_types.AGENTCORE_OAUTH_CLIENT,
+    "NOT_SUPPORTED_OPERATION"
+])
 def test_get_function_for_operation(resource):
     if resource == "NOT_SUPPORTED_OPERATION":
         with pytest.raises(UnSupportedOperationTypeException):

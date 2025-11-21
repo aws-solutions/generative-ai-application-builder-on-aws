@@ -1,0 +1,23 @@
+# Ignore virtual environments
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore test artifacts
+.pytest_cache
+.coverage
+htmlcov
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+
+# Ignore gaab-strands-common's venv and test artifacts
+gaab-strands-common/.venv
+gaab-strands-common/.pytest_cache
+gaab-strands-common/htmlcov
+gaab-strands-common/__pycache__

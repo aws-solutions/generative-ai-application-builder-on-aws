@@ -7,6 +7,8 @@ git-info
 **/coverage/
 **/coverage-reports/
 .coverage*
+coverage.xml
+htmlcov
 
 node_modules/
 
@@ -65,3 +67,14 @@ bom.xml
 .python-version
 **/build/
 .aider*
+
+mise.toml
+
+# Bedrock AgentCore authentication files
+.agentcore.yaml
+**/.agentcore.yaml
+
+# Copied gaab-strands-common in agent directories (build artifacts)
+# These are copied during build process and should not be tracked
+deployment/ecr/gaab-strands-agent/gaab-strands-common/
+deployment/ecr/gaab-strands-workflow-agent/gaab-strands-common/

@@ -1,6 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+import React from 'react';
 import LiveRegion from '@cloudscape-design/components/live-region';
 import '../../styles/chat.scss';
 import { useUser } from '../../../../contexts/UserContext';
@@ -9,15 +10,26 @@ import { parseTraceId, TraceDetails } from '../../../../utils/validation';
 import { ErrorAlert } from '../alerts/ErrorAlert';
 import { ChatMessage } from './ChatMessage';
 import { Message } from '../../types';
+import { ToolUsageInfo } from '../../../../models';
 
 /**
  * Messages component displays a list of chat messages and alerts
  * @component
  * @param {Object} props - Component props
  * @param {Array<Message>} props.messages - Array of message objects to display
+ * @param {string} props.conversationId - Unique identifier for the conversation
+ * @param {Array<ToolUsageInfo>} props.toolUsage - Optional array of tool usage information
  * @returns {JSX.Element} Messages component
  */
-const Messages = ({ messages = [], conversationId }: { messages: Array<Message>, conversationId: string }) => {
+const Messages = ({
+    messages = [],
+    conversationId,
+    toolUsage = []
+}: {
+    messages: Array<Message>,
+    conversationId: string,
+    toolUsage?: Array<ToolUsageInfo>
+}) => {
     const { userId, userName } = useUser();
     const latestMessage: Message = messages[messages.length - 1];
     const [processedMessages, setProcessedMessages] = useState<Array<Message>>(messages);
@@ -85,6 +97,22 @@ const Messages = ({ messages = [], conversationId }: { messages: Array<Message>,
                     );
                 }
 
+                const isLastMessage = index === processedMessages.length - 1;
+                const isAssistantMessage = message.authorId !== userId;
+                const shouldPassToolUsage = isLastMessage && isAssistantMessage && toolUsage.length > 0;
+
+                const hasFileProcessingError = (() => {
+                    if (!isUserMessage(message.authorId) || !message.files?.length) return false;
+
+                    // Check if the very next message is a file processing error alert
+                    const nextMsg = processedMessages[index + 1];
+                    return (
+                        nextMsg?.type === 'alert' &&
+                        typeof nextMsg.content === 'string' &&
+                        nextMsg.content.includes('File processing failed')
+                    );
+                })();
+
                 return (
                     <ChatMessage
                         key={message.authorId + message.timestamp}
@@ -93,6 +121,8 @@ const Messages = ({ messages = [], conversationId }: { messages: Array<Message>,
                         userName={userName!}
                         isUserMessage={isUserMessage}
                         conversationId={conversationId}
+                        toolUsage={shouldPassToolUsage ? toolUsage : undefined}
+                        hasFileError={hasFileProcessingError}
                         data-testid={`chat-message-${index}`}
                     />
                 );

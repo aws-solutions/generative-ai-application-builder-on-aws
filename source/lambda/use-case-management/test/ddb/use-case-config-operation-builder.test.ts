@@ -15,7 +15,6 @@ import {
     CHAT_PROVIDERS,
     CfnParameterKeys,
     DYNAMODB_TTL_ATTRIBUTE_NAME,
-    TTL_SECONDS,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 } from '../../utils/constants';
 import { createUseCaseEvent } from '../event-test-data';

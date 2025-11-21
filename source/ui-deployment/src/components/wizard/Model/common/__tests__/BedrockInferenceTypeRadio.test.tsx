@@ -7,7 +7,7 @@ import { BEDROCK_INFERENCE_TYPES } from '@/utils/constants';
 describe('BedrockInferenceTypeRadio', () => {
     test('renders with default value', () => {
         const mockModelData = {
-            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS
+            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES
         };
         const callbacks = mockFormComponentCallbacks();
 
@@ -18,13 +18,13 @@ describe('BedrockInferenceTypeRadio', () => {
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="bedrock-inference-type-radio-group"]');
         expect(radioGroup?.getElement()).toBeDefined();
         expect(
-            radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS)?.getElement().checked
+            radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES)?.getElement().checked
         ).toBeTruthy();
     });
 
     test('selects a different inference type', () => {
         const mockModelData = {
-            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS
+            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES
         };
         const callbacks = mockFormComponentCallbacks();
 
@@ -45,7 +45,7 @@ describe('BedrockInferenceTypeRadio', () => {
 
     test('calls clearErrors when inference type changes', () => {
         const mockModelData = {
-            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS
+            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS
         };
         const callbacks = mockFormComponentCallbacks();
         const clearErrors = jest.fn();
@@ -76,7 +76,7 @@ describe('BedrockInferenceTypeRadio', () => {
 
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="bedrock-inference-type-radio-group"]');
         expect(
-            radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS)?.getElement().checked
+            radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES)?.getElement().checked
         ).toBeTruthy();
     });
 });

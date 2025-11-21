@@ -10,6 +10,8 @@ import { initModelRequiredFields, isModelParametersValid, updateRequiredFields }
 import { StepContentProps } from '../interfaces/Steps';
 import { ModelSelection } from './ModelSelection';
 import { ModelProviderDropdown } from './common/ModelProvider';
+import MultimodalInputSupport from './MultimodalInputSupport';
+
 
 export interface ModelComponentsProps {
     model: any;
@@ -18,6 +20,7 @@ export interface ModelComponentsProps {
     setNumFieldsInError: React.Dispatch<any>;
     knowledgeBase: any;
     handleWizardNextStepLoading?: (isLoading: boolean) => void;
+    showMultimodal: boolean;
 }
 
 const ModelComponents = ({
@@ -26,54 +29,68 @@ const ModelComponents = ({
     setHelpPanelContent,
     setNumFieldsInError,
     knowledgeBase,
-    handleWizardNextStepLoading
+    handleWizardNextStepLoading,
+    showMultimodal
 }: ModelComponentsProps) => {
     return (
         <form>
             <Form>
-                <Container
-                    header={<Header variant="h2">Model selection</Header>}
-                    footer={
-                        model.modelProvider.value !== '' && (
-                            <ExpandableSection
-                                headerText="Additional settings"
-                                variant="footer"
-                                data-testid="step2-additional-settings-expandable"
-                            >
-                                <ModelAdditionalSettings
-                                    modelData={model}
-                                    modelName={model.modelName}
-                                    modelProvider={model.modelProvider}
-                                    onChangeFn={onChange}
-                                    setNumFieldsInError={setNumFieldsInError}
-                                    setHelpPanelContent={setHelpPanelContent}
-                                    isRagEnabled={knowledgeBase.isRagRequired}
-                                    handleWizardNextStepLoading={handleWizardNextStepLoading}
-                                />
-                            </ExpandableSection>
-                        )
-                    }
-                >
-                    <SpaceBetween size="l">
-                        <ModelProviderDropdown
-                            modelData={model}
-                            onChangeFn={onChange}
-                            setHelpPanelContent={setHelpPanelContent}
-                            setNumFieldsInError={setNumFieldsInError}
-                            handleWizardNextStepLoading={handleWizardNextStepLoading}
-                        />
-
-                        {model.modelProvider.value !== '' && (
-                            <ModelSelection
+                <SpaceBetween size="l">
+                    <Container
+                        header={<Header variant="h2">Model selection</Header>}
+                        footer={
+                            model.modelProvider.value !== '' && (
+                                <ExpandableSection
+                                    headerText="Additional settings"
+                                    variant="footer"
+                                    data-testid="step2-additional-settings-expandable"
+                                >
+                                    <ModelAdditionalSettings
+                                        modelData={model}
+                                        modelName={model.modelName}
+                                        modelProvider={model.modelProvider}
+                                        onChangeFn={onChange}
+                                        setNumFieldsInError={setNumFieldsInError}
+                                        setHelpPanelContent={setHelpPanelContent}
+                                        handleWizardNextStepLoading={handleWizardNextStepLoading}
+                                    />
+                                </ExpandableSection>
+                            )
+                        }
+                    >
+                        <SpaceBetween size="l">
+                            <ModelProviderDropdown
                                 modelData={model}
-                                onChange={onChange}
+                                onChangeFn={onChange}
                                 setHelpPanelContent={setHelpPanelContent}
                                 setNumFieldsInError={setNumFieldsInError}
                                 handleWizardNextStepLoading={handleWizardNextStepLoading}
                             />
-                        )}
-                    </SpaceBetween>
-                </Container>
+
+                            {model.modelProvider.value !== '' && (
+                                <ModelSelection
+                                    modelData={model}
+                                    onChange={onChange}
+                                    setHelpPanelContent={setHelpPanelContent}
+                                    setNumFieldsInError={setNumFieldsInError}
+                                    handleWizardNextStepLoading={handleWizardNextStepLoading}
+                                />
+                            )}
+                        </SpaceBetween>
+                    </Container>
+
+                    {showMultimodal && (
+                        <Container
+                            header={<Header variant="h2">Multimodal support</Header>}
+                        >
+                            <MultimodalInputSupport
+                                multimodalEnabled={model.multimodalEnabled}
+                                setHelpPanelContent={setHelpPanelContent}
+                                onChangeFn={onChange}
+                            />
+                        </Container>
+                    )}
+                </SpaceBetween>
             </Form>
         </form>
     );
@@ -83,9 +100,12 @@ const Model = ({
     info: { model, knowledgeBase },
     setHelpPanelContent,
     onChange,
-    handleWizardNextStepLoading
+    handleWizardNextStepLoading,
+    modelVisibility
 }: StepContentProps) => {
     const [numFieldsInError, setNumFieldsInError] = React.useState(0);
+
+    const showMultimodal = modelVisibility?.showMultimodalInputSupport ?? false;
 
     const [requiredFields, setRequiredFields] = React.useState(initModelRequiredFields(model.modelProvider.value));
     const childProps = {
@@ -97,7 +117,8 @@ const Model = ({
         requiredFields,
         setRequiredFields,
         knowledgeBase,
-        handleWizardNextStepLoading
+        handleWizardNextStepLoading,
+        showMultimodal
     };
 
     const isRequiredFieldsFilled = () => {
@@ -146,7 +167,8 @@ const Model = ({
         model.enableGuardrails,
         model.inferenceProfileId,
         model.modelArn,
-        model.bedrockInferenceType
+        model.bedrockInferenceType,
+        model.MultimodalParams
     ]);
 
     return (

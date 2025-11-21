@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { mapApiResponseToSelectedDeployment } from '../utils'; // Adjust the import path as needed
+import { mapApiResponseToSelectedDeployment, getUseCaseRoute } from '../utils'; // Adjust the import path as needed
 
 describe('mapApiResponseToSelectedDeployment', () => {
     // Test case for null input
@@ -89,7 +89,8 @@ describe('mapApiResponseToSelectedDeployment', () => {
             },
             FeedbackParams: {
                 FeedbackEnabled: true
-            }
+            },
+            ProvisionedConcurrencyValue: 3
         };
 
         const result = mapApiResponseToSelectedDeployment(fullResponse);
@@ -134,7 +135,8 @@ describe('mapApiResponseToSelectedDeployment', () => {
             },
             FeedbackParams: {
                 FeedbackEnabled: true
-            }
+            },
+            ProvisionedConcurrencyValue: 3
         });
     });
 
@@ -191,12 +193,35 @@ describe('mapApiResponseToSelectedDeployment', () => {
                 FeedbackEnabled: true
             }
         };
-    
+
         const result = mapApiResponseToSelectedDeployment(response);
-    
+
         expect(result!.FeedbackParams).toEqual({
             FeedbackEnabled: true
         });
+    });
+
+    test('handles ProvisionedConcurrencyValue correctly', () => {
+        const response = {
+            UseCaseId: '12345678-abcd-efgh-ijkl-mnopqrstuvwx',
+            UseCaseName: 'Provisioned Concurrency Test Case',
+            ProvisionedConcurrencyValue: 5
+        };
+
+        const result = mapApiResponseToSelectedDeployment(response);
+
+        expect(result!.ProvisionedConcurrencyValue).toEqual(5);
+    });
+
+    test('handles missing ProvisionedConcurrencyValue correctly', () => {
+        const response = {
+            UseCaseId: '12345678-abcd-efgh-ijkl-mnopqrstuvwx',
+            UseCaseName: 'No Provisioned Concurrency Test Case'
+        };
+
+        const result = mapApiResponseToSelectedDeployment(response);
+
+        expect(result!.ProvisionedConcurrencyValue).toBeUndefined();
     });
 
     // Test case for empty objects
@@ -222,5 +247,49 @@ describe('mapApiResponseToSelectedDeployment', () => {
         const result = mapApiResponseToSelectedDeployment(response);
 
         expect(result!.useCaseUUID).toBe('12345678');
+    });
+});
+
+describe('getUseCaseRoute', () => {
+    test('maps Text use case type correctly', () => {
+        const result = getUseCaseRoute('Text');
+        expect(result).toBe('/textUseCase');
+    });
+
+    test('maps Agent use case type correctly', () => {
+        const result = getUseCaseRoute('Agent');
+        expect(result).toBe('/agentUseCase');
+    });
+
+    test('maps MCPServer use case type correctly', () => {
+        const result = getUseCaseRoute('MCPServer');
+        expect(result).toBe('/mcpServerUseCase');
+    });
+
+    test('maps AgentBuilder use case type correctly', () => {
+        const result = getUseCaseRoute('AgentBuilder');
+        expect(result).toBe('/agentBuilderUseCase');
+    });
+
+    test('maps Workflow use case type correctly', () => {
+        const result = getUseCaseRoute('Workflow');
+        expect(result).toBe('/workflowUseCase');
+    });
+
+    test('returns default Text route for unknown use case type', () => {
+        const result = getUseCaseRoute('UnknownType');
+        expect(result).toBe('/textUseCase');
+    });
+
+    test('returns default Text route for empty string', () => {
+        const result = getUseCaseRoute('');
+        expect(result).toBe('/textUseCase');
+    });
+
+    test('returns default Text route for null/undefined input', () => {
+        const result1 = getUseCaseRoute(null as any);
+        const result2 = getUseCaseRoute(undefined as any);
+        expect(result1).toBe('/textUseCase');
+        expect(result2).toBe('/textUseCase');
     });
 });

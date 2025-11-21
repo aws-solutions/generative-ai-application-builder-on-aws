@@ -11,7 +11,6 @@ import {
     ScanCommandInput
 } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
-import { customAwsConfig } from 'aws-node-user-agent-config';
 import { logger, tracer } from '../power-tools-init';
 import { MODEL_INFO_TABLE_NAME_ENV_VAR, ModelInfoTableKeys } from './constants';
 
@@ -22,7 +21,7 @@ export class ModelInfoRetriever {
     private client: DynamoDBClient;
     private tableName: string;
 
-    constructor(client: DynamoDBClient = new DynamoDBClient(customAwsConfig())) {
+    constructor(client: DynamoDBClient) {
         this.client = client;
         this.tableName = process.env[MODEL_INFO_TABLE_NAME_ENV_VAR]!;
     }

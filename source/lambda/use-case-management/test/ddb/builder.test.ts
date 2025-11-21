@@ -30,7 +30,7 @@ import {
     permanentlyDeleteUseCaseEvent,
     updateUseCaseEvent
 } from '../event-test-data';
-import { ChatUseCaseInfoAdapter } from '../../model/chat-use-case-adapter';
+import { ChatUseCaseInfoAdapter } from '../../model/adapters/chat-use-case-adapter';
 
 describe('When creating StackCommandBuilders', () => {
     let createEvent: any;

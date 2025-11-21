@@ -29,6 +29,7 @@ export const mockSelectedDeployment = {
         'Temperature': 0.7,
         'Verbose': true,
         'BedrockLlmParams': {
+            'BedrockInferenceType': 'OTHER_FOUNDATION',
             'GuardrailIdentifier': 'mock-guardrail',
             'GuardrailVersion': '1',
             'ModelId': 'anthropic.claude-v2'

@@ -28,7 +28,7 @@ describe('When creating the nested stack for chat storage', () => {
         expect(template).not.toBe(undefined);
     });
 
-    it('should create 2 dynamoDB tables', () => {
+    it('should create 3 dynamoDB tables', () => {
         template.resourceCountIs('AWS::DynamoDB::Table', 3);
 
         template.hasResource('AWS::DynamoDB::Table', {

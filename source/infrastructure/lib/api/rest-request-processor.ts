@@ -35,6 +35,21 @@ export interface RestRequestProcessorProps extends RequestProcessorProps {
     modelInfoAPILambda: lambda.Function;
 
     /**
+     * The function to back the MCP management API
+     */
+    mcpManagementAPILambda: lambda.Function;
+
+    /**
+     * The function to back the agent management API
+     */
+    agentManagementAPILambda: lambda.Function;
+
+    /**
+     * The function to back the workflow management API
+     */
+    workflowManagementAPILambda: lambda.Function;
+
+    /**
      * The ARN of the Lambda function to use for custom resource implementation.
      */
     customResourceLambdaArn: string;
@@ -149,6 +164,9 @@ export class RestRequestProcessor extends RequestProcessor {
         this.deploymentRestEndpoint = new DeploymentPlatformRestEndpoint(this, 'DeploymentRestEndpoint', {
             useCaseManagementAPILambda: props.useCaseManagementAPILambda,
             modelInfoApiLambda: props.modelInfoAPILambda,
+            mcpManagementAPILambda: props.mcpManagementAPILambda,
+            agentManagementAPILambda: props.agentManagementAPILambda,
+            workflowManagementAPILambda: props.workflowManagementAPILambda,
             deploymentPlatformAuthorizer: this.requestAuthorizer
         });
 

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ColumnLayout, SpaceBetween, StatusIndicator } from '@cloudscape-design/components';
-import { BEDROCK_MODEL_PROVIDER_NAME, SAGEMAKER_MODEL_PROVIDER_NAME } from '../../../utils/constants';
+import { BEDROCK_MODEL_PROVIDER_NAME, SAGEMAKER_MODEL_PROVIDER_NAME, MULTIMODAL_SUPPORTED_USE_CASES } from '../../../utils/constants';
 import { BedrockDetails } from './BedrockDetails';
 import { SageMakerDetails } from './SageMakerDetails';
 import { FormattedModelParams } from './FormattedModelParams';
 import { ValueWithLabel } from '../../../utils/ValueWithLabel';
 import { BaseDetailsContainerProps } from '../types';
+import { getBooleanString } from '@/components/wizard/utils';
 
 /**
  * Renders the model details section of the deployment details view.
@@ -58,6 +59,11 @@ export const ModelDetails = ({ selectedDeployment }: Partial<BaseDetailsContaine
         <ColumnLayout columns={2} variant="text-grid" data-testid="model-details-tab">
             <SpaceBetween size="l">
                 {modelComponent}
+                {MULTIMODAL_SUPPORTED_USE_CASES.includes(selectedDeployment.UseCaseType) && (
+                    <ValueWithLabel label={'Enable Multimodal Input'}>
+                        {getBooleanString(selectedDeployment.LlmParams.MultimodalParams?.MultimodalEnabled)}
+                    </ValueWithLabel>
+                )}
                 {modelParams.length > 0 && (
                     <SpaceBetween size="l" data-testid="model-params-container">
                         {modelParams.slice(0, Math.ceil(modelParams.length / 2))}

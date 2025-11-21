@@ -165,8 +165,25 @@ export const GeneralConfig = ({ selectedDeployment, runtimeConfig }: Partial<Bas
                 </ValueWithLabel>
             )}
 
+            {'ProvisionedConcurrencyValue' in (selectedDeployment ?? {}) && (
+                <ValueWithLabel label={'Provisioned Concurrency'}>
+                    {selectedDeployment.ProvisionedConcurrencyValue > 0
+                        ? `Enabled (${selectedDeployment.ProvisionedConcurrencyValue})`
+                        : 'Disabled'}
+                </ValueWithLabel>
+            )}
+
+            {selectedDeployment.UseCaseType === USECASE_TYPES.MCP_SERVER && (
+                <ValueWithLabel label={'Agentcore Service'}>
+                    {selectedDeployment.MCPParams?.GatewayParams ? 'Gateway' : 'Runtime'}
+
+                </ValueWithLabel>
+            )}
+
             {'FeedbackEnabled' in (selectedDeployment.FeedbackParams ?? {}) && (
-                <ValueWithLabel label={'Enable Feedback'}>{getBooleanString(selectedDeployment.FeedbackParams.FeedbackEnabled)}</ValueWithLabel>
+                <ValueWithLabel label={'Enable Feedback'}>
+                    {getBooleanString(selectedDeployment.FeedbackParams.FeedbackEnabled)}
+                </ValueWithLabel>
             )}
         </ColumnLayout>
     );

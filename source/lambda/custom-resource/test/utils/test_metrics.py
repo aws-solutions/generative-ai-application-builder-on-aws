@@ -18,7 +18,7 @@ builder_metrics = BuilderMetrics("fake-uuid", "SO0999", "v99.99.99", {"fake-metr
 def test_when_env_variables_set(monkeypatch):
     envs = {
         "UNIT_TEST_ENV": "yes",
-        "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
+        "POWERTOOLS_SERVICE_NAME": "CW-METRICS",
         "SOLUTION_ID": "SO0001",
         "SOLUTION_VERSION": "v99.99.99",
     }
@@ -30,7 +30,7 @@ def test_when_env_variables_set(monkeypatch):
 def test_when_solution_version_not_set(monkeypatch):
     envs = {
         "UNIT_TEST_ENV": "yes",
-        "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
+        "POWERTOOLS_SERVICE_NAME": "CW-METRICS",
         "SOLUTION_ID": "SO0001",
     }
     monkeypatch.setattr(os, "environ", envs)
@@ -42,7 +42,7 @@ def test_when_solution_version_not_set(monkeypatch):
 def test_when_solution_id_not_set(monkeypatch):
     envs = {
         "UNIT_TEST_ENV": "yes",
-        "POWERTOOLS_SERVICE_NAME": "ANONYMOUS-CW-METRICS",
+        "POWERTOOLS_SERVICE_NAME": "CW-METRICS",
         "SOLUTION_VERSION": "v99.99.99",
     }
     monkeypatch.setattr(os, "environ", envs)

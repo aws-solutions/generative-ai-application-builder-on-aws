@@ -229,6 +229,63 @@ describe('BedrockAgent Stack', () => {
         const customResource = resources[resourceKeys[0]];
         expect(customResource.Condition).toBe('FeedbackEnabledCondition');
     });
+
+    it('should have validation rules preventing multimodal parameters for Bedrock Agent use cases', () => {
+        const templateJson = template.toJSON();
+
+        expect(templateJson.Rules.NoMultimodalEnabledForBedrockAgentRule).toEqual({
+            RuleCondition: {
+                'Fn::Equals': [{ 'Ref': 'MultimodalEnabled' }, 'Yes']
+            },
+            Assertions: [
+                {
+                    Assert: {
+                        'Fn::Equals': ['false', 'true']
+                    },
+                    AssertDescription:
+                        'Multimodal functionality is not supported for Bedrock Agent Use Cases. Please set MultimodalEnabled to No.'
+                }
+            ]
+        });
+
+        expect(templateJson.Rules.NoMultimodalBucketForBedrockAgentRule).toEqual({
+            RuleCondition: {
+                'Fn::Not': [
+                    {
+                        'Fn::Equals': [{ 'Ref': 'ExistingMultimodalDataBucket' }, '']
+                    }
+                ]
+            },
+            Assertions: [
+                {
+                    Assert: {
+                        'Fn::Equals': ['false', 'true']
+                    },
+                    AssertDescription:
+                        'Multimodal data bucket is not supported for Bedrock Agent Use Cases. Please leave ExistingMultimodalDataBucket empty.'
+                }
+            ]
+        });
+
+        expect(templateJson.Rules.NoMultimodalTableForBedrockAgentRule).toEqual({
+            RuleCondition: {
+                'Fn::Not': [
+                    {
+                        'Fn::Equals': [{ 'Ref': 'ExistingMultimodalDataMetadataTable' }, '']
+                    }
+                ]
+            },
+            Assertions: [
+                {
+                    Assert: {
+                        'Fn::Equals': ['false', 'true']
+                    },
+                    AssertDescription:
+                        'Multimodal metadata table is not supported for Bedrock Agent Use Cases. Please leave ExistingMultimodalDataMetadataTable empty.'
+                }
+            ]
+        });
+    });
 });
 
 function buildStack(): [Template, cdk.Stack] {

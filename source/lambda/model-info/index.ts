@@ -4,15 +4,15 @@
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import { captureLambdaHandler } from '@aws-lambda-powertools/tracer/middleware';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { AWSClientManager } from 'aws-sdk-lib';
 import middy from '@middy/core';
 import { APIGatewayEvent } from 'aws-lambda';
-import { customAwsConfig } from 'aws-node-user-agent-config';
 import { logger, tracer } from './power-tools-init';
 import { checkEnv } from './utils/check-env';
 import { formatError, formatResponse } from './utils/http-response-formatters';
 import { ModelInfoRetriever } from './utils/model-info-retriever';
 
-const ddbClient = new DynamoDBClient(customAwsConfig());
+const ddbClient = AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb', tracer);
 
 export const lambdaHandler = async (event: APIGatewayEvent) => {
     checkEnv();

@@ -5,4 +5,5 @@ import { BaseWizardStep } from '../Steps/BaseWizardStep';
 
 export abstract class UseCaseType {
     public abstract steps: BaseWizardStep[];
+    public abstract type: string;
 }

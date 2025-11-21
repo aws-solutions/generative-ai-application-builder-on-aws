@@ -29,6 +29,9 @@
     "moduleResolution": "Node",
     "rootDir": ".",
     "paths": {
+      "aws-sdk-lib": [
+        "../layers/aws-sdk-lib/dist"
+      ],
       "aws-node-user-agent-config": [
         "../layers/aws-node-user-agent-config/dist"
       ],
@@ -85,7 +88,13 @@
       ],
       "@aws-sdk/client-api-gateway": [
         "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-api-gateway"
+      ],
+      "@aws-sdk/client-s3": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-s3"
+      ],
+      "@aws-sdk/s3-presigned-post": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/s3-presigned-post"
       ]
-    },
+    }
   }
 }

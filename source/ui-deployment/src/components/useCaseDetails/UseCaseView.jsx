@@ -1,10 +1,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { createRef, useState, useContext, useEffect, useRef } from 'react';
+import { createRef, useState, useContext, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { Alert, AppLayout, Button, ContentLayout, SpaceBetween, StatusIndicator, Tabs } from '@cloudscape-design/components';
+import {
+    Alert,
+    AppLayout,
+    Button,
+    ContentLayout,
+    SpaceBetween,
+    StatusIndicator,
+    Tabs
+} from '@cloudscape-design/components';
 
 import { Navigation, Notifications } from '../commons/common-components';
 import { appLayoutAriaLabels } from '../../i18n-strings';
@@ -12,12 +20,8 @@ import { ToolsContent } from '../../utils/tools-content';
 import HomeContext from '../../contexts/home.context';
 import { parseStackName } from '../commons/table-config';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
-import {
-    CFN_STACK_STATUS_INDICATOR,
-    DEPLOYMENT_ACTIONS,
-    USECASE_TYPE_ROUTE,
-    USECASE_TYPES
-} from '../../utils/constants';
+import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS, USECASE_TYPES } from '../../utils/constants';
+import { getUseCaseRoute } from '../../utils/utils';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 
 import { useUseCaseDetailsQuery } from '@/hooks/useQueries';
@@ -29,15 +33,22 @@ import { Prompt } from './prompt/Prompt';
 import { PageHeader } from './layout/PageHeader';
 import { Breadcrumbs } from './layout/Breadcrumbs';
 import { Agent } from './agent/Agent';
+import { Targets } from './targets';
+import { Gateway } from './gateway';
+import { Runtime } from './runtime';
+import { MCPs } from './mcps';
+import { AgentDetails } from './agentDetails';
+import { WorkflowDetails } from './workflowDetails';
+import { WorkflowOrchestration } from './workflowOrchestration';
 
 export default function UseCaseView() {
-    const { useCaseId } = useParams(); // Get useCaseId from URL params
+    const { useCaseId, useCaseType } = useParams(); // Get useCaseId and useCaseType from URL params
     const {
         data: apiResponse,
         isLoading,
         isSuccess,
         error
-    } = useUseCaseDetailsQuery(useCaseId, {
+    } = useUseCaseDetailsQuery(useCaseId, useCaseType, {
         refetchOnWindowFocus: false
     });
 
@@ -54,7 +65,9 @@ export default function UseCaseView() {
 
     const hasUpdatedRef = useRef(false);
 
-    const selectedDeployment = isSuccess ? mapApiResponseToSelectedDeployment(apiResponse) : null;
+    const selectedDeployment = useMemo(() => {
+        return isSuccess ? mapApiResponseToSelectedDeployment(apiResponse) : null;
+    }, [isSuccess, apiResponse]);
 
     // Update context when data is successfully loaded
     useEffect(() => {
@@ -67,10 +80,10 @@ export default function UseCaseView() {
         }
     }, [isSuccess, selectedDeployment, homeDispatch]);
 
-    // Reset the ref when the ID changes
+    // Reset the ref when the ID or type changes
     useEffect(() => {
         hasUpdatedRef.current = false;
-    }, [useCaseId]);
+    }, [useCaseId, useCaseType]);
 
     // Handle loading state
     if (isLoading) {
@@ -94,11 +107,14 @@ export default function UseCaseView() {
 
     // Handle case where data is not available after loading
     if (!selectedDeployment) {
-        return <div style={{ padding: '20px' }}>No deployment details found for ID: {useCaseId}</div>;
+        return (
+            <div style={{ padding: '20px' }}>
+                No deployment details found for ID: {useCaseId} (Type: {useCaseType})
+            </div>
+        );
     }
 
-    const navigateDestination =
-        USECASE_TYPE_ROUTE[selectedDeployment.UseCaseType?.toUpperCase()] ?? USECASE_TYPE_ROUTE.TEXT;
+    const navigateDestination = getUseCaseRoute(selectedDeployment.UseCaseType);
 
     const onDeleteInit = () => setShowDeleteModal(true);
     const onDeleteDiscard = () => setShowDeleteModal(false);
@@ -147,6 +163,98 @@ export default function UseCaseView() {
         ];
     }
 
+    if (selectedDeployment.UseCaseType === USECASE_TYPES.AGENT_BUILDER) {
+        tabs = [
+            {
+                label: 'Agent Details',
+                id: 'agentDetails',
+                content: (
+                    <AgentDetails loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />
+                ),
+                key: 'agentDetails'
+            },
+            {
+                label: 'Tools and Resources',
+                id: 'mcps',
+                content: <MCPs loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />,
+                key: 'mcps'
+            },
+            {
+                label: 'Model',
+                id: 'model',
+                content: <Model loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />,
+                key: 'model'
+            }
+        ];
+    }
+
+    if (selectedDeployment.UseCaseType === USECASE_TYPES.WORKFLOW) {
+        tabs = [
+            {
+                label: 'Workflow Configuration',
+                id: 'workflowDetails',
+                content: (
+                    <WorkflowDetails
+                        loadHelpPanelContent={loadHelpPanelContent}
+                        selectedDeployment={selectedDeployment}
+                    />
+                ),
+                key: 'workflowDetails'
+            },
+            {
+                label: 'Multi-Agent Orchestration',
+                id: 'workflowOrchestration',
+                content: (
+                    <WorkflowOrchestration
+                        loadHelpPanelContent={loadHelpPanelContent}
+                        selectedDeployment={selectedDeployment}
+                    />
+                ),
+                key: 'workflowOrchestration'
+            },
+            {
+                label: 'Model',
+                id: 'model',
+                content: <Model loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />,
+                key: 'model'
+            }
+        ];
+    }
+
+    if (selectedDeployment.UseCaseType === USECASE_TYPES.MCP_SERVER && selectedDeployment.MCPParams?.GatewayParams) {
+        tabs = [
+            {
+                label: 'Gateway',
+                id: 'gateway',
+                content: (
+                    <Gateway loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />
+                ),
+                key: 'gateway'
+            },
+            {
+                label: 'Targets',
+                id: 'targets',
+                content: (
+                    <Targets loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />
+                ),
+                key: 'targets'
+            }
+        ];
+    }
+
+    if (selectedDeployment.UseCaseType === USECASE_TYPES.MCP_SERVER && selectedDeployment.MCPParams?.RuntimeParams) {
+        tabs = [
+            {
+                label: 'Runtime',
+                id: 'runtime',
+                content: (
+                    <Runtime loadHelpPanelContent={loadHelpPanelContent} selectedDeployment={selectedDeployment} />
+                ),
+                key: 'runtime'
+            }
+        ];
+    }
+
     const onEditClickAction = () => {
         homeDispatch({
             field: 'selectedDeployment',
@@ -176,6 +284,7 @@ export default function UseCaseView() {
     };
 
     const currentDeploymentStatus = statusIndicatorTypeSelector(selectedDeployment.status);
+
     const isEditEnabled =
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.SUCCESS ||
         currentDeploymentStatus === CFN_STACK_STATUS_INDICATOR.WARNING;

@@ -1,0 +1,45 @@
+# Docker ignore file for gaab-strands-agent build
+# Build context is deployment/ecr/
+
+# Ignore Python cache and compiled files
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Ignore test artifacts
+.pytest_cache
+.coverage
+.tox
+
+# Ignore version control
+.git
+.gitignore
+
+# Ignore test directories
+test
+tests
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Ignore CI/CD
+.github
+.gitlab-ci.yml
+Jenkinsfile
+
+# Ignore docs
+docs
+
+# Ignore MCP directory
+mcp

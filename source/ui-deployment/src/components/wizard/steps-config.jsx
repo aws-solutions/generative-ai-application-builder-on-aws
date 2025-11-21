@@ -6,7 +6,14 @@ import {
     DEFAULT_ADDITIONAL_KENDRA_STORAGE_CAPACITY,
     DEFAULT_SCORE_THRESHOLD,
     USECASE_TYPES,
-    BEDROCK_INFERENCE_TYPES
+    BEDROCK_INFERENCE_TYPES,
+    MCP_SERVER_CREATION_METHOD,
+    GATEWAY_TARGET_TYPES,
+    GATEWAY_REST_API_OUTBOUND_AUTH_TYPES,
+    DEFAULT_AGENT_SYSTEM_PROMPT,
+    API_KEY_LOCATION,
+    DEFAULT_WORKFLOW_SYSTEM_PROMPT,
+    ORCHESTRATION_PATTERN_TYPES
 } from '../../utils/constants';
 
 export const USE_CASE_OPTIONS = [
@@ -104,6 +111,7 @@ export const DEFAULT_STEP_INFO = {
         useExistingUserPoolClient: false,
         existingUserPoolClientId: '',
         feedbackEnabled: false,
+        provisionedConcurrencyValue: 0,
         inError: false
     },
     vpc: {
@@ -149,6 +157,7 @@ export const DEFAULT_STEP_INFO = {
         temperature: 0.1,
         verbose: false,
         streaming: false,
+        multimodalEnabled: false,
         sagemakerInputSchema: JSON.stringify(
             {
                 inputs: '<<prompt>>',
@@ -162,7 +171,7 @@ export const DEFAULT_STEP_INFO = {
         sagemakerOutputSchema: '',
         sagemakerEndpointName: '',
         inferenceProfileId: '',
-        bedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS
+        bedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES
     },
     prompt: {
         maxPromptTemplateLength: undefined,
@@ -180,6 +189,52 @@ export const DEFAULT_STEP_INFO = {
         bedrockAgentId: '',
         bedrockAgentAliasId: '',
         enableTrace: false,
+        inError: false
+    },
+    agentBuilder: {
+        systemPrompt: DEFAULT_AGENT_SYSTEM_PROMPT,
+        mcpServers: [],
+        tools: [],
+        memoryEnabled: false,
+        inError: false
+    },
+    mcpServer: {
+        mcpServerName: '',
+        mcpServerDescription: '',
+        creationMethod: MCP_SERVER_CREATION_METHOD.GATEWAY,
+        ecrConfig: {
+            imageUri: '',
+  		    environmentVariables: []        
+        },
+        targets: [
+            {
+                id: '1',
+                targetType: GATEWAY_TARGET_TYPES.LAMBDA,
+                uploadedSchema: null,
+                lambdaArn: '',
+                outboundAuth: {
+                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                    providerArn: ''
+                },
+                additionalConfig: {
+                    oauthConfig: {
+                        scopes: [],
+                        customParameters: []
+                    },
+                    apiKeyConfig: {
+                        location: API_KEY_LOCATION.HEADER,
+                        parameterName: '',
+                        prefix: ''
+                    }
+                }
+            }
+        ]
+    },
+    workflow: {
+        orchestrationPattern: ORCHESTRATION_PATTERN_TYPES.AGENTS_AS_TOOLS,
+        systemPrompt: DEFAULT_WORKFLOW_SYSTEM_PROMPT,
+        selectedAgents: [],
+        memoryEnabled: false,
         inError: false
     }
 };

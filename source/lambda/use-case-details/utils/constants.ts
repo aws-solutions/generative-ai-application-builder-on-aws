@@ -28,6 +28,7 @@ export interface DetailsResponse {
 export interface LlmParams {
     PromptParams?: PromptParams;
     RAGEnabled?: boolean;
+    MultimodalParams?: MultimodalParams;
 }
 
 export interface PromptParams {
@@ -35,6 +36,10 @@ export interface PromptParams {
     UserPromptEditingEnabled?: boolean;
     MaxInputTextLength?: number;
     MaxPromptTemplateLength?: number;
+}
+
+export interface MultimodalParams {
+    MultimodalEnabled: boolean;
 }
 
 export interface FeedbackParams {

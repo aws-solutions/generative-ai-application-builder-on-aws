@@ -3,7 +3,8 @@
 
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
-import { validateAndParseRequest, getRetrySettings, castToResponse } from './utils/utils';
+import { AWSClientManager } from 'aws-sdk-lib';
+import { validateAndParseRequest, castToResponse } from './utils/utils';
 import { formatError, formatResponse } from './utils/http-response-formatters';
 import { logger, tracer, metrics } from './power-tools-init';
 import { MetricUnit } from '@aws-lambda-powertools/metrics';
@@ -14,10 +15,7 @@ import { unmarshall } from '@aws-sdk/util-dynamodb';
 import middy from '@middy/core';
 
 // Initialize DynamoDB client with retry settings
-const dynamoDB = new DynamoDBClient({
-    maxAttempts: getRetrySettings().maxRetries,
-    retryMode: 'standard'
-});
+const dynamoDB = AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb', tracer);
 
 export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {

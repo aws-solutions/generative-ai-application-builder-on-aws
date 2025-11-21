@@ -185,7 +185,7 @@ describe('ChatPage', () => {
 
         // Verify the message was sent
         await waitFor(() => {
-            expect(addUserMessageMock).toHaveBeenCalledWith('Hello, this is a test message');
+            expect(addUserMessageMock).toHaveBeenCalledWith('Hello, this is a test message', undefined);
             expect(sendJsonMessageMock).toHaveBeenCalled();
         });
     });
@@ -352,16 +352,18 @@ describe('ChatPage', () => {
             userContextValue: errorUserContext
         });
 
-        expect(store.getState().notifications.notifications).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    'content': 'Failed to fetch data. Please try again or contact a system administrator.',
-                    'header': 'Error',
-                    'id': 'data-fetch-error',
-                    'type': 'error'
-                })
-            ])
-        );
+        await waitFor(() => {
+            expect(store.getState().notifications.notifications).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        'content': 'Failed to load deployment',
+                        'header': 'Error',
+                        'id': 'data-fetch-error',
+                        'type': 'error'
+                    })
+                ])
+            );
+        });
 
         expect(screen.queryByTestId('chat-content-layout')).not.toBeInTheDocument();
     });

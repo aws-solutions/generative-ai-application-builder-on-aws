@@ -10,7 +10,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import { NagSuppressions } from 'cdk-nag';
 import * as cfn_nag from '../utils/cfn-guard-suppressions';
 import { COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME, LAMBDA_TIMEOUT_MINS, StackDeploymentSource } from '../utils/constants';
-import { feedbackRequestSchema } from './../api/model-schema/feedback-body';
+import { feedbackRequestSchema } from './../api/model-schema/feedback/feedback-body';
 import {
     createCustomResourceForLambdaLogRetention,
     createDefaultLambdaRole,

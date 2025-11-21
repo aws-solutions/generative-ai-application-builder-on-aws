@@ -14,7 +14,6 @@ import {
     ARTIFACT_BUCKET_ENV_VAR,
     ARTIFACT_KEY_PREFIX_ENV_VAR,
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
-    RetainedCfnParameterKeys,
     TEMPLATE_FILE_EXTN_ENV_VAR
 } from '../utils/constants';
 
@@ -95,7 +94,7 @@ export class UpdateStackCommandInputBuilder extends CommandInputBuilder {
         const updateCommandInput = {
             StackName: this.useCase.stackId,
             TemplateURL: getTemplateUrl(this.useCase),
-            Parameters: updateParameters(this.useCase.cfnParameters!),
+            Parameters: updateParameters(this.useCase.cfnParameters!, this.useCase.getRetainedParameterKeys()),
             Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_AUTO_EXPAND', 'CAPABILITY_NAMED_IAM'],
             Tags: [
                 {
@@ -147,9 +146,9 @@ const parameters = (cfnParameters: Map<string, string>): Parameter[] => {
 /**
  * Utility method to build the Parameter array from the Map on updates, marking parameters to be retained
  */
-const updateParameters = (cfnParameters: Map<string, string>): Parameter[] => {
+const updateParameters = (cfnParameters: Map<string, string>, retainedParameterKeys: string[]): Parameter[] => {
     let parameterArray: Parameter[] = parameters(cfnParameters);
-    for (let parameter of RetainedCfnParameterKeys) {
+    for (let parameter of retainedParameterKeys) {
         if (!cfnParameters.has(parameter)) {
             parameterArray.push({
                 ParameterKey: parameter,

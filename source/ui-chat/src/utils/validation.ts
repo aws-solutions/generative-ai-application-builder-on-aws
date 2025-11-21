@@ -109,7 +109,22 @@ export interface TraceDetails {
 
 export const parseTraceId = (errorMessage: string): TraceDetails => {
     try {
-        // Extract the trace ID portion from the error message
+        // Check for new AgentCore lambda format first: "...quote the following trace id: {trace_id}"
+        const newFormatMatch = errorMessage.match(/quote the following trace id:\s*([^\s]+)/i);
+        if (newFormatMatch) {
+            const traceId = newFormatMatch[1];
+            const message = errorMessage.replace(/\s*Please contact your administrator.*$/i, '').trim();
+            
+            return {
+                rootId: traceId,
+                parentId: '',
+                sampled: false,
+                lineage: '',
+                message: message
+            };
+        }
+
+        // Fall back to old format: "Error occurred Root=1-2345;Parent=abcd;Sampled=1;Lineage=test"
         const traceStart = errorMessage.indexOf('Root=');
         if (traceStart === -1) {
             throw new Error('No trace ID found in message');

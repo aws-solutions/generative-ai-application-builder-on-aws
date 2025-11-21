@@ -155,7 +155,6 @@ export class CognitoSetup extends Construct {
      */
     private cognitoGroupPolicyTableExport: dynamodb.ITable;
 
-
     constructor(scope: Construct, id: string, props: CognitoSetupProps) {
         super(scope, id);
         this.stack = cdk.Stack.of(scope);
@@ -187,7 +186,7 @@ export class CognitoSetup extends Construct {
             userPool.userPoolId,
             props.userPoolProps!.existingCognitoUserPoolId
         ).toString();
-        
+
         // Use CfnOutput for conditional UserPool in nested stack, allowing cross stack access without dependency on underlying condition
         if (cdk.Stack.of(this).nestedStackResource) {
             const output = new cdk.CfnOutput(this, 'UserPoolId', { value: userPoolId });
@@ -210,7 +209,9 @@ export class CognitoSetup extends Construct {
 
         // Use CfnOutput for conditional GroupPolicyTable in nested stack, allowing cross stack access without dependency on underlying condition
         if (cdk.Stack.of(this).nestedStackResource) {
-            const output = new cdk.CfnOutput(this, 'CognitoGroupPolicyTableName', { value: CognitoGroupPolicyTableName });
+            const output = new cdk.CfnOutput(this, 'CognitoGroupPolicyTableName', {
+                value: CognitoGroupPolicyTableName
+            });
             this.cognitoGroupPolicyTableExport = dynamodb.Table.fromTableName(
                 cdk.Stack.of(this).nestedStackParent!,
                 'CognitoGroupPolicyTable',
@@ -410,23 +411,30 @@ export class CognitoSetup extends Construct {
         return userPool;
     }
 
-    protected createUserAndUserGroup(props: UserPoolProps) {
+    public createAgentCoreResourceServer() {
+        return new cognito.UserPoolResourceServer(this, 'AgentCoreResourceServer', {
+            identifier: 'agentcore',
+            userPoolResourceServerName: 'agentcore',
+            userPool: this.userPool,
+            scopes: [
+                {
+                    scopeName: 'componentAccess',
+                    scopeDescription: 'Scope for component authentication'
+                }
+            ]
+        });
+    }
 
+    protected createUserAndUserGroup(props: UserPoolProps) {
         const cognitoGroupCondition = new cdk.CfnCondition(this, 'CognitoGroupCondition', {
-            expression: cdk.Fn.conditionNot(
-                cdk.Fn.conditionEquals(props.defaultUserEmail, '')
-            )
+            expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(props.defaultUserEmail, ''))
         });
 
         const cognitoUserCondition = new cdk.CfnCondition(this, 'CognitoUserCondition', {
-            expression: 
-                cdk.Fn.conditionAnd(
-                    cdk.Fn.conditionNot(
-                        cdk.Fn.conditionEquals(props.defaultUserEmail, PLACEHOLDER_EMAIL)
-                    ),
-                    cognitoGroupCondition
-                )
-
+            expression: cdk.Fn.conditionAnd(
+                cdk.Fn.conditionNot(cdk.Fn.conditionEquals(props.defaultUserEmail, PLACEHOLDER_EMAIL)),
+                cognitoGroupCondition
+            )
         });
 
         const cognitoUser = new CfnUserPoolUser(this, 'DefaultUser', {
@@ -613,7 +621,7 @@ export class CognitoSetup extends Construct {
      * @returns The user pool
      */
     getUserPool(construct: Construct): cognito.IUserPool {
-        if(cdk.Stack.of(this) == cdk.Stack.of(construct)) {
+        if (cdk.Stack.of(this) == cdk.Stack.of(construct)) {
             return this.userPool;
         }
         return this.userPoolExport;
@@ -627,13 +635,11 @@ export class CognitoSetup extends Construct {
      * @returns The user pool client
      */
     getUserPoolClient(construct: Construct): cognito.IUserPoolClient {
-
-        if(cdk.Stack.of(this) == cdk.Stack.of(construct)) {
+        if (cdk.Stack.of(this) == cdk.Stack.of(construct)) {
             return this.userPoolClient;
         }
         return this.userPoolClientExport;
     }
-
 
     /**
      * Method to return the CognitoSetup group policy table. Returns the direct reference (including the conditional), if accessed from the same stack.
@@ -643,7 +649,7 @@ export class CognitoSetup extends Construct {
      * @returns The cognito group policy table
      */
     getCognitoGroupPolicyTable(construct: Construct): dynamodb.ITable {
-        if(cdk.Stack.of(this) == cdk.Stack.of(construct)) {
+        if (cdk.Stack.of(this) == cdk.Stack.of(construct)) {
             return this.cognitoGroupPolicyTable;
         }
         return this.cognitoGroupPolicyTableExport;

@@ -2,19 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
-    DEFAULT_KENDRA_NUMBER_OF_DOCS,
-    DEFAULT_SCORE_THRESHOLD,
     DEPLOYMENT_ACTIONS,
     USECASE_TYPES,
-    BEDROCK_INFERENCE_TYPES
+    BEDROCK_INFERENCE_TYPES,
+    DEFAULT_WORKFLOW_SYSTEM_PROMPT,
+    ORCHESTRATION_PATTERN_TYPES
 } from '../../utils/constants';
 import {
     DEFAULT_STEP_INFO,
     KNOWLEDGE_BASE_PROVIDERS,
     KNOWLEDGE_BASE_TYPES,
-    MODEL_PROVIDER_NAME_MAP,
     BEDROCK_KNOWLEDGE_BASE_OVERRIDE_SEARCH_TYPES
 } from './steps-config';
+
+import {
+    createUseCaseInfoApiParams,
+    createVpcApiParams,
+    createAuthenticationApiParams,
+    createAgentApiParams,
+    createAgentBuilderApiParams,
+    createKnowledgeBaseApiParams,
+    createLLMParamsApiParams,
+    createConversationMemoryApiParams,
+    updateVpcApiParams,
+    updateFeedbackApiParams,
+    createMCPServerApiParams,
+    createWorkflowApiParams,
+    createMultimodalParams
+} from './params-builder';
 
 import 'ace-builds/css/ace.css';
 import 'ace-builds/css/theme/dawn.css';
@@ -26,35 +41,18 @@ import extLanguageTools from 'ace-builds/src-noconflict/ext-language_tools?url';
 import workerJson from 'ace-builds/src-min-noconflict/worker-json?url';
 
 /**
- * Maps UI inference type constants to API inference type constants.
- * @param {string} uiInferenceType - The UI inference type constant
- * @returns {string} The corresponding API inference type constant, defaults to 'QUICK_START'
- */
-export const mapUItoAPIInferenceType = (uiInferenceType) => {
-    const mapping = {
-        [BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS]: 'QUICK_START',
-        [BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS]: 'OTHER_FOUNDATION',
-        [BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES]: 'INFERENCE_PROFILE',
-        [BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS]: 'PROVISIONED'
-    };
-
-    return mapping[uiInferenceType] || 'QUICK_START'; // Default to QUICK_START if mapping not found
-};
-
-/**
  * Maps API inference type constants back to UI inference type constants.
  * @param {string} apiInferenceType - The API inference type constant
- * @returns {string} The corresponding UI inference type constant, defaults to QUICK_START_MODELS
+ * @returns {string} The corresponding UI inference type constant, defaults to OTHER_FOUNDATION_MODELS
  */
 export const mapAPItoUIInferenceType = (apiInferenceType) => {
     const mapping = {
-        'QUICK_START': BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS,
         'OTHER_FOUNDATION': BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS,
         'INFERENCE_PROFILE': BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES,
         'PROVISIONED': BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS
     };
 
-    return mapping[apiInferenceType] || BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS; // Default to QUICK_START_MODELS if mapping not found
+    return mapping[apiInferenceType] || BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS; // Default to OTHER_FOUNDATION_MODELS if mapping not found
 };
 
 /**
@@ -81,34 +79,61 @@ export const getFieldOnChange =
     };
 
 /**
+ * Helper function to add multimodal params to LLM params if they exist
+ */
+const addMultimodalToLlmParams = (llmParams, multimodalParams) =>
+    multimodalParams ? { ...llmParams, LlmParams: { ...llmParams.LlmParams, ...multimodalParams } } : llmParams;
+
+/**
  * Creates the payload for a deployment request.
  * @param {Object} stepsInfo - Information from all wizard steps
  * @param {Object} runtimeConfig - Runtime configuration settings
  * @returns {Object} The formatted deployment request payload
  */
 export const createDeployRequestPayload = (stepsInfo, runtimeConfig) => {
-    let payload = {
+    const basePayload = {
         ExistingRestApiId: extractRestApiId(runtimeConfig?.RestApiEndpoint) ?? '',
-        ...createUseCaseInfoApiParams(stepsInfo.useCase),
-        ...createVpcApiParams(stepsInfo.vpc),
-        ...createAuthenticationApiParams(stepsInfo.useCase)
+        ...createUseCaseInfoApiParams(stepsInfo.useCase)
     };
 
-    if (stepsInfo.useCase.useCaseType === USECASE_TYPES.AGENT) {
-        payload = {
-            ...payload,
-            ...createAgentApiParams(stepsInfo.agent)
-        };
-    } else {
-        payload = {
-            ...payload,
-            ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase),
-            ...createLLMParamsApiParams(stepsInfo.model, stepsInfo.prompt, stepsInfo.knowledgeBase.isRagRequired),
-            ...createConversationMemoryApiParams(stepsInfo.prompt)
-        };
-    }
+    const multimodalParams = createMultimodalParams(stepsInfo.model?.multimodalEnabled, stepsInfo.useCase.useCaseType);
 
-    return payload;
+    const useCaseMap = {
+        [USECASE_TYPES.MCP_SERVER]: () => ({
+            DeployUI: false, // MCP Server use cases should never deploy UI
+            ...createMCPServerApiParams(stepsInfo.mcpServer)
+        }),
+        [USECASE_TYPES.WORKFLOW]: () => ({
+            ...addMultimodalToLlmParams(createLLMParamsApiParams(stepsInfo.model), multimodalParams),
+            ...createWorkflowApiParams(stepsInfo.workflow)
+        }),
+        [USECASE_TYPES.AGENT]: () => ({
+            ...createVpcApiParams(stepsInfo.vpc),
+            ...createAuthenticationApiParams(stepsInfo.useCase),
+            ...createAgentApiParams(stepsInfo.agent)
+        }),
+        [USECASE_TYPES.AGENT_BUILDER]: () => ({
+            ...addMultimodalToLlmParams(createLLMParamsApiParams(stepsInfo.model), multimodalParams),
+            ...createAgentBuilderApiParams(stepsInfo.agentBuilder)
+        }),
+        [USECASE_TYPES.TEXT]: () => ({
+            ...createVpcApiParams(stepsInfo.vpc),
+            ...createAuthenticationApiParams(stepsInfo.useCase),
+            ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase),
+            ...createLLMParamsApiParams(stepsInfo.model, {
+                promptStepInfo: stepsInfo.prompt,
+                isRagEnabled: stepsInfo.knowledgeBase.isRagRequired
+            }),
+            ...createConversationMemoryApiParams(stepsInfo.prompt)
+        })
+    };
+
+    const extendedPayload = useCaseMap[stepsInfo.useCase.useCaseType];
+
+    return {
+        ...basePayload,
+        ...extendedPayload()
+    };
 };
 
 /**
@@ -155,65 +180,99 @@ export const getBooleanString = (flag) => {
 };
 
 /**
+ * Transforms UI MCP server objects to API request format.
+ * Converts field names from camelCase to PascalCase and excludes status field.
+ * @param {Array} mcpServers - Array of MCP server objects from form state with structure:
+ *   { useCaseId, useCaseName, url, type, status }
+ * @returns {Array} Array of MCP server objects in API format with structure:
+ *   { UseCaseId, UseCaseName, Url, Type }
+ */
+export const transformMcpServersForApi = (mcpServers) => {
+    if (!mcpServers || mcpServers.length === 0) {
+        return [];
+    }
+
+    return mcpServers.map((server) => ({
+        UseCaseId: server.useCaseId,
+        UseCaseName: server.useCaseName,
+        Url: server.url,
+        Type: server.type
+    }));
+};
+
+/**
  * Creates the payload for an update request.
  * @param {Object} stepsInfo - Information from all wizard steps
+ * @param {Object} runtimeConfig - Runtime configuration settings
  * @returns {Object} The formatted update request payload
  */
 export const createUpdateRequestPayload = (stepsInfo, runtimeConfig) => {
     const useCaseInfoParams = createUseCaseInfoApiParams(stepsInfo.useCase);
     delete useCaseInfoParams.UseCaseName;
-    let payload = {
+
+    const basePayload = {
         ExistingRestApiId: extractRestApiId(runtimeConfig?.RestApiEndpoint) ?? '',
-        ...useCaseInfoParams,
-        ...updateVpcApiParams(stepsInfo.vpc),
-        ...updateFeedbackApiParams(stepsInfo.useCase)
+        ...useCaseInfoParams
     };
 
-    if (stepsInfo.useCase.useCaseType === USECASE_TYPES.AGENT) {
-        payload = {
-            ...payload,
-            ...createAgentApiParams(stepsInfo.agent)
-        };
-    } else {
-        payload = {
-            ...payload,
-            ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase, DEPLOYMENT_ACTIONS.EDIT),
-            ...createLLMParamsApiParams(
-                stepsInfo.model,
-                stepsInfo.prompt,
-                stepsInfo.knowledgeBase.isRagRequired,
-                DEPLOYMENT_ACTIONS.EDIT
+    // Create multimodal params if needed for supported use case types
+    const multimodalParams = createMultimodalParams(stepsInfo.model?.multimodalEnabled, stepsInfo.useCase.useCaseType);
+
+    const useCaseMap = {
+        [USECASE_TYPES.MCP_SERVER]: () => ({
+            DeployUI: false, // MCP Server use cases should never deploy UI
+            ...createMCPServerApiParams(stepsInfo.mcpServer)
+        }),
+        [USECASE_TYPES.WORKFLOW]: () => ({
+            ...updateFeedbackApiParams(stepsInfo.useCase),
+            ...addMultimodalToLlmParams(
+                createLLMParamsApiParams(stepsInfo.model, {
+                    deploymentAction: DEPLOYMENT_ACTIONS.EDIT
+                }),
+                multimodalParams
             ),
+            ...createWorkflowApiParams(stepsInfo.workflow, {
+                deploymentAction: DEPLOYMENT_ACTIONS.EDIT
+            })
+        }),
+        [USECASE_TYPES.AGENT]: () => ({
+            ...updateVpcApiParams(stepsInfo.vpc),
+            ...updateFeedbackApiParams(stepsInfo.useCase),
+            ...createAgentApiParams(stepsInfo.agent)
+        }),
+        [USECASE_TYPES.AGENT_BUILDER]: () => ({
+            ...updateFeedbackApiParams(stepsInfo.useCase),
+            ...addMultimodalToLlmParams(
+                createLLMParamsApiParams(stepsInfo.model, {
+                    deploymentAction: DEPLOYMENT_ACTIONS.EDIT
+                }),
+                multimodalParams
+            ),
+            ...createAgentBuilderApiParams(stepsInfo.agentBuilder)
+        }),
+        [USECASE_TYPES.TEXT]: () => ({
+            ...updateVpcApiParams(stepsInfo.vpc),
+            ...updateFeedbackApiParams(stepsInfo.useCase),
+            ...createKnowledgeBaseApiParams(stepsInfo.knowledgeBase, DEPLOYMENT_ACTIONS.EDIT),
+            ...createLLMParamsApiParams(stepsInfo.model, {
+                promptStepInfo: stepsInfo.prompt,
+                isRagEnabled: stepsInfo.knowledgeBase.isRagRequired,
+                deploymentAction: DEPLOYMENT_ACTIONS.EDIT
+            }),
             ...createConversationMemoryApiParams(stepsInfo.prompt),
             ...createAuthenticationApiParams(stepsInfo.useCase)
-        };
-    }
+        })
+    };
+
+    const extendedPayload = useCaseMap[stepsInfo.useCase.useCaseType];
+    const payload = {
+        ...basePayload,
+        ...extendedPayload()
+    };
 
     removeEmptyString(payload);
 
     return payload;
-};
-
-/**
- * Creates API parameters for use case information.
- * @param {Object} useCaseStepInfo - Use case configuration from wizard step
- * @returns {Object} Formatted use case API parameters
- */
-export const createUseCaseInfoApiParams = (useCaseStepInfo) => {
-    const params = {
-        UseCaseName: useCaseStepInfo.useCaseName,
-        UseCaseDescription: useCaseStepInfo.useCaseDescription,
-        UseCaseType: useCaseStepInfo.useCaseType ?? USECASE_TYPES.TEXT,
-        DeployUI: useCaseStepInfo.deployUI,
-        FeedbackParams: {
-            FeedbackEnabled: useCaseStepInfo.feedbackEnabled
-        },
-        ...(useCaseStepInfo.defaultUserEmail &&
-            useCaseStepInfo.defaultUserEmail !== '' && {
-                DefaultUserEmail: useCaseStepInfo.defaultUserEmail
-            })
-    };
-    return params;
 };
 
 /**
@@ -228,22 +287,6 @@ export const stringListToSelectionOptions = (list) => {
             value: item
         };
     });
-};
-
-/**
- * Transform the memory step to the params required by the API
- *
- * @param {Object} memoryStepInfo
- */
-export const createConversationMemoryApiParams = (promptStepInfo) => {
-    return {
-        ConversationMemoryParams: {
-            ConversationMemoryType: 'DynamoDB',
-            HumanPrefix: promptStepInfo.humanPrefix,
-            AiPrefix: promptStepInfo.aiPrefix,
-            ChatHistoryLength: promptStepInfo.chatHistoryLength
-        }
-    };
 };
 
 /**
@@ -279,450 +322,12 @@ export const formatValue = (value, type) => {
     return newValue;
 };
 
-/**
- * Creates Bedrock LLM parameters based on model step information and deployment action.
- *
- * @param {Object} modelStepInfo - The model step configuration information
- * @param {string} modelStepInfo.bedrockInferenceType - The type of Bedrock inference (QUICK_START_MODELS, OTHER_FOUNDATION_MODELS, etc)
- * @param {string} modelStepInfo.inferenceProfileId - ID of the inference profile if using INFERENCE_PROFILES type
- * @param {string} modelStepInfo.modelArn - ARN of the provisioned model if using PROVISIONED_MODELS type
- * @param {string} modelStepInfo.modelName - Name/ID of the model for quick start and foundation models
- * @param {boolean} modelStepInfo.enableGuardrails - Whether guardrails are enabled
- * @param {string} modelStepInfo.guardrailIdentifier - Identifier for the guardrail if enabled
- * @param {string} modelStepInfo.guardrailVersion - Version of the guardrail if enabled
- * @param {string} deploymentAction - The deployment action (CREATE or EDIT), defaults to CREATE
- * @returns {Object} The configured Bedrock LLM parameters object containing:
- *   - ModelProvider: The model provider name (Bedrock)
- *   - BedrockLlmParams: Object containing:
- *     - BedrockInferenceType: The API inference type
- *     - ModelId/InferenceProfileId/ModelArn: The appropriate model identifier
- *     - GuardrailIdentifier and GuardrailVersion if guardrails enabled
- */
-export const createBedrockLlmParams = (modelStepInfo, deploymentAction = DEPLOYMENT_ACTIONS.CREATE) => {
-    const apiInferenceType = mapUItoAPIInferenceType(modelStepInfo.bedrockInferenceType);
-    const uiInferenceType = modelStepInfo.bedrockInferenceType;
-
-    // Base params that are always included
-    const bedrockLlmParams = {
-        ModelProvider: MODEL_PROVIDER_NAME_MAP.Bedrock,
-        BedrockLlmParams: {
-            BedrockInferenceType: apiInferenceType
-        }
-    };
-
-    // Add model identifier based on inference type
-    const modelIdentifiers = {
-        [BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES]: {
-            InferenceProfileId: modelStepInfo.inferenceProfileId
-        },
-        [BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS]: {
-            ModelArn: modelStepInfo.modelArn
-        },
-        // for quick start models and other foundation models, the model name is the same as the model id
-        [BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS]: {
-            ModelId: modelStepInfo.modelName
-        },
-        [BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS]: {
-            ModelId: modelStepInfo.modelName
-        },
-        default: {
-            ModelId: modelStepInfo.modelName
-        }
-    };
-
-    const modelParams = modelIdentifiers[uiInferenceType] || modelIdentifiers.default;
-    Object.assign(bedrockLlmParams.BedrockLlmParams, modelParams);
-
-    // Determine guardrail parameters based on conditions
-    let guardrailParams = {};
-    if (modelStepInfo.enableGuardrails) {
-        guardrailParams = {
-            GuardrailIdentifier: modelStepInfo.guardrailIdentifier,
-            GuardrailVersion: modelStepInfo.guardrailVersion
-        };
-    } else if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
-        guardrailParams = {
-            GuardrailIdentifier: null,
-            GuardrailVersion: null
-        };
-    }
-
-    Object.assign(bedrockLlmParams.BedrockLlmParams, guardrailParams);
-
-    return bedrockLlmParams;
-};
-
-/**
- * Creates SageMaker LLM parameters object from model step information.
- *
- * @param {Object} modelStepInfo - Model step configuration information
- * @param {string} modelStepInfo.sagemakerEndpointName - Name of the SageMaker endpoint
- * @param {string} [modelStepInfo.sagemakerInputSchema] - JSON schema for model input payload
- * @param {string} [modelStepInfo.sagemakerOutputSchema] - JSON path for model output
- * @returns {Object} Object containing:
- *   - ModelProvider: SageMaker provider name
- *   - SageMakerLlmParams: Object containing:
- *     - EndpointName: Name of SageMaker endpoint
- *     - ModelInputPayloadSchema: Parsed input schema (if provided)
- *     - ModelOutputJSONPath: Output JSON path (if provided)
- */
-export const createSageMakerLlmParams = (modelStepInfo) => {
-    let params = {
-        ModelProvider: MODEL_PROVIDER_NAME_MAP.SageMaker,
-        SageMakerLlmParams: {
-            EndpointName: modelStepInfo.sagemakerEndpointName
-        }
-    };
-    if (modelStepInfo.sagemakerInputSchema) {
-        params.SageMakerLlmParams.ModelInputPayloadSchema = JSON.parse(modelStepInfo.sagemakerInputSchema);
-    }
-    if (modelStepInfo.sagemakerOutputSchema) {
-        params.SageMakerLlmParams.ModelOutputJSONPath = modelStepInfo.sagemakerOutputSchema;
-    }
-    return params;
-};
-
-/**
- * Creates prompt parameters object from prompt step information.
- *
- * @param {Object} promptStepInfo - Prompt step configuration information
- * @param {string} promptStepInfo.promptTemplate - Template for the prompt
- * @param {boolean} promptStepInfo.rephraseQuestion - Whether to rephrase questions
- * @param {number} promptStepInfo.maxPromptTemplateLength - Maximum length for prompt template
- * @param {number} promptStepInfo.maxInputTextLength - Maximum length for input text
- * @param {boolean} promptStepInfo.userPromptEditingEnabled - Whether users can edit prompts
- * @param {boolean} [promptStepInfo.disambiguationEnabled] - Whether disambiguation is enabled
- * @param {string} [promptStepInfo.disambiguationPromptTemplate] - Template for disambiguation prompts
- * @param {boolean} ragEnabled - Whether RAG (Retrieval Augmented Generation) is enabled
- * @returns {Object} Object containing:
- *   - PromptParams: Object containing prompt configuration parameters
- *     - Includes disambiguation parameters if RAG is enabled
- */
-export const createPromptParams = (promptStepInfo, ragEnabled) => {
-    let params = {
-        PromptParams: {
-            PromptTemplate: promptStepInfo.promptTemplate,
-            RephraseQuestion: promptStepInfo.rephraseQuestion,
-            MaxPromptTemplateLength: promptStepInfo.maxPromptTemplateLength,
-            MaxInputTextLength: promptStepInfo.maxInputTextLength,
-            UserPromptEditingEnabled: promptStepInfo.userPromptEditingEnabled
-        }
-    };
-
-    //if rag is enabled, then add disambiguation prompt and enabled flag
-    if (ragEnabled) {
-        params.PromptParams.DisambiguationEnabled = promptStepInfo.disambiguationEnabled;
-        params.PromptParams.DisambiguationPromptTemplate = promptStepInfo.disambiguationPromptTemplate;
-    }
-
-    return params;
-};
-
-/**
- * Transform the model config step to the params required by the API
- * @param {Object} modelStepInfo
- * @returns
- */
-export const createLLMParamsApiParams = (
-    modelStepInfo,
-    promptStepInfo,
-    isRagEnabled = true,
-    deploymentAction = DEPLOYMENT_ACTIONS.CREATE
-) => {
-    const modelParamsObjectCreator = (modelParameters) => {
-        if (!modelParameters || modelParameters.length === 0) {
-            return {};
-        }
-
-        const modelParamsObject = {};
-        modelParameters.forEach((modelParam) => {
-            modelParamsObject[modelParam.key] = {
-                Value: formatValue(modelParam.value, modelParam.type.value),
-                Type: modelParam.type.value
-            };
-        });
-
-        return modelParamsObject;
-    };
-
-    const llmParamsPayload = {
-        Streaming: modelStepInfo.streaming,
-        Verbose: modelStepInfo.verbose,
-        ModelParams: modelParamsObjectCreator(modelStepInfo.modelParameters),
-        Temperature: parseFloat(modelStepInfo.temperature),
-        RAGEnabled: isRagEnabled
-    };
-
-    let providerSpecificParams = {};
-    switch (modelStepInfo.modelProvider.value) {
-        case MODEL_PROVIDER_NAME_MAP.Bedrock:
-            providerSpecificParams = createBedrockLlmParams(modelStepInfo, deploymentAction);
-            break;
-        case MODEL_PROVIDER_NAME_MAP.SageMaker:
-            providerSpecificParams = createSageMakerLlmParams(modelStepInfo);
-            break;
-        default:
-            throw Error(`Unsupported provider ${modelStepInfo.modelProvider.value}`);
-    }
-
-    const payload = {
-        LlmParams: {
-            ...llmParamsPayload,
-            ...providerSpecificParams,
-            ...createPromptParams(promptStepInfo, isRagEnabled)
-        }
-    };
-    return payload;
-};
-
-/**
- * Creates Kendra knowledge base parameters for the API request.
- *
- * @param {Object} knowledgeBaseStepInfo - Knowledge base configuration information
- * @param {string} knowledgeBaseStepInfo.existingKendraIndex - Whether using existing Kendra index ('Yes'/'No')
- * @param {string} knowledgeBaseStepInfo.kendraIndexId - ID of existing Kendra index
- * @param {boolean} knowledgeBaseStepInfo.enableRoleBasedAccessControl - Whether RBAC is enabled
- * @param {string} knowledgeBaseStepInfo.queryFilter - Query filter JSON string
- * @param {number} knowledgeBaseStepInfo.maxNumDocs - Maximum number of documents to return
- * @param {number} knowledgeBaseStepInfo.scoreThreshold - Minimum relevance score threshold
- * @param {string} knowledgeBaseStepInfo.noDocsFoundResponse - Response when no docs found
- * @param {boolean} knowledgeBaseStepInfo.returnDocumentSource - Whether to return source docs
- * @param {string} knowledgeBaseStepInfo.kendraIndexName - Name for new Kendra index
- * @param {number} knowledgeBaseStepInfo.kendraAdditionalQueryCapacity - Additional query capacity units
- * @param {number} knowledgeBaseStepInfo.kendraAdditionalStorageCapacity - Additional storage capacity units
- * @param {Object} knowledgeBaseStepInfo.kendraEdition - Kendra edition configuration
- * @param {string} deploymentAction - Deployment action type (CREATE/EDIT)
- * @returns {Object} Formatted Kendra knowledge base parameters
- */
-export const createKendraKnowledgeBaseParams = (
-    knowledgeBaseStepInfo,
-    deploymentAction = DEPLOYMENT_ACTIONS.CREATE
-) => {
-    const queryFilter = sanitizeQueryFilter(knowledgeBaseStepInfo.queryFilter);
-
-    if (
-        knowledgeBaseStepInfo.existingKendraIndex === 'Yes' ||
-        (deploymentAction === DEPLOYMENT_ACTIONS.EDIT && knowledgeBaseStepInfo.kendraIndexId)
-    ) {
-        return {
-            KnowledgeBaseParams: {
-                KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.kendra,
-                KendraKnowledgeBaseParams: {
-                    ExistingKendraIndexId: knowledgeBaseStepInfo.kendraIndexId,
-                    RoleBasedAccessControlEnabled: knowledgeBaseStepInfo.enableRoleBasedAccessControl,
-                    ...(queryFilter && { AttributeFilter: queryFilter })
-                },
-                NumberOfDocs: knowledgeBaseStepInfo.maxNumDocs
-                    ? parseInt(knowledgeBaseStepInfo.maxNumDocs)
-                    : DEFAULT_KENDRA_NUMBER_OF_DOCS,
-                ScoreThreshold: knowledgeBaseStepInfo.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD,
-                NoDocsFoundResponse: knowledgeBaseStepInfo.noDocsFoundResponse,
-                ReturnSourceDocs: knowledgeBaseStepInfo.returnDocumentSource
-            }
-        };
-    }
-
-    return {
-        KnowledgeBaseParams: {
-            KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.kendra,
-            KendraKnowledgeBaseParams: {
-                KendraIndexName: knowledgeBaseStepInfo.kendraIndexName,
-                QueryCapacityUnits: knowledgeBaseStepInfo.kendraAdditionalQueryCapacity
-                    ? parseInt(knowledgeBaseStepInfo.kendraAdditionalQueryCapacity)
-                    : 0,
-                StorageCapacityUnits: knowledgeBaseStepInfo.kendraAdditionalStorageCapacity
-                    ? parseInt(knowledgeBaseStepInfo.kendraAdditionalStorageCapacity)
-                    : 0,
-                KendraIndexEdition: `${knowledgeBaseStepInfo.kendraEdition.value.toUpperCase()}_EDITION`,
-                RoleBasedAccessControlEnabled: knowledgeBaseStepInfo.enableRoleBasedAccessControl,
-                ...(queryFilter && { AttributeFilter: queryFilter })
-            },
-            NumberOfDocs: knowledgeBaseStepInfo.maxNumDocs
-                ? parseInt(knowledgeBaseStepInfo.maxNumDocs)
-                : DEFAULT_KENDRA_NUMBER_OF_DOCS,
-            ScoreThreshold: knowledgeBaseStepInfo.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD,
-            NoDocsFoundResponse: knowledgeBaseStepInfo.noDocsFoundResponse,
-            ReturnSourceDocs: knowledgeBaseStepInfo.returnDocumentSource
-        }
-    };
-};
-
-/**
- * Creates Bedrock knowledge base parameters for the API request.
- *
- * @param {Object} knowledgeBaseStepInfo - Knowledge base configuration information
- * @param {string} knowledgeBaseStepInfo.bedrockKnowledgeBaseId - Bedrock knowledge base ID
- * @param {Object} knowledgeBaseStepInfo.bedrockOverrideSearchType - Override search type configuration
- * @param {string} knowledgeBaseStepInfo.queryFilter - Query filter JSON string
- * @param {number} knowledgeBaseStepInfo.maxNumDocs - Maximum number of documents to return
- * @param {number} knowledgeBaseStepInfo.scoreThreshold - Minimum relevance score threshold
- * @param {string} knowledgeBaseStepInfo.noDocsFoundResponse - Response when no docs found
- * @param {boolean} knowledgeBaseStepInfo.returnDocumentSource - Whether to return source docs
- * @returns {Object} Formatted Bedrock knowledge base parameters
- */
-export const createBedrockKnowledgeBaseParams = (knowledgeBaseStepInfo) => {
-    const queryFilter = sanitizeQueryFilter(knowledgeBaseStepInfo.queryFilter);
-    return {
-        KnowledgeBaseParams: {
-            KnowledgeBaseType: KNOWLEDGE_BASE_PROVIDERS.bedrock,
-            BedrockKnowledgeBaseParams: {
-                BedrockKnowledgeBaseId: knowledgeBaseStepInfo.bedrockKnowledgeBaseId,
-                OverrideSearchType: knowledgeBaseStepInfo.bedrockOverrideSearchType?.value ?? 'NONE',
-                ...(queryFilter && { RetrievalFilter: queryFilter })
-            },
-            NumberOfDocs: knowledgeBaseStepInfo.maxNumDocs
-                ? parseInt(knowledgeBaseStepInfo.maxNumDocs)
-                : DEFAULT_KENDRA_NUMBER_OF_DOCS,
-            ScoreThreshold: knowledgeBaseStepInfo.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD,
-            NoDocsFoundResponse: knowledgeBaseStepInfo.noDocsFoundResponse,
-            ReturnSourceDocs: knowledgeBaseStepInfo.returnDocumentSource
-        }
-    };
-};
-
-/**
- * Creates Bedrock agent parameters for the API request.
- *
- * @param {Object} agentStepInfo - Agent configuration information
- * @param {string} agentStepInfo.bedrockAgentId - Bedrock agent ID
- * @param {string} agentStepInfo.bedrockAgentAliasId - Bedrock agent alias ID
- * @param {boolean} agentStepInfo.enableTrace - Whether to enable tracing
- * @returns {Object} Formatted agent parameters
- */
-export const createAgentApiParams = (agentStepInfo) => {
-    return {
-        AgentParams: {
-            AgentType: 'Bedrock',
-            BedrockAgentParams: {
-                AgentId: agentStepInfo.bedrockAgentId,
-                AgentAliasId: agentStepInfo.bedrockAgentAliasId,
-                EnableTrace: agentStepInfo.enableTrace
-            }
-        }
-    };
-};
-
-/**
- * Transform the knowledge base step to the params required by the API. The parameters
- * will be different based on whether the knowledge base step is using an existing index or not.
- * If RAG requirement is set to false in the knowledgeBase step then an empty object is returned
- * @param {Object} knowledgeBaseStep KnowledgeBase step form details
- */
-export const createKnowledgeBaseApiParams = (knowledgeBaseStepInfo, deploymentAction = DEPLOYMENT_ACTIONS.CREATE) => {
-    if (!knowledgeBaseStepInfo.isRagRequired) {
-        return {};
-    }
-
-    if (knowledgeBaseStepInfo.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.kendra) {
-        return createKendraKnowledgeBaseParams(knowledgeBaseStepInfo, deploymentAction);
-    } else if (knowledgeBaseStepInfo.knowledgeBaseType.value === KNOWLEDGE_BASE_PROVIDERS.bedrock) {
-        return createBedrockKnowledgeBaseParams(knowledgeBaseStepInfo);
-    }
-};
-
 export const formatVpcAttributeItemsToArray = (vpcAttributeItems) => {
     const attributeItems = [];
     vpcAttributeItems.forEach((item) => {
         attributeItems.push(item.key);
     });
     return attributeItems;
-};
-
-/**
- * Construct the params for the VPC config for the api.
- * @param {*} vpcStepInfo Vpc step wizard details
- * @returns
- */
-export const createVpcApiParams = (vpcStepInfo) => {
-    const createNewVpc = !vpcStepInfo.existingVpc;
-    const vpcEnabled = vpcStepInfo.isVpcRequired;
-
-    if (vpcEnabled) {
-        if (!createNewVpc) {
-            return {
-                VpcParams: {
-                    VpcEnabled: vpcEnabled,
-                    CreateNewVpc: false,
-                    ExistingVpcId: vpcStepInfo.vpcId,
-                    ExistingPrivateSubnetIds: formatVpcAttributeItemsToArray(vpcStepInfo.subnetIds),
-                    ExistingSecurityGroupIds: formatVpcAttributeItemsToArray(vpcStepInfo.securityGroupIds)
-                }
-            };
-        }
-        return {
-            VpcParams: {
-                VpcEnabled: vpcEnabled,
-                CreateNewVpc: true
-            }
-        };
-    }
-
-    return {
-        VpcParams: {
-            VpcEnabled: vpcEnabled
-        }
-    };
-};
-
-/**
- * Construct the params for the Authentication config for the api.
- * @param {*} useCaseStepInfo Use Case step wizard details
- * @returns
- */
-export const createAuthenticationApiParams = (useCaseStepInfo) => {
-    if (!useCaseStepInfo.useExistingUserPool) {
-        return {};
-    }
-
-    return {
-        AuthenticationParams: {
-            AuthenticationProvider: 'Cognito',
-            CognitoParams: {
-                ExistingUserPoolId: useCaseStepInfo.existingUserPoolId,
-                ...(useCaseStepInfo.useExistingUserPoolClient
-                    ? {
-                          ExistingUserPoolClientId: useCaseStepInfo.existingUserPoolClientId
-                      }
-                    : {})
-            }
-        }
-    };
-};
-
-/**
- * Construct the params for the VPC config for the api.
- * @param {*} vpcStepInfo Vpc step wizard details
- * @returns
- */
-export const updateVpcApiParams = (vpcStepInfo) => {
-    const createNewVpc = !vpcStepInfo.existingVpc;
-    const vpcEnabled = vpcStepInfo.isVpcRequired;
-
-    if (vpcEnabled) {
-        if (!createNewVpc) {
-            return {
-                VpcParams: {
-                    ExistingPrivateSubnetIds: formatVpcAttributeItemsToArray(vpcStepInfo.subnetIds),
-                    ExistingSecurityGroupIds: formatVpcAttributeItemsToArray(vpcStepInfo.securityGroupIds)
-                }
-            };
-        }
-    }
-
-    return {};
-};
-
-/**
- * Construct the params for the feedback config for the api.
- * @param {*} useCaseStepInfo Use case step wizard details
- * @returns
- */
-export const updateFeedbackApiParams = (useCaseStepInfo) => {
-    return {
-        FeedbackParams: {
-            FeedbackEnabled: useCaseStepInfo.feedbackEnabled
-        }
-    };
 };
 
 /**
@@ -774,26 +379,6 @@ export const loadAce = async () => {
     });
 
     return ace;
-};
-
-/**
- * Sanitizes a query filter string by parsing it as JSON and returning the resulting object.
- *
- * @param {string} queryFilter - The query filter string to sanitize.
- * @returns {Object|null} The sanitized query filter object, or null if the input string cannot be parsed as JSON or if the resulting object is empty.
- */
-export const sanitizeQueryFilter = (queryFilter) => {
-    let queryFilterJson = {};
-    try {
-        queryFilterJson = JSON.parse(queryFilter);
-    } catch (e) {
-        return null;
-    }
-
-    if (queryFilterJson && Object.keys(queryFilterJson).length > 0) {
-        return queryFilterJson;
-    }
-    return null;
 };
 
 /**
@@ -1025,6 +610,7 @@ export const mapUseCaseStepInfoFromDeployment = (selectedDeployment) => {
         useCaseDescription: useCaseDescription || '',
         deployUI: selectedDeployment.deployUI === 'Yes',
         feedbackEnabled: selectedDeployment.FeedbackParams?.FeedbackEnabled || false,
+        provisionedConcurrencyValue: selectedDeployment.ProvisionedConcurrencyValue || 0,
         inError: false,
         useExistingUserPool: useExistingUserPool,
         existingUserPoolId: selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolId ?? '',
@@ -1047,9 +633,9 @@ const determineInferenceType = (bedrockLlmParams) => {
             return BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS;
         }
         if (bedrockLlmParams?.ModelId) {
-            return BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS;
+            return BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS;
         }
-        return BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS;
+        return BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS;
     }
     return mapAPItoUIInferenceType(bedrockLlmParams.BedrockInferenceType);
 };
@@ -1091,6 +677,7 @@ export const mapModelStepInfoFromDeployment = (selectedDeployment, modelProvider
         temperature: parseFloat(llmParams.Temperature || '0'),
         verbose: llmParams.Verbose || false,
         streaming: llmParams.Streaming || false,
+        multimodalEnabled: llmParams.MultimodalParams ? llmParams.MultimodalParams.MultimodalEnabled : false,
         sagemakerInputSchema: sagemakerLlmParams.ModelInputPayloadSchema
             ? JSON.stringify(sagemakerLlmParams.ModelInputPayloadSchema)
             : defaultModelInfo.sagemakerInputSchema,
@@ -1164,4 +751,89 @@ const formatStringListToAttrEditorList = (list) => {
     return list.map((item) => ({
         key: item
     }));
+};
+
+/**
+ * Maps deployment information to AgentBuilder step configuration.
+ * Transforms stored API format back to UI format for editing.
+ * @param {Object} selectedDeployment - The deployment data from the API
+ * @returns {{
+ *   systemPrompt: string,
+ *   mcpServers: Array,
+ *   tools: Array,
+ *   memoryEnabled: boolean,
+ *   inError: boolean
+ * }} Mapped AgentBuilder step information
+ */
+export const mapAgentBuilderStepInfoFromDeployment = (selectedDeployment) => {
+    const agentBuilderParams = selectedDeployment?.AgentBuilderParams || {};
+
+    // Transform MCP servers from API format (UseCaseId, UseCaseName, Url, Type) to UI format (useCaseId, useCaseName, url, type, status)
+    const mcpServers =
+        agentBuilderParams.MCPServers?.map((server) => ({
+            useCaseId: server.UseCaseId,
+            useCaseName: server.UseCaseName || server.UseCaseId, // Fallback to UseCaseId if UseCaseName is missing
+            url: server.Url,
+            type: server.Type,
+            status: 'ACTIVE' // Assume active since it was previously deployed
+        })) || [];
+
+    // Transform Tools from API format (ToolId) back to UI format (name, value, description, type)
+    // Note: We only have the ToolId from storage, so we need to reconstruct the full tool objects
+    // The Tools component will handle matching these with the available tools from the API
+    const tools =
+        agentBuilderParams.Tools?.map((tool) => ({
+            name: '',
+            value: tool.ToolId,
+            description: '',
+            type: 'STRANDS_TOOL'
+        })) || [];
+
+    return {
+        systemPrompt: agentBuilderParams.SystemPrompt || '',
+        mcpServers: mcpServers,
+        tools: tools,
+        memoryEnabled: agentBuilderParams.MemoryConfig?.LongTermEnabled || false,
+        inError: false
+    };
+};
+
+/**
+ * Maps deployment information to Workflow step configuration.
+ * @param {Object} selectedDeployment - The deployment data from the API
+ * @returns {{
+ *   systemPrompt: string,
+ *   orchestrationPattern: string,
+ *   selectedAgents: Array,
+ *   memoryEnabled: boolean,
+ *   inError: boolean
+ * }} Mapped Workflow step information
+ */
+export const mapWorkflowStepInfoFromDeployment = (selectedDeployment) => {
+    const workflowParams = selectedDeployment?.WorkflowParams || {};
+
+    // Extract agents based on orchestration pattern
+    let selectedAgents = [];
+    if (workflowParams.OrchestrationPattern === ORCHESTRATION_PATTERN_TYPES.AGENTS_AS_TOOLS) {
+        if (workflowParams.AgentsAsToolsParams?.Agents) {
+            selectedAgents = workflowParams.AgentsAsToolsParams.Agents.map((agent) => {
+                return {
+                    useCaseId: agent.UseCaseId,
+                    useCaseType: agent.UseCaseType,
+                    useCaseName: agent.UseCaseName,
+                    useCaseDescription: agent.UseCaseDescription,
+                    agentBuilderParams: agent.AgentBuilderParams,
+                    llmParams: agent.LlmParams
+                };
+            });
+        }
+    }
+
+    return {
+        systemPrompt: workflowParams.SystemPrompt || DEFAULT_WORKFLOW_SYSTEM_PROMPT,
+        orchestrationPattern: workflowParams.OrchestrationPattern || ORCHESTRATION_PATTERN_TYPES.AGENTS_AS_TOOLS,
+        selectedAgents: selectedAgents,
+        memoryEnabled: workflowParams.MemoryConfig?.LongTermEnabled || false,
+        inError: false
+    };
 };

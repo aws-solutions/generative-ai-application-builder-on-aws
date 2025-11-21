@@ -1,0 +1,40 @@
+{
+  "name": "@amzn/files-handler",
+  "version": "4.0.0",
+  "description": "This lambda supports APIs that provide export functionality for use cases",
+  "main": "index.ts",
+  "scripts": {
+    "test": "jest --coverage --silent --verbose",
+    "test-debug": "jest --coverage",
+    "test:no-cov": "jest --no-coverage --verbose",
+    "test:watch": "jest --watchAll --verbose",
+    "build": "npx tsc",
+    "clean": "rm -rf node_modules",
+    "clean-dev": "rm -rf node_modules && npm i --omit=dev",
+    "code-linter-js": "./node_modules/eslint/bin/eslint.js lambda --ext .js",
+    "code-linter-ts": "./node_modules/eslint/bin/eslint.js bin lib --ext .ts",
+    "code-linter": "npm run code-linter-ts && npm run code-linter-js",
+    "code-formatter": "./node_modules/prettier/bin-prettier.js --config .prettierrc.yml '**/*.ts' '**/*.js' --write"
+  },
+  "author": {
+    "name": "Amazon Web Services",
+    "url": "https://aws.amazon.com/solutions"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.17.13",
+    "@types/node": "^22.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "aws-sdk-client-mock": "^4.1.0",
+    "aws-sdk-client-mock-jest": "^4.1.0",
+    "eslint": "^9.16.0",
+    "jest": "^29.7.0",
+    "lodash": "^4.17.21",
+    "prettier": "^3.4.2",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}

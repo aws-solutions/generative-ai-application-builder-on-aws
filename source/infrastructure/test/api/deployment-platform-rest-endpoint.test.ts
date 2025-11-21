@@ -3,7 +3,6 @@
 
 import * as cdk from 'aws-cdk-lib';
 import * as api from 'aws-cdk-lib/aws-apigateway';
-import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 
 import { Capture, Match, Template } from 'aws-cdk-lib/assertions';
@@ -36,6 +35,13 @@ describe('When creating rest endpoints', () => {
         new DeploymentPlatformRestEndpoint(stack, 'TestEndpointCreation', {
             useCaseManagementAPILambda: new lambda.Function(stack, 'MockGetRequestFunction', mockLambdaFuncProps),
             modelInfoApiLambda: new lambda.Function(stack, 'MockModelInfoFunction', mockLambdaFuncProps),
+            mcpManagementAPILambda: new lambda.Function(stack, 'MockMCPManagementFunction', mockLambdaFuncProps),
+            agentManagementAPILambda: new lambda.Function(stack, 'MockAgentManagementFunction', mockLambdaFuncProps),
+            workflowManagementAPILambda: new lambda.Function(
+                stack,
+                'MockWorkflowManagementFunction',
+                mockLambdaFuncProps
+            ),
             deploymentPlatformAuthorizer: testAuthorizer
         });
 
@@ -114,7 +120,7 @@ describe('When creating rest endpoints', () => {
         const restApiStageCapture = new Capture();
         const lambdaCapture = new Capture();
 
-        template.resourceCountIs('AWS::Lambda::Permission', 19);
+        template.resourceCountIs('AWS::Lambda::Permission', 51);
         template.hasResourceProperties('AWS::Lambda::Permission', {
             Action: 'lambda:InvokeFunction',
             FunctionName: {
@@ -603,10 +609,11 @@ describe('When creating rest endpoints', () => {
                                             'OrStatement': {
                                                 'Statements': [
                                                     {
-                                                        'ByteMatchStatement': {
-                                                            'FieldToMatch': { 'UriPath': {} },
-                                                            'PositionalConstraint': 'ENDS_WITH',
-                                                            'SearchString': '/deployments',
+                                                        'RegexMatchStatement': {
+                                                            'FieldToMatch': {
+                                                                'UriPath': {}
+                                                            },
+                                                            'RegexString': '/deployments(/mcp|/agents|/workflows)?$',
                                                             'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
                                                         }
                                                     },
@@ -616,7 +623,7 @@ describe('When creating rest endpoints', () => {
                                                                 'UriPath': {}
                                                             },
                                                             'RegexString':
-                                                                '/deployments/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+                                                                '/deployments(/mcp|/agents|/workflows)?/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
                                                             'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
                                                         }
                                                     }
@@ -679,7 +686,7 @@ describe('When creating rest endpoints', () => {
     it('should create deployments path based resources', () => {
         const restApiCapture = new Capture();
 
-        template.resourceCountIs('AWS::ApiGateway::Resource', 8);
+        template.resourceCountIs('AWS::ApiGateway::Resource', 15);
 
         template.hasResourceProperties('AWS::ApiGateway::Resource', {
             ParentId: {
@@ -747,7 +754,7 @@ describe('When creating rest endpoints', () => {
     it('should create model-info path based resources', () => {
         const restApiCapture = new Capture();
 
-        template.resourceCountIs('AWS::ApiGateway::Resource', 8);
+        template.resourceCountIs('AWS::ApiGateway::Resource', 15);
 
         template.hasResourceProperties('AWS::ApiGateway::Resource', {
             ParentId: {
@@ -831,7 +838,7 @@ describe('When creating rest endpoints', () => {
         const authorizerCapture = new Capture();
         const validatorCapture = new Capture();
 
-        template.resourceCountIs('AWS::ApiGateway::Method', 15);
+        template.resourceCountIs('AWS::ApiGateway::Method', 38);
 
         template.hasResourceProperties('AWS::ApiGateway::Method', {
             AuthorizationType: 'CUSTOM',
@@ -972,6 +979,326 @@ describe('When creating rest endpoints', () => {
 
         template.hasResourceProperties('AWS::ApiGateway::Resource', {
             PathPart: '{useCaseId}'
+        });
+    });
+});
+
+describe('When creating rest endpoints with MCP lambda', () => {
+    let template: Template;
+
+    beforeAll(() => {
+        const stack = new cdk.Stack();
+        const mockLambdaFuncProps = {
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler'
+        };
+
+        const testAuthorizer = new api.RequestAuthorizer(stack, 'CustomRequestAuthorizers', {
+            handler: new lambda.Function(stack, 'MockAuthorizerFunction', mockLambdaFuncProps),
+            identitySources: [api.IdentitySource.header('Authorization')],
+            resultsCacheTtl: cdk.Duration.seconds(0)
+        });
+
+        new DeploymentPlatformRestEndpoint(stack, 'TestEndpointCreation', {
+            useCaseManagementAPILambda: new lambda.Function(stack, 'MockGetRequestFunction', mockLambdaFuncProps),
+            modelInfoApiLambda: new lambda.Function(stack, 'MockModelInfoFunction', mockLambdaFuncProps),
+            mcpManagementAPILambda: new lambda.Function(stack, 'MockMCPFunction', mockLambdaFuncProps),
+            agentManagementAPILambda: new lambda.Function(stack, 'MockAgentFunction2', mockLambdaFuncProps),
+            workflowManagementAPILambda: new lambda.Function(stack, 'MockWorkflowFunction2', mockLambdaFuncProps),
+            deploymentPlatformAuthorizer: testAuthorizer
+        });
+
+        template = Template.fromStack(stack);
+    });
+
+    it('should create MCP API resources when MCP lambda is provided', () => {
+        const restApiCapture = new Capture();
+
+        // Should have additional resources for MCP endpoints
+        template.resourceCountIs('AWS::ApiGateway::Resource', 15); // 8 base + 3 MCP + 2 agents + 2 workflows
+
+        // Check MCP collection resource
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            ParentId: {
+                Ref: Match.stringLikeRegexp('TestEndpointCreationDeploymentRestEndPointLambdaRestApideployments*')
+            },
+            PathPart: 'mcp',
+            RestApiId: {
+                Ref: restApiCapture
+            }
+        });
+
+        // Check MCP item resource
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            ParentId: {
+                Ref: Match.stringLikeRegexp('.*mcp.*')
+            },
+            PathPart: '{useCaseId}',
+            RestApiId: {
+                Ref: restApiCapture.asString()
+            }
+        });
+
+        // Check MCP custom endpoints
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            ParentId: {
+                Ref: Match.stringLikeRegexp('.*mcp.*')
+            },
+            PathPart: 'upload-schemas',
+            RestApiId: {
+                Ref: restApiCapture.asString()
+            }
+        });
+    });
+
+    it('should create MCP CRUD methods with correct operation names', () => {
+        // Check MCP collection methods
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'GET',
+            OperationName: 'GetMCPs'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            OperationName: 'DeployMCP'
+        });
+
+        // Check MCP item methods
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'GET',
+            OperationName: 'GetMCP'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'PATCH',
+            OperationName: 'UpdateMCP'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'DELETE',
+            OperationName: 'DeleteMCP'
+        });
+
+        // Check MCP custom endpoints
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            OperationName: 'UploadMCPSchemas'
+        });
+    });
+
+    it('should create MCP upload schemas endpoint with request and response models', () => {
+        // Verify request model exists
+        template.hasResourceProperties('AWS::ApiGateway::Model', {
+            RestApiId: {
+                Ref: Match.anyValue()
+            },
+            Name: 'UploadMCPSchemasApiRequestModel',
+            Description: 'Defines the required JSON structure for uploading MCP schemas'
+        });
+
+        // Verify response model exists
+        template.hasResourceProperties('AWS::ApiGateway::Model', {
+            RestApiId: {
+                Ref: Match.anyValue()
+            },
+            Name: 'UploadMCPSchemasResponseModel',
+            Description: 'Defines the response structure for MCP schema upload requests'
+        });
+
+        // Verify method uses the request model
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            OperationName: 'UploadMCPSchemas',
+            RequestModels: {
+                'application/json': {
+                    Ref: Match.stringLikeRegexp('.*UploadMCPSchemasApiRequestModel.*')
+                }
+            }
+        });
+
+        // Verify method uses the response model
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            OperationName: 'UploadMCPSchemas',
+            MethodResponses: [
+                {
+                    ResponseModels: {
+                        'application/json': {
+                            Ref: Match.stringLikeRegexp('.*UploadMCPSchemasResponseModel.*')
+                        }
+                    },
+                    StatusCode: '200'
+                }
+            ]
+        });
+    });
+});
+
+describe('When creating rest endpoints with Agent lambda', () => {
+    let template: Template;
+
+    beforeAll(() => {
+        const stack = new cdk.Stack();
+        const mockLambdaFuncProps = {
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler'
+        };
+
+        const testAuthorizer = new api.RequestAuthorizer(stack, 'CustomRequestAuthorizers', {
+            handler: new lambda.Function(stack, 'MockAuthorizerFunction', mockLambdaFuncProps),
+            identitySources: [api.IdentitySource.header('Authorization')],
+            resultsCacheTtl: cdk.Duration.seconds(0)
+        });
+
+        new DeploymentPlatformRestEndpoint(stack, 'TestEndpointCreation', {
+            useCaseManagementAPILambda: new lambda.Function(stack, 'MockGetRequestFunction', mockLambdaFuncProps),
+            modelInfoApiLambda: new lambda.Function(stack, 'MockModelInfoFunction', mockLambdaFuncProps),
+            agentManagementAPILambda: new lambda.Function(stack, 'MockAgentFunction', mockLambdaFuncProps),
+            mcpManagementAPILambda: new lambda.Function(stack, 'MockMCPFunction', mockLambdaFuncProps),
+            workflowManagementAPILambda: new lambda.Function(stack, 'MockWorkflowFunction3', mockLambdaFuncProps),
+            deploymentPlatformAuthorizer: testAuthorizer
+        });
+
+        template = Template.fromStack(stack);
+    });
+
+    it('should create Agent API resources when Agent lambda is provided', () => {
+        // Should have additional resources for Agent endpoints
+        // Base has 8 resources, agents add 2 more (agents, {agent-id}), MCP adds 3, workflows adds 2
+        template.resourceCountIs('AWS::ApiGateway::Resource', 15);
+
+        // Check Agent collection resource exists
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: 'agents'
+        });
+
+        // Check Agent item resource exists
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: '{useCaseId}'
+        });
+    });
+
+    it('should create Agent CRUD methods with correct operation names', () => {
+        // Check Agent collection methods
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'GET',
+            OperationName: 'GetAgents'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            OperationName: 'DeployAgent'
+        });
+
+        // Check Agent item methods
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'GET',
+            OperationName: 'GetAgent'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'PATCH',
+            OperationName: 'UpdateAgent'
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'DELETE',
+            OperationName: 'DeleteAgent'
+        });
+    });
+});
+
+describe('When creating rest endpoints with Workflow lambda', () => {
+    let template: Template;
+
+    beforeAll(() => {
+        const stack = new cdk.Stack();
+        const mockLambdaFuncProps = {
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/node-lambda'),
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'index.handler'
+        };
+
+        const testAuthorizer = new api.RequestAuthorizer(stack, 'CustomRequestAuthorizers', {
+            handler: new lambda.Function(stack, 'MockAuthorizerFunction', mockLambdaFuncProps),
+            identitySources: [api.IdentitySource.header('Authorization')],
+            resultsCacheTtl: cdk.Duration.seconds(0)
+        });
+
+        new DeploymentPlatformRestEndpoint(stack, 'TestEndpointCreation', {
+            useCaseManagementAPILambda: new lambda.Function(stack, 'MockGetRequestFunction', mockLambdaFuncProps),
+            modelInfoApiLambda: new lambda.Function(stack, 'MockModelInfoFunction', mockLambdaFuncProps),
+            mcpManagementAPILambda: new lambda.Function(stack, 'MockMCPFunction', mockLambdaFuncProps),
+            agentManagementAPILambda: new lambda.Function(stack, 'MockAgentFunction', mockLambdaFuncProps),
+            workflowManagementAPILambda: new lambda.Function(stack, 'MockWorkflowFunction', mockLambdaFuncProps),
+            deploymentPlatformAuthorizer: testAuthorizer
+        });
+
+        template = Template.fromStack(stack);
+    });
+
+    it('should create Workflow API resources when Workflow lambda is provided', () => {
+        const restApiCapture = new Capture();
+
+        template.hasResourceProperties('AWS::ApiGateway::RestApi', {
+            Name: {
+                'Fn::Join': [
+                    '',
+                    [
+                        {
+                            Ref: 'AWS::StackName'
+                        },
+                        '-UseCaseManagementAPI'
+                    ]
+                ]
+            }
+        });
+
+        // Check workflows collection resource
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: 'workflows',
+            RestApiId: {
+                Ref: restApiCapture
+            }
+        });
+
+        // Check workflow item resource
+        template.hasResourceProperties('AWS::ApiGateway::Resource', {
+            PathPart: '{useCaseId}',
+            RestApiId: {
+                Ref: restApiCapture.asString()
+            }
+        });
+
+        // Check that CRUD methods are created for workflows
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'POST',
+            ResourceId: {
+                Ref: Match.anyValue()
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'GET',
+            ResourceId: {
+                Ref: Match.anyValue()
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'PATCH',
+            ResourceId: {
+                Ref: Match.anyValue()
+            }
+        });
+
+        template.hasResourceProperties('AWS::ApiGateway::Method', {
+            HttpMethod: 'DELETE',
+            ResourceId: {
+                Ref: Match.anyValue()
+            }
         });
     });
 });

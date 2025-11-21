@@ -42,22 +42,16 @@ export const BedrockInferenceTypeRadio = (props: BedrockInferenceTypeRadioProps)
                 onChange={({ detail }) => onInferenceTypeChange(detail)}
                 items={[
                     {
-                        value: BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS,
-                        label: 'Quick Start Models',
-                        description:
-                            'Get started quickly with a collection of models with different price/performance characteristics. Recommended for building your first apps.'
-                    },
-                    {
-                        value: BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS,
-                        label: 'Other Foundation Models',
-                        description:
-                            'Access the full range of foundation models with different capabilities and specializations.'
-                    },
-                    {
                         value: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES,
                         label: 'Inference Profiles',
                         description:
                             "Inference profiles leverage Bedrock's cross-region inference to increase throughput and improve resiliency by routing your requests across multiple AWS Regions during peak utilization bursts."
+                    },
+                    {
+                        value: BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS,
+                        label: 'Foundation Models',
+                        description:
+                            'Access the full range of on-demand foundation models with different capabilities and specializations.'
                     },
                     {
                         value: BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS,
@@ -66,7 +60,7 @@ export const BedrockInferenceTypeRadio = (props: BedrockInferenceTypeRadioProps)
                             'Dedicated throughput capacity for production workloads requiring consistent performance.'
                     }
                 ]}
-                value={props.modelData.bedrockInferenceType || BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS}
+                value={props.modelData.bedrockInferenceType || BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES}
                 data-testid="bedrock-inference-type-radio-group"
             />
         </FormField>
@@ -78,20 +72,15 @@ const inferenceTypeRadioInfoPanel = {
     content: (
         <div>
             <Box variant="p">Amazon Bedrock offers different types of model access:</Box>
-            <Box variant="h4">Quick Start Models</Box>
-            <Box variant="p">
-                Pre-configured models that are ready to use with minimal setup. These models provide a streamlined way
-                to get started with Amazon Bedrock.
-            </Box>
-            <Box variant="h4">Other Foundation Models</Box>
-            <Box variant="p">
-                Access to the full range of foundation models available in Amazon Bedrock, including models from various
-                providers with different capabilities and specializations.
-            </Box>
             <Box variant="h4">Inference Profiles</Box>
             <Box variant="p">
                 Custom configurations of foundation models with specific parameter settings optimized for particular use
                 cases or performance requirements.
+            </Box>
+            <Box variant="h4">Foundation Models</Box>
+            <Box variant="p">
+                Access to the full range of on-demand foundation models available in Amazon Bedrock, including models from various
+                providers with different capabilities and specializations.
             </Box>
             <Box variant="h4">Provisioned Models</Box>
             <Box variant="p">
