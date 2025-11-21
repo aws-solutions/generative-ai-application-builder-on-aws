@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2025-11-20
+
+### Added
+
+- Multi-Agent workflow orchestration to address complex tasks with multiple coordinated agents.
+- Agent Builder use case for configuring, deploying, and managing AI Agents from the Management Dashboard.
+- MCP Server deployment using images, Lambda functions, OpenAPI specs, or Smitty files.
+- Multimodal input capabilities for Agent Builder and workflow use cases.
+- AWS Lambda provisioned concurrency support for text and bedrock agent use cases to improve performance and reduce cold starts.
+
+### Security
+
+- Upgraded js-yaml to `3.14.2` and `4.1.1` to mitigate CVE-2025-64718
+- Upgraded glob to `10.5.0` to mitigate CVE-2025-64756
+- Upgraded langchain-core to `0.3.80` to mitigate CVE-2025-65106
+
 ## [3.0.7] - 2025-11-12
 
 ### Security

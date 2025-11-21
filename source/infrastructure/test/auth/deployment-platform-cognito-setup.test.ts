@@ -244,12 +244,10 @@ describe('When cognito resources are created', () => {
                     'Fn::Not': [
                         {
                             'Fn::Equals': [notificationSubscriptionEmailCapture.asString(), 'placeholder@example.com']
-                        },
+                        }
                     ]
-
                 },
-                {"Condition":"TestCognitoSetupCognitoGroupConditionD133761D"}
-
+                { 'Condition': 'TestCognitoSetupCognitoGroupConditionD133761D' }
             ]
         });
 
@@ -284,12 +282,41 @@ describe('When cognito resources are created', () => {
                     'Fn::Not': [
                         {
                             'Fn::Equals': ['', 'placeholder@example.com']
-                        },
+                        }
                     ]
-
                 },
-                {"Condition":"TestCognitoSetupCognitoGroupConditionD133761D"}
+                { 'Condition': 'TestCognitoSetupCognitoGroupConditionD133761D' }
+            ]
+        });
+    });
 
+    it('should create AgentCore resource server with correct configuration', () => {
+        const app = new cdk.App();
+        const stack = new cdk.Stack(app, 'TestStack');
+
+        const cognitoSetup = new CognitoSetup(stack, 'TestCognitoSetup', {
+            userPoolProps: {
+                defaultUserEmail: 'test@example.com',
+                applicationTrademarkName: 'TestApp',
+                userGroupName: 'test-group',
+                existingCognitoUserPoolId: '',
+                existingCognitoGroupPolicyTableName: '',
+                customResourceLambdaArn: 'arn:aws:lambda:us-east-1:123456789012:function/test-function'
+            } as UserPoolProps,
+            deployWebApp: 'Yes'
+        });
+
+        cognitoSetup.createAgentCoreResourceServer();
+
+        const template = Template.fromStack(stack);
+        template.hasResourceProperties('AWS::Cognito::UserPoolResourceServer', {
+            Identifier: 'agentcore',
+            Name: 'agentcore',
+            Scopes: [
+                {
+                    ScopeName: 'componentAccess',
+                    ScopeDescription: 'Scope for component authentication'
+                }
             ]
         });
     });

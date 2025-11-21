@@ -22,18 +22,18 @@ export const UseCaseDescription = (props: UseCaseDescriptionProps) => {
         if (!isNaN(parseInt(detail.value.charAt(0)))) {
             errors += 'First character must be a letter. ';
         }
-        if (
-            detail.value !== '' &&
-            !detail.value.match(
-                `^[a-zA-Z0-9_+: -."'{}\n\r\t,;/\\\\\\*&%$#@!()=+~^|<>?]+$]{${MIN_USE_CASE_DESCRIPTION_LENGTH},${MAX_USE_CASE_DESCRIPTION_LENGTH}}$`
-            )
-        ) {
+        if (detail.value !== '' && detail.value.length > MAX_USE_CASE_DESCRIPTION_LENGTH) {
             errors +=
-                'Can only include alphanumeric characters, -, _, +, :, and spaces and must be between ' +
-                MIN_USE_CASE_DESCRIPTION_LENGTH +
-                ' and ' +
+                'Description exceeds maximum length of ' +
                 MAX_USE_CASE_DESCRIPTION_LENGTH +
                 ' characters. ';
+        }
+        if (
+            detail.value !== '' &&
+            !detail.value.match(/^[a-zA-Z0-9_+: -."'{}\n\r\t,;/\\\\\\*&%$#@!()=+~^|<>?]+$/)
+        ) {
+            errors +=
+                'Can only include alphanumeric characters, -, _, +, :, and spaces. ';
         }
 
         updateNumFieldsInError(errors, useCaseDescriptionError, props.setNumFieldsInError);

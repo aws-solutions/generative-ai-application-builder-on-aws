@@ -3,6 +3,7 @@
 
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
+import { AWSClientManager } from 'aws-sdk-lib';
 import { logger, tracer } from '../power-tools-init';
 
 export interface ConversationMessage {
@@ -26,10 +27,7 @@ export class ConversationRetrievalService {
     private readonly dynamoDBClient: DynamoDBClient;
 
     constructor(region?: string) {
-        this.dynamoDBClient = new DynamoDBClient({
-            region: region || process.env.AWS_REGION,
-            maxAttempts: 3
-        });
+        this.dynamoDBClient = AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb', tracer);
     }
 
     /**

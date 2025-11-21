@@ -12,8 +12,8 @@ import {
     AttributeEditor
 } from '@cloudscape-design/components';
 import { ReviewSectionProps } from '../interfaces/Steps';
-import { INFERENCE_PROFILE, MODEL_PROVIDER_NAME_MAP, WIZARD_PAGE_INDEX } from '../steps-config';
-import { BEDROCK_INFERENCE_TYPES } from '@/utils/constants';
+import { MODEL_PROVIDER_NAME_MAP, WIZARD_PAGE_INDEX } from '../steps-config';
+import { BEDROCK_INFERENCE_TYPES, MULTIMODAL_SUPPORTED_USE_CASES } from '@/utils/constants';
 import { createBox, escapedNewLineToLineBreakTag, ValueWithLabel } from '@/utils';
 import { useComponentId } from '../../commons/use-component-id';
 
@@ -24,6 +24,7 @@ import { getBooleanString } from '../utils';
 interface ModelReviewProps extends ReviewSectionProps {
     knowledgeBaseData: any;
     modelData: any;
+    useCaseData?: any;
 }
 
 /**
@@ -40,16 +41,18 @@ const sanitizeModelParams = (modelParameters: ModelParams[]) => {
 
 const CreateAttributeEditor = ({
     modelParameters,
-    setActiveStepIndex
+    setActiveStepIndex,
+    stepIndex
 }: {
     modelParameters: ModelParams[];
     setActiveStepIndex: (index: number) => void;
+    stepIndex?: number;
 }) => {
-    const WIZARD_MODEL_STEP_INDEX = 2;
+    const targetStepIndex = stepIndex !== undefined ? stepIndex : WIZARD_PAGE_INDEX.MODEL;
 
     return (
         <AttributeEditor
-            onAddButtonClick={() => setActiveStepIndex(WIZARD_MODEL_STEP_INDEX)}
+            onAddButtonClick={() => setActiveStepIndex(targetStepIndex)}
             items={modelParameters}
             addButtonText="Add new item"
             definition={[
@@ -74,10 +77,17 @@ const CreateAttributeEditor = ({
 export const ModelReview = (props: ModelReviewProps) => {
     const queryClient = useQueryClient();
 
+    // Show multimodal support only for supported use cases and when multimodal is enabled
+    const shouldShowMultimodal = props.useCaseData?.useCaseType &&
+        MULTIMODAL_SUPPORTED_USE_CASES.includes(props.useCaseData.useCaseType) &&
+        props.modelData.multimodalEnabled !== undefined;
+
     props.modelData.modelParameters = sanitizeModelParams(props.modelData.modelParameters);
 
     const invalidateQueryAndEdit = () => {
-        props.setActiveStepIndex(WIZARD_PAGE_INDEX.MODEL);
+        // Use the provided stepIndex or fall back to the default constant
+        const targetStepIndex = props.stepIndex !== undefined ? props.stepIndex : WIZARD_PAGE_INDEX.MODEL;
+        props.setActiveStepIndex(targetStepIndex);
         queryClient.invalidateQueries({
             queryKey: ['modelInfo', props.modelData.modelProvider.value, props.modelData.modelName]
         });
@@ -139,21 +149,14 @@ export const ModelReview = (props: ModelReviewProps) => {
 
                         {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock && (
                             <ValueWithLabel label="Inference type">
-                                {props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS &&
-                                    'Quick Start Models'}
                                 {props.modelData.bedrockInferenceType ===
-                                    BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS && 'Other Foundation Models'}
+                                    BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS && 'Foundation Models'}
                                 {props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES &&
                                     'Inference Profiles'}
                                 {props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS &&
                                     'Provisioned Models'}
                             </ValueWithLabel>
                         )}
-
-                        {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock &&
-                            props.modelData.bedrockInferenceType === BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS && (
-                                <ValueWithLabel label="Model name">{props.modelData.modelName}</ValueWithLabel>
-                            )}
 
                         {props.modelData.modelProvider.value === MODEL_PROVIDER_NAME_MAP.Bedrock &&
                             props.modelData.bedrockInferenceType ===
@@ -197,6 +200,22 @@ export const ModelReview = (props: ModelReviewProps) => {
                         )}
                     </ColumnLayout>
                 </Container>
+
+                {shouldShowMultimodal && (
+                    <Container
+                        header={
+                            <Header variant="h2" headingTagOverride="h3">
+                                Multimodal support
+                            </Header>
+                        }
+                    >
+                        <ColumnLayout columns={2} variant="text-grid">
+                            <ValueWithLabel label="Enable multimodal input">
+                                {getBooleanString(props.modelData.multimodalEnabled)}
+                            </ValueWithLabel>
+                        </ColumnLayout>
+                    </Container>
+                )}
                 {props.modelData.modelParameters.length > 0 && (
                     <Container
                         header={
@@ -208,6 +227,7 @@ export const ModelReview = (props: ModelReviewProps) => {
                         <CreateAttributeEditor
                             modelParameters={props.modelData.modelParameters}
                             setActiveStepIndex={props.setActiveStepIndex}
+                            stepIndex={props.stepIndex}
                         />
                     </Container>
                 )}

@@ -6,6 +6,7 @@ import { OutgoingMessageProps } from './types';
 import { ChatBubble } from '@cloudscape-design/chat-components';
 import { ChatBubbleAvatar } from '../../../../components/common/common-components';
 import MarkdownContent from '../../../../components/markdown/MarkdownContent';
+import { FileDisplay } from '../../../../components/multimodal/FileDisplay';
 import '../../styles/OutgoingMessage.scss';
 
 const ChevronIcon = ({ className }: { className?: string }) => (
@@ -17,6 +18,7 @@ const ChevronIcon = ({ className }: { className?: string }) => (
 export const OutgoingMessage = ({
     message,
     author,
+    hasFileError = false,
     'data-testid': dataTestId,
     previewHeight = 200
 }: OutgoingMessageProps) => {
@@ -41,6 +43,7 @@ export const OutgoingMessage = ({
             showLoadingBar={message.avatarLoading}
             data-testid={dataTestId}
         >
+            {message.files && message.files.length > 0 && <FileDisplay files={message.files} hasError={hasFileError} />}
             <div
                 className="outgoing-message__content-wrapper"
                 style={{

@@ -1,21 +1,30 @@
 {
   "name": "@amzn/aws-sdk-layer",
-  "version": "3.0.7",
+  "version": "4.0.0",
   "description": "AWS Javascript SDK v3 layer",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "test": "jest --coverage",
+    "code-formatter": "prettier --config ../../../../.prettierrc.yml --ignore-path ../../../../.prettierignore --write '**/*.{js,ts,json,css,md}'"
+  },
   "dependencies": {
-    "@aws-sdk/client-api-gateway": "^3.775.0",
-    "@aws-sdk/client-cloudformation": "^3.699.0",
-    "@aws-sdk/client-cognito-identity-provider": "^3.708.0",
-    "@aws-sdk/client-dynamodb": "^3.705.0",
-    "@aws-sdk/client-kendra": "^3.706.0",
-    "@aws-sdk/client-s3": "^3.705.0",
-    "@aws-sdk/client-secrets-manager": "^3.699.0",
-    "@aws-sdk/client-ssm": "^3.699.0",
-    "@aws-sdk/lib-dynamodb": "^3.705.0",
-    "@aws-sdk/types": "^3.696.0",
-    "@aws-sdk/util-arn-parser": "^3.693.0",
-    "@aws-sdk/util-dynamodb": "^3.705.0",
-    "@smithy/types": "^3.7.2",
+    "@aws-sdk/client-api-gateway": "^3.875.0",
+    "@aws-sdk/client-bedrock-agentcore-control": "^3.875.0",
+    "@aws-sdk/client-cloudformation": "^3.875.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.875.0",
+    "@aws-sdk/client-dynamodb": "^3.875.0",
+    "@aws-sdk/client-kendra": "^3.875.0",
+    "@aws-sdk/client-s3": "^3.875.0",
+    "@aws-sdk/client-secrets-manager": "^3.875.0",
+    "@aws-sdk/client-ssm": "^3.875.0",
+    "@aws-sdk/lib-dynamodb": "^3.875.0",
+    "@aws-sdk/s3-presigned-post": "^3.875.0",
+    "@aws-sdk/s3-request-presigner": "^3.875.0",
+    "@aws-sdk/types": "^3.875.0",
+    "@aws-sdk/util-arn-parser": "^3.873.0",
+    "@aws-sdk/util-dynamodb": "^3.875.0",
+    "@smithy/types": "^4.3.2",
     "@types/aws-lambda": "^8.10.146"
   },
   "author": {
@@ -25,5 +34,10 @@
   "license": "Apache-2.0",
   "overrides": {
     "fast-xml-parser": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.5"
   }
 }

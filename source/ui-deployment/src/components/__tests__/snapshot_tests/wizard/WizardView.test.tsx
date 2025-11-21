@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 import { mockReactMarkdown, snapshotWithProvider } from '@/utils';
 import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
 import { USECASE_TYPE_ROUTE } from '@/utils/constants';

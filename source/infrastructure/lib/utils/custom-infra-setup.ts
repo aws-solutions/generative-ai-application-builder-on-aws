@@ -11,7 +11,7 @@ import { Construct } from 'constructs';
 import { ApplicationAssetBundler } from '../framework/bundler/asset-options-factory';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
 import { createCustomResourceForLambdaLogRetention, createDefaultLambdaRole } from './common-utils';
-import { ANONYMOUS_METRICS_SCHEDULE, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from './constants';
+import { METRICS_SCHEDULE, COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME } from './constants';
 
 export interface CustomInfraProps {
     /**
@@ -23,11 +23,6 @@ export interface CustomInfraProps {
      * The version of the AWS solution being deployed
      */
     solutionVersion: string;
-
-    /**
-     * Condition to determine if anonymous metrics should be collected
-     */
-    sendAnonymousMetricsCondition: cdk.CfnCondition;
 
     /**
      * Use case UUID passed as CFN parameter
@@ -92,7 +87,7 @@ export class CustomInfraSetup extends Construct {
 
         const scheduledMetricsRole = createDefaultLambdaRole(scope, 'ScheduledMetricsLambdaRole');
 
-        this.scheduledMetricsLambda = new lambda.Function(this, 'ScheduledAnonymousMetrics', {
+        this.scheduledMetricsLambda = new lambda.Function(this, 'ScheduledMetrics', {
             code: lambda.Code.fromAsset(
                 '../lambda/custom-resource',
                 ApplicationAssetBundler.assetBundlerFactory()
@@ -105,7 +100,7 @@ export class CustomInfraSetup extends Construct {
             tracing: lambda.Tracing.ACTIVE,
             description: 'A lambda function that runs as per defined schedule to publish metrics',
             environment: {
-                POWERTOOLS_SERVICE_NAME: 'ANONYMOUS-CW-METRICS',
+                POWERTOOLS_SERVICE_NAME: 'CW-METRICS',
                 SOLUTION_ID: props.solutionID,
                 SOLUTION_VERSION: props.solutionVersion,
                 ...(props.useCaseUUID && { USE_CASE_UUID_ENV_VAR: props.useCaseUUID })
@@ -113,7 +108,7 @@ export class CustomInfraSetup extends Construct {
             timeout: cdk.Duration.minutes(15)
         });
 
-        const logRetentionForSchedule = createCustomResourceForLambdaLogRetention(
+        createCustomResourceForLambdaLogRetention(
             this,
             'ScheduleLogRetention',
             this.scheduledMetricsLambda.functionName,
@@ -131,32 +126,13 @@ export class CustomInfraSetup extends Construct {
 
         this.scheduledMetricsLambda.role!.attachInlinePolicy(getMetricsDataPolicy);
 
-        (this.scheduledMetricsLambda.node.tryFindChild('Resource') as cdk.CfnCustomResource).cfnOptions.condition =
-            props.sendAnonymousMetricsCondition;
-        (logRetentionForSchedule.node.defaultChild as cdk.CfnCustomResource).cfnOptions.condition =
-            props.sendAnonymousMetricsCondition;
-
-        // eventbridge rule to the default event-bus to push anonymous metrics
+        // eventbridge rule to the default event-bus to push metrics
         const rule = new events.Rule(this, 'MetricsPublishFrequency', {
-            schedule: events.Schedule.rate(ANONYMOUS_METRICS_SCHEDULE)
+            schedule: events.Schedule.rate(METRICS_SCHEDULE)
         });
-        (rule.node.tryFindChild('Resource') as cdk.CfnCustomResource).cfnOptions.condition =
-            props.sendAnonymousMetricsCondition;
 
         const ruleTarget = new LambdaFunction(this.scheduledMetricsLambda);
         rule.addTarget(ruleTarget);
-
-        if (
-            rule.node.tryFindChild(
-                'AllowEventRuleDeploymentPlatformStackDeploymentPlatformSetupInfraSetupScheduledAnonymousMetricsCE3BF485'
-            )
-        ) {
-            (
-                rule.node.tryFindChild(
-                    'AllowEventRuleDeploymentPlatformStackDeploymentPlatformSetupInfraSetupScheduledAnonymousMetricsCE3BF485'
-                ) as cdk.CfnCustomResource
-            ).cfnOptions.condition = props.sendAnonymousMetricsCondition;
-        }
 
         NagSuppressions.addResourceSuppressions(getMetricsDataPolicy, [
             {

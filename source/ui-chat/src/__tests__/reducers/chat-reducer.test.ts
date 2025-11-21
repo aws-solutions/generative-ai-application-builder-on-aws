@@ -6,8 +6,9 @@ import { ChatState } from '../../hooks/use-chat-message';
 import type { SourceDocument } from '../../models';
 
 import { ChatAction, chatReducer } from '../../reducers/chat-reducer';
-import { AlertMessage, ChatBubbleMessage, Message } from '../../pages/chat/types';
+import { AlertMessage, ChatBubbleMessage, AgentBuilderChatBubbleMessage, Message } from '../../pages/chat/types';
 import { CHAT_LOADING_DEFAULT_MESSAGE } from '../../utils/constants';
+import { UploadedFile } from '../../types/file-upload';
 
 describe('chatReducer', () => {
     const initialState: ChatState = {
@@ -15,8 +16,29 @@ describe('chatReducer', () => {
         currentResponse: '',
         isGenAiResponseLoading: false,
         sourceDocuments: [],
-        conversationId: ''
+        conversationId: '',
+        isStreaming: false,
+        streamingMessageId: undefined,
+        thinking: undefined,
+        toolUsage: []
     };
+
+    const mockFiles: UploadedFile[] = [
+        {
+            key: 'file-key-1',
+            fileName: 'document.pdf',
+            fileContentType: 'application/pdf',
+            fileExtension: 'pdf',
+            fileSize: 1024000
+        },
+        {
+            key: 'file-key-2',
+            fileName: 'image.jpg',
+            fileContentType: 'image/jpeg',
+            fileExtension: 'jpg',
+            fileSize: 512000
+        }
+    ];
 
     it('should handle UPDATE_AI_RESPONSE with messageId', () => {
         const state: ChatState = {
@@ -30,7 +52,7 @@ describe('chatReducer', () => {
         };
 
         const newState = chatReducer(state, action);
-        
+
         const message = newState.messages[0] as ChatBubbleMessage;
         expect(message.content).toBe('Hello, how can I help?');
         expect(message.authorId).toBe('assistant');
@@ -166,17 +188,93 @@ describe('chatReducer', () => {
             timestamp: expect.any(String)
         };
 
-        const expectedLoadingMessage: ChatBubbleMessage = {
+        const expectedLoadingMessage: AgentBuilderChatBubbleMessage = {
             type: 'chat-bubble',
             authorId: 'assistant',
-            content: CHAT_LOADING_DEFAULT_MESSAGE,
+            content: '',
             timestamp: expect.any(String),
-            avatarLoading: true
+            avatarLoading: true,
+            thinking: {
+                duration: 0,
+                startTime: expect.any(String),
+                endTime: '',
+                strippedContent: undefined
+            }
         };
 
         expect(newState.messages[0]).toEqual(expectedUserMessage);
         expect(newState.messages[1]).toEqual(expectedLoadingMessage);
         expect(newState.isGenAiResponseLoading).toBe(true);
+    });
+
+    it('should handle ADD_USER_MESSAGE with files', () => {
+        const action: ChatAction = {
+            type: 'ADD_USER_MESSAGE',
+            payload: { content: 'Hello with files', authorId: 'user-1', files: mockFiles }
+        };
+
+        const newState = chatReducer(initialState, action);
+
+        const expectedUserMessage: ChatBubbleMessage = {
+            type: 'chat-bubble',
+            authorId: 'user-1',
+            content: 'Hello with files',
+            timestamp: expect.any(String),
+            files: mockFiles
+        };
+
+        const expectedLoadingMessage: AgentBuilderChatBubbleMessage = {
+            type: 'chat-bubble',
+            authorId: 'assistant',
+            content: '',
+            timestamp: expect.any(String),
+            avatarLoading: true,
+            thinking: {
+                duration: 0,
+                startTime: expect.any(String),
+                endTime: '',
+                strippedContent: undefined
+            }
+        };
+
+        expect(newState.messages[0]).toEqual(expectedUserMessage);
+        expect(newState.messages[1]).toEqual(expectedLoadingMessage);
+        expect(newState.isGenAiResponseLoading).toBe(true);
+    });
+
+    it('should handle ADD_USER_MESSAGE with empty files array', () => {
+        const action: ChatAction = {
+            type: 'ADD_USER_MESSAGE',
+            payload: { content: 'Hello', authorId: 'user-1', files: [] }
+        };
+
+        const newState = chatReducer(initialState, action);
+
+        const expectedUserMessage: ChatBubbleMessage = {
+            type: 'chat-bubble',
+            authorId: 'user-1',
+            content: 'Hello',
+            timestamp: expect.any(String),
+            files: []
+        };
+
+        expect(newState.messages[0]).toEqual(expectedUserMessage);
+        expect(newState.isGenAiResponseLoading).toBe(true);
+    });
+
+    it('should handle ADD_USER_MESSAGE with single file', () => {
+        const singleFile = [mockFiles[0]];
+        const action: ChatAction = {
+            type: 'ADD_USER_MESSAGE',
+            payload: { content: 'Hello with one file', authorId: 'user-1', files: singleFile }
+        };
+
+        const newState = chatReducer(initialState, action);
+
+        const userMessage = newState.messages[0] as ChatBubbleMessage;
+        expect(userMessage.files).toEqual(singleFile);
+        expect(userMessage.files).toHaveLength(1);
+        expect(userMessage.files![0].fileName).toBe('document.pdf');
     });
 
     it('should handle SET_MESSAGES', () => {
@@ -199,6 +297,34 @@ describe('chatReducer', () => {
         expect(newState.messages).toEqual(messages);
     });
 
+    it('should handle SET_MESSAGES with files', () => {
+        const messagesWithFiles: Message[] = [
+            {
+                type: 'chat-bubble',
+                authorId: 'user-1',
+                content: 'Hello with files',
+                timestamp: new Date().toISOString(),
+                files: mockFiles
+            },
+            {
+                type: 'chat-bubble',
+                authorId: 'assistant',
+                content: 'Response to files',
+                timestamp: new Date().toISOString()
+            }
+        ];
+
+        const action: ChatAction = {
+            type: 'SET_MESSAGES',
+            payload: messagesWithFiles
+        };
+
+        const newState = chatReducer(initialState, action);
+
+        expect(newState.messages).toEqual(messagesWithFiles);
+        expect((newState.messages[0] as ChatBubbleMessage).files).toEqual(mockFiles);
+    });
+
     it('should handle RESET_CHAT', () => {
         const message: ChatBubbleMessage = {
             type: 'chat-bubble',
@@ -212,7 +338,11 @@ describe('chatReducer', () => {
             currentResponse: 'Hello',
             isGenAiResponseLoading: true,
             sourceDocuments: [{ excerpt: 'Test content' }],
-            conversationId: 'conv-123'
+            conversationId: 'conv-123',
+            isStreaming: false,
+            streamingMessageId: undefined,
+            thinking: undefined,
+            toolUsage: []
         };
 
         const action: ChatAction = {
@@ -370,16 +500,20 @@ describe('chatReducer', () => {
         expect(newState).toEqual(initialState);
         expect(newState.messages).toHaveLength(0);
     });
-});
+
     it('should update messageId when none exists in the AI message', () => {
         const initialChatState: ChatState = {
             messages: [],
             currentResponse: '',
             isGenAiResponseLoading: false,
             sourceDocuments: [],
-            conversationId: ''
+            conversationId: '',
+            isStreaming: false,
+            streamingMessageId: undefined,
+            thinking: undefined,
+            toolUsage: []
         };
-        
+
         const message: ChatBubbleMessage = {
             type: 'chat-bubble',
             authorId: 'assistant',
@@ -406,3 +540,85 @@ describe('chatReducer', () => {
         expect(updatedMessage.content).toBe('Hello, how can I help?');
         expect(updatedMessage.messageId).toBe('new-message-id'); // Should add the messageId
     });
+
+    it('should handle SET_CONVERSATION_ID', () => {
+        const action: ChatAction = {
+            type: 'SET_CONVERSATION_ID',
+            payload: 'new-conversation-id'
+        };
+
+        const newState = chatReducer(initialState, action);
+
+        expect(newState.conversationId).toBe('new-conversation-id');
+    });
+
+    it('should preserve conversation ID when adding messages', () => {
+        const stateWithConversationId: ChatState = {
+            ...initialState,
+            conversationId: 'existing-conversation-id'
+        };
+
+        const action: ChatAction = {
+            type: 'ADD_USER_MESSAGE',
+            payload: { content: 'Hello', authorId: 'user-1' }
+        };
+
+        const newState = chatReducer(stateWithConversationId, action);
+
+        expect(newState.conversationId).toBe('existing-conversation-id');
+    });
+
+    // Edge cases and error handling
+    it('should handle unknown action types gracefully', () => {
+        const action = {
+            type: 'UNKNOWN_ACTION',
+            payload: 'test'
+        } as any;
+
+        const newState = chatReducer(initialState, action);
+
+        expect(newState).toEqual(initialState);
+    });
+
+    it('should handle COMPLETE_AI_RESPONSE with files in messages', () => {
+        const assistantMessage: ChatBubbleMessage = {
+            type: 'chat-bubble',
+            authorId: 'assistant',
+            content: 'Hello',
+            timestamp: new Date().toISOString(),
+            avatarLoading: true
+        };
+
+        const userMessage: ChatBubbleMessage = {
+            type: 'chat-bubble',
+            authorId: 'user',
+            content: 'Question with files',
+            timestamp: new Date().toISOString(),
+            files: mockFiles
+        };
+
+        const state: ChatState = {
+            ...initialState,
+            messages: [userMessage, assistantMessage],
+            isGenAiResponseLoading: true,
+            currentResponse: 'Hello'
+        };
+
+        const action: ChatAction = {
+            type: 'COMPLETE_AI_RESPONSE'
+        };
+
+        const newState = chatReducer(state, action);
+
+        expect(newState.isGenAiResponseLoading).toBe(false);
+        expect(newState.currentResponse).toBe('');
+
+        // Verify files are preserved in user message
+        const preservedUserMessage = newState.messages[0] as ChatBubbleMessage;
+        expect(preservedUserMessage.files).toEqual(mockFiles);
+
+        // Verify assistant message is updated
+        const updatedAssistantMessage = newState.messages[1] as ChatBubbleMessage;
+        expect(updatedAssistantMessage.avatarLoading).toBe(false);
+    });
+});

@@ -31,6 +31,7 @@ describe('Model', () => {
                     temperature: 0.3,
                     streaming: true,
                     verbose: false,
+                    multimodalEnabled: false,
                     modelParameters: []
                 },
                 knowledgeBase: {

@@ -1,6 +1,6 @@
 {
   "name": "@amzn/custom-authorizer",
-  "version": "3.0.7",
+  "version": "4.0.0",
   "description": "This lambda function is used as a custom REQUEST authorizer for APIs",
   "main": "rest-handler.ts",
   "scripts": {
@@ -13,7 +13,7 @@
     "code-linter-js": "./node_modules/eslint/bin/eslint.js lambda --ext .js",
     "code-linter-ts": "./node_modules/eslint/bin/eslint.js bin lib --ext .ts",
     "code-linter": "npm run code-linter-ts && npm run code-linter-js",
-    "code-formatter": "./node_modules/prettier/bin-prettier.js --config .prettierrc.yml '**/*.ts' '**/*.js' --write"
+    "code-formatter": "prettier --config ../../../.prettierrc.yml --ignore-path ../../../.prettierignore --write '**/*.{js,ts,json,css,md}'"
   },
   "author": {
     "name": "Amazon Web Services",
@@ -32,7 +32,7 @@
     "aws-sdk-client-mock": "^4.1.0",
     "eslint": "^9.16.0",
     "jest": "^29.7.0",
-    "prettier": "^3.4.2",
+    "prettier": "^3.6.2",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"

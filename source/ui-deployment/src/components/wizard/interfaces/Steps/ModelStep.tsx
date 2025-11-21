@@ -1,10 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { IG_DOCS } from '@/utils/constants';
+import { IG_DOCS, DEFAULT_MODEL_COMPONENT_VISIBILITY } from '@/utils/constants';
 import { Box } from '@cloudscape-design/components';
 import { DEFAULT_STEP_INFO, MODEL_FAMILY_PROVIDER_OPTIONS } from '../../steps-config';
-import { StepContentProps, ToolHelpPanelContent } from '../Steps';
+import { StepContentProps, ToolHelpPanelContent, ModelComponentVisibility } from '../Steps';
 import { BaseWizardProps, BaseWizardStep } from './BaseWizardStep';
 import Model from '../../Model';
 import { mapModelStepInfoFromDeployment } from '../../utils';
@@ -22,11 +22,13 @@ export interface ModelSettings extends BaseWizardProps {
     temperature: number;
     verbose: boolean;
     streaming: boolean;
+    multimodalEnabled: boolean;
     sagemakerInputSchema: any;
     sagemakerOutputSchema: string;
     sagemakerEndpointName: string;
     inferenceProfileId: string;
     bedrockInferenceType: string;
+    excludedProviders: string[];
 }
 export class ModelStep extends BaseWizardStep {
     public id: string = 'model';
@@ -45,11 +47,13 @@ export class ModelStep extends BaseWizardStep {
         temperature: DEFAULT_STEP_INFO.model.temperature,
         verbose: DEFAULT_STEP_INFO.model.verbose,
         streaming: DEFAULT_STEP_INFO.model.streaming,
+        multimodalEnabled: DEFAULT_STEP_INFO.model.multimodalEnabled,
         sagemakerInputSchema: DEFAULT_STEP_INFO.model.sagemakerInputSchema,
         sagemakerOutputSchema: DEFAULT_STEP_INFO.model.sagemakerOutputSchema,
         sagemakerEndpointName: DEFAULT_STEP_INFO.model.sagemakerEndpointName,
         inferenceProfileId: DEFAULT_STEP_INFO.model.inferenceProfileId,
         bedrockInferenceType: DEFAULT_STEP_INFO.model.bedrockInferenceType,
+        excludedProviders: [],
         inError: false
     };
 
@@ -68,8 +72,20 @@ export class ModelStep extends BaseWizardStep {
         ]
     };
 
+    constructor(
+        excludedProviders: string[] = [],
+        modelVisibility: ModelComponentVisibility = DEFAULT_MODEL_COMPONENT_VISIBILITY
+    ) {
+        super();
+        this.props.excludedProviders = excludedProviders;
+        this.modelVisibility = modelVisibility;
+        // Initialize multimodal support based on visibility settings
+        this.props.multimodalEnabled = modelVisibility.showMultimodalInputSupport || false;    }
+
+    private modelVisibility: ModelComponentVisibility;
+
     public contentGenerator: (props: StepContentProps) => JSX.Element = (props: StepContentProps) => {
-        return <Model {...props} />;
+        return <Model {...props} modelVisibility={this.modelVisibility} />;
     };
 
     public mapStepInfoFromDeployment = (selectedDeployment: any, deploymentAction: string): void => {
@@ -95,7 +111,9 @@ export class ModelStep extends BaseWizardStep {
             sagemakerEndpointName: this.props.sagemakerEndpointName,
             inferenceProfileId: this.props.inferenceProfileId,
             bedrockInferenceType: this.props.bedrockInferenceType,
-            inError: this.props.inError
+            inError: this.props.inError,
+            multimodalEnabled: this.props.multimodalEnabled
+            // Keep the excludedProviders from constructor, don't override from deployment
         } = mapModelStepInfoFromDeployment(selectedDeployment, modelProvider));
     };
 }

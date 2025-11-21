@@ -5,6 +5,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { FeedbackSetupStack } from '../feedback/feedback-setup-stack';
 import * as api from 'aws-cdk-lib/aws-apigateway';
@@ -42,52 +43,19 @@ import {
 } from '../utils/constants';
 import { VPCSetup } from '../vpc/vpc-setup';
 import { UseCaseRestEndpointSetup } from '../api/use-case-rest-endpoint-setup';
+import { MultimodalSetup } from '../multimodal/multimodal-setup';
 
 export class UseCaseParameters extends BaseParameters {
-    /**
-     * Unique UUID for this deployed use case within an application. Provided by the deployment platform if in use.
-     */
-    public useCaseUUID: cdk.CfnParameter;
-
-    /**
-     * First 8 characters of the useCaseUUID.
-     */
-    public useCaseShortId: string;
-
-    /**
-     * Name of the table that stores the configuration for a use case.
-     */
-    public useCaseConfigTableName: cdk.CfnParameter;
-
-    /**
-     * Key corresponding of the record containing configurations required by the chat provider lambda at runtime. The record in the table should have a "key"
-     * attribute matching this value, and a "config" attribute containing the desired config. This record will be populated by the deployment platform if in
-     * use. For standalone deployments of this use-case, a manually created entry in the table defined in `UseCaseConfigTableName` is required.
-     * Consult the implementation guide for more details.
-     */
-    public useCaseConfigRecordKey: cdk.CfnParameter;
-
     /**
      * Email of the default user for this use case. A cognito user for this email will be created to access the use case.
      */
     public defaultUserEmail: cdk.CfnParameter;
 
     /**
-     * UserPoolId of an existing cognito user pool which this use case will be authenticated with.
-     * Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.
-     */
-    public existingCognitoUserPoolId: cdk.CfnParameter;
-
-    /**
      * ARN of the DynamoDB table containing user group policies, used by the custom authorizer on this use-cases API.
      * Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.
      */
     public existingCognitoGroupPolicyTableName: cdk.CfnParameter;
-
-    /**
-     * Cfn parameter for existing user pool client Id (App Client Id)
-     */
-    public existingUserPoolClientId: cdk.CfnParameter;
 
     /**
      * Cfn parameter for existing websocket endpoint
@@ -105,6 +73,28 @@ export class UseCaseParameters extends BaseParameters {
     public feedbackEnabled: cdk.CfnParameter;
 
     /**
+     * Existing multimodal data metadata table name
+     * Passed by the deployment dashboard's management lambda when deploying use cases
+     */
+    public existingMultimodalDataMetadataTable: cdk.CfnParameter;
+
+    /**
+     * Existing multimodal data bucket name
+     * Passed by the deployment dashboard's management lambda when deploying use cases
+     */
+    public existingMultimodalDataBucket: cdk.CfnParameter;
+
+    /**
+     * Enable multimodal functionality for the AgentCore deployment
+     */
+    public multimodalEnabled: cdk.CfnParameter;
+
+    /**
+     * Number of execution environments to keep warm for provisioned concurrency
+     */
+    public provisionedConcurrencyValue: cdk.CfnParameter;
+
+    /**
      * The source where this code was called from
      */
     public stackDeploymentSource: StackDeploymentSource;
@@ -119,36 +109,6 @@ export class UseCaseParameters extends BaseParameters {
      * @param stack
      */
     protected withAdditionalCfnParameters(stack: BaseStack) {
-        this.useCaseUUID = new cdk.CfnParameter(stack, 'UseCaseUUID', {
-            type: 'String',
-            description:
-                'UUID to identify this deployed use case within an application. Please provide a 36 character long UUIDv4. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones',
-            allowedPattern:
-                '^[0-9a-fA-F]{8}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-            minLength: 8,
-            maxLength: 36,
-            constraintDescription:
-                'Using digits and the letters A through F, please provide a 8 character id or a 36 character long UUIDv4.'
-        });
-
-        this.useCaseShortId = cdk.Fn.select(0, cdk.Fn.split('-', this.useCaseUUID.valueAsString));
-
-        this.useCaseConfigTableName = new cdk.CfnParameter(stack, 'UseCaseConfigTableName', {
-            type: 'String',
-            maxLength: 255,
-            allowedPattern: '^[a-zA-Z0-9_.-]{3,255}$',
-            description: 'DynamoDB table name for the table which contains the configuration for this use case.',
-            constraintDescription:
-                'This parameter is required. The stack will read the configuration from this table to configure the resources during deployment'
-        });
-
-        this.useCaseConfigRecordKey = new cdk.CfnParameter(stack, 'UseCaseConfigRecordKey', {
-            type: 'String',
-            maxLength: 2048,
-            description:
-                'Key corresponding of the record containing configurations required by the chat provider lambda at runtime. The record in the table should have a "key" attribute matching this value, and a "config" attribute containing the desired config. This record will be populated by the deployment platform if in use. For standalone deployments of this use-case, a manually created entry in the table defined in `UseCaseConfigTableName` is required. Consult the implementation guide for more details.'
-        });
-
         this.defaultUserEmail = new cdk.CfnParameter(stack, 'DefaultUserEmail', {
             type: 'String',
             description:
@@ -158,30 +118,12 @@ export class UseCaseParameters extends BaseParameters {
             constraintDescription: 'Please provide a valid email'
         });
 
-        this.existingCognitoUserPoolId = new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolId', {
-            type: 'String',
-            allowedPattern: '^$|^[0-9a-zA-Z_-]{9,24}$',
-            maxLength: 24,
-            description:
-                'Optional - UserPoolId of an existing cognito user pool which this use case will be authenticated with. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
-            default: ''
-        });
-
         this.existingCognitoGroupPolicyTableName = new cdk.CfnParameter(stack, 'ExistingCognitoGroupPolicyTableName', {
             type: 'String',
             allowedPattern: '^$|^[a-zA-Z0-9_.-]{3,255}$',
             maxLength: 255,
             description:
                 'Name of the DynamoDB table containing user group policies, used by the custom authorizer for the use-cases APIs. Required when an existing User Pool Id is provided.',
-            default: ''
-        });
-
-        this.existingUserPoolClientId = new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClient', {
-            type: 'String',
-            allowedPattern: '^$|^[a-z0-9]{3,128}$',
-            maxLength: 128,
-            description:
-                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
             default: ''
         });
 
@@ -209,6 +151,28 @@ export class UseCaseParameters extends BaseParameters {
             default: 'No'
         });
 
+        this.multimodalEnabled = new cdk.CfnParameter(stack, 'MultimodalEnabled', {
+            type: 'String',
+            description: 'If set to Yes, the deployed use case stack will have access to multimodal functionality. This functionality is only enabled for Agentcore-based AgentBuilder and Workflow usecases.',
+            allowedValues: ['Yes', 'No'],
+            allowedPattern: '^Yes|No$',
+            default: 'No'
+        });
+
+        this.existingMultimodalDataMetadataTable = new cdk.CfnParameter(stack, 'ExistingMultimodalDataMetadataTable', {
+            type: 'String',
+            description: 'Existing multimodal data metadata table name which contains references of the files in S3',
+            default: '',
+            constraintDescription: 'Must be a valid DynamoDB table name or empty string'
+        });
+
+        this.existingMultimodalDataBucket = new cdk.CfnParameter(stack, 'ExistingMultimodalDataBucket', {
+            type: 'String',
+            description: 'Existing multimodal data bucket name which stores the multimodal data files',
+            default: '',
+            constraintDescription: 'Must be a valid S3 bucket name or empty string'
+        });
+
         this.stackDeploymentSource = new cdk.CfnParameter(stack, 'StackDeploymentSource', {
             type: 'String',
             description:
@@ -217,10 +181,19 @@ export class UseCaseParameters extends BaseParameters {
             allowedValues: ['UseCase', 'StandaloneUseCase']
         }).valueAsString as StackDeploymentSource;
 
+        this.provisionedConcurrencyValue = new cdk.CfnParameter(stack, 'ProvisionedConcurrencyValue', {
+            type: 'Number',
+            description:
+                'Provisioned concurrency value for Lambda functions. Set to 0 to disable provisioned concurrency.',
+            default: 0,
+            minValue: 0,
+            maxValue: 5
+        });
+
         const existingParameterGroups =
             this.cfnStack.templateOptions.metadata !== undefined &&
-            Object.hasOwn(this.cfnStack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
-            this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
+                Object.hasOwn(this.cfnStack.templateOptions.metadata, 'AWS::CloudFormation::Interface') &&
+                this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups !== undefined
                 ? this.cfnStack.templateOptions.metadata['AWS::CloudFormation::Interface'].ParameterGroups
                 : [];
 
@@ -243,8 +216,16 @@ export class UseCaseParameters extends BaseParameters {
                 this.useCaseConfigTableName.logicalId,
                 this.existingRestApiId.logicalId,
                 this.feedbackEnabled.logicalId,
+                this.multimodalEnabled.logicalId,
+                this.existingMultimodalDataMetadataTable.logicalId,
+                this.existingMultimodalDataBucket.logicalId,
                 this.existingApiRootResourceId.logicalId
             ]
+        });
+
+        existingParameterGroups.unshift({
+            Label: { default: 'Optional: Performance Optimization Configuration' },
+            Parameters: [this.provisionedConcurrencyValue.logicalId]
         });
 
         // prettier-ignore
@@ -310,6 +291,66 @@ export class UseCaseParameters extends BaseParameters {
                 }
             ]
         });
+
+        new cdk.CfnCondition(this.cfnStack, 'MultimodalEnabledCondition', {
+            expression: cdk.Fn.conditionEquals(this.multimodalEnabled.valueAsString, 'Yes')
+        });
+
+        const multimodalBucketProvided = new cdk.CfnCondition(this.cfnStack, 'MultimodalBucketProvided', {
+            expression: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.existingMultimodalDataBucket.valueAsString, ''))
+        });
+
+        const multimodalTableProvided = new cdk.CfnCondition(this.cfnStack, 'MultimodalTableProvided', {
+            expression: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.existingMultimodalDataMetadataTable.valueAsString, '')
+            )
+        });
+
+        new cdk.CfnCondition(this.cfnStack, 'MultimodalDataProvidedCondition', {
+            expression: cdk.Fn.conditionAnd(multimodalBucketProvided, multimodalTableProvided)
+        });
+
+        // If multimodal is enabled, both existing resources must be provided together or both must be empty
+        new cdk.CfnRule(this.cfnStack, 'ValidateMultimodalResourcesConfiguration', {
+            ruleCondition: cdk.Fn.conditionEquals(this.multimodalEnabled.valueAsString, 'Yes'),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionOr(
+                        // Both are provided
+                        cdk.Fn.conditionAnd(
+                            cdk.Fn.conditionNot(
+                                cdk.Fn.conditionEquals(this.existingMultimodalDataBucket.valueAsString, '')
+                            ),
+                            cdk.Fn.conditionNot(
+                                cdk.Fn.conditionEquals(this.existingMultimodalDataMetadataTable.valueAsString, '')
+                            )
+                        ),
+                        // Both are empty
+                        cdk.Fn.conditionAnd(
+                            cdk.Fn.conditionEquals(this.existingMultimodalDataBucket.valueAsString, ''),
+                            cdk.Fn.conditionEquals(this.existingMultimodalDataMetadataTable.valueAsString, '')
+                        )
+                    ),
+                    assertDescription:
+                        'When multimodal functionality is enabled, both multimodal data bucket and metadata table must be provided together, or both must be empty to create new resources'
+                }
+            ]
+        });
+
+        // If existing multimodal resources are provided, multimodal must be enabled
+        new cdk.CfnRule(this.cfnStack, 'ValidateMultimodalEnabledWithResources', {
+            ruleCondition: cdk.Fn.conditionAnd(
+                cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.existingMultimodalDataBucket.valueAsString, '')),
+                cdk.Fn.conditionNot(cdk.Fn.conditionEquals(this.existingMultimodalDataMetadataTable.valueAsString, ''))
+            ),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals(this.multimodalEnabled.valueAsString, 'Yes'),
+                    assertDescription:
+                        'When existing multimodal data bucket and metadata table are provided, multimodal functionality must be enabled (MultimodalEnabled=Yes)'
+                }
+            ]
+        });
     }
 }
 
@@ -343,16 +384,99 @@ export abstract class UseCaseStack extends BaseStack {
     public chatLlmProviderLambda: lambda.Function;
 
     /**
+     * Alias for the chat Lambda function (always created for consistent behavior)
+     */
+    public chatLlmProviderAlias: lambda.Alias;
+
+    /**
      * The Rest Endpoint for the use case
      */
     public useCaseRestEndpointSetup: UseCaseRestEndpointSetup;
+
+    /**
+     * Multimodal setup construct for handling multimodal data functionality when standalone mode is enabled
+     */
+    protected multimodalSetup: MultimodalSetup;
+
+    /**
+     * Multimodal data metadata table - available when multimodal is enabled
+     */
+    protected multimodalDataMetadataTable?: dynamodb.ITable;
+
+    /**
+     * Multimodal data bucket - available when multimodal is enabled
+     */
+    protected multimodalDataBucket?: s3.IBucket;
+
+    /**
+     * Condition that determines if new API resources should be created (for standalone mode)
+     */
+    protected createApiResourcesCondition: cdk.CfnCondition;
+
+    /**
+     * Condition that determines if multimodal functionality is enabled
+     */
+    protected multimodalEnabledCondition: cdk.CfnCondition;
+
+    /**
+     * Condition that determines if new multimodal resources should be created
+     */
+    protected createMultimodalResourcesCondition: cdk.CfnCondition;
 
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
     }
 
-    protected getWebSocketRoutes(): Map<string, lambda.Function> {
+    protected getWebSocketRoutes(): Map<string, lambda.Function | lambda.Alias> {
         throw new Error('Constructs inheriting this stack should be providing their implementation');
+    }
+
+    /**
+     * Method to create lambda version and alias with optional provisioned concurrency
+     */
+    protected setupLambdaVersioning(props: BaseStackProps): void {
+        const provisionedConcurrencyCondition = new cdk.CfnCondition(this, 'ProvisionedConcurrencyCondition', {
+            expression: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.stackParameters.provisionedConcurrencyValue.valueAsNumber, 0)
+            )
+        });
+
+        // Custom resource to create Lambda version on every Create/Update
+        const versionGenerator = new cdk.CfnResource(this, 'LambdaVersionGenerator', {
+            type: 'Custom::LambdaVersion',
+            properties: {
+                ServiceToken: this.applicationSetup.customResourceLambda.functionArn,
+                Resource: 'LAMBDA_VERSION_GENERATOR',
+                FunctionName: this.chatLlmProviderLambda.functionName,
+                Triggers: {
+                    UseCaseConfigTrigger: this.stackParameters.useCaseConfigRecordKey.valueAsString
+                }
+            }
+        });
+
+        // Retain the custom resource on stack deletion to prevent errors during rollback scenarios
+        versionGenerator.cfnOptions.deletionPolicy = cdk.CfnDeletionPolicy.RETAIN;
+
+        const version = lambda.Version.fromVersionAttributes(this, 'ChatLambdaVersion', {
+            lambda: this.chatLlmProviderLambda,
+            version: versionGenerator.getAtt('VersionNumber').toString()
+        });
+
+        this.chatLlmProviderAlias = new lambda.Alias(this, 'ChatLambdaAlias', {
+            aliasName: 'live',
+            version: version,
+            description: 'Alias for chat Lambda function'
+        });
+
+        // Only add provisioned concurrency when condition is met
+        const cfnAlias = this.chatLlmProviderAlias.node.defaultChild as lambda.CfnAlias;
+        cfnAlias.provisionedConcurrencyConfig = cdk.Fn.conditionIf(
+            provisionedConcurrencyCondition.logicalId,
+            {
+                ProvisionedConcurrentExecutions: this.stackParameters.provisionedConcurrencyValue.valueAsNumber
+            },
+            cdk.Aws.NO_VALUE
+        );
     }
 
     /**
@@ -365,7 +489,6 @@ export abstract class UseCaseStack extends BaseStack {
         new cdk.CfnMapping(this, 'Solution', {
             mapping: {
                 Data: {
-                    SendAnonymousUsageData: 'Yes',
                     ID: props.solutionID,
                     Version: props.solutionVersion,
                     SolutionName: props.solutionName,
@@ -392,7 +515,13 @@ export abstract class UseCaseStack extends BaseStack {
                     0,
                     cdk.Fn.split(
                         '.',
-                        cdk.Fn.select(1, cdk.Fn.split('@', cdk.Fn.join("", [this.stackParameters.defaultUserEmail.valueAsString, "@example.com"])))
+                        cdk.Fn.select(
+                            1,
+                            cdk.Fn.split(
+                                '@',
+                                cdk.Fn.join('', [this.stackParameters.defaultUserEmail.valueAsString, '@example.com'])
+                            )
+                        )
                     )
                 ),
                 INTERNAL_EMAIL_DOMAIN
@@ -400,6 +529,32 @@ export abstract class UseCaseStack extends BaseStack {
         });
 
         this.llmProviderSetup();
+
+        // Lambda version policy for publishing Lambda versions
+        const lambdaVersionPolicy = new iam.Policy(this, 'LambdaVersionPolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['lambda:PublishVersion'],
+                    resources: [`arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:function:*`]
+                })
+            ]
+        });
+        lambdaVersionPolicy.attachToRole(this.applicationSetup.customResourceRole);
+
+        // CFN Nag suppression: Wildcard resource required to avoid timing issues, attempting to scope to specific function ARNs results in access denied errors during deployment
+        NagSuppressions.addResourceSuppressions(lambdaVersionPolicy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'Lambda version policy requires wildcard permissions to publish versions for use case Lambda functions',
+                appliesTo: [
+                    'Resource::arn:<AWS::Partition>:lambda:<AWS::Region>:<AWS::AccountId>:function:*'
+                ]
+            }
+        ]);
+
+        this.setupLambdaVersioning(props);
+
         // setup lambda logs retention policy
         createCustomResourceForLambdaLogRetention(
             this,
@@ -442,13 +597,14 @@ export abstract class UseCaseStack extends BaseStack {
             cloudFrontUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
             deployWebApp: this.deployWebApp.valueAsString,
             lambdaRouteMapping: this.getWebSocketRoutes(),
+            chatLlmProviderLambda: this.chatLlmProviderLambda,
             deployVPCCondition: this.vpcEnabledCondition,
             privateSubnetIds: this.transpiredPrivateSubnetIds,
             securityGroupIds: this.transpiredSecurityGroupIds
         });
 
         // Existing API was not provided and so a new API will be created.
-        const createApiResourcesCondition = new cdk.CfnCondition(this, 'CreateApiResourcesCondition', {
+        this.createApiResourcesCondition = new cdk.CfnCondition(this, 'CreateApiResourcesCondition', {
             expression: cdk.Fn.conditionOr(
                 cdk.Fn.conditionEquals(this.stackParameters.existingRestApiId, ''),
                 cdk.Fn.conditionEquals(this.stackParameters.existingApiRootResourceId, '')
@@ -467,7 +623,7 @@ export abstract class UseCaseStack extends BaseStack {
             userPoolGroupName: this.requestProcessor.cognitoSetup.userPoolGroup.groupName,
             // additional inputs for creating resources
             llmConfigTable: this.stackParameters.useCaseConfigTableName.valueAsString,
-            createApiResourcesCondition: createApiResourcesCondition,
+            createApiResourcesCondition: this.createApiResourcesCondition,
             customResourceLambda: this.applicationSetup.customResourceLambda,
             deployVPCCondition: this.vpcEnabledCondition,
             privateSubnetIds: this.transpiredPrivateSubnetIds,
@@ -478,7 +634,7 @@ export abstract class UseCaseStack extends BaseStack {
             expression: cdk.Fn.conditionAnd(
                 // FeedbackEnabled was provided as 'Yes' and a new API was created for this use case type
                 cdk.Fn.conditionEquals(this.stackParameters.feedbackEnabled, 'Yes'),
-                createApiResourcesCondition
+                this.createApiResourcesCondition
             )
         });
 
@@ -520,6 +676,57 @@ export abstract class UseCaseStack extends BaseStack {
             })
         );
 
+        const multimodalDataProvidedCondition = this.node.findChild(
+            'MultimodalDataProvidedCondition'
+        ) as cdk.CfnCondition;
+
+        this.multimodalEnabledCondition = this.node.findChild('MultimodalEnabledCondition') as cdk.CfnCondition;
+
+        this.createMultimodalResourcesCondition = new cdk.CfnCondition(this, 'CreateMultimodalResourcesCondition', {
+            expression: cdk.Fn.conditionAnd(
+                this.multimodalEnabledCondition,
+                cdk.Fn.conditionNot(multimodalDataProvidedCondition),
+                this.createApiResourcesCondition
+            )
+        });
+
+        this.multimodalSetup = new MultimodalSetup(this, 'MultimodalSetup', {
+            restApi: this.useCaseRestEndpointSetup.restApi as api.RestApi,
+            deploymentPlatformAuthorizer: this.useCaseRestEndpointSetup.authorizer as api.RequestAuthorizer,
+            requestValidator: this.useCaseRestEndpointSetup.requestValidator as api.RequestValidator,
+            dlq: this.useCaseRestEndpointSetup.dlq,
+            deployVPCCondition: this.vpcEnabledCondition,
+            privateSubnetIds: this.transpiredPrivateSubnetIds,
+            securityGroupIds: this.transpiredSecurityGroupIds,
+            customResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+            customResourceLambdaRoleArn: this.applicationSetup.customResourceRole.roleArn,
+            accessLoggingS3Bucket: this.applicationSetup.accessLoggingBucket,
+            stackSource: this.stackParameters.stackDeploymentSource
+        });
+        this.multimodalSetup.applyConditionToAllResources(this.createMultimodalResourcesCondition);
+
+        // Set multimodal resource properties based on whether we're using existing resources or creating new ones
+        // When CreateMultimodalResourcesCondition is true, use the newly created resources else  reference the existing resources
+        this.multimodalDataMetadataTable = dynamodb.Table.fromTableName(
+            this,
+            'MultimodalDataMetadataTableRef',
+            cdk.Fn.conditionIf(
+                this.createMultimodalResourcesCondition.logicalId,
+                this.multimodalSetup.multimodalDataMetadataTable.tableName,
+                this.stackParameters.existingMultimodalDataMetadataTable.valueAsString
+            ).toString()
+        );
+
+        this.multimodalDataBucket = s3.Bucket.fromBucketName(
+            this,
+            'MultimodalDataBucketRef',
+            cdk.Fn.conditionIf(
+                this.createMultimodalResourcesCondition.logicalId,
+                this.multimodalSetup.multimodalDataBucket.bucketName,
+                this.stackParameters.existingMultimodalDataBucket.valueAsString
+            ).toString()
+        );
+
         const webConfigSsmKey = `${WEB_CONFIG_PREFIX}/${this.stackParameters.useCaseShortId}`;
         this.applicationSetup.createWebConfigStorage(
             {
@@ -551,8 +758,10 @@ export abstract class UseCaseStack extends BaseStack {
             this.stackParameters.useCaseUUID.valueAsString
         );
 
-        // Prevents deletion of UseCase policies during updates due to Logical ID changes and old custom resource deletion occurring after new custom resource creation 
-        (useCasePolicyCustomResource.node.defaultChild as cdk.CfnResource).overrideLogicalId('WebsocketRequestProcessorCognitoUseCaseGroupPolicyCBC41F18');
+        // Prevents deletion of UseCase policies during updates due to Logical ID changes and old custom resource deletion occurring after new custom resource creation
+        (useCasePolicyCustomResource.node.defaultChild as cdk.CfnResource).overrideLogicalId(
+            'WebsocketRequestProcessorCognitoUseCaseGroupPolicyCBC41F18'
+        );
 
         const redeployRestApiCustomResource = this.useCaseRestEndpointSetup.redeployRestApi(
             this.applicationSetup.customResourceLambda,
@@ -562,7 +771,7 @@ export abstract class UseCaseStack extends BaseStack {
         );
 
         (redeployRestApiCustomResource.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
-            createApiResourcesCondition;
+            this.createApiResourcesCondition;
 
         const redeployRestApiCustomResourceFeedback = this.useCaseRestEndpointSetup.redeployRestApi(
             this.applicationSetup.customResourceLambda,
@@ -666,9 +875,30 @@ export abstract class UseCaseStack extends BaseStack {
         });
 
         new cdk.CfnOutput(cdk.Stack.of(this), 'WebsocketEndpoint', {
-            value: this.requestProcessor.webSocketApi.apiEndpoint,
+            value: `${this.requestProcessor.webSocketApi.apiEndpoint}/${this.requestProcessor.websocketApiStage.stageName}`,
             description: 'Websocket API endpoint'
         });
+
+        // Conditionally create multimodal outputs
+        const multimodalBucketOutput = new cdk.CfnOutput(this, 'MultimodalDataBucketName', {
+            value: cdk.Fn.conditionIf(
+                this.createMultimodalResourcesCondition.logicalId,
+                this.multimodalSetup.multimodalDataBucket.bucketName,
+                this.stackParameters.existingMultimodalDataBucket.valueAsString
+            ).toString(),
+            description: 'S3 bucket for storing multimodal files'
+        });
+        multimodalBucketOutput.condition = this.multimodalEnabledCondition;
+
+        const multimodalTableOutput = new cdk.CfnOutput(this, 'MultimodalDataMetadataTableName', {
+            value: cdk.Fn.conditionIf(
+                this.createMultimodalResourcesCondition.logicalId,
+                this.multimodalSetup.multimodalDataMetadataTable.tableName,
+                this.stackParameters.existingMultimodalDataMetadataTable.valueAsString
+            ).toString(),
+            description: 'DynamoDB table for storing multimodal files metadata'
+        });
+        multimodalTableOutput.condition = this.multimodalEnabledCondition;
 
         if (process.env.DIST_OUTPUT_BUCKET) {
             generateSourceCodeMapping(this, props.solutionName, props.solutionVersion);
@@ -678,12 +908,12 @@ export abstract class UseCaseStack extends BaseStack {
     }
 
     /**
-     * Method to add anonymous metrics to the application stack
+     * Method to add metrics to the application stack
      *
      * @param props
      */
-    protected withAnonymousMetrics(props: BaseStackProps) {
-        this.applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
+    protected withMetrics(props: BaseStackProps) {
+        this.applicationSetup.addMetricsCustomLambda(props.solutionID, props.solutionVersion, {
             USE_CASE_CONFIG_RECORD_KEY: this.stackParameters.useCaseConfigRecordKey.valueAsString,
             USE_CASE_CONFIG_TABLE_NAME: this.stackParameters.useCaseConfigTableName.valueAsString,
             UUID: this.stackParameters.useCaseUUID,
@@ -692,7 +922,7 @@ export abstract class UseCaseStack extends BaseStack {
         });
         (
             this.applicationSetup.solutionHelper.node
-                .tryFindChild('AnonymousData')
+                .tryFindChild('Data')
                 ?.node.tryFindChild('Default') as cdk.CfnResource
         ).addDependency(
             this.applicationSetup.webConfigCustomResource.node.tryFindChild('Default') as cdk.CfnCustomResource

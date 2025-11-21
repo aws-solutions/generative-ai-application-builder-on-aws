@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import MarkdownContent from '../../../components/markdown/MarkdownContent';
 import '@cloudscape-design/code-view/test-utils/dom';
 import { createWrapper } from '@cloudscape-design/test-utils-core/dom';
+import createComponentWrapper from '@cloudscape-design/components/test-utils/dom';
 
 describe('MarkdownContent', () => {
     test('renders plain text content correctly', () => {
@@ -150,5 +151,161 @@ describe('MarkdownContent', () => {
         const secondRender = wrapper.getElement();
 
         expect(firstRender).toBe(secondRender);
+    });
+
+    describe('External Link Handling', () => {
+        test('renders external HTTP links with click handler', () => {
+            const content = '[External Link](http://example.com)';
+            const { container } = render(<MarkdownContent content={content} />);
+
+            const link = container.querySelector('a');
+            expect(link).toBeInTheDocument();
+            expect(link).toHaveAttribute('href', '#');
+            expect(link).toHaveTextContent('External Link');
+        });
+
+        test('renders external HTTPS links with click handler', () => {
+            const content = '[External Link](https://example.com)';
+            const { container } = render(<MarkdownContent content={content} />);
+
+            const link = container.querySelector('a');
+            expect(link).toBeInTheDocument();
+            expect(link).toHaveAttribute('href', '#');
+            expect(link).toHaveTextContent('External Link');
+        });
+
+        test('shows external link warning modal when external link is clicked', async () => {
+            const content = '[External Link](https://example.com)';
+            const { container } = render(<MarkdownContent content={content} />);
+
+            const link = container.querySelector('a');
+            expect(link).toBeInTheDocument();
+
+            // Click the external link
+            fireEvent.click(link!);
+
+            // Wait for modal to appear
+            await waitFor(() => {
+                expect(screen.getByTestId('external-link-warning-modal')).toBeInTheDocument();
+            });
+
+            // Check modal content
+            expect(screen.getByText('Leave page')).toBeInTheDocument();
+            expect(screen.getByText(/Are you sure that you want to leave the current page/)).toBeInTheDocument();
+        });
+
+        test('modal displays correct external link URL', async () => {
+            const content = '[Test Link](https://test-example.com)';
+            const { container } = render(<MarkdownContent content={content} />);
+
+            const link = container.querySelector('a');
+            fireEvent.click(link!);
+
+            await waitFor(() => {
+                const openButton = screen.getByTestId('external-link-warning-modal-open-button');
+                expect(openButton).toHaveAttribute('href', 'https://test-example.com');
+            });
+        });
+
+        test('modal can be cancelled', async () => {
+            const content = '[External Link](https://example.com)';
+            const { container } = render(<MarkdownContent content={content} />);
+
+            const link = container.querySelector('a');
+            fireEvent.click(link!);
+
+            await waitFor(() => {
+                expect(screen.getByTestId('external-link-warning-modal')).toBeInTheDocument();
+            });
+
+            // Click cancel button
+            const cancelButton = screen.getByText('Cancel');
+            fireEvent.click(cancelButton);
+
+            // Modal should be hidden
+            await waitFor(() => {
+                expect(screen.queryByTestId('external-link-warning-modal')).not.toBeInTheDocument();
+            });
+        });
+
+        test('modal can be dismissed and reopened', async () => {
+            const content = '[External Link](https://example.com)';
+            const { container, rerender } = render(<MarkdownContent content={content} />);
+
+            const link = container.querySelector('a');
+            
+            // First click - show modal
+            fireEvent.click(link!);
+            await waitFor(() => {
+                expect(screen.getByTestId('external-link-warning-modal')).toBeInTheDocument();
+            });
+
+            // Cancel modal
+            const cancelButton = screen.getByText('Cancel');
+            fireEvent.click(cancelButton);
+
+            await waitFor(() => {
+                expect(screen.queryByTestId('external-link-warning-modal')).not.toBeInTheDocument();
+            });
+
+            // Force a re-render to ensure clean state
+            rerender(<MarkdownContent content={content} />);
+
+            // Second click - show modal again
+            const linkAfterRerender = container.querySelector('a');
+            fireEvent.click(linkAfterRerender!);
+            await waitFor(() => {
+                expect(screen.getByTestId('external-link-warning-modal')).toBeInTheDocument();
+            });
+        });
+
+        test('handles multiple external links independently', async () => {
+            const content = '[First Link](https://first.com) and [Second Link](https://second.com)';
+            const { container, rerender } = render(<MarkdownContent content={content} />);
+
+            const links = container.querySelectorAll('a');
+            expect(links).toHaveLength(2);
+
+            // Click first link
+            fireEvent.click(links[0]);
+            await waitFor(() => {
+                expect(screen.getByTestId('external-link-warning-modal')).toBeInTheDocument();
+                const openButton = screen.getByTestId('external-link-warning-modal-open-button');
+                expect(openButton).toHaveAttribute('href', 'https://first.com');
+            });
+
+            // Cancel modal
+            const cancelButton = screen.getByText('Cancel');
+            fireEvent.click(cancelButton);
+
+            await waitFor(() => {
+                expect(screen.queryByTestId('external-link-warning-modal')).not.toBeInTheDocument();
+            });
+
+            // Force a re-render to ensure clean state
+            rerender(<MarkdownContent content={content} />);
+
+            // Click second link
+            const linksAfterRerender = container.querySelectorAll('a');
+            fireEvent.click(linksAfterRerender[1]);
+            await waitFor(() => {
+                expect(screen.getByTestId('external-link-warning-modal')).toBeInTheDocument();
+                const openButton = screen.getByTestId('external-link-warning-modal-open-button');
+                expect(openButton).toHaveAttribute('href', 'https://second.com');
+            });
+        });
+
+        test('prevents default behavior on external link clicks', () => {
+            const content = '[External Link](https://example.com)';
+            const { container } = render(<MarkdownContent content={content} />);
+
+            const link = container.querySelector('a');
+            const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+            const preventDefaultSpy = vi.spyOn(clickEvent, 'preventDefault');
+
+            link?.dispatchEvent(clickEvent);
+
+            expect(preventDefaultSpy).toHaveBeenCalled();
+        });
     });
 });

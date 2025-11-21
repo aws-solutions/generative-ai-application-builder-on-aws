@@ -1,6 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+jest.mock('aws-node-user-agent-config', () => ({
+    customAwsConfig: jest.fn(() => ({ region: 'us-east-1' }))
+}));
+
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { FeedbackStorageService } from '../../services/feedback-storage-service';
 import { mockClient } from 'aws-sdk-client-mock';

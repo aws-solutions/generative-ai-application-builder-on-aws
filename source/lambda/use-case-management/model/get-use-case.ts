@@ -6,7 +6,10 @@ import {
     AgentUseCaseConfiguration,
     UseCaseConfiguration,
     GetUseCaseDetailsAdminResponse,
-    GetUseCaseDetailsUserResponse
+    GetUseCaseDetailsUserResponse,
+    MCPUseCaseConfiguration,
+    AgentBuilderParams,
+    WorkflowParams
 } from './types';
 import { UseCaseRecord } from './list-use-cases';
 import { UseCaseStackDetails } from '../cfn/stack-management';
@@ -16,7 +19,12 @@ import { TokenVerifier } from '../utils/cognito_jwt_verifier';
 export type CombinedUseCaseParams = UseCaseRecord &
     Partial<UseCaseStackDetails> &
     Partial<UseCaseConfiguration> &
-    Partial<AgentUseCaseConfiguration>;
+    Partial<AgentUseCaseConfiguration> &
+    Partial<MCPUseCaseConfiguration> & {
+        AgentBuilderParams?: AgentBuilderParams;
+    } & {
+        WorkflowParams?: WorkflowParams;
+    };
 
 export async function validateAdminToken(token: string): Promise<boolean> {
     try {
@@ -53,7 +61,7 @@ export function castToAdminType(params: CombinedUseCaseParams): GetUseCaseDetail
         createNewVpc: params.createNewVpc as string,
         vpcEnabled: params.vpcEnabled as string,
         vpcId: params.vpcId,
-        UseCaseType: params.UseCaseType as string,
+        UseCaseType: params.UseCaseType,
         UseCaseName: params.UseCaseName ?? params.Name,
         cloudwatchDashboardUrl: params.cloudwatchDashboardUrl,
         cloudFrontWebUrl: params.cloudFrontWebUrl,
@@ -65,9 +73,13 @@ export function castToAdminType(params: CombinedUseCaseParams): GetUseCaseDetail
         LlmParams: params.LlmParams,
         KnowledgeBaseParams: params.KnowledgeBaseParams,
         AgentParams: params.AgentParams,
+        MCPParams: params.MCPParams,
+        AgentBuilderParams: params.AgentBuilderParams,
+        WorkflowParams: params.WorkflowParams,
         AuthenticationParams: params.AuthenticationParams,
         defaultUserEmail: params.defaultUserEmail,
-        FeedbackParams: params.FeedbackParams
+        FeedbackParams: params.FeedbackParams,
+        ProvisionedConcurrencyValue: params.ProvisionedConcurrencyValue
     };
 
     return useCaseInfo;
@@ -76,7 +88,7 @@ export function castToAdminType(params: CombinedUseCaseParams): GetUseCaseDetail
 export function castToBusinessUserType(params: CombinedUseCaseParams): GetUseCaseDetailsUserResponse {
     let useCaseInfo: GetUseCaseDetailsUserResponse = {
         UseCaseName: params.UseCaseName ?? params.Name,
-        UseCaseType: params.UseCaseType as string,
+        UseCaseType: params.UseCaseType,
         LlmParams: params.LlmParams,
         ModelProviderName: params.LlmParams?.ModelProvider ?? 'BedrockAgent'
     };
@@ -127,6 +139,6 @@ export class GetUseCaseAdapter {
             throw new RequestValidationError('Authorization header was not found in the request');
         }
 
-        this.authToken = event.headers.Authorization;
+        this.authToken = event.headers.Authorization.replace(/^Bearer\s+/i, '');
     }
 }

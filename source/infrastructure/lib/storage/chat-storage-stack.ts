@@ -9,7 +9,7 @@ import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
 import { BaseNestedStack } from '../framework/base-nested-stack';
 import * as cfn_guard from '../utils/cfn-guard-suppressions';
-import { DynamoDBAttributes, USE_CASE_TYPES } from '../utils/constants';
+import { DynamoDBAttributes, CHAT_ENABLED_USE_CASE_TYPES } from '../utils/constants';
 import { UseCaseModelInfoStorage } from './use-case-model-info-storage';
 
 export class DynamoDBChatStorageParameters {
@@ -52,7 +52,7 @@ export class DynamoDBChatStorageParameters {
         this.useCaseType = new cdk.CfnParameter(stack, 'UseCaseType', {
             type: 'String',
             description: 'The UseCaseType. The value is provided as Agent or Text',
-            allowedValues: Object.values(USE_CASE_TYPES)
+            allowedValues: CHAT_ENABLED_USE_CASE_TYPES
         }).valueAsString;
     }
 }

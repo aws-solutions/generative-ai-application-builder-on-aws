@@ -40,7 +40,12 @@ export interface WebSocketProps {
     /**
      * Lambda mapping with route action
      */
-    lambdaRouteMapping: Map<string, lambda.Function>;
+    lambdaRouteMapping: Map<string, lambda.Function | lambda.Alias>;
+
+    /**
+     * The underlying lambda function for environment variable configuration
+     */
+    chatLlmProviderLambda: lambda.Function;
 
     /**
      * ID of the use case, used to create an easily readable API name.
@@ -106,15 +111,27 @@ export class WebSocketEndpoint extends Construct {
         this.apiGatewayRole = apiGatewayV2WebSocketToSqs.apiGatewayRole;
 
         // this section of the code only creates sqs-lambda configuration for the first default route.
-        const lambda = props.lambdaRouteMapping.get(firstRouteKey!)!; //NOSONAR - typescript:S4325 - not null assertion required
-        lambda.addEnvironment('WEBSOCKET_CALLBACK_URL', apiGatewayV2WebSocketToSqs.webSocketStage.callbackUrl);
-        apiGatewayV2WebSocketToSqs.webSocketApi.grantManageConnections(lambda);
-        //prettier-ignore
-        new SqsToLambda(this, `${firstRouteKey}SqsToLambda`, { //NOSONAR - cdk instance creation does not require assignment
-            existingQueueObj: apiGatewayV2WebSocketToSqs.sqsQueue,
-            deployDeadLetterQueue: false,
-            existingLambdaObj: lambda
-        });
+        const lambdaOrAlias = props.lambdaRouteMapping.get(firstRouteKey!)!; //NOSONAR - typescript:S4325 - not null assertion required
+        props.chatLlmProviderLambda.addEnvironment(
+            'WEBSOCKET_CALLBACK_URL',
+            apiGatewayV2WebSocketToSqs.webSocketStage.callbackUrl
+        );
+        apiGatewayV2WebSocketToSqs.webSocketApi.grantManageConnections(lambdaOrAlias);
+
+        if (lambdaOrAlias instanceof lambda.Alias) {
+            new lambda.EventSourceMapping(this, `${firstRouteKey}EventSourceMapping`, {
+                target: lambdaOrAlias,
+                eventSourceArn: apiGatewayV2WebSocketToSqs.sqsQueue.queueArn
+            });
+            apiGatewayV2WebSocketToSqs.sqsQueue.grantConsumeMessages(lambdaOrAlias);
+        } else {
+            //prettier-ignore
+            new SqsToLambda(this, `${firstRouteKey}SqsToLambda`, { //NOSONAR - cdk instance creation does not require assignment
+                existingQueueObj: apiGatewayV2WebSocketToSqs.sqsQueue,
+                deployDeadLetterQueue: false,
+                existingLambdaObj: lambdaOrAlias
+            });
+        }
 
         NagSuppressions.addResourceSuppressions(this.websocketApiStage, [
             {

@@ -1,6 +1,6 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-infrastructure",
-  "version": "3.0.7",
+  "version": "4.0.0",
   "bin": {
     "infrastructure": "bin/gen-ai-app-builder.js"
   },
@@ -11,10 +11,13 @@
     "test-debug": "jest --coverage --runInBand",
     "unit-test": "jest --coverage --silent --verbose --runInBand --testPathIgnorePatterns=integration",
     "integ-test": "jest --coverage --silent --verbose --runInBand -- integration",
-    "cdk": "./node_modules/cdk/bin/cdk",
+    "test:changed": "jest $(git status --porcelain | grep -E '\\.(test|spec)\\.(js|ts|jsx|tsx)$' | awk '{print $2}' | tr '\\n' ' ')",
+    "cdk": "cdk",
+    "synth": "cdk synth",
     "clean": "rm -rf node_modules",
     "code-linter": "./node_modules/eslint/bin/eslint.js . -c .eslintrc.js --ext .ts",
-    "code-formatter": "./node_modules/prettier/bin/prettier.cjs . --config ../.prettierrc.yml --ignore-path ../.prettierignore '**/*.{ts,json,css,md}' !**/*.js --write"
+    "code-formatter": "git -C ../.. diff --name-only --diff-filter=AM HEAD | grep -E '\\.(js|ts|json|css|md)$' | grep '^source/infrastructure/' | sed 's|^source/infrastructure/||' | xargs -r prettier --config ../../.prettierrc.yml --ignore-path ../../.prettierignore --write",
+    "code-formatter-changed": "git -C ../.. diff --name-only --diff-filter=AM HEAD | grep -E '\\.(js|ts|json|css|md)$' | grep '^source/infrastructure/' | sed 's|^source/infrastructure/||' | xargs -r prettier --config ../../.prettierrc.yml --ignore-path ../../.prettierignore --write"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -26,16 +29,16 @@
     "jsonschema": "^1.4.1",
     "mock-fs": "^5.4.1",
     "portfinder": "1.0.32",
-    "prettier": "^3.4.2",
+    "prettier": "^3.6.2",
     "ts-jest": "^29.2.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@aws-cdk/aws-servicecatalogappregistry-alpha": "2.167.2-alpha.0",
     "@aws-solutions-constructs/aws-apigateway-lambda": "^2.74.0",
     "@aws-solutions-constructs/aws-apigatewayv2websocket-sqs": "^2.74.0",
     "@aws-solutions-constructs/aws-cloudfront-s3": "^2.74.0",
+    "@aws-solutions-constructs/aws-constructs-factories": "^2.92.1",
     "@aws-solutions-constructs/aws-lambda-dynamodb": "^2.74.0",
     "@aws-solutions-constructs/aws-sqs-lambda": "^2.74.0",
     "@aws-solutions-constructs/aws-wafwebacl-apigateway": "^2.74.0",

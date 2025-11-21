@@ -44,10 +44,16 @@ export interface LlmParams {
     RAGEnabled?: boolean;
     Streaming?: boolean;
     Verbose?: boolean;
+    MultimodalParams?: MultimodalParams;
 }
 
-interface FeedbackParams {
+export interface FeedbackParams {
     FeedbackEnabled: boolean;
+    CustomMappings?: {};
+}
+
+export interface MultimodalParams {
+    MultimodalEnabled: boolean;
 }
 
 export interface KnowledgeBaseParams {
@@ -77,15 +83,22 @@ export interface AuthenticationParams {
     CognitoParams?: CognitoParams;
 }
 
-export interface UseCaseConfiguration {
-    UseCaseType?: string;
+// Base configuration interface that all use case configurations extend
+export interface BaseUseCaseConfiguration {
     UseCaseName?: string;
-    ConversationMemoryParams?: ConversationMemoryParams;
-    KnowledgeBaseParams?: KnowledgeBaseParams;
-    LlmParams?: LlmParams;
+    UseCaseType?: string;
+    UseCaseDescription?: string;
     AuthenticationParams?: AuthenticationParams;
     IsInternalUser?: string;
     FeedbackParams?: FeedbackParams;
+    ProvisionedConcurrencyValue?: number;
+}
+
+// Text/Chat use case configuration
+export interface UseCaseConfiguration extends BaseUseCaseConfiguration {
+    ConversationMemoryParams?: ConversationMemoryParams;
+    KnowledgeBaseParams?: KnowledgeBaseParams;
+    LlmParams?: LlmParams;
 }
 
 export interface BedrockAgentParams {
@@ -98,13 +111,120 @@ export interface AgentParams {
     BedrockAgentParams: BedrockAgentParams;
 }
 
-export interface AgentUseCaseConfiguration {
-    UseCaseType?: string;
-    UseCaseName?: string;
+export interface AgentUseCaseConfiguration extends BaseUseCaseConfiguration {
     AgentParams?: AgentParams;
-    AuthenticationParams?: AuthenticationParams;
-    IsInternalUser?: string;
-    FeedbackParams?: FeedbackParams;
+}
+
+export interface CustomParameter {
+    key: string;
+    value: string;
+}
+
+export interface OAuthAdditionalConfig {
+    scopes?: string[];
+    customParameters?: CustomParameter[];
+}
+
+export interface ApiKeyAdditionalConfig {
+    location?: 'HEADER' | 'QUERY_PARAMETER';
+    parameterName?: string;
+    prefix?: string;
+}
+
+export interface AdditionalConfigParams {
+    OAuthAdditionalConfig?: OAuthAdditionalConfig;
+    ApiKeyAdditionalConfig?: ApiKeyAdditionalConfig;
+}
+
+export interface OutboundAuthParams {
+    OutboundAuthProviderArn: string;
+    OutboundAuthProviderType: 'API_KEY' | 'OAUTH';
+    AdditionalConfigParams?: AdditionalConfigParams;
+}
+
+export interface GatewayParams {
+    GatewayName?: string;
+    GatewayId?: string;
+    GatewayUrl?: string;
+    GatewayArn?: string;
+    TargetParams: TargetParams[];
+}
+
+export interface TargetParams {
+    TargetId?: string;
+    TargetName: string;
+    TargetDescription?: string;
+    TargetType: 'openApiSchema' | 'smithyModel' | 'lambda';
+    LambdaArn?: string;
+    SchemaUri: string;
+    OutboundAuthParams?: OutboundAuthParams;
+}
+
+export interface RuntimeParams {
+    EcrUri: string;
+    RuntimeId?: string;
+    AgentArn?: string;
+    RuntimeUrl?: string;
+    EnvironmentVariables?: { [key: string]: string };
+}
+
+export interface MCPParams {
+    GatewayParams?: GatewayParams;
+    RuntimeParams?: RuntimeParams;
+}
+
+// MCP use case configuration
+export interface MCPUseCaseConfiguration extends BaseUseCaseConfiguration {
+    MCPParams?: MCPParams;
+}
+
+export interface MemoryParams {
+    LongTermEnabled?: boolean;
+}
+
+export interface AgentBuilderParams {
+    SystemPrompt?: string;
+    MCPServers?: Array<{
+        Type: string;
+        UseCaseName: string;
+        UseCaseId: string;
+        Url: string;
+    }>;
+    Tools?: Array<{
+        ToolId: string;
+    }>;
+    MemoryConfig?: MemoryParams;
+}
+
+// Agent Builder use case configuration
+export interface AgentBuilderUseCaseConfiguration extends BaseUseCaseConfiguration {
+    AgentBuilderParams?: AgentBuilderParams;
+    LlmParams?: LlmParams;
+}
+
+export interface WorkflowParams {
+    SystemPrompt?: string;
+    OrchestrationPattern?: string;
+    AgentsAsToolsParams?: AgentsAsToolsParams;
+    MemoryConfig?: MemoryParams;
+}
+
+// Extended interface for workflow agents that includes UseCaseId
+export interface WorkflowAgentConfiguration extends AgentBuilderUseCaseConfiguration {
+    UseCaseId: string;
+}
+
+export interface AgentsAsToolsParams {
+    Agents?: Pick<
+        WorkflowAgentConfiguration,
+        'UseCaseId' | 'UseCaseType' | 'UseCaseName' | 'UseCaseDescription' | 'AgentBuilderParams' | 'LlmParams'
+    >[];
+}
+
+// Workflow use case configuration
+export interface WorkflowUseCaseConfiguration extends BaseUseCaseConfiguration {
+    WorkflowParams?: WorkflowParams;
+    LlmParams?: LlmParams;
 }
 
 export interface GetUseCaseDetailsAdminResponse {
@@ -130,10 +250,14 @@ export interface GetUseCaseDetailsAdminResponse {
     AuthenticationParams?: AuthenticationParams;
     LlmParams?: LlmParams;
     AgentParams?: AgentParams;
+    MCPParams?: MCPParams;
+    AgentBuilderParams?: AgentBuilderParams;
+    WorkflowParams?: WorkflowParams;
     privateSubnetIds?: string[];
     securityGroupIds?: string[];
-    defaultUserEmail?: string; 
+    defaultUserEmail?: string;
     FeedbackParams?: FeedbackParams;
+    ProvisionedConcurrencyValue?: number;
 }
 
 export interface GetUseCaseDetailsUserResponse {

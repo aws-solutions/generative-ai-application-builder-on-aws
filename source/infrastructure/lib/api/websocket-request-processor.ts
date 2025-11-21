@@ -35,7 +35,12 @@ export interface WebsocketRequestProcessorProps extends RequestProcessorProps {
     /**
      * The function to back the LangChain chat LLM model
      */
-    lambdaRouteMapping: Map<string, lambda.Function>;
+    lambdaRouteMapping: Map<string, lambda.Function | lambda.Alias>;
+
+    /**
+     * The underlying lambda function for environment variable configuration
+     */
+    chatLlmProviderLambda: lambda.Function;
 
     /**
      * Name of table which stores policies for cognito user groups. Required if existingCognitoUserPoolId is provided.
@@ -217,7 +222,8 @@ export class WebsocketRequestProcessor extends RequestProcessor {
             onConnectLambda: this.onConnectLambda,
             onDisconnectLambda: this.onDisconnectLambda,
             useCaseUUID: props.useCaseUUID,
-            lambdaRouteMapping: props.lambdaRouteMapping
+            lambdaRouteMapping: props.lambdaRouteMapping,
+            chatLlmProviderLambda: props.chatLlmProviderLambda
         });
 
         this.webSocketApi = webSocketEndpoint.webSocketApi;
@@ -305,14 +311,26 @@ export function addAddtionalRoutes(
             )
         );
 
-        const lambda = props.lambdaRouteMapping.get(routeKey);
-        lambda!.addEnvironment('WEBSOCKET_CALLBACK_URL', webSocketEndpoint.websocketApiStage.callbackUrl);
-        webSocketEndpoint.webSocketApi.grantManageConnections(lambda!);
-        new SqsToLambda(construct, `${routeKey}SqsToLambda`, {
-            existingQueueObj: queue,
-            deployDeadLetterQueue: false,
-            existingLambdaObj: lambda
-        });
+        const lambdaOrAlias = props.lambdaRouteMapping.get(routeKey)!;
+        props.chatLlmProviderLambda.addEnvironment(
+            'WEBSOCKET_CALLBACK_URL',
+            webSocketEndpoint.websocketApiStage.callbackUrl
+        );
+        webSocketEndpoint.webSocketApi.grantManageConnections(props.chatLlmProviderLambda);
+
+        if (lambdaOrAlias instanceof lambda.Alias) {
+            new lambda.EventSourceMapping(construct, `${routeKey}EventSourceMapping`, {
+                target: lambdaOrAlias,
+                eventSourceArn: queue.queueArn
+            });
+            queue.grantConsumeMessages(lambdaOrAlias);
+        } else {
+            new SqsToLambda(construct, `${routeKey}SqsToLambda`, {
+                existingQueueObj: queue,
+                deployDeadLetterQueue: false,
+                existingLambdaObj: lambdaOrAlias
+            });
+        }
     }
 
     const routesListForSuppressions = ['$disconnect-Route'];

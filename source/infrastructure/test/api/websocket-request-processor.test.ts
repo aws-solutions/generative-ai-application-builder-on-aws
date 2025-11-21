@@ -44,6 +44,7 @@ describe('When deploying', () => {
             existingCognitoUserPoolId: 'fake-id',
             existingCognitoGroupPolicyTableName: 'fake-table-arn',
             customResourceLambda: new lambda.Function(stack, 'customResourceLambda', mockLambdaFuncProps),
+            chatLlmProviderLambda: new lambda.Function(stack, 'chatLlmProviderLambda', mockLambdaFuncProps),
             useCaseUUID: 'fake-uuid',
             cognitoDomainPrefix: 'fake-prefix',
             existingCognitoUserPoolClientId: 'fake123clientid',
@@ -62,7 +63,7 @@ describe('When deploying', () => {
     });
 
     it('Should have lambdas for custom resource, chatProvider, onConnect, onDisconnect, and Authorization', () => {
-        template.resourceCountIs('AWS::Lambda::Function', 6);
+        template.resourceCountIs('AWS::Lambda::Function', 7);
 
         template.hasResourceProperties('AWS::Lambda::Function', {
             'Role': {
@@ -261,6 +262,79 @@ describe('When deploying', () => {
                 Route2: 'Action=SendMessage&MessageGroupId=$context.connectionId&MessageDeduplicationId=$context.requestId&MessageAttribute.1.Name=connectionId&MessageAttribute.1.Value.StringValue=$context.connectionId&MessageAttribute.1.Value.DataType=String&MessageAttribute.2.Name=requestId&MessageAttribute.2.Value.StringValue=$context.requestId&MessageAttribute.2.Value.DataType=String&MessageBody={"requestContext": {"authorizer": {"UserId": "$context.authorizer.UserId"}, "connectionId": "$context.connectionId"}, "message": $util.urlEncode($input.json($util.escapeJavaScript("$").replaceAll("\\\\\'","\'")))}'
             },
             TemplateSelectionExpression: 'Route2'
+        });
+    });
+
+    it('should create SQS to Lambda mappings using SqsToLambda construct', () => {
+        // SqsToLambda construct should create event source mappings
+        template.hasResourceProperties('AWS::Lambda::EventSourceMapping', {
+            EventSourceArn: {
+                'Fn::GetAtt': [Match.stringLikeRegexp('.*Queue.*'), 'Arn']
+            },
+            FunctionName: {
+                'Ref': Match.anyValue()
+            }
+        });
+
+        // Should have event source mappings for each route
+        template.resourceCountIs('AWS::Lambda::EventSourceMapping', 2);
+    });
+
+    it('should set WEBSOCKET_CALLBACK_URL environment variable on chat provider lambda', () => {
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            Environment: {
+                Variables: {
+                    WEBSOCKET_CALLBACK_URL: {
+                        'Fn::Join': [
+                            '',
+                            [
+                                'https://',
+                                {
+                                    'Ref': Match.stringLikeRegexp('.*WebSocketApi.*')
+                                },
+                                '.execute-api.',
+                                {
+                                    'Ref': 'AWS::Region'
+                                },
+                                '.',
+                                {
+                                    'Ref': 'AWS::URLSuffix'
+                                },
+                                '/prod'
+                            ]
+                        ]
+                    }
+                }
+            }
+        });
+    });
+
+    it('should grant websocket API manage connections permissions to chat provider lambda', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    {
+                        Effect: 'Allow',
+                        Action: 'execute-api:ManageConnections',
+                        Resource: {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    { 'Ref': 'AWS::Partition' },
+                                    ':execute-api:',
+                                    { 'Ref': 'AWS::Region' },
+                                    ':',
+                                    { 'Ref': 'AWS::AccountId' },
+                                    ':',
+                                    { 'Ref': Match.stringLikeRegexp('.*WebSocketApi.*') },
+                                    '/*/*/@connections/*'
+                                ]
+                            ]
+                        }
+                    }
+                ])
+            }
         });
     });
 

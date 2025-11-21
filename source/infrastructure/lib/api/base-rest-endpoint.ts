@@ -203,18 +203,17 @@ export abstract class BaseRestEndpoint extends Construct {
                                     orStatement: {
                                         statements: [
                                             {
-                                                byteMatchStatement: {
-                                                    searchString: '/deployments',
+                                                regexMatchStatement: {
                                                     fieldToMatch: {
                                                         uriPath: {}
                                                     },
+                                                    regexString: '/deployments(/mcp|/agents|/workflows)?$',
                                                     textTransformations: [
                                                         {
                                                             priority: 0,
                                                             type: 'NONE'
                                                         }
-                                                    ],
-                                                    positionalConstraint: 'ENDS_WITH'
+                                                    ]
                                                 }
                                             },
                                             {
@@ -223,7 +222,7 @@ export abstract class BaseRestEndpoint extends Construct {
                                                         uriPath: {}
                                                     },
                                                     regexString:
-                                                        '/deployments/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+                                                        '/deployments(/mcp|/agents|/workflows)?/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
                                                     textTransformations: [
                                                         {
                                                             priority: 0,

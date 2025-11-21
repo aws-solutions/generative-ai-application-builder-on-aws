@@ -1,7 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-
+import React from 'react';
+import { Box } from '@cloudscape-design/components';
+import { ExternalLink } from '../components/commons';
+import { IG_DOCS, MULTIMODAL_SUPPORT_WARNING } from './constants';
 import { Auth } from 'aws-amplify';
+import { USECASE_TYPE_ROUTE } from './constants';
 
 export interface TransformedDeployment {
     useCaseUUID: string;
@@ -33,6 +37,10 @@ export interface TransformedDeployment {
     FeedbackParams?: any;
     AuthenticationParams?: any;
     AgentParams?: any;
+    ProvisionedConcurrencyValue?: number;
+    MCPParams?: any;
+    GatewayParams?: any;
+    RuntimeParams?: any;
     [key: string]: any; // Allow for additional properties
 }
 
@@ -102,7 +110,14 @@ export const mapApiResponseToSelectedDeployment = (apiResponse: any): Transforme
         'LlmParams',
         'FeedbackParams',
         'AuthenticationParams',
-        'AgentParams'
+        'AgentParams',
+        'ProvisionedConcurrencyValue',
+        'MCPParams',
+        'GatewayParams',
+        'TargetParams',
+        'RuntimeParams',
+        'AgentBuilderParams',
+        'WorkflowParams'
     ];
 
     fields.forEach((field) => copyIfDefined(apiResponse, transformedDeployment, field));
@@ -127,3 +142,31 @@ export const mapApiResponseToSelectedDeployment = (apiResponse: any): Transforme
 
     return transformedDeployment;
 };
+
+/**
+ * Maps deployment UseCaseType values to the correct wizard route
+ * @param useCaseType The UseCaseType from the deployment (e.g., "MCPServer", "AgentBuilder")
+ * @returns The corresponding route path
+ */
+export const getUseCaseRoute = (useCaseType: string): string => {
+    const typeMapping: Record<string, keyof typeof USECASE_TYPE_ROUTE> = {
+        'Text': 'TEXT',
+        'Agent': 'AGENT',
+        'MCPServer': 'MCP_SERVER',
+        'AgentBuilder': 'AGENT_BUILDER',
+        'Workflow': 'WORKFLOW'
+    };
+
+    const routeKey = typeMapping[useCaseType];
+    return routeKey ? USECASE_TYPE_ROUTE[routeKey] : USECASE_TYPE_ROUTE.TEXT;
+};
+
+export const MultimodalSupportWarning = () => (
+    <Box variant="p">
+        {MULTIMODAL_SUPPORT_WARNING} See{' '}
+        <ExternalLink href={IG_DOCS.BEDROCK_MULTIMODAL_MODELS}>
+            AWS Bedrock multimodal models documentation
+        </ExternalLink>{' '}
+        for a list of supported models.
+    </Box>
+);

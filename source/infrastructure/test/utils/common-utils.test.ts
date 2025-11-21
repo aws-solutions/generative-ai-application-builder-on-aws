@@ -135,10 +135,7 @@ describe('when calling resource properties in local synth', () => {
         });
         customResource = new CustomInfraSetup(stack, 'Infra', {
             solutionID: rawCdkJson.context.solution_id,
-            solutionVersion: rawCdkJson.context.solution_version,
-            sendAnonymousMetricsCondition: new cdk.CfnCondition(stack, 'TestCondition', {
-                expression: cdk.Fn.conditionEquals('Yes', 'Yes')
-            })
+            solutionVersion: rawCdkJson.context.solution_version
         }).customResourceLambda;
         resourceProperties = util.getResourceProperties(stack, asset, customResource).properties;
     });
@@ -212,10 +209,7 @@ describe('when calling resource properties in a builder pipeline', () => {
         });
         customResource = new CustomInfraSetup(stack, 'Infra', {
             solutionID: rawCdkJson.context.solution_id,
-            solutionVersion: rawCdkJson.context.solution_version,
-            sendAnonymousMetricsCondition: new cdk.CfnCondition(stack, 'TestCondition', {
-                expression: cdk.Fn.conditionEquals('Yes', 'Yes')
-            })
+            solutionVersion: rawCdkJson.context.solution_version
         }).customResourceLambda;
 
         new cdk.CustomResource(stack, 'TestResource', {

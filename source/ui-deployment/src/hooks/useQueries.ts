@@ -11,7 +11,12 @@ import {
     fetchModelStreamingDefault,
     fetchModelTemperatureRange,
     setDefaultQueryParams,
-    fetchUseCaseDetails
+    fetchUseCaseDetails,
+    fetchMcpServers,
+    fetchMcpServerDetails,
+    fetchAgentResources,
+    formatAgentResourcesForUI,
+    fetchAgents
 } from 'services';
 
 const INFERENCE_PROFILE = 'inference-profile';
@@ -27,14 +32,7 @@ const INFERENCE_PROFILE = 'inference-profile';
 export const getEffectiveModelId = (providerName: string, modelId: string, bedrockInferenceType?: string): string => {
     // Only apply special handling for Bedrock provider
     if (providerName === MODEL_PROVIDER_NAME_MAP.Bedrock && bedrockInferenceType) {
-        // For non-QuickStart inference types, use the inference-profile
-        if (
-            bedrockInferenceType === BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS ||
-            bedrockInferenceType === BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES ||
-            bedrockInferenceType === BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS
-        ) {
-            return INFERENCE_PROFILE;
-        }
+        return INFERENCE_PROFILE;
     }
 
     // For all other cases, use the provided modelId
@@ -78,17 +76,17 @@ export const useModelInfoQuery = (
     // 1. For SageMaker, always enable the query
     // 2. For Bedrock with special inference types, enable even with empty modelId
     // 3. For other cases, require both providerName and modelId
-    const isSpecialBedrockInferenceType = 
-        providerName === MODEL_PROVIDER_NAME_MAP.Bedrock && 
-        (bedrockInferenceType === BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES || 
-         bedrockInferenceType === BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS ||
-         bedrockInferenceType === BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS);
-    
-    const enabled = 
-        providerName === MODEL_PROVIDER_NAME_MAP.SageMaker || 
-        isSpecialBedrockInferenceType || 
+    const isSpecialBedrockInferenceType =
+        providerName === MODEL_PROVIDER_NAME_MAP.Bedrock &&
+        (bedrockInferenceType === BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES ||
+            bedrockInferenceType === BEDROCK_INFERENCE_TYPES.PROVISIONED_MODELS ||
+            bedrockInferenceType === BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS);
+
+    const enabled =
+        providerName === MODEL_PROVIDER_NAME_MAP.SageMaker ||
+        isSpecialBedrockInferenceType ||
         Boolean(providerName && modelId);
-    
+
     const fetchParams = setDefaultQueryParams({ modelId: effectiveModelId, providerName, useCaseType });
     return useQuery({
         queryKey: [
@@ -196,5 +194,108 @@ export const useUseCaseDetailsQuery = (
         refetchOnWindowFocus: options?.refetchOnWindowFocus,
         retry: 3,
         staleTime: 5 * 60 * 1000 // 5 minutes
+    });
+};
+
+/**
+ * Returns a hook that fetches the list of available MCP servers and caches the response
+ * @param options Optional configuration options for the query
+ * @returns A query result object containing the list of MCP servers
+ */
+export const useMcpServersQuery = (options?: {
+    enabled?: boolean;
+    refetchInterval?: number | false;
+    refetchOnWindowFocus?: boolean;
+}) => {
+    return useQuery({
+        queryKey: ['mcpServers'],
+        queryFn: async () => await fetchMcpServers(),
+        enabled: options?.enabled !== false,
+        refetchInterval: options?.refetchInterval,
+        refetchOnWindowFocus: options?.refetchOnWindowFocus,
+        retry: 3,
+        staleTime: 2 * 60 * 1000 // 2 minutes
+    });
+};
+
+/**
+ * Returns a hook that fetches detailed information about a specific MCP server
+ * @param mcpId The ID of the MCP server to fetch
+ * @param options Optional configuration options for the query
+ * @returns A query result object containing the MCP server details
+ */
+export const useMcpServerDetailsQuery = (
+    mcpId: string,
+    options?: {
+        enabled?: boolean;
+        refetchInterval?: number | false;
+        refetchOnWindowFocus?: boolean;
+    }
+) => {
+    return useQuery({
+        queryKey: ['mcpServerDetails', mcpId],
+        queryFn: async () => {
+            if (!mcpId) {
+                throw new Error('Missing mcpId');
+            }
+            return await fetchMcpServerDetails(mcpId);
+        },
+        enabled: options?.enabled !== false && !!mcpId,
+        refetchInterval: options?.refetchInterval,
+        refetchOnWindowFocus: options?.refetchOnWindowFocus,
+        retry: 3,
+        staleTime: 5 * 60 * 1000 // 5 minutes
+    });
+};
+
+/**
+ * Returns a hook that fetches all available agent resources (MCP servers and out-of-the-box tools) and formats them for UI use
+ * @param options Optional configuration options for the query
+ * @returns A query result object containing formatted resources for UI components and raw response data
+ */
+export const useAgentResourcesQuery = (options?: {
+    enabled?: boolean;
+    refetchInterval?: number | false;
+    refetchOnWindowFocus?: boolean;
+}) => {
+    return useQuery({
+        queryKey: ['agentResources'],
+        queryFn: async () => {
+            const agentResources = await fetchAgentResources();
+            return {
+                formatted: formatAgentResourcesForUI(agentResources),
+                raw: agentResources
+            };
+        },
+        enabled: options?.enabled !== false,
+        refetchInterval: options?.refetchInterval,
+        refetchOnWindowFocus: options?.refetchOnWindowFocus,
+        retry: 3,
+        staleTime: 2 * 60 * 1000 // 2 minutes
+    });
+};
+
+/**
+ * Returns a hook that fetches the list of deployed agents and caches the response
+ * @param pageNumber The page number to fetch (defaults to 1)
+ * @param options Optional configuration options for the query
+ * @returns A query result object containing the list of agents
+ */
+export const useAgentsQuery = (
+    pageNumber: number = 1,
+    options?: {
+        enabled?: boolean;
+        refetchInterval?: number | false;
+        refetchOnWindowFocus?: boolean;
+    }
+) => {
+    return useQuery({
+        queryKey: ['agents', pageNumber],
+        queryFn: async () => await fetchAgents(pageNumber),
+        enabled: options?.enabled !== false,
+        refetchInterval: options?.refetchInterval,
+        refetchOnWindowFocus: options?.refetchOnWindowFocus,
+        retry: 3,
+        staleTime: 2 * 60 * 1000 // 2 minutes
     });
 };

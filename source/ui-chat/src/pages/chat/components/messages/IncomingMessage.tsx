@@ -11,9 +11,20 @@ import { useEffect, useState } from 'react';
 import { FeedbackForm } from '../input/FeedbackForm';
 import { useFeedback } from '@/hooks/use-feedback';
 import { StatusIndicator } from '@cloudscape-design/components';
+import { ThinkingIndicator } from '@/components/thinking/ThinkingIndicator';
+import { ToolUsageList } from '@/components/tool-usage/ToolUsageList';
+import { AgentBuilderChatBubbleMessage } from '../../types';
+import { useSelector } from 'react-redux';
+import { selectUseCaseType } from '@/store/configSlice';
+import { USE_CASE_TYPES } from '@/utils/constants';
 
-export const IncomingMessage = ({ message, author, showActions, conversationId, 'data-testid': dataTestId }: IncomingMessageProps) => {
+const isAgentBuilderMessage = (message: any): message is AgentBuilderChatBubbleMessage => {
+    return message && 'thinking' in message && message.thinking !== undefined;
+};
+
+export const IncomingMessage = ({ message, author, showActions, conversationId, toolUsage, 'data-testid': dataTestId }: IncomingMessageProps) => {
     const [showFeedbackConfirmation, setShowFeedbackConfirmation] = useState(false);
+    const useCaseType = useSelector(selectUseCaseType);
     const {
         showFeedbackForm,
         setShowFeedbackForm,
@@ -24,6 +35,10 @@ export const IncomingMessage = ({ message, author, showActions, conversationId, 
         handleFeedbackButtonClick,
         handleFeedbackSubmit
     } = useFeedback(message, conversationId);
+    
+    const shouldShowThinkingIndicator = (useCaseType === USE_CASE_TYPES.AGENT_BUILDER || useCaseType === USE_CASE_TYPES.WORKFLOW) && isAgentBuilderMessage(message);
+    
+    const shouldShowToolUsage = (useCaseType === USE_CASE_TYPES.AGENT_BUILDER || useCaseType === USE_CASE_TYPES.WORKFLOW) && toolUsage && toolUsage.length > 0;
 
     // Reset feedback form state when message changes
     useEffect(() => {
@@ -65,6 +80,21 @@ export const IncomingMessage = ({ message, author, showActions, conversationId, 
                 data-testid={dataTestId}
             >
                 <MarkdownContent content={String(message.content)} />
+                
+                {shouldShowToolUsage && (
+                    <ToolUsageList 
+                        toolUsage={toolUsage!} 
+                        data-testid="message-tool-usage"
+                    />
+                )}
+                
+                {shouldShowThinkingIndicator && message.thinking && (
+                    <ThinkingIndicator 
+                        thinking={message.thinking} 
+                        data-testid="message-thinking-indicator"
+                    />
+                )}
+                
                 {message.sourceDocuments && message.sourceDocuments.length > 0 && (
                     <SourceDocumentsSection sourceDocuments={message.sourceDocuments} />
                 )}

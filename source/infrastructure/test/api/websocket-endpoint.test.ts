@@ -29,6 +29,7 @@ describe('When creating a WebSocketEndpoint', () => {
             authorizerLambda: new lambda.Function(stack, 'AuthorizerLambda', mockLambdaFuncProps),
             onConnectLambda: new lambda.Function(stack, 'OnConnectLambda', mockLambdaFuncProps),
             onDisconnectLambda: new lambda.Function(stack, 'OnDisconnectLambda', mockLambdaFuncProps),
+            chatLlmProviderLambda: new lambda.Function(stack, 'ChatLlmProviderLambda', mockLambdaFuncProps),
             useCaseUUID: 'fake-id',
             lambdaRouteMapping: lambdaRouteMapping
         });

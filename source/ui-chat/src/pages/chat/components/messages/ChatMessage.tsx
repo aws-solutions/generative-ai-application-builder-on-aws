@@ -6,6 +6,8 @@ import { AUTHORS, AUTHORS_CONFIG, getUserAuthor } from '../../config';
 import { OutgoingMessage } from './OutgoingMessage';
 import { IncomingMessage } from './IncomingMessage';
 
+import { ToolUsageInfo } from '../../../../models';
+
 /**
  * Interface defining the props for the ChatMessage component
  * @interface ChatMessageProps
@@ -14,6 +16,7 @@ import { IncomingMessage } from './IncomingMessage';
  * @property {string} userName - Display name of the user
  * @property {Function} isUserMessage - Function to determine if a message is from the user
  * @property {Function} onFeedback - Callback function for handling message feedback
+ * @property {ToolUsageInfo[]} [toolUsage] - Optional array of tool usage information
  * @property {string} [data-testid] - Optional test identifier for the component
  */
 export interface ChatMessageProps {
@@ -22,6 +25,8 @@ export interface ChatMessageProps {
     userName: string;
     isUserMessage: (authorId: string) => boolean;
     conversationId: string;
+    toolUsage?: ToolUsageInfo[];
+    hasFileError?: boolean;
     'data-testid'?: string;
 }
 
@@ -36,6 +41,8 @@ export const ChatMessage = ({
     userName,
     isUserMessage,
     conversationId,
+    toolUsage,
+    hasFileError = false,
     'data-testid': dataTestId
 }: ChatMessageProps) => {
     const typedMessage = message as ChatBubbleMessage;
@@ -54,9 +61,18 @@ export const ChatMessage = ({
         return undefined;
     };
 
+    // Get tool usage from message if available, otherwise use prop (for streaming)
+    const messageToolUsage = (typedMessage as any).toolUsage || toolUsage;
+
     // Ensure the message ID is passed to the IncomingMessage component
     return isUserMessage(typedMessage.authorId) ? (
-        <OutgoingMessage message={typedMessage} author={author} data-testid={`outgoing-${dataTestId}`} />
+        <OutgoingMessage
+            message={typedMessage}
+            author={author}
+            conversationId={conversationId}
+            hasFileError={hasFileError}
+            data-testid={`outgoing-${dataTestId}`}
+        />
     ) : (
         <IncomingMessage
             message={{
@@ -66,6 +82,7 @@ export const ChatMessage = ({
             author={author}
             showActions={shouldShowActions}
             conversationId={conversationId}
+            toolUsage={messageToolUsage}
             data-testid={`incoming-${dataTestId}`}
         />
     );

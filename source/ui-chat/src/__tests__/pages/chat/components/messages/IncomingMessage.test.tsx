@@ -262,3 +262,234 @@ it('resets feedback form when messageId changes', () => {
 
     expect(customMockUseFeedback.setShowFeedbackForm).toHaveBeenCalledWith(false);
 });
+
+describe('ThinkingIndicator rendering', () => {
+    const mockUseFeedback = {
+        showFeedbackForm: false,
+        setShowFeedbackForm: vi.fn(),
+        feedbackType: 'helpful' as const,
+        setFeedbackType: vi.fn(),
+        feedbackSubmitted: false,
+        feedbackError: null,
+        isSubmittingFeedback: false,
+        handleFeedbackButtonClick: vi.fn(),
+        handleFeedbackSubmit: vi.fn()
+    };
+
+    beforeEach(() => {
+        vi.spyOn(useFeedbackModule, 'useFeedback').mockReturnValue(mockUseFeedback);
+    });
+
+    it('renders thinking indicator for AgentBuilder messages with thinking metadata', () => {
+        const messageWithThinking = {
+            type: 'chat-bubble' as const,
+            authorId: 'assistant-1',
+            content: 'Response content',
+            timestamp: '2024-01-01T12:00:00Z',
+            thinking: {
+                duration: 5,
+                type: 'analyzing' as const,
+                startTime: '2024-01-01T12:00:00Z',
+                endTime: '2024-01-01T12:00:05Z',
+                strippedContent: 'Thinking content here'
+            }
+        };
+
+        const mockAuthor = {
+            type: 'assistant' as const,
+            name: 'AI Assistant'
+        };
+
+        const props = {
+            message: messageWithThinking,
+            author: mockAuthor,
+            showActions: true,
+            conversationId: 'test-id'
+        };
+
+        // Set use case type to AgentBuilder using proper config structure
+        testStoreFactory.renderWithStore(<IncomingMessage {...props} />, {
+            config: {
+                runtimeConfig: {
+                    IsInternalUser: 'false',
+                    ModelProviderName: 'Bedrock',
+                    UserPoolId: 'test-pool',
+                    SocketRoutes: [],
+                    UserPoolClientId: 'test-client',
+                    CognitoRedirectUrl: 'http://localhost',
+                    ApiEndpoint: 'http://localhost',
+                    SocketURL: 'ws://localhost',
+                    AwsRegion: 'us-east-1',
+                    CognitoDomain: 'test-domain',
+                    UseCaseConfigKey: 'test-key',
+                    UseCaseId: 'test-id',
+                    RestApiEndpoint: 'http://localhost',
+                    UseCaseConfig: {
+                        UseCaseType: 'AgentBuilder',
+                        UseCaseName: 'test-agent'
+                    } as any
+                }
+            }
+        });
+
+        expect(screen.getByTestId('message-thinking-indicator')).toBeInTheDocument();
+        expect(screen.getByText(/Thought for/)).toBeInTheDocument();
+    });
+
+    it('renders thinking indicator for Workflow messages with thinking metadata', () => {
+        const messageWithThinking = {
+            type: 'chat-bubble' as const,
+            authorId: 'assistant-1',
+            content: 'Response content',
+            timestamp: '2024-01-01T12:00:00Z',
+            thinking: {
+                duration: 5,
+                startTime: '2024-01-01T12:00:00Z',
+                endTime: '2024-01-01T12:00:05Z',
+                strippedContent: 'Thinking content here'
+            }
+        };
+
+        const mockAuthor = {
+            type: 'assistant' as const,
+            name: 'AI Assistant'
+        };
+
+        const props = {
+            message: messageWithThinking,
+            author: mockAuthor,
+            showActions: true,
+            conversationId: 'test-id'
+        };
+
+        // Set use case type to Workflow using proper config structure
+        testStoreFactory.renderWithStore(<IncomingMessage {...props} />, {
+            config: {
+                runtimeConfig: {
+                    IsInternalUser: 'false',
+                    ModelProviderName: 'Bedrock',
+                    UserPoolId: 'test-pool',
+                    SocketRoutes: [],
+                    UserPoolClientId: 'test-client',
+                    CognitoRedirectUrl: 'http://localhost',
+                    ApiEndpoint: 'http://localhost',
+                    SocketURL: 'ws://localhost',
+                    AwsRegion: 'us-east-1',
+                    CognitoDomain: 'test-domain',
+                    UseCaseConfigKey: 'test-key',
+                    UseCaseId: 'test-id',
+                    RestApiEndpoint: 'http://localhost',
+                    UseCaseConfig: {
+                        UseCaseType: 'Workflow',
+                        UseCaseName: 'test-workflow'
+                    } as any
+                }
+            }
+        });
+
+        expect(screen.getByTestId('message-thinking-indicator')).toBeInTheDocument();
+        expect(screen.getByText(/Thought for/)).toBeInTheDocument();
+    });
+
+    it('does not render thinking indicator for Text use case', () => {
+        const messageWithThinking = {
+            type: 'chat-bubble' as const,
+            authorId: 'assistant-1',
+            content: 'Response content',
+            timestamp: '2024-01-01T12:00:00Z',
+            thinking: {
+                duration: 5,
+                type: 'analyzing' as const,
+                startTime: '2024-01-01T12:00:00Z',
+                endTime: '2024-01-01T12:00:05Z'
+            }
+        };
+
+        const mockAuthor = {
+            type: 'assistant' as const,
+            name: 'AI Assistant'
+        };
+
+        const props = {
+            message: messageWithThinking,
+            author: mockAuthor,
+            showActions: true,
+            conversationId: 'test-id'
+        };
+
+        // Set use case type to Text using proper config structure
+        testStoreFactory.renderWithStore(<IncomingMessage {...props} />, {
+            config: {
+                runtimeConfig: {
+                    IsInternalUser: 'false',
+                    ModelProviderName: 'Bedrock',
+                    UserPoolId: 'test-pool',
+                    SocketRoutes: [],
+                    UserPoolClientId: 'test-client',
+                    CognitoRedirectUrl: 'http://localhost',
+                    ApiEndpoint: 'http://localhost',
+                    SocketURL: 'ws://localhost',
+                    AwsRegion: 'us-east-1',
+                    CognitoDomain: 'test-domain',
+                    UseCaseConfigKey: 'test-key',
+                    UseCaseId: 'test-id',
+                    RestApiEndpoint: 'http://localhost',
+                    UseCaseConfig: {
+                        UseCaseType: 'Text',
+                        UseCaseName: 'test-text'
+                    } as any
+                }
+            }
+        });
+
+        expect(screen.queryByTestId('message-thinking-indicator')).not.toBeInTheDocument();
+    });
+
+    it('does not render thinking indicator when message has no thinking metadata', () => {
+        const messageWithoutThinking = {
+            type: 'chat-bubble' as const,
+            authorId: 'assistant-1',
+            content: 'Response content',
+            timestamp: '2024-01-01T12:00:00Z'
+        };
+
+        const mockAuthor = {
+            type: 'assistant' as const,
+            name: 'AI Assistant'
+        };
+
+        const props = {
+            message: messageWithoutThinking,
+            author: mockAuthor,
+            showActions: true,
+            conversationId: 'test-id'
+        };
+
+        // Set use case type to AgentBuilder using proper config structure
+        testStoreFactory.renderWithStore(<IncomingMessage {...props} />, {
+            config: {
+                runtimeConfig: {
+                    IsInternalUser: 'false',
+                    ModelProviderName: 'Bedrock',
+                    UserPoolId: 'test-pool',
+                    SocketRoutes: [],
+                    UserPoolClientId: 'test-client',
+                    CognitoRedirectUrl: 'http://localhost',
+                    ApiEndpoint: 'http://localhost',
+                    SocketURL: 'ws://localhost',
+                    AwsRegion: 'us-east-1',
+                    CognitoDomain: 'test-domain',
+                    UseCaseConfigKey: 'test-key',
+                    UseCaseId: 'test-id',
+                    RestApiEndpoint: 'http://localhost',
+                    UseCaseConfig: {
+                        UseCaseType: 'AgentBuilder',
+                        UseCaseName: 'test-agent'
+                    } as any
+                }
+            }
+        });
+
+        expect(screen.queryByTestId('message-thinking-indicator')).not.toBeInTheDocument();
+    });
+});

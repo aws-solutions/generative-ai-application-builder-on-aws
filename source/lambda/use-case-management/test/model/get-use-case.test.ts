@@ -80,6 +80,7 @@ function createTextUseCaseParams(promptEditingEnabled: boolean): CombinedUseCase
         'FeedbackParams': {
             'FeedbackEnabled': true
         },
+        'ProvisionedConcurrencyValue': 0,
         'UseCaseType': 'Text'
     };
     return { ...mockUseCaseRecord, ...mockStackDetails, ...mockUseCaseConfig };
@@ -111,6 +112,37 @@ function createAgentUseCaseParams() {
             }
         },
         'UseCaseType': 'Text'
+    };
+    return { ...mockUseCaseRecord, ...mockStackDetails, ...mockUseCaseConfig };
+}
+
+function createAgentBuilderUseCaseParams(): CombinedUseCaseParams {
+    const mockUseCaseConfig = {
+        'IsInternalUser': 'true',
+        'UseCaseName': 'test-agent-builder',
+        'UseCaseType': 'AgentBuilder',
+        'LlmParams': {
+            'Streaming': true,
+            'Temperature': 0.5,
+            'Verbose': false,
+            'BedrockLlmParams': {
+                'BedrockInferenceType': 'INFERENCE_PROFILE',
+                'InferenceProfileId': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
+            },
+            'ModelProvider': 'Bedrock',
+            'ModelParams': {},
+            'RAGEnabled': false
+        },
+        'AgentBuilderParams': {
+            'SystemPrompt':
+                'You are a helpful AI assistant. Your role is to:\n\n- Provide accurate and helpful responses to user questions\n- Be concise and clear in your communication\n- Ask for clarification when needed\n- Maintain a professional and friendly tone\n- Use the tools and MCP servers available to you when appropriate.',
+            'MemoryConfig': {
+                'LongTermEnabled': false
+            }
+        },
+        'FeedbackParams': {
+            'FeedbackEnabled': false
+        }
     };
     return { ...mockUseCaseRecord, ...mockStackDetails, ...mockUseCaseConfig };
 }
@@ -222,7 +254,8 @@ describe('When using get use case adapter to cast to different types', () => {
             },
             'FeedbackParams': {
                 'FeedbackEnabled': true
-            }
+            },
+            'ProvisionedConcurrencyValue': 0
         });
     });
 
@@ -273,6 +306,53 @@ describe('When using get use case adapter to cast to different types', () => {
             'UseCaseName': 'sentiment-analysis',
             'UseCaseType': 'Text',
             'ModelProviderName': 'BedrockAgent'
+        });
+    });
+
+    it('Should cast AgentBuilder use case to admin type with AgentBuilderParams', () => {
+        const useCaseDetails = createAgentBuilderUseCaseParams();
+        const useCaseInfo = castToAdminType(useCaseDetails);
+
+        expect(useCaseInfo).toEqual({
+            'UseCaseName': 'test-agent-builder',
+            'UseCaseType': 'AgentBuilder',
+            'UseCaseId': 'a1b2c3d4-5e6f-7g8h-9i10-j11k12l13m14',
+            'Description': 'Customer sentiment analysis use case for retail division',
+            'CreatedDate': '2025-07-15T09:45:33.124Z',
+            'StackId':
+                'arn:aws:cloudformation:us-west-2:123456789012:stack/prod-a1b2c3d4/45678901-abcd-12ef-3456-789012ghijkl',
+            'Status': 'UPDATE_COMPLETE',
+            'ragEnabled': 'false',
+            'deployUI': 'Yes',
+            'createNewVpc': undefined,
+            'vpcEnabled': 'Yes',
+            'vpcId': 'mock-vpc-id',
+            'knowledgeBaseType': 'Kendra',
+            'cloudFrontWebUrl': 'mock-cloudfront-url',
+            'defaultUserEmail': 'john_doe@example.com',
+            'LlmParams': {
+                'Streaming': true,
+                'Temperature': 0.5,
+                'Verbose': false,
+                'BedrockLlmParams': {
+                    'BedrockInferenceType': 'INFERENCE_PROFILE',
+                    'InferenceProfileId': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0'
+                },
+                'ModelProvider': 'Bedrock',
+                'ModelParams': {},
+                'RAGEnabled': false
+            },
+            'AgentBuilderParams': {
+                'SystemPrompt':
+                    'You are a helpful AI assistant. Your role is to:\n\n- Provide accurate and helpful responses to user questions\n- Be concise and clear in your communication\n- Ask for clarification when needed\n- Maintain a professional and friendly tone\n- Use the tools and MCP servers available to you when appropriate.',
+                'MemoryConfig': {
+                    'LongTermEnabled': false
+                }
+            },
+            'FeedbackParams': {
+                'FeedbackEnabled': false
+            },
+            'ProvisionedConcurrencyValue': undefined
         });
     });
 });

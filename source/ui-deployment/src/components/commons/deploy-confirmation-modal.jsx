@@ -7,7 +7,14 @@ import { useContext } from 'react';
 
 import { INTERNAL_USER_GENAI_POLICY_URL, LEGAL_DISCLAIMER, deploymentActionText } from '../../utils/constants';
 
-export function ConfirmDeployModal({ visible, onDiscard, onConfirm, deploymentAction, isThirdPartyProvider }) {
+export function ConfirmDeployModal({
+    visible,
+    onDiscard,
+    onConfirm,
+    deploymentAction,
+    isThirdPartyProvider,
+    modelData
+}) {
     const {
         state: { runtimeConfig }
     } = useContext(HomeContext);

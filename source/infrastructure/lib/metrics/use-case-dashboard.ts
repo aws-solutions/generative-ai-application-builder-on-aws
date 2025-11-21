@@ -40,6 +40,7 @@ export class UseCaseDashboard extends CustomDashboard {
         const shortUseCaseId = cdk.Fn.select(0, cdk.Fn.split('-', this.props.useCaseUUID));
         const metricsServiceName = `GAABUseCase-${shortUseCaseId}`;
         const feedbackServiceName = 'FeedbackManagement';
+        const fileManagementServiceName = 'FilesManagement';
 
         this.dashboard.addWidgets(
             new cloudwatch.GraphWidget({
@@ -540,6 +541,337 @@ export class UseCaseDashboard extends CustomDashboard {
                             UseCaseId: this.props.useCaseUUID,
                             FeedbackType: 'negative',
                             service: feedbackServiceName
+                        },
+                        color: cloudwatch.Color.PINK
+                    })
+                ]
+            }),
+            new cloudwatch.GraphWidget({
+                title: 'Multimodal File Operations',
+                left: [
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.FILES_UPLOADED + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.GREEN
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILE_DELETE,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.FILE_DELETE + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.ORANGE
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILE_DOWNLOAD,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.FILE_DOWNLOAD + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.PURPLE
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILE_UPLOAD_FAILURE,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.FILE_UPLOAD_FAILURE + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.RED
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILE_ACCESS_FAILURES,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.FILE_ACCESS_FAILURES + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.RED
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.METADATA_UPDATE_FAILURE,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.METADATA_UPDATE_FAILURE + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.RED
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.METADATA_VALIDATION_FAILURE,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.METADATA_VALIDATION_FAILURE + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.ORANGE
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.MULTIMODAL_DISABLED_ERROR,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: CloudWatchMetrics.MULTIMODAL_DISABLED_ERROR + 'Count',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.PINK
+                    })
+                ]
+            }),
+            new cloudwatch.GraphWidget({
+                title: 'Multimodal File Size Stats',
+                left: [
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILE_SIZE,
+                        statistic: cloudwatch.Stats.AVERAGE,
+                        label: 'Average' + CloudWatchMetrics.FILE_SIZE,
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.BLUE
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILE_SIZE,
+                        statistic: cloudwatch.Stats.MAXIMUM,
+                        label: 'Max' + CloudWatchMetrics.FILE_SIZE,
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID
+                        },
+                        color: cloudwatch.Color.ORANGE
+                    })
+                ]
+            }),
+            new cloudwatch.GraphWidget({
+                title: 'Multimodal File Uploads by Extension',
+                left: [
+                    // Image extensions
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'png',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'png'
+                        },
+                        color: cloudwatch.Color.BLUE
+                    }),
+                    // Combined JPEG images (jpg + jpeg)
+                    new cloudwatch.MathExpression({
+                        expression: 'jpeg_jpg + jpeg_jpeg',
+                        usingMetrics: {
+                            jpeg_jpg: new cloudwatch.Metric({
+                                namespace: CloudWatchNamespace.FILE_HANDLING,
+                                metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                                statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                                period: cdk.Duration.hours(1),
+                                dimensionsMap: {
+                                    service: fileManagementServiceName,
+                                    UseCaseId: this.props.useCaseUUID,
+                                    FileExtension: 'jpg'
+                                }
+                            }),
+                            jpeg_jpeg: new cloudwatch.Metric({
+                                namespace: CloudWatchNamespace.FILE_HANDLING,
+                                metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                                statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                                period: cdk.Duration.hours(1),
+                                dimensionsMap: {
+                                    service: fileManagementServiceName,
+                                    UseCaseId: this.props.useCaseUUID,
+                                    FileExtension: 'jpeg'
+                                }
+                            })
+                        },
+                        label: 'jpg/jpeg',
+                        color: cloudwatch.Color.GREEN
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'gif',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'gif'
+                        },
+                        color: cloudwatch.Color.PURPLE
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'webp',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'webp'
+                        },
+                        color: cloudwatch.Color.PINK
+                    }),
+                    // Document extensions
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'pdf',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'pdf'
+                        },
+                        color: cloudwatch.Color.RED
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'csv',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'csv'
+                        },
+                        color: cloudwatch.Color.BLUE
+                    }),
+                    // Combined Word documents (doc + docx)
+                    new cloudwatch.MathExpression({
+                        expression: 'word_doc + word_docx',
+                        usingMetrics: {
+                            word_doc: new cloudwatch.Metric({
+                                namespace: CloudWatchNamespace.FILE_HANDLING,
+                                metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                                statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                                period: cdk.Duration.hours(1),
+                                dimensionsMap: {
+                                    service: fileManagementServiceName,
+                                    UseCaseId: this.props.useCaseUUID,
+                                    FileExtension: 'doc'
+                                }
+                            }),
+                            word_docx: new cloudwatch.Metric({
+                                namespace: CloudWatchNamespace.FILE_HANDLING,
+                                metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                                statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                                period: cdk.Duration.hours(1),
+                                dimensionsMap: {
+                                    service: fileManagementServiceName,
+                                    UseCaseId: this.props.useCaseUUID,
+                                    FileExtension: 'docx'
+                                }
+                            })
+                        },
+                        label: 'doc/docx',
+                        color: cloudwatch.Color.BROWN
+                    }),
+                    // Combined Excel spreadsheets (xls + xlsx)
+                    new cloudwatch.MathExpression({
+                        expression: 'excel_xls + excel_xlsx',
+                        usingMetrics: {
+                            excel_xls: new cloudwatch.Metric({
+                                namespace: CloudWatchNamespace.FILE_HANDLING,
+                                metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                                statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                                period: cdk.Duration.hours(1),
+                                dimensionsMap: {
+                                    service: fileManagementServiceName,
+                                    UseCaseId: this.props.useCaseUUID,
+                                    FileExtension: 'xls'
+                                }
+                            }),
+                            excel_xlsx: new cloudwatch.Metric({
+                                namespace: CloudWatchNamespace.FILE_HANDLING,
+                                metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                                statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                                period: cdk.Duration.hours(1),
+                                dimensionsMap: {
+                                    service: fileManagementServiceName,
+                                    UseCaseId: this.props.useCaseUUID,
+                                    FileExtension: 'xlsx'
+                                }
+                            })
+                        },
+                        label: 'xls/xlsx',
+                        color: cloudwatch.Color.GREY
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'html',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'html'
+                        },
+                        color: cloudwatch.Color.GREEN
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'txt',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'txt'
+                        },
+                        color: cloudwatch.Color.PURPLE
+                    }),
+                    new cloudwatch.Metric({
+                        namespace: CloudWatchNamespace.FILE_HANDLING,
+                        metricName: CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION,
+                        statistic: cloudwatch.Stats.SAMPLE_COUNT,
+                        label: 'md',
+                        period: cdk.Duration.hours(1),
+                        dimensionsMap: {
+                            service: fileManagementServiceName,
+                            UseCaseId: this.props.useCaseUUID,
+                            FileExtension: 'md'
                         },
                         color: cloudwatch.Color.PINK
                     })

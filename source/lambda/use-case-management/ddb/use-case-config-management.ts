@@ -9,14 +9,15 @@ import {
     UpdateItemCommand
 } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
-import { customAwsConfig } from 'aws-node-user-agent-config';
+import { AWSClientManager } from 'aws-sdk-lib';
 import { UseCaseRecord } from '../model/list-use-cases';
-import { UseCaseConfiguration } from '../model/types';
+import { BaseUseCaseConfiguration } from '../model/types';
 import { UseCase } from '../model/use-case';
 import { logger, tracer } from '../power-tools-init';
 import {
     DeleteConfigItemBuilder,
     GetConfigItemBuilder,
+    MarkConfigItemForDeletionCommandBuilder,
     MarkItemForDeletionCommandBuilder,
     PutConfigItemBuilder
 } from './use-case-config-operation-builder';
@@ -26,7 +27,7 @@ export class UseCaseConfigManagement {
     private client: DynamoDBClient;
 
     constructor() {
-        this.client = new DynamoDBClient(customAwsConfig());
+        this.client = AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb', tracer);
     }
 
     /**
@@ -64,7 +65,7 @@ export class UseCaseConfigManagement {
                 throw new Error('No use case config found for the specified key.');
             }
             const unmarshalledConfig = unmarshall(response.Item).config;
-            return unmarshalledConfig as UseCaseConfiguration;
+            return unmarshalledConfig as BaseUseCaseConfiguration;
         } catch (error) {
             const errMessage = `Failed to get config: ${error}`;
             logger.error(errMessage);
@@ -97,12 +98,13 @@ export class UseCaseConfigManagement {
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###updateUseCaseConfig' })
     public async updateUseCaseConfig(useCase: UseCase, oldDynamoDbRecordKey: string): Promise<void> {
         // Add the new config to DynamoDb
-        await this.createUseCaseConfig(useCase);
+        const response = await this.createUseCaseConfig(useCase);
 
-        // Remove the old DynamoDB key
+        // Set TTL on the old config instead of deleting it
         let existingConfigUseCase = useCase.clone();
         existingConfigUseCase.setUseCaseConfigRecordKey(oldDynamoDbRecordKey);
-        const response = await this.deleteUseCaseConfig(existingConfigUseCase);
+        await this.markUseCaseConfigForDeletion(existingConfigUseCase);
+
         return response;
     }
 
@@ -112,7 +114,7 @@ export class UseCaseConfigManagement {
      * @returns
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###getUseCaseConfig' })
-    public async getUseCaseConfigFromRecord(useCaseRecordInput: UseCaseRecord): Promise<UseCaseConfiguration> {
+    public async getUseCaseConfigFromRecord(useCaseRecordInput: UseCaseRecord): Promise<BaseUseCaseConfiguration> {
         try {
             const input = await new GetItemCommandInputBuilder(useCaseRecordInput).build();
             const response = await this.client.send(new GetItemCommand(input));
@@ -120,6 +122,23 @@ export class UseCaseConfigManagement {
             return unmarshalledConfig.config;
         } catch (error) {
             logger.error(`Failed to get use case config record from DDB: Error: ${error}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Method for setting the TTL of a use case config in the use case config table
+     *
+     * @param useCase
+     */
+    @tracer.captureMethod({ captureResponse: false, subSegmentName: '###markUseCaseConfigForDeletion' })
+    public async markUseCaseConfigForDeletion(useCase: UseCase): Promise<void> {
+        const input = await new MarkConfigItemForDeletionCommandBuilder(useCase).build(); //NOSONAR - without await, input is empty
+        try {
+            await this.client.send(new UpdateItemCommand(input));
+        } catch (error) {
+            const errMessage = `Failed to update Use Case Config Record: ${error}`;
+            logger.error(errMessage);
             throw error;
         }
     }

@@ -236,7 +236,8 @@ export default function DashboardView() {
     const [toolsOpen, setToolsOpen] = useState(false);
 
     const handleOnDeploymentIdClick = (deploymentItem) => {
-        navigate(`/deployment-details/${deploymentItem.UseCaseId}`);
+        const useCaseType = deploymentItem.UseCaseType ?? USECASE_TYPES.TEXT;
+        navigate(`/deployment-details/${useCaseType}/${deploymentItem.UseCaseId}`);
     };
 
     const createDetailsPageLink = (item) => {

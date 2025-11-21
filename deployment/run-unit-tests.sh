@@ -33,6 +33,28 @@ setup_python_env() {
 	deactivate
 }
 
+setup_uv() {
+	echo "Installing UV for ECR container tests..."
+	
+	if command -v pip3 &> /dev/null; then
+		pip3 install uv>=0.5.0
+		
+		# Verify installation
+		if command -v uv &> /dev/null; then
+			echo "✅ UV installed successfully: $(uv --version)"
+			return 0
+		fi
+	fi
+	
+	# If pip installation failed, provide instructions and exit
+	echo "❌ ERROR: Could not install UV."
+	echo "   Please install UV manually:"
+	echo "   - pip install uv>=0.5.0"
+	echo "   - brew install uv (macOS)"
+	echo "   - https://docs.astral.sh/uv/getting-started/installation/"
+	echo ""
+}
+
 install_lambda_layer() {
 	lambda_name=$1
 	lambda_description=$2
@@ -219,6 +241,25 @@ run_ui_project_test() {
 	mv coverage $coverage_report_path
 }
 
+run_ecr_container_tests() {
+	container_name=$1
+	container_description=$2
+	echo "------------------------------------------------------------------------------"
+	echo "[Test] ECR Container: $container_name, $container_description"
+	echo "------------------------------------------------------------------------------"
+	cd $source_dir/../deployment/ecr/$container_name
+	if [ -f "scripts/run_unit_tests.sh" ]; then
+		echo "Running $container_description container tests..."
+		./scripts/run_unit_tests.sh
+		if [ "$?" != "0" ]; then
+			echo "(deployment/run-unit-tests.sh) ERROR: ECR container tests failed." 1>&2
+			exit 1
+		fi
+	else
+		echo "⚠️  ECR container test script not found, skipping..."
+	fi
+}
+
 timer() {
 	start=$(date +%s)
 	"$@"  # Executes all arguments as a command
@@ -270,8 +311,15 @@ echo "---------------------------------------"
 cd $source_dir
 
 # install TS node libraries in the layers as required for local unit testing
+cd lambda/layers/aws-node-user-agent-config
+timer npm ci
+timer npm run build
+
+cd $source_dir
+
 cd lambda/layers/aws-sdk-lib
 timer npm ci
+timer npm run build
 
 cd $source_dir
 timer install_lambda_layer layers/aws_boto3 "Boto3 SDK Layer"
@@ -304,6 +352,20 @@ echo "Running CDK infrastructure unit and integration tests"
 echo "---------------------------------------"
 
 timer run_cdk_project_test "CDK - Generative AI Application Builder on AWS"
+
+echo "---------------------------------------"
+echo "Running ECR container unit tests"
+echo "---------------------------------------"
+
+# Ensure UV is installed for ECR container tests
+setup_uv
+
+# Run ECR container tests
+timer run_ecr_container_tests "gaab-strands-agent" "GAAB Strands Agent"
+timer run_ecr_container_tests "gaab-strands-common" "GAAB Strands Common"
+timer run_ecr_container_tests "gaab-strands-workflow-agent" "GAAB Strands Workflow Agent"
+
+cd $source_dir
 
 echo "---------------------------------------"
 echo "Executing Unit Tests Complete"

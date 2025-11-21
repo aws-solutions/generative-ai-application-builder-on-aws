@@ -37,7 +37,7 @@ export class BedrockChat extends TextUseCase {
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
         this.withAdditionalResourceSetup(props);
-        this.withAnonymousMetrics(props);
+        this.withMetrics(props);
     }
 
     protected withAdditionalResourceSetup(props: BaseStackProps): void {

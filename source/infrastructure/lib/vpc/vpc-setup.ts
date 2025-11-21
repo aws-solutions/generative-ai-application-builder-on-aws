@@ -6,6 +6,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { BaseStackProps } from '../framework/base-stack';
+import { AgentBuilderVPC } from './agent-builder-vpc';
 import { BedrockAgentVPC } from './bedrock-agent-vpc';
 import { BedrockUseCaseVPC } from './bedrock-vpc';
 import { CustomVPC } from './custom-vpc';
@@ -122,6 +123,22 @@ export class VPCSetup extends Construct {
                 this.nestedVPCStack = new BedrockAgentVPC(this, 'BedrockAgentVPC', {
                     description: `Nested stack that deploys a VPC for the agent stack - Version ${props.solutionVersion}`,
                     parameters: agentUseCaseParameters
+                });
+                break;
+            }
+            case 'agent-builder': {
+                // Create minimal VPC stack for interface compatibility only
+                this.nestedVPCStack = new AgentBuilderVPC(this, 'AgentBuilderVPC', {
+                    description: `Minimal VPC stack for AgentBuilder (Amazon Bedrock AgentCore runs in non-VPC mode) - Version ${props.solutionVersion}`,
+                    parameters: coreParameters
+                });
+                break;
+            }
+            case 'workflow': {
+                // Create minimal VPC stack for Workflow for interface compatibility only
+                this.nestedVPCStack = new AgentBuilderVPC(this, 'WorkflowVPC', {
+                    description: `Minimal VPC stack for Workflow (Amazon Bedrock AgentCore runs in non-VPC mode) - Version ${props.solutionVersion}`,
+                    parameters: coreParameters
                 });
                 break;
             }

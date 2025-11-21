@@ -10,6 +10,7 @@ import { Construct } from 'constructs';
 import { BaseStackProps } from '../framework/base-stack';
 import { UseCaseManagement } from './management-stack';
 import { FeedbackSetupStack } from '../feedback/feedback-setup-stack';
+import { MultimodalSetup } from '../multimodal/multimodal-setup';
 import * as api from 'aws-cdk-lib/aws-apigateway';
 import { RestRequestProcessor } from '../api/rest-request-processor';
 import { UseCaseRestEndpointSetup } from '../api/use-case-rest-endpoint-setup';
@@ -106,6 +107,11 @@ export class UseCaseManagementSetup extends Construct {
     public readonly feedbackSetupStack: FeedbackSetupStack;
 
     /**
+     * Construct that creates the resources for multimodal file management (API routes, processing lambda, etc.)
+     */
+    public readonly multimodalSetup: MultimodalSetup;
+
+    /**
      * The API being served to allow use case management
      */
     public readonly restApi: api.RestApi;
@@ -150,6 +156,9 @@ export class UseCaseManagementSetup extends Construct {
         const requestProcessor = new RestRequestProcessor(this, 'RequestProcessor', {
             useCaseManagementAPILambda: this.useCaseManagement.useCaseManagementApiLambda,
             modelInfoAPILambda: this.useCaseManagement.modelInfoApiLambda,
+            mcpManagementAPILambda: this.useCaseManagement.mcpManagementApiLambda,
+            agentManagementAPILambda: this.useCaseManagement.agentManagementApiLambda,
+            workflowManagementAPILambda: this.useCaseManagement.workflowManagementApiLambda,
             defaultUserEmail: props.defaultUserEmail,
             applicationTrademarkName: props.applicationTrademarkName,
             customResourceLambdaArn: props.customInfra.functionArn,
@@ -213,6 +222,24 @@ export class UseCaseManagementSetup extends Construct {
             description: `Nested Stack that creates the Feedback Resources - Version ${props.solutionVersion}`
         });
 
-        
+        this.multimodalSetup = new MultimodalSetup(this, 'MultimodalSetup', {
+            restApi: this.restApi,
+            deploymentPlatformAuthorizer: requestProcessor.requestAuthorizer,
+            requestValidator: requestProcessor.deploymentRestEndpoint.requestValidator,
+            dlq: this.useCaseManagement.dlq,
+            deployVPCCondition: this.useCaseManagement.deployVPCCondition,
+            privateSubnetIds: props.privateSubnetIds!,
+            securityGroupIds: props.securityGroupIds!,
+            customResourceLambdaArn: props.customInfra.functionArn,
+            customResourceLambdaRoleArn: props.customInfra.role!.roleArn,
+            accessLoggingS3Bucket: props.accessLoggingBucket,
+            stackSource: StackDeploymentSource.DEPLOYMENT_PLATFORM
+        });
+
+        // Set multimodal environment variables for the agent and workflow management lambda
+        this.useCaseManagement.setMultimodalEnvironmentVariables(
+            this.multimodalSetup.multimodalDataBucket.bucketName,
+            this.multimodalSetup.multimodalDataMetadataTable.tableName
+        );
     }
 }

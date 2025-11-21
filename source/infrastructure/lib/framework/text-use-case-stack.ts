@@ -272,6 +272,44 @@ export class TextUseCaseParameters extends UseCaseParameters {
                 }
             ]
         });
+
+        // Multimodal parameters are not supported for Text Use Cases
+        new cdk.CfnRule(this.cfnStack, 'NoMultimodalEnabledForTextUseCaseRule', {
+            ruleCondition: cdk.Fn.conditionEquals(this.multimodalEnabled.valueAsString, 'Yes'),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals('false', 'true'),
+                    assertDescription:
+                        'Multimodal functionality is not supported for Text Use Cases. Please set MultimodalEnabled to No.'
+                }
+            ]
+        });
+
+        new cdk.CfnRule(this.cfnStack, 'NoMultimodalBucketForTextUseCaseRule', {
+            ruleCondition: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.existingMultimodalDataBucket.valueAsString, '')
+            ),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals('false', 'true'),
+                    assertDescription:
+                        'Multimodal data bucket is not supported for Text Use Cases. Please leave ExistingMultimodalDataBucket empty.'
+                }
+            ]
+        });
+
+        new cdk.CfnRule(this.cfnStack, 'NoMultimodalTableForTextUseCaseRule', {
+            ruleCondition: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.existingMultimodalDataMetadataTable.valueAsString, '')
+            ),
+            assertions: [
+                {
+                    assert: cdk.Fn.conditionEquals('false', 'true'),
+                    assertDescription:
+                        'Multimodal metadata table is not supported for Text Use Cases. Please leave ExistingMultimodalDataMetadataTable empty.'
+                }
+            ]
+        });
     }
 }
 
@@ -307,8 +345,8 @@ export abstract class TextUseCase extends UseCaseStack {
      *
      * @returns
      */
-    protected getWebSocketRoutes(): Map<string, lambda.Function> {
-        return new Map().set('sendMessage', this.chatLlmProviderLambda);
+    protected getWebSocketRoutes(): Map<string, lambda.Function | lambda.Alias> {
+        return new Map().set('sendMessage', this.chatLlmProviderAlias);
     }
 
     /**
@@ -427,8 +465,8 @@ export abstract class TextUseCase extends UseCaseStack {
         this.kendraIndexCreatedCondition = cdk.Fn.conditionIf(deployKendraIndexCondition.logicalId, 'Yes', 'No');
     }
 
-    protected withAnonymousMetrics(props: BaseStackProps) {
-        this.applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
+    protected withMetrics(props: BaseStackProps) {
+        this.applicationSetup.addMetricsCustomLambda(props.solutionID, props.solutionVersion, {
             NEW_KENDRA_INDEX_CREATED: this.kendraIndexCreatedCondition,
             ...(this.stackParameters.newKendraIndexEdition.valueAsString && {
                 KENDRA_EDITION: this.stackParameters.newKendraIndexEdition.valueAsString
@@ -442,7 +480,7 @@ export abstract class TextUseCase extends UseCaseStack {
         });
         (
             this.applicationSetup.solutionHelper.node
-                .tryFindChild('AnonymousData')
+                .tryFindChild('Data')
                 ?.node.tryFindChild('Default') as cdk.CfnResource
         ).addDependency(
             this.applicationSetup.webConfigCustomResource.node.tryFindChild('Default') as cdk.CfnCustomResource

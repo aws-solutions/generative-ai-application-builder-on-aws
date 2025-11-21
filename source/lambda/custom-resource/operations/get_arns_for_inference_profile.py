@@ -39,24 +39,32 @@ def verify_env_setup(event):
 
 
 @tracer.capture_method
-def get_model_arns(inference_profile_identifier):
-    """This method retrieves the model ARNs from a Bedrock inference profile"""
+def get_model_arns(inference_profile_identifiers):
+    """This method retrieves the model ARNs from a list of Bedrock inference profiles"""
     bedrock_client = get_service_client("bedrock")
+    arn_set = set()  # Use set for deduplication
 
     try:
-        response = bedrock_client.get_inference_profile(inferenceProfileIdentifier=inference_profile_identifier)
-        arns = [model["modelArn"] for model in response.get("models", [])]
-        if "inferenceProfileArn" in response:
-            arns.append(response["inferenceProfileArn"])
-        return ",".join(arns)
+        for inference_profile_identifier in inference_profile_identifiers:
+            response = bedrock_client.get_inference_profile(inferenceProfileIdentifier=inference_profile_identifier)
+
+            # Add model ARNs to the set
+            for model in response.get("models", []):
+                arn_set.add(model["modelArn"])
+
+            # Add inference profile ARN if present
+            if "inferenceProfileArn" in response:
+                arn_set.add(response["inferenceProfileArn"])
+
+        return ",".join(arn_set)
     except Exception as error:
-        logger.error(f"Error in retrieving model ARNs from inference profile. The error is {error}")
+        logger.error(f"Error in retrieving model ARNs from inference profiles. The error is {error}")
         raise error
 
 
 @tracer.capture_method
 def get_inference_identifier_from_ddb(table_name, record_key):
-    """This method retrieves the inference profile id from dynamodb table"""
+    """This method retrieves the inference profile id(s) from dynamodb table"""
     ddb_client = get_service_client("dynamodb")
     try:
         response = ddb_client.get_item(TableName=table_name, Key={LLM_CONFIG_RECORD_FIELD_NAME: {"S": record_key}})
@@ -65,7 +73,37 @@ def get_inference_identifier_from_ddb(table_name, record_key):
         deserialized_response = {k: deserializer.deserialize(v) for k, v in response.get("Item", {}).items()}
         if not deserialized_response:
             return None
-        return deserialized_response["config"]["LlmParams"]["BedrockLlmParams"]["InferenceProfileId"]
+
+        config = deserialized_response["config"]
+        inference_profile_ids = set()  # Use set for deduplication
+
+        # Always check the top-level LlmParams for inference profile ID
+        top_level_llm_params = config.get("LlmParams", {})
+        top_level_bedrock_params = top_level_llm_params.get("BedrockLlmParams", {})
+        top_level_inference_profile_id = top_level_bedrock_params.get("InferenceProfileId")
+
+        if top_level_inference_profile_id:
+            inference_profile_ids.add(top_level_inference_profile_id)
+
+        # Additional check: if this is a Workflow with agents-as-tools orchestration, also check sub-agents
+        if (
+            config.get("UseCaseType") == "Workflow"
+            and config.get("WorkflowParams", {}).get("OrchestrationPattern") == "agents-as-tools"
+        ):
+            # Get agents from WorkflowParams.AgentsAsToolsParams.Agents
+            agents = config.get("WorkflowParams", {}).get("AgentsAsToolsParams", {}).get("Agents", [])
+
+            for agent in agents:
+                # Check if agent has LlmParams.BedrockLlmParams.InferenceProfileId
+                llm_params = agent.get("LlmParams", {})
+                bedrock_params = llm_params.get("BedrockLlmParams", {})
+                inference_profile_id = bedrock_params.get("InferenceProfileId")
+
+                if inference_profile_id:
+                    inference_profile_ids.add(inference_profile_id)
+
+        return list(inference_profile_ids) if inference_profile_ids else None
+
     except Exception as error:
         logger.error(f"Error in retrieving inference profile identifier from DDB. The error is {error}")
         raise error
@@ -90,11 +128,11 @@ def execute(event, context):
         physical_resource_id = event.get(PHYSICAL_RESOURCE_ID, None)
 
         if event["RequestType"] == "Create" or event["RequestType"] == "Update":
-            inference_profile_identifier = get_inference_identifier_from_ddb(
+            inference_profile_identifiers = get_inference_identifier_from_ddb(
                 event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_TABLE_NAME],
                 event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_RECORD_KEY],
             )
-            if not inference_profile_identifier:  # ddb does not contain inference profile information
+            if not inference_profile_identifiers:  # ddb does not contain inference profile information
                 send_response(
                     event,
                     context,
@@ -105,7 +143,7 @@ def execute(event, context):
                 )
                 return
 
-            arns = get_model_arns(inference_profile_identifier)
+            arns = get_model_arns(inference_profile_identifiers)
             if not arns:  # no arns were returned for the provided inference profile id
                 send_response(
                     event,

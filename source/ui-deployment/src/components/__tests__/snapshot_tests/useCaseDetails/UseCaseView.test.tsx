@@ -14,7 +14,7 @@ import { snapshotWithProvider } from '@/utils';
 vi.mock('@cloudscape-design/components');
 
 const contextValue = {
-    dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
+    dispatch: vi.fn() as Dispatch<ActionType<HomeInitialState>>,
     state: mockContext
 };
 

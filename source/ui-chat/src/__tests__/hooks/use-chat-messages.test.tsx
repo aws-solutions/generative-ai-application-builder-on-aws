@@ -25,10 +25,15 @@ describe('useChatMessages', () => {
             isGenAiResponseLoading: false,
             sourceDocuments: [],
             conversationId: '',
+            isStreaming: false,
+            streamingMessageId: undefined,
+            thinking: undefined,
+            toolUsage: [],
             handleMessage: expect.any(Function),
             addUserMessage: expect.any(Function),
             resetChat: expect.any(Function),
             setMessages: expect.any(Function),
+            setConversationId: expect.any(Function),
             setIsGenAiResponseLoading: expect.any(Function)
         });
     });
@@ -258,7 +263,7 @@ describe('useChatMessages', () => {
         );
         expect(result.current.messages[0]).not.toHaveProperty('rephrasedQuery');
     });
-});
+
     it('should handle AI response with messageId', () => {
         const { result } = renderHook(() => useChatMessages(), {
             wrapper: createTestWrapper()
@@ -314,3 +319,337 @@ describe('useChatMessages', () => {
             })
         );
     });
+
+    it('should handle streaming response initialization', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const streamingResponse: ChatResponse = {
+            data: 'Hello',
+            isStreaming: true,
+            messageId: 'stream-msg-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(streamingResponse);
+        });
+
+        expect(result.current.isStreaming).toBe(true);
+        expect(result.current.streamingMessageId).toBe('stream-msg-123');
+        expect(result.current.messages[0]).toEqual(
+            expect.objectContaining({
+                content: 'Hello',
+                messageId: 'stream-msg-123'
+            })
+        );
+    });
+
+    it('should accumulate streaming chunks', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const responses: ChatResponse[] = [
+            { data: 'Hello', isStreaming: true, messageId: 'stream-msg-123' },
+            { data: ' world', isStreaming: true, messageId: 'stream-msg-123' },
+            { data: '!', isStreaming: true, messageId: 'stream-msg-123' }
+        ];
+
+        act(() => {
+            responses.forEach(response => result.current.handleMessage(response));
+        });
+
+        expect(result.current.isStreaming).toBe(true);
+        expect(result.current.messages[0]).toEqual(
+            expect.objectContaining({
+                content: 'Hello world!',
+                messageId: 'stream-msg-123'
+            })
+        );
+    });
+
+    it('should complete streaming with END_CONVERSATION_TOKEN', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        act(() => {
+            result.current.handleMessage({ data: 'Hello', isStreaming: true, messageId: 'stream-msg-123' });
+        });
+
+        act(() => {
+            result.current.handleMessage({ data: ' world', isStreaming: true, messageId: 'stream-msg-123' });
+        });
+
+        act(() => {
+            result.current.handleMessage({ data: '##END_CONVERSATION##' });
+        });
+
+        expect(result.current.isStreaming).toBe(false);
+        expect(result.current.streamingMessageId).toBeUndefined();
+        expect(result.current.isGenAiResponseLoading).toBe(false);
+        expect(result.current.messages[0]).toEqual(
+            expect.objectContaining({
+                content: 'Hello world',
+                avatarLoading: false
+            })
+        );
+    });
+
+    it('should complete streaming with streamComplete flag', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const responses: ChatResponse[] = [
+            { data: 'Hello', isStreaming: true, messageId: 'stream-msg-123' },
+            { data: ' world', isStreaming: true, messageId: 'stream-msg-123' },
+            { streamComplete: true }
+        ];
+
+        act(() => {
+            responses.forEach(response => result.current.handleMessage(response));
+        });
+
+        expect(result.current.isStreaming).toBe(false);
+        expect(result.current.streamingMessageId).toBeUndefined();
+        expect(result.current.isGenAiResponseLoading).toBe(false);
+    });
+
+    it('should handle streaming errors gracefully', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const responses: ChatResponse[] = [
+            { data: 'Hello', isStreaming: true, messageId: 'stream-msg-123' },
+            { errorMessage: 'Streaming error occurred' }
+        ];
+
+        act(() => {
+            responses.forEach(response => result.current.handleMessage(response));
+        });
+
+        expect(result.current.isStreaming).toBe(false);
+        expect(result.current.messages[result.current.messages.length - 1]).toEqual({
+            type: 'alert',
+            header: 'Error',
+            content: 'Streaming error occurred'
+        });
+    });
+
+    it('should handle non-streaming responses normally', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'Hello world',
+            conversationId: 'conv-123',
+            messageId: 'msg-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.isStreaming).toBe(false);
+        expect(result.current.messages[0]).toEqual(
+            expect.objectContaining({
+                content: 'Hello world',
+                messageId: 'msg-123'
+            })
+        );
+    });
+
+it('should filter out PROCESSING messages', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'PROCESSING',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.messages).toHaveLength(0);
+        expect(result.current.currentResponse).toBe('');
+    });
+
+    it('should filter out KEEP ALIVE messages', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'KEEP ALIVE',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.messages).toHaveLength(0);
+        expect(result.current.currentResponse).toBe('');
+    });
+
+    it('should filter out KEEP_ALIVE messages', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'KEEP_ALIVE',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.messages).toHaveLength(0);
+        expect(result.current.currentResponse).toBe('');
+    });
+
+    it('should filter out KEEPALIVE messages', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'KEEPALIVE',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.messages).toHaveLength(0);
+        expect(result.current.currentResponse).toBe('');
+    });
+
+    it('should filter system messages case-insensitively', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const testCases = ['processing', 'Processing', 'keep alive', 'Keep Alive', 'keep_alive'];
+
+        testCases.forEach((testCase) => {
+            const response: ChatResponse = {
+                data: testCase,
+                conversationId: 'conv-123'
+            };
+
+            act(() => {
+                result.current.handleMessage(response);
+            });
+
+            expect(result.current.messages).toHaveLength(0);
+            expect(result.current.currentResponse).toBe('');
+        });
+    });
+
+    it('should filter system messages with whitespace', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: '  PROCESSING  ',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.messages).toHaveLength(0);
+        expect(result.current.currentResponse).toBe('');
+    });
+
+    it('should not filter normal messages', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'Hello, this is a normal message',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.currentResponse).toBe('Hello, this is a normal message');
+        expect(result.current.messages).toHaveLength(1);
+    });
+
+    it('should not filter messages containing system keywords as part of larger text', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'The system is PROCESSING your request',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        expect(result.current.currentResponse).toBe('The system is PROCESSING your request');
+        expect(result.current.messages).toHaveLength(1);
+    });
+
+    it('should handle empty message data', () => {
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: '',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        // Empty messages should not be filtered, but also won't add content
+        expect(result.current.currentResponse).toBe('');
+    });
+
+    it('should return early when filtering system messages without processing other fields', () => {
+        const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+        const { result } = renderHook(() => useChatMessages(), {
+            wrapper: createTestWrapper()
+        });
+
+        const response: ChatResponse = {
+            data: 'PROCESSING',
+            conversationId: 'conv-123'
+        };
+
+        act(() => {
+            result.current.handleMessage(response);
+        });
+
+        // Message should be filtered, and we return early so conversationId is not set
+        expect(result.current.conversationId).toBe('');
+        expect(result.current.messages).toHaveLength(0);
+        consoleSpy.mockRestore();
+    });
+
+    // Thinking state is now managed as message metadata, not as separate hook state
+    // See IncomingMessage component for thinking indicator implementation
+});

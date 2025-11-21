@@ -11,16 +11,110 @@ import { ApplicationSetup } from './application-setup';
 
 export class BaseParameters {
     /**
+     * Unique UUID for this deployed use case within an application. Provided by the deployment platform if in use.
+     */
+    public useCaseUUID: cdk.CfnParameter;
+
+    /**
+     * First 8 characters of the useCaseUUID.
+     */
+    public useCaseShortId: string;
+
+    /**
+     * Name of the table that stores the configuration for a use case.
+     */
+    public useCaseConfigTableName: cdk.CfnParameter;
+
+    /**
+     * Key corresponding of the record containing configurations required by the chat provider lambda at runtime. The record in the table should have a "key"
+     * attribute matching this value, and a "config" attribute containing the desired config. This record will be populated by the deployment platform if in
+     * use. For standalone deployments of this use-case, a manually created entry in the table defined in `UseCaseConfigTableName` is required.
+     * Consult the implementation guide for more details.
+     */
+    public useCaseConfigRecordKey: cdk.CfnParameter;
+
+    /**
+     * UserPoolId of an existing cognito user pool which this use case will be authenticated with.
+     * Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.
+     */
+    public existingCognitoUserPoolId: cdk.CfnParameter;
+
+    /**
+     * Cfn parameter for existing user pool client Id (App Client Id)
+     */
+    public existingUserPoolClientId: cdk.CfnParameter;
+
+    /**
      * Optional parameter to specify domain when deploying the template. If not provided the template will generate
      * a random domain prefix using a hashing strategy using AWS account number, region, and stack name.
      */
-    protected cognitoUserPoolClientDomain: cdk.CfnParameter;
+    public cognitoUserPoolClientDomain: cdk.CfnParameter;
 
     protected cfnStack: cdk.Stack;
 
-    constructor(stack: BaseStack) {
+    constructor(stack: cdk.Stack) {
         this.cfnStack = cdk.Stack.of(stack);
 
+        this.setupUseCaseConfigTableParams(stack);
+        this.setupCognitoUserPoolParams(stack);
+        this.setupUUIDParams(stack);
+        this.setupCognitoUserPoolClientDomainParams(stack);
+    }
+
+    protected setupUseCaseConfigTableParams(stack: cdk.Stack): void {
+        this.useCaseConfigTableName = new cdk.CfnParameter(stack, 'UseCaseConfigTableName', {
+            type: 'String',
+            maxLength: 255,
+            allowedPattern: '^[a-zA-Z0-9_.-]{3,255}$',
+            description: 'DynamoDB table name for the table which contains the configuration for this use case.',
+            constraintDescription:
+                'This parameter is required. The stack will read the configuration from this table to configure the resources during deployment'
+        });
+
+        this.useCaseConfigRecordKey = new cdk.CfnParameter(stack, 'UseCaseConfigRecordKey', {
+            type: 'String',
+            maxLength: 2048,
+            description:
+                'Key corresponding of the record containing configurations required by the chat provider lambda at runtime. The record in the table should have a "key" attribute matching this value, and a "config" attribute containing the desired config. This record will be populated by the deployment platform if in use. For standalone deployments of this use-case, a manually created entry in the table defined in `UseCaseConfigTableName` is required. Consult the implementation guide for more details.'
+        });
+    }
+
+    protected setupCognitoUserPoolParams(stack: cdk.Stack): void {
+        this.existingCognitoUserPoolId = new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolId', {
+            type: 'String',
+            allowedPattern: '^$|^[0-9a-zA-Z_-]{9,24}$',
+            maxLength: 24,
+            description:
+                'Optional - UserPoolId of an existing cognito user pool which this use case will be authenticated with. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
+            default: ''
+        });
+
+        this.existingUserPoolClientId = new cdk.CfnParameter(stack, 'ExistingCognitoUserPoolClient', {
+            type: 'String',
+            allowedPattern: '^$|^[a-z0-9]{3,128}$',
+            maxLength: 128,
+            description:
+                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
+            default: ''
+        });
+    }
+    protected setupUUIDParams(stack: cdk.Stack): void {
+        this.useCaseUUID = new cdk.CfnParameter(stack, 'UseCaseUUID', {
+            type: 'String',
+            description:
+                'UUID to identify this deployed use case within an application. Please provide a 36 character long UUIDv4. If you are editing the stack, do not modify the value (retain the value used during creating the stack). A different UUID when editing the stack will result in new AWS resource created and deleting the old ones',
+            allowedPattern:
+                '^[0-9a-fA-F]{8}$|^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+            minLength: 8,
+            maxLength: 36,
+            constraintDescription:
+                'Using digits and the letters A through F, please provide a 8 character id or a 36 character long UUIDv4.'
+        });
+
+        this.useCaseShortId = cdk.Fn.select(0, cdk.Fn.split('-', this.useCaseUUID.valueAsString));
+    }
+
+    protected setupCognitoUserPoolClientDomainParams(stack: cdk.Stack): void {
         this.cognitoUserPoolClientDomain = new cdk.CfnParameter(stack, 'CognitoDomainPrefix', {
             type: 'String',
             description:
@@ -68,42 +162,42 @@ export class BaseStack extends cdk.Stack {
     /**
      * Construct managing the optional deployment of a VPC in a nested stack.
      */
-    public readonly vpcSetup: VPCSetup;
+    public vpcSetup: VPCSetup;
 
     /**
      * If set to 'false', the deployed use case stack will not have a VPC
      */
-    public readonly vpcEnabled: cdk.CfnParameter;
+    public vpcEnabled: cdk.CfnParameter;
 
     /**
      * The parameter to decide if customer will provide an existing VPC or the solution should create a new VPC
      */
-    public readonly createNewVpc: cdk.CfnParameter;
+    public createNewVpc: cdk.CfnParameter;
 
     /**
      * AWS VPC IPAM Id to use for the VPC CIDR block
      */
-    public readonly iPamPoolId: cdk.CfnParameter;
+    public iPamPoolId: cdk.CfnParameter;
 
     /**
      * ID of an existing VPC to be used for the use case. If none is provided, a new VPC will be created.
      */
-    public readonly existingVpcId: cdk.CfnParameter;
+    public existingVpcId: cdk.CfnParameter;
 
     /**
      * ID of an existing Private Subnet to be used for the use case.
      */
-    public readonly existingPrivateSubnetIds: cdk.CfnParameter;
+    public existingPrivateSubnetIds: cdk.CfnParameter;
 
     /**
      * SecurityGroup ids configured in the VPC
      */
-    public readonly existingSecurityGroupIds: cdk.CfnParameter;
+    public existingSecurityGroupIds: cdk.CfnParameter;
 
     /**
      * AZs for the VPC
      */
-    public readonly vpcAzs: cdk.CfnParameter;
+    public vpcAzs: cdk.CfnParameter;
 
     /**
      * condition to deploy VPC for use case stacks
@@ -123,32 +217,32 @@ export class BaseStack extends cdk.Stack {
     /**
      * condition to deploy WebApp
      */
-    public readonly deployWebApp: cdk.CfnParameter;
+    public deployWebApp: cdk.CfnParameter;
 
     /**
      * Rule to check for existing VPC if required parameters have been provided as CloudFormation input parameters
      */
-    public readonly checkIfExistingVPCParamsAreProvided: cdk.CfnRule;
+    public checkIfExistingVPCParamsAreProvided: cdk.CfnRule;
 
     /**
      * Rule to check if existing VPC parameters were provided as CloudFormation input parameters when we are either creating a new VPC or not using VPC
      */
-    public readonly checkIfExistingVPCParamsAreProvidedWhenNotAllowed: cdk.CfnRule;
+    public checkIfExistingVPCParamsAreProvidedWhenNotAllowed: cdk.CfnRule;
 
     /**
      * Rule to check if existing VPC parameters are empty, if either deployVPC is 'No', or deployVPC is 'Yes' and createNewVpc is 'Yes'
      */
-    public readonly checkIfExistingVPCParamsAreEmpty: cdk.CfnRule;
+    public checkIfExistingVPCParamsAreEmpty: cdk.CfnRule;
 
     /**
      * The security group Ids finally assigned post resolving the condition
      */
-    public readonly transpiredSecurityGroupIds: string;
+    public transpiredSecurityGroupIds: string;
 
     /**
      * The private subnet Ids finally assigned post resolving the condition
      */
-    public readonly transpiredPrivateSubnetIds: string;
+    public transpiredPrivateSubnetIds: string;
 
     /**
      * core properties associated with stack
@@ -172,6 +266,18 @@ export class BaseStack extends cdk.Stack {
             solutionVersion: props.solutionVersion
         };
 
+        this.initializeCfnParameters();
+        this.applicationSetup = this.createApplicationSetup(props);
+
+        // Initialize base stack features if enabled
+        this.initializeBaseStackParameters();
+        this.setupBaseStackResources(props);
+    }
+
+    /**
+     * Initialize base stack parameters (VPC, deployment, etc.)
+     */
+    protected initializeBaseStackParameters(): void {
         const stack = cdk.Stack.of(this);
 
         this.vpcEnabled = new cdk.CfnParameter(this, 'VpcEnabled', {
@@ -231,8 +337,13 @@ export class BaseStack extends cdk.Stack {
                 ParameterGroups: existingParameterGroups
             }
         };
+    }
 
-        this.initializeCfnParameters();
+    /**
+     * Setup base stack resources (VPC setup, application setup, etc.)
+     */
+    protected setupBaseStackResources(props: BaseStackProps): void {
+        const stack = cdk.Stack.of(this);
 
         const captureExistingVPCParamerters = new ExistingVPCParameters(this);
         this.existingVpcId = captureExistingVPCParamerters.existingVpcId;
@@ -350,7 +461,6 @@ export class BaseStack extends cdk.Stack {
             ]
         });
 
-        this.applicationSetup = this.createApplicationSetup(props);
         this.vpcSetup = this.setupVPC();
 
         // conditionally read subnet Ids and security group Ids from either the vpc provisioned by the solution

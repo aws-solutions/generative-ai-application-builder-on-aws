@@ -1,0 +1,29 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+.expandable-content {
+    display: inline;
+
+    &__text {
+        word-break: break-word;
+    }
+
+    &__toggle {
+        background: none;
+        border: none;
+        color: #0073bb;
+        cursor: pointer;
+        padding: 0 0 0 4px;
+        font-size: inherit;
+        text-decoration: underline;
+
+        &:hover {
+            color: #005a9e;
+        }
+
+        &:focus {
+            outline: 2px solid #0073bb;
+            outline-offset: 2px;
+        }
+    }
+}

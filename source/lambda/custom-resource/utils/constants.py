@@ -17,6 +17,7 @@ class CloudWatchNamespaces(str, Enum):
     USE_CASE_DEPLOYMENTS = "Solution/UseCaseDeployments"
     COLD_STARTS = "Solution/ColdStarts"
     FEEDBACK_MANAGEMENT = "Solution/FeedbackManagement"
+    FILE_HANDLING = "Solution/FileHandling"
 
 
 class CloudWatchMetrics(str, Enum):
@@ -78,11 +79,23 @@ class CloudWatchMetrics(str, Enum):
     HARMFUL_FEEDBACK_COUNT = "HarmfulFeedbackCount"
     OTHER_NEGATIVE_FEEDBACK_COUNT = "OtherNegativeFeedbackCount"
 
+    # File Handling Metrics
+    FILES_UPLOADED = "FilesUploaded"
+    FILE_DELETE = "FileDelete"
+    FILE_DOWNLOAD = "FileDownload"
+    FILE_SIZE = "FileSize"
+    FILES_UPLOADED_WITH_EXTENSION = "FilesExtUploaded"
+
+
+class EntityType(Enum):
+    RUNTIME = "runtime"
+    GATEWAY = "gateway"
+
 
 METRICS_ENDPOINT = "https://metrics.awssolutionsbuilder.com/generic"
 PUBLISH_METRICS_PERIOD_IN_SECONDS = (
     60 * 60 * 3
-)  # 3 hours. This is expected to match the runtime schedule defined by ANONYMOUS_METRICS_SCHEDULE
+)  # 3 hours. This is expected to match the runtime schedule defined by METRICS_SCHEDULE
 
 SSM_CONFIG_KEY = "SSM_CONFIG_KEY"
 USE_CASE_TYPE = "UseCaseType"
@@ -124,3 +137,6 @@ METRICS_TIMESTAMP_FORMAT = (
     "%Y-%m-%d %H:%M:%S.%f"  # This is the required format for the metrics API. Any changes should be taken with care
 )
 DEFAULT_API_GATEWAY_STAGE = "prod"
+MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR = "MULTIMODAL_DATA_BUCKET"
+MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR = "MULTIMODAL_METADATA_TABLE_NAME"
+AGENTCORE_RUNTIME_IDLE_TIMEOUT_SECONDS = 3600  # 1hr

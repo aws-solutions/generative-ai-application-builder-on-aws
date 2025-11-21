@@ -25,6 +25,10 @@ class MetricsSchema:
         "MaxPromptTemplateLength": (float, None),
     }
 
+    multimodal_params_schema = {
+        "MultimodalEnabled": (bool, None),
+    }
+
     bedrock_agent_params_schema = {"EnableTrace": (bool, None)}
 
     agent_params_schema = {"AgentType": (str, None), "BedrockAgentParams": (Dict, bedrock_agent_params_schema)}
@@ -36,6 +40,7 @@ class MetricsSchema:
         "ModelProvider": (str, None),
         "BedrockLlmParams": (Dict, bedrock_llm_params_schema),
         "PromptParams": (Dict, prompt_params_schema),
+        "MultimodalParams": (Dict, multimodal_params_schema),
     }
 
     knowledge_base_params_schema = {"KnowledgeBaseType": (str, None)}
@@ -43,6 +48,38 @@ class MetricsSchema:
     authentication_params_schema = {"ClientOwnedUserPool": (bool, None)}
 
     feedback_params_schema = {"FeedbackEnabled": (bool, None)}
+
+    mcp_gateway_params_schema = {
+        "TargetCount": (int, None),
+        "TargetParams": (list, None),
+    }
+
+    mcp_runtime_params_schema = {}
+
+    mcp_params_schema = {
+        "MCPType": (str, None),
+        "GatewayParams": (Dict, mcp_gateway_params_schema),
+        "RuntimeParams": (Dict, mcp_runtime_params_schema),
+    }
+
+    memory_config_schema = {
+        "LongTermEnabled": (bool, None),
+    }
+
+    agent_builder_params_schema = {
+        "MemoryConfig": (Dict, memory_config_schema),
+        "BuiltInToolsCount": (int, None),
+        "BuiltInTools": (list, None),
+        "MCPServersCount": (int, None),
+        "MCPServers": (list, None),
+    }
+
+    workflow_params_schema = {
+        "OrchestrationPattern": (str, None),
+        "MemoryConfig": (Dict, memory_config_schema),
+        "AgentsCount": (int, None),
+        "Agents": (list, None),
+    }
 
     metrics_schema = {
         "NEW_KENDRA_INDEX_CREATED": (str, None),
@@ -53,11 +90,15 @@ class MetricsSchema:
         "UseCaseType": (str, None),
         "KnowledgeBaseType": (str, None),
         "DeployUI": (bool, None),
+        "ProvisionedConcurrencyValue": (int, None),
         "LlmParams": (Dict, llm_params_schema),
         "AgentParams": (Dict, agent_params_schema),
         "KnowledgeBaseParams": (Dict, knowledge_base_params_schema),
         "AuthenticationParams": (Dict, authentication_params_schema),
         "FeedbackParams": (Dict, feedback_params_schema),
+        "MCPParams": (Dict, mcp_params_schema),
+        "AgentBuilderParams": (Dict, agent_builder_params_schema),
+        "WorkflowParams": (Dict, workflow_params_schema),
     }
 
     def __init__(self, data):
