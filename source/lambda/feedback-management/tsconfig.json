@@ -30,6 +30,9 @@
     "moduleResolution": "node",
     "rootDir": ".",
     "paths": {
+      "aws-sdk-lib": [
+        "../layers/aws-sdk-lib/dist"
+      ],
       "aws-node-user-agent-config": [
         "../layers/aws-node-user-agent-config/dist"
       ],
@@ -87,6 +90,6 @@
       "@smithy/types": [
         "../layers/aws-sdk-lib/node_modules/@smithy/types"
       ]
-    },
+    }
   }
 }

@@ -6,7 +6,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import { Duration } from 'aws-cdk-lib';
 
-export const ANONYMOUS_METRICS_SCHEDULE = Duration.hours(3);
+export const METRICS_SCHEDULE = Duration.hours(3);
 
 export const PLACEHOLDER_EMAIL = 'placeholder@example.com';
 export const INTERNAL_EMAIL_DOMAIN = 'amazon';
@@ -44,7 +44,8 @@ export enum CloudWatchNamespace {
     USE_CASE_DEPLOYMENTS = 'Solution/UseCaseDeployments',
     USE_CASE_DETAILS = 'Solution/UseCaseDetails',
     FEEDBACK_MANAGEMENT = 'Solution/FeedbackManagement',
-    COLD_STARTS = 'Solution/ColdStarts'
+    COLD_STARTS = 'Solution/ColdStarts',
+    FILE_HANDLING = 'Solution/FileHandling'
 }
 
 export enum LLMStopReasons {
@@ -119,7 +120,20 @@ export enum CloudWatchMetrics {
     INACCURATE_FEEDBACK_COUNT = 'InaccurateFeedbackCount',
     INCOMPLETE_OR_INSUFFICIENT_FEEDBACK_COUNT = 'IncompleteOrInsufficientFeedbackCount',
     HARMFUL_FEEDBACK_COUNT = 'HarmfulFeedbackCount',
-    OTHER_NEGATIVE_FEEDBACK_COUNT = 'OtherNegativeFeedbackCount'
+    OTHER_NEGATIVE_FEEDBACK_COUNT = 'OtherNegativeFeedbackCount',
+
+    // Multimodal File Metrics
+    FILES_UPLOADED = 'FilesUploaded',
+    FILE_UPLOAD_FAILURE = 'FileUploadFailure',
+    FILE_ACCESS_FAILURES = 'FileAccessFailures',
+    FILE_DELETE = 'FileDelete',
+    FILE_DOWNLOAD = 'FileDownload',
+    FILE_EXTENSION = 'FileExtension',
+    FILE_SIZE = 'FileSize',
+    METADATA_UPDATE_FAILURE = 'MetadataUpdateFailure',
+    METADATA_VALIDATION_FAILURE = 'MetadataValidationFailure',
+    MULTIMODAL_DISABLED_ERROR = 'MultimodalDisabledError',
+    FILES_UPLOADED_WITH_EXTENSION = 'FilesExtUploaded'
 }
 
 export const ADDITIONAL_LLM_LIBRARIES = 'AdditionalLLMLibraries';
@@ -136,19 +150,45 @@ export enum LLM_LIBRARY_LAYER_TYPES {
 export const OPTIONAL_EMAIL_REGEX_PATTERN = "^$|[A-Za-z0-9_!#$%&'*+/=?`{|}~^.-]+@[A-Za-z0-9.-]+$";
 export const MANDATORY_EMAIL_REGEX_PATTERN = "[A-Za-z0-9_!#$%&'*+/=?`{|}~^.-]+@[A-Za-z0-9.-]+$";
 
+// AWS Resource ARN patterns
+export const LAMBDA_ARN_PATTERN =
+    '^arn:aws[a-zA-Z-]*:lambda:[a-z0-9-]+:[0-9]{12}:function:[a-zA-Z0-9-_]+(?::[a-zA-Z0-9-_]+)?$';
+export const BEDROCK_AGENTCORE_OAUTH_ARN_PATTERN =
+    '^arn:aws[a-zA-Z-]*:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault\\/[A-Za-z0-9._-]+\\/oauth2credentialprovider\\/[A-Za-z0-9._-]+$';
+export const BEDROCK_AGENTCORE_API_KEY_ARN_PATTERN =
+    '^arn:aws[a-zA-Z-]*:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:token-vault\\/[A-Za-z0-9._-]+\\/apikeycredentialprovider\\/[A-Za-z0-9._-]+$';
 export enum UseCaseNames {
     CHAT = 'chat'
 }
 
 export enum USE_CASE_TYPES {
     TEXT = 'Text',
-    AGENT = 'Agent'
+    AGENT = 'Agent',
+    AGENT_BUILDER = 'AgentBuilder',
+    MCP_SERVER = 'MCPServer',
+    WORKFLOW = 'Workflow'
 }
+
+export enum AGENTCORE_INSTANCE_TYPES {
+    RUNTIME = 'Runtime',
+    GATEWAY = 'Gateway'
+}
+
+// Use case types that support chat functionality (conversation storage)
+export const CHAT_ENABLED_USE_CASE_TYPES = [USE_CASE_TYPES.TEXT, USE_CASE_TYPES.AGENT];
 
 export enum CONVERSATION_MEMORY_TYPES {
     DYNAMODB = 'DynamoDB'
 }
 export const SUPPORTED_CONVERSATION_MEMORY_TYPES = [CONVERSATION_MEMORY_TYPES.DYNAMODB];
+
+// Workflow-specific constants
+export const WORKFLOW_MAX_SELECTED_AGENTS = 10;
+export enum WORKFLOW_ORCHESTRATION_PATTERNS {
+    AGENT_AS_TOOLS = 'agents-as-tools'
+}
+export const SUPPORTED_WORKFLOW_ORCHESTRATION_PATTERNS: string[] = Object.values(WORKFLOW_ORCHESTRATION_PATTERNS);
+
 export const DEFAULT_CONVERSATION_MEMORY_TYPE = CONVERSATION_MEMORY_TYPES.DYNAMODB;
 
 export enum KNOWLEDGE_BASE_TYPES {
@@ -167,9 +207,14 @@ export enum BEDROCK_INFERENCE_TYPES {
     QUICK_START = 'QUICK_START',
     OTHER_FOUNDATION = 'OTHER_FOUNDATION',
     INFERENCE_PROFILE = 'INFERENCE_PROFILE',
-    PROVISIONED = 'PROVISIONED',
+    PROVISIONED = 'PROVISIONED'
 }
-export const SUPPORTED_BEDROCK_INFERENCE_TYPES = [BEDROCK_INFERENCE_TYPES.QUICK_START, BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION, BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILE, BEDROCK_INFERENCE_TYPES.PROVISIONED];
+export const SUPPORTED_BEDROCK_INFERENCE_TYPES = [
+    BEDROCK_INFERENCE_TYPES.QUICK_START,
+    BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION,
+    BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILE,
+    BEDROCK_INFERENCE_TYPES.PROVISIONED
+];
 
 export enum DynamoDBAttributes {
     CONVERSATION_TABLE_PARTITION_KEY = 'UserId',
@@ -190,12 +235,13 @@ export enum DynamoDBAttributes {
 export const enum CHAT_PROVIDERS {
     BEDROCK = 'Bedrock',
     SAGEMAKER = 'SageMaker',
-    BEDROCK_AGENT = 'BedrockAgent'
+    BEDROCK_AGENT = 'BedrockAgent',
+    AGENT_CORE = 'AgentCore'
 }
 export const enum AUTHENTICATION_PROVIDERS {
     COGNITO = 'Cognito'
 }
-export const SUPPORTED_CHAT_PROVIDERS = [CHAT_PROVIDERS.BEDROCK, CHAT_PROVIDERS.SAGEMAKER];
+export const SUPPORTED_CHAT_PROVIDERS = [CHAT_PROVIDERS.BEDROCK, CHAT_PROVIDERS.SAGEMAKER, CHAT_PROVIDERS.AGENT_CORE];
 export const SUPPORTED_AUTHENTICATION_PROVIDERS = [AUTHENTICATION_PROVIDERS.COGNITO];
 
 export const KENDRA_EDITIONS = ['DEVELOPER_EDITION', 'ENTERPRISE_EDITION'];
@@ -203,6 +249,7 @@ export const DEFAULT_KENDRA_EDITION = 'DEVELOPER_EDITION';
 export const DEFAULT_KNOWLEDGE_BASE_TYPE = KNOWLEDGE_BASE_TYPES.BEDROCK;
 
 // Environment variables used for configuring lambdas
+export const POWERTOOLS_SERVICE_NAME_ENV_VAR = 'POWERTOOLS_SERVICE_NAME';
 export const USE_CASE_CONFIG_RECORD_KEY_ENV_VAR = 'USE_CASE_CONFIG_RECORD_KEY';
 export const USE_CASE_CONFIG_TABLE_NAME_ENV_VAR = 'USE_CASE_CONFIG_TABLE_NAME';
 export const CONVERSATION_TABLE_NAME_ENV_VAR = 'CONVERSATION_TABLE_NAME';
@@ -222,9 +269,16 @@ export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
 export const USE_CASE_API_KEY_SUFFIX_ENV_VAR = 'API_KEY_SUFFIX';
 export const USE_CASE_UUID_ENV_VAR = 'USE_CASE_UUID';
 export const WEBSOCKET_API_ID_ENV_VAR = 'WEBSOCKET_API_ID';
-export const FEEDBACK_ENABLED_ENV_VAR = 'FEEDBACK_ENABLED'
+export const FEEDBACK_ENABLED_ENV_VAR = 'FEEDBACK_ENABLED';
 export const REST_API_NAME_ENV_VAR = 'REST_API_NAME';
 export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
+export const GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR = 'GAAB_DEPLOYMENTS_BUCKET';
+export const DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR = 'DEPLOYMENT_PLATFORM_STACK_NAME';
+export const SHARED_ECR_CACHE_PREFIX_ENV_VAR = 'SHARED_ECR_CACHE_PREFIX';
+export const STRANDS_TOOLS_SSM_PARAM_ENV_VAR = 'STRANDS_TOOLS_SSM_PARAM';
+export const MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR = 'MULTIMODAL_METADATA_TABLE_NAME';
+export const MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR = 'MULTIMODAL_DATA_BUCKET';
+export const MULTIMODAL_ENABLED_ENV_VAR = 'MULTIMODAL_ENABLED';
 
 // values defining defaults and requirements for parameters
 export const DEFAULT_NEW_KENDRA_INDEX_NAME = 'GAABKnowledgeBaseIndex';
@@ -266,8 +320,92 @@ export const INVALID_REQUEST_HEADER_RESPONSE_CODE = 403;
 export const CUSTOM_RULE_PRIORITY = 7;
 export const HEADERS_NOT_ALLOWED_KEY = 'HeadersNotAllowed';
 
+// ECR Pull-Through Cache constants
+export const ECR_REPOSITORY_PREFIX_MAX_LENGTH = 30;
+export const GAAB_AGENTS_PREFIX = 'gaab-agents-';
+export const GAAB_AGENTS_PREFIX_LENGTH = GAAB_AGENTS_PREFIX.length; // 12 characters
+export const ECR_HASH_LENGTH = 6;
+export const ECR_UPSTREAM_REGISTRY = 'ecr-public';
+export const ECR_UPSTREAM_REGISTRY_URL = 'public.ecr.aws';
+export const ECR_UPSTREAM_REPOSITORY_PREFIX = 'aws-solutions';
+export const GAAB_STRANDS_AGENT_IMAGE_NAME = 'gaab-strands-agent';
+export const GAAB_STRANDS_WORKFLOW_IMAGE_NAME = 'gaab-strands-workflow-agent';
+
+export const DEPLOYMENTS_BUCKET_ENV_VAR = 'DEPLOYMENTS_BUCKET';
+
 // Feedback related constants
 export const FEEDBACK_REASON_OPTIONS = ['Inaccurate', 'Incomplete or insufficient', 'Harmful', 'Other'];
 export const MAX_REPHRASED_QUERY_LENGTH = 1000;
 export const MAX_COMMENT_LENGTH = 500;
 export const FEEDBACK_VALUES = ['positive', 'negative'];
+
+// File upload related constants - for MCP schema files and multimodal support
+export const UPLOADED_FILE_NAME_MIN_LENGTH = 1;
+export const UPLOADED_FILE_NAME_MAX_LENGTH = 255;
+
+// MCP (Model Context Protocol) related constants for validations & AWS Service limits
+// Reference: https://docs.aws.amazon.com/bedrock-agentcore-control/latest/APIReference/API_CreateGatewayTarget.html
+export const MCP_INACTIVE_SCHEMA_EXPIRATION_DAYS = 1;
+export const MCP_GATEWAY_MAX_TARGETS_PER_GATEWAY = 10;
+export const MCP_GATEWAY_TARGET_NAME_MAX_LENGTH = 100;
+export const MCP_GATEWAY_TARGET_DESCRIPTION_MAX_LENGTH = 200;
+export const MCP_GATEWAY_API_KEY_MAX_LENGTH = 65536;
+export const MCP_GATEWAY_OAUTH_CLIENT_ID_MAX_LENGTH = 256;
+export const MCP_GATEWAY_OAUTH_CLIENT_SECRET_MAX_LENGTH = 2048;
+export const MCP_GATEWAY_TARGET_NAME_PATTERN = '([0-9a-zA-Z][-]?){1,100}';
+export const MCP_GATEWAY_TARGET_TYPES = ['openApiSchema', 'smithyModel', 'lambda'];
+export const MCP_ALLOWED_FILE_EXTENSIONS = ['json', 'yaml', 'yml', 'smithy'];
+export const MCP_SCHEMA_FILE_NAME_PATTERN = `^.+\\.(${MCP_ALLOWED_FILE_EXTENSIONS.join('|')})$`;
+export const MCP_GATEWAY_AUTH_TYPES = ['OAUTH', 'API_KEY'];
+
+// OAuth configuration validation
+export const OAUTH_SCOPE_MAX_LENGTH = 64;
+export const OAUTH_SCOPES_MAX_COUNT = 100;
+export const OAUTH_CUSTOM_PARAM_KEY_MAX_LENGTH = 256;
+export const OAUTH_CUSTOM_PARAM_VALUE_MAX_LENGTH = 2048;
+export const OAUTH_CUSTOM_PARAMS_MAX_COUNT = 10;
+
+// API Key configuration validation
+export const API_KEY_PARAM_NAME_MAX_LENGTH = 64;
+export const API_KEY_PREFIX_MAX_LENGTH = 64;
+
+// MCP Runtime environment variables validation
+export const MCP_RUNTIME_ENV_VARS_MAX_COUNT = 50;
+
+// MCP Schema key pattern - validates paths like: mcp/schemas/smithy/e9b1801d-2516-40fe-859e-a0c7d81da2f3.smithy
+export const MCP_SCHEMA_KEY_PATTERN =
+    '^mcp/schemas/(lambda|openApiSchema|smithyModel)/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(json|yaml|yml|smithy)$';
+
+// ECR image URI pattern
+export const ECR_URI_PATTERN =
+    '^(\\d{12})\\.dkr\\.ecr\\.([a-z\\d-]+)\\.amazonaws\\.com\\/(?=.{2,256}:)((?:[a-z\\d]+(?:[._-][a-z\\d]+)*\\/)*[a-z\\d]+(?:[._-][a-z\\d]+)*):([a-zA-Z\\d._-]{1,300})$';
+
+// Agent-specific limits for schema validation
+// Note: System prompt length limit not explicitly documented in AWS AgentCore docs
+// This is a reasonable application-level limit for UI validation
+export const AGENT_CORE_SYSTEM_PROMPT_MAX_LENGTH = 60000;
+
+// Multimodal file operations constants
+export const MAX_FILE_UPLOADS_PER_BATCH = 25; // Up to 20 images and 5 documents allowed by Converse API
+export const MAX_FILE_DELETES_PER_BATCH = 25; // DDB Batch delete can include up to 25 individual delete operations
+export const UUID_PATTERN = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+export const SUPPORTED_MULTIMODAL_IMAGE_EXTENSIONS = ['png', 'jpeg', 'jpg', 'gif', 'webp'];
+export const SUPPORTED_MULTIMODAL_DOCUMENT_EXTENSIONS = [
+    'pdf',
+    'csv',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'html',
+    'txt',
+    'md'
+];
+export const SUPPORTED_MULTIMODAL_FILE_EXTENSIONS = [
+    ...SUPPORTED_MULTIMODAL_IMAGE_EXTENSIONS,
+    ...SUPPORTED_MULTIMODAL_DOCUMENT_EXTENSIONS
+];
+// Pattern that allows safe file names while preventing path traversal attacks
+// Must end with a supported file extension and cannot contain path separators (/ or \)
+export const MULTIMODAL_FILENAME_PATTERN = `^[a-zA-Z0-9](?:[a-zA-Z0-9_-]|[\x20](?=[a-zA-Z0-9_-]))*\.(${SUPPORTED_MULTIMODAL_FILE_EXTENSIONS.join('|')})$`;
+export const MULTIMODAL_FILE_EXPIRATION_DAYS = 2;

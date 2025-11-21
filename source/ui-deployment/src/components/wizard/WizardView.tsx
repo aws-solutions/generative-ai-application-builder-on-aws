@@ -17,6 +17,7 @@ import { createDeployRequestPayload, createUpdateRequestPayload } from './utils'
 import { generateToken } from '@/utils/utils';
 import { API } from 'aws-amplify';
 import { InfoLink, Notifications, Navigation } from '../commons';
+import { MCPSchemaUploadHandler } from './utils/mcpSchemaUpload';
 import {
     AppLayout,
     Wizard,
@@ -36,8 +37,12 @@ import { ToolHelpPanelContent } from './interfaces/Steps';
 import { BaseWizardProps } from './interfaces/Steps/BaseWizardStep';
 import { ErrorBoundary } from '../commons/ErrorBoundary';
 
-const getWizardStepsInfo = (useCase: UseCaseType, selectedDeployment: any, deploymentAction: string) => {
-    let wizardStepsInfo: { [key: string]: BaseWizardProps } = {};
+const getWizardStepsInfo = (
+    useCase: UseCaseType,
+    selectedDeployment: any,
+    deploymentAction: string
+): Record<string, BaseWizardProps> => {
+    let wizardStepsInfo: Record<string, BaseWizardProps> = {};
     if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT || deploymentAction === DEPLOYMENT_ACTIONS.CLONE) {
         for (const step of useCase.steps) {
             step.mapStepInfoFromDeployment(selectedDeployment, deploymentAction);
@@ -72,11 +77,17 @@ export const useWizard = (
         }
     );
 
+    type AllowedMethod = 'post' | 'patch';
     const [activeStepIndex, setActiveStepIndex] = useState(0);
     const [showErrorAlert, setShowErrorAlert] = useState(false);
     const [useCaseDeployStatus, setUseCaseDeployStatus] = useState('');
+    const [schemaUploadErrorMessage, setSchemaUploadErrorMessage] = useState('');
+    const [schemaFileCount, setSchemaFileCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [stepsInfo, setStepsInfo] = useState({});
+    const [stepsInfo, setStepsInfo] = useState<Record<string, BaseWizardProps>>({});
+
+    // MCP schema file upload handler
+    MCPSchemaUploadHandler.initializeNotifications(null);
 
     useEffect(() => {
         if (!shouldFetchDeploymentInfo) {
@@ -117,7 +128,7 @@ export const useWizard = (
     ]);
 
     const onStepInfoChange = useCallback(
-        (stateKey: string, newStepState: any) => {
+        (stateKey: string, newStepState: Partial<BaseWizardProps>) => {
             setStepsInfo({
                 ...stepsInfo,
                 [stateKey]: {
@@ -130,12 +141,23 @@ export const useWizard = (
     );
 
     const setActiveStepIndexAndCloseTools = (index: number) => {
+        if (useCaseDeployStatus === DEPLOYMENT_STATUS_NOTIFICATION.SCHEMA_UPLOAD_FAILURE) {
+            setUseCaseDeployStatus('');
+            setSchemaUploadErrorMessage('');
+            setSchemaFileCount(0);
+        }
         setActiveStepIndex(index);
         setFormattedToolsContent(useCase.steps[index].toolContent);
         closeTools();
     };
 
     const onNavigate = (detail: WizardProps.NavigateDetail) => {
+        if (useCaseDeployStatus === DEPLOYMENT_STATUS_NOTIFICATION.SCHEMA_UPLOAD_FAILURE) {
+            setUseCaseDeployStatus('');
+            setSchemaUploadErrorMessage('');
+            setSchemaFileCount(0);
+        }
+
         if (
             detail.reason === 'next' &&
             useCase.steps[activeStepIndex].id !== 'review' &&
@@ -153,54 +175,83 @@ export const useWizard = (
     };
 
     const onSubmit = async () => {
+        let endpoint;
+        let requestPayload;
+        let method;
         try {
-            if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
-                const endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.UPDATE_USE_CASE.route(selectedDeployment.UseCaseId);
-                const requestPayload = createUpdateRequestPayload(stepsInfo, runtimeConfig);
-                scrollToTop();
-                await updateUseCasePatchRequest(endpoint, requestPayload);
-            } else {
-                const endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.CREATE_USE_CASE.route;
-                const requestPayload = createDeployRequestPayload(stepsInfo, runtimeConfig);
-                scrollToTop();
-                await deployUseCasePostRequest(endpoint, requestPayload);
+            if (MCPSchemaUploadHandler.requiresSchemaUpload(useCase.type)) {
+                const fileCount = MCPSchemaUploadHandler.getFileCount(stepsInfo);
+                setSchemaFileCount(fileCount);
+                await MCPSchemaUploadHandler.uploadAllSchemaFiles(stepsInfo, setUseCaseDeployStatus);
             }
+            setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.PENDING);
+
+            if (deploymentAction === DEPLOYMENT_ACTIONS.EDIT) {
+                endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.UPDATE_USE_CASE.route(
+                    useCase.type,
+                    selectedDeployment.UseCaseId
+                );
+                method = DEPLOYMENT_PLATFORM_API_ROUTES.UPDATE_USE_CASE.method;
+                requestPayload = createUpdateRequestPayload(stepsInfo, runtimeConfig);
+            } else {
+                endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.CREATE_USE_CASE.route(useCase.type);
+                method = DEPLOYMENT_PLATFORM_API_ROUTES.CREATE_USE_CASE.method;
+                requestPayload = createDeployRequestPayload(stepsInfo, runtimeConfig);
+            }
+            await createUseCaseRequest(endpoint, requestPayload, method);
         } catch (error) {
             scrollToTop();
-            setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.FAILURE);
             console.error(error);
+            const errorUpdatedState = (error as any).updatedStepsInfo;
+            if (errorUpdatedState) {
+                setStepsInfo(errorUpdatedState);
+            }
+
+            const errorMessage = (error as Error).message;
+            const isSchemaUploadError = errorMessage.includes('schema file upload failed');
+
+            if (isSchemaUploadError) {
+                setSchemaUploadErrorMessage(errorMessage);
+            } else {
+                setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.FAILURE);
+            }
         }
     };
 
-    const updateUseCasePatchRequest = async (endpoint: string, params = {}) => {
-        setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.PENDING);
-        const token = await generateToken();
-        const response = await API.patch(API_NAME, endpoint, {
-            body: params,
-            headers: {
-                Authorization: token
-            }
-        });
-        setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.SUCCESS);
-        return response;
-    };
+    // Type checking API methods in this file
+    const isAllowedMethod = (method: string): method is AllowedMethod => method === 'post' || method === 'patch';
 
     /**
-     * Make a reqeust to deploy a use case using CloudFormation
-     * POST /deployments/
+     * Make a request to deploy or update a use case using CloudFormation
+     * POST /deployments/*
+     * PATCH /deployments/{useCaseId}
+     * PATCH /deployments/mcp/{useCaseId}
+     * PATCH /deployments/agent/{useCaseId}
      *
      * @param {string} endpoint API Endpoint to call
      * @param {Object} params Use case deployment params to send to the API
      */
-    const deployUseCasePostRequest = async (endpoint: string, params = {}) => {
+    const createUseCaseRequest = async (
+        endpoint: string,
+        params: Record<string, any> = {},
+        apiMethod: string 
+    ) => {
+        console.log(JSON.stringify(params, null, 2));
         setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.PENDING);
         const token = await generateToken();
-        const response = await API.post(API_NAME, endpoint, {
+
+        const key = apiMethod.toLowerCase();
+
+        if (!isAllowedMethod(key)) {
+            throw new Error(`Unsupported method: ${apiMethod}`);
+        }
+
+        // This does call API.post or API.patch depending on the apiMethod argument
+        const response = await API[key](API_NAME, endpoint, {
             body: params,
-            headers: {
-                Authorization: token
-            }
+            headers: { Authorization: token }
         });
+
         setUseCaseDeployStatus(DEPLOYMENT_STATUS_NOTIFICATION.SUCCESS);
         return response;
     };
@@ -210,6 +261,8 @@ export const useWizard = (
         stepsInfo,
         showErrorAlert,
         useCaseDeployStatus,
+        schemaUploadErrorMessage,
+        schemaFileCount,
         setActiveStepIndexAndCloseTools,
         onStepInfoChange,
         onNavigate,
@@ -232,6 +285,8 @@ const WizardView = (props: WizardViewProps) => {
         stepsInfo,
         showErrorAlert,
         useCaseDeployStatus,
+        schemaUploadErrorMessage,
+        schemaFileCount,
         setActiveStepIndexAndCloseTools,
         onStepInfoChange,
         onNavigate,
@@ -287,7 +342,8 @@ const WizardView = (props: WizardViewProps) => {
             },
             setHelpPanelContent: infoPanel.setContentAndOpen,
             setActiveStepIndex: setActiveStepIndexAndCloseTools,
-            handleWizardNextStepLoading: setIsWizardNextStepLoading
+            handleWizardNextStepLoading: setIsWizardNextStepLoading,
+            visibility: step.visibility
         }),
         isOptional:
             deploymentAction === DEPLOYMENT_ACTIONS.EDIT ||
@@ -362,13 +418,21 @@ const WizardView = (props: WizardViewProps) => {
                                 onConfirm={onSubmit}
                                 deploymentAction={deploymentAction}
                                 isThirdPartyProvider={false}
+                                modelData={stepsInfo.model}
                             />
                         </>
                     </SpaceBetween>
                 </Box>
             }
             ariaLabels={appLayoutAriaLabels}
-            notifications={<Notifications status={useCaseDeployStatus} onSuccessButtonAction={onSuccessAction} />}
+            notifications={
+                <Notifications
+                    status={useCaseDeployStatus}
+                    onSuccessButtonAction={onSuccessAction}
+                    schemaUploadErrorMessage={schemaUploadErrorMessage}
+                    fileCount={schemaFileCount}
+                />
+            }
         />
     );
 };

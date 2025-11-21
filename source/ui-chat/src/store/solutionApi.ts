@@ -84,18 +84,47 @@ export const solutionApi = createApi({
                     data: response.data
                 };
             }
+        }),
+        /**
+         * Query endpoint to fetch files for a use case
+         */
+        getFiles: builder.query<any, { useCaseId: string; conversationId?: string; messageId?: string }>({
+            query: ({ useCaseId, conversationId, messageId }) => {
+                const params = new URLSearchParams();
+                if (conversationId) params.append('conversationId', conversationId);
+                if (messageId) params.append('messageId', messageId);
+
+                const queryString = params.toString();
+                return `${ApiEndpoints.FILES}/${useCaseId}${queryString ? `?${queryString}` : ''}`;
+            },
+            providesTags: (result, error, { useCaseId }) => [{ type: 'Files', id: useCaseId }]
+        }),
+        /**
+         * Query endpoint to get download URL for a specific file
+         */
+        getFileDownloadUrl: builder.query<{ downloadUrl: string }, { useCaseId: string; conversationId: string; messageId: string; fileName: string }>({
+            query: ({ useCaseId, conversationId, messageId, fileName }) => {
+                const params = new URLSearchParams();
+                params.append('conversationId', conversationId);
+                params.append('messageId', messageId);
+                params.append('fileName', fileName);
+                params.append('action', 'download');
+
+                return `${ApiEndpoints.FILES}/${useCaseId}?${params.toString()}`;
+            }
         })
     }),
     refetchOnMountOrArgChange: true,
-    tagTypes: ['Details']
+    tagTypes: ['Details', 'Files']
 });
 
-export const { useGetDeploymentQuery, useSubmitFeedbackMutation } = solutionApi;
+export const { useGetDeploymentQuery, useSubmitFeedbackMutation, useGetFilesQuery, useLazyGetFileDownloadUrlQuery } = solutionApi;
 
 /**
  * Enum containing API endpoint paths
  */
 export enum ApiEndpoints {
     DETAILS = '/details',
-    FEEDBACK = '/feedback'
+    FEEDBACK = '/feedback',
+    FILES = '/files'
 }

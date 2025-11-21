@@ -21,6 +21,7 @@ export interface StackInfo {
  */
 export interface UseCaseRecord {
     UseCaseId: string;
+    UseCaseType: string;
     StackId: string;
     Name: string;
     UseCaseConfigRecordKey: string;

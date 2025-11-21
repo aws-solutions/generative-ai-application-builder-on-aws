@@ -15,11 +15,11 @@ import {
     API_GATEWAY_THROTTLING_RATE_LIMIT,
     LOG_RETENTION_PERIOD
 } from '../utils/constants';
-import { deployUseCaseBodySchema } from './model-schema/deploy-usecase-body';
-import { deployUseCaseResponseSchema } from './model-schema/deploy-usecase-response';
-import { updateUseCaseBodySchema } from './model-schema/update-usecase-body';
-import { updateUseCaseResponseSchema } from './model-schema/update-usecase-response';
+import { UseCaseDeploymentSchemas } from './model-schema';
+import { uploadMcpSchemaBodySchema } from './model-schema/deployments/mcp/upload-schema-body';
+import { uploadMcpSchemaResponseSchema } from './model-schema/deployments/mcp/upload-schema-response';
 import { BaseRestEndpoint, BaseRestEndpointProps } from './base-rest-endpoint';
+import { DeploymentRestApiHelper, DeploymentApiContext } from './deployment-platform-rest-api-helper';
 
 export interface DeploymentPlatformRestEndpointProps extends BaseRestEndpointProps {
     /**
@@ -33,9 +33,25 @@ export interface DeploymentPlatformRestEndpointProps extends BaseRestEndpointPro
     modelInfoApiLambda: lambda.Function;
 
     /**
+     * The lambda function for MCP server management
+     */
+    mcpManagementAPILambda: lambda.Function;
+
+    /**
+     * The lambda function for agent management
+     */
+    agentManagementAPILambda: lambda.Function;
+
+    /**
+     * The lambda function for workflow management
+     */
+    workflowManagementAPILambda: lambda.Function;
+
+    /**
      * The custom authorizer to allow admin users to access the use case management API.
      */
     deploymentPlatformAuthorizer: api.RequestAuthorizer;
+
 }
 
 export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
@@ -48,6 +64,11 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
      * The API request validator
      */
     public readonly requestValidator: api.RequestValidator;
+
+    /**
+     *  Collection of all API resources created - stored for CDK-nag AwsSolutions-COG4 security suppressions
+     */
+    private readonly createdResources: api.Resource[] = [];
 
     constructor(scope: Construct, id: string, props: DeploymentPlatformRestEndpointProps) {
         super(scope, id, props);
@@ -89,7 +110,7 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
                 retention: LOG_RETENTION_PERIOD
             }
         });
-        restApi.apiGateway.node.tryRemoveChild("Endpoint");
+        restApi.apiGateway.node.tryRemoveChild('Endpoint');
         return restApi;
     }
 
@@ -105,137 +126,220 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
     /**
      * Creates all API resources and methods for the use case management API
      * @param props
-     * @param apiRoot
      * @param restApi
      */
     private createUseCaseManagementApi(props: DeploymentPlatformRestEndpointProps, restApi: api.IRestApi) {
+        // Paths for the deployment api
+        const deploymentsResource = restApi.root.addResource('deployments');
+
+        this.createBaseDeploymentsAPI(deploymentsResource, props, restApi);
+
+        // Create MCP deployments API
+        this.createMCPPathAPI(deploymentsResource, props, restApi);
+
+        // Create Agents API
+        this.createAgentsPathAPI(deploymentsResource, props, restApi);
+
+        // Create Workflows API
+        this.createWorkflowsPathAPI(deploymentsResource, props, restApi);
+    }
+
+    /**
+     * Creates the base deployments API using helper methods
+     * @param deploymentsResource
+     * @param props
+     * @param restApi
+     * @returns The deploymentResource ({useCaseId}) for reuse by other APIs
+     */
+    private createBaseDeploymentsAPI(
+        deploymentsResource: api.Resource,
+        props: DeploymentPlatformRestEndpointProps,
+        restApi: api.IRestApi
+    ): api.Resource {
         const useCaseManagementAPILambdaIntegration = new api.LambdaIntegration(props.useCaseManagementAPILambda, {
             passthroughBehavior: api.PassthroughBehavior.NEVER
         });
 
-        // Paths for the deployment api
-        const deploymentsResource = restApi.root.addResource('deployments'); // for getting and creating deployments
-        const deploymentResource = deploymentsResource.addResource('{useCaseId}'); // for updating/deleting specific a specific deployment
+        // Create /deployments and /deployments/{useCaseId} structure
+        const deploymentResource = deploymentsResource.addResource('{useCaseId}');
 
-        deploymentsResource.addCorsPreflight({
-            allowOrigins: ['*'],
-            allowHeaders: ['Content-Type, Access-Control-Allow-Headers, X-Requested-With, Authorization'],
-            allowMethods: ['POST', 'GET', 'OPTIONS']
-        });
+        // Configure CORS
+        DeploymentRestApiHelper.configureCors(deploymentsResource, ['POST', 'GET', 'OPTIONS']);
+        DeploymentRestApiHelper.configureCors(deploymentResource, ['GET', 'PATCH', 'DELETE', 'OPTIONS']);
 
-        // Listing info about existing use cases
-        deploymentsResource.addMethod('GET', useCaseManagementAPILambdaIntegration, {
-            operationName: 'GetUseCases',
-            authorizer: props.deploymentPlatformAuthorizer,
-            authorizationType: api.AuthorizationType.CUSTOM,
+        const baseApiContext: DeploymentApiContext = {
+            scope: this,
             requestValidator: this.requestValidator,
-            requestParameters: {
-                'method.request.querystring.pageNumber': true,
-                'method.request.querystring.searchFilter': false,
-                'method.request.header.authorization': true
-            }
-        });
-
-        // Deploying a new use case
-        deploymentsResource.addMethod('POST', useCaseManagementAPILambdaIntegration, {
-            operationName: 'DeployUseCase',
             authorizer: props.deploymentPlatformAuthorizer,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: this.requestValidator,
-            requestParameters: {
-                'method.request.header.authorization': true
-            },
-            requestModels: {
-                'application/json': new api.Model(this, 'DeployUseCaseApiBodyModel', {
-                    restApi: restApi,
-                    contentType: 'application/json',
-                    description: 'Defines the required JSON structure of the POST request to deploy a use case',
-                    modelName: 'DeployUseCaseApiBodyModel',
-                    schema: deployUseCaseBodySchema
-                })
-            },
-            methodResponses: [
-                {
-                    responseModels: {
-                        'application/json': new api.Model(this, 'DeployUseCaseResponseModel', {
-                            restApi: restApi,
-                            contentType: 'application/json',
-                            description: 'Response model to describe response of deploying a use case',
-                            modelName: 'DeployUseCaseResponseModel',
-                            schema: deployUseCaseResponseSchema
-                        })
-                    },
-                    statusCode: '200'
-                }
-            ]
-        });
+            integration: useCaseManagementAPILambdaIntegration
+        };
 
-        deploymentResource.addCorsPreflight({
-            allowOrigins: ['*'],
-            allowHeaders: ['Content-Type, Access-Control-Allow-Headers, X-Requested-With, Authorization'],
-            allowMethods: ['GET', 'PATCH', 'DELETE', 'OPTIONS']
-        });
+        // Creates CRUD API endpoints: GET/POST /deployments and GET/PATCH/DELETE /deployments/{useCaseId}
+        // Generates models for request/response validation and returns created resources
+        const crudResources = DeploymentRestApiHelper.addCrudOperations(
+            baseApiContext,
+            deploymentsResource,
+            deploymentResource,
+            'UseCase',
+            restApi,
+            UseCaseDeploymentSchemas.base
+        );
 
-        //  Updating an existing use case deployment (i.e. changing its configuration)
-        deploymentResource.addMethod('PATCH', useCaseManagementAPILambdaIntegration, {
-            operationName: 'UpdateUseCase',
-            authorizer: props.deploymentPlatformAuthorizer,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: this.requestValidator,
-            requestParameters: {
-                'method.request.header.authorization': true
-            },
-            requestModels: {
-                'application/json': new api.Model(this, 'UpdateUseCaseApiBodyModel', {
-                    restApi: restApi,
-                    contentType: 'application/json',
-                    description: 'Defines the required JSON structure of the PUT request to update a use case',
-                    modelName: 'UpdateUseCaseApiBodyModel',
-                    schema: updateUseCaseBodySchema
-                })
-            },
-            methodResponses: [
-                {
-                    responseModels: {
-                        'application/json': new api.Model(this, 'UpdateUseCaseResponseModel', {
-                            restApi: restApi,
-                            contentType: 'application/json',
-                            description: 'Response model to describe response of updating a use case',
-                            modelName: 'UpdateUseCaseResponseModel',
-                            schema: updateUseCaseResponseSchema
-                        })
-                    },
-                    statusCode: '200'
-                }
-            ]
-        });
-
-        // deleting (destroying) a deployed use case
-        deploymentResource.addMethod('DELETE', useCaseManagementAPILambdaIntegration, {
-            operationName: 'DeleteUseCase',
-            authorizer: props.deploymentPlatformAuthorizer,
-            requestValidator: this.requestValidator,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestParameters: {
-                'method.request.querystring.permanent': false,
-                'method.request.header.authorization': true
-            }
-        });
-
-        // Getting information on a deployed use case
-        deploymentResource.addMethod('GET', useCaseManagementAPILambdaIntegration, {
-            operationName: 'GetUseCase',
-            authorizer: props.deploymentPlatformAuthorizer,
-            requestValidator: this.requestValidator,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestParameters: {
-                'method.request.header.authorization': true
-            }
-        });
+        this.createdResources.push(...crudResources);
+        return deploymentResource;
     }
 
     /**
-     * Creates all API resources and methods for the use case management API
+     * Creates /deployments/mcp API for MCP server management
+     */
+    private createMCPPathAPI(
+        deploymentsResource: api.Resource,
+        props: DeploymentPlatformRestEndpointProps,
+        restApi: api.IRestApi
+    ): void {
+        const mcpIntegration = new api.LambdaIntegration(props.mcpManagementAPILambda, {
+            passthroughBehavior: api.PassthroughBehavior.NEVER
+        });
+
+        // Create /deployments/mcp and /deployments/mcp/{useCaseId}
+        const { collectionResource, itemResource } = DeploymentRestApiHelper.createResourceStructure(
+            deploymentsResource,
+            'mcp',
+            'useCaseId'
+        );
+
+        const mcpApiContext: DeploymentApiContext = {
+            scope: this,
+            requestValidator: this.requestValidator,
+            authorizer: props.deploymentPlatformAuthorizer,
+            integration: mcpIntegration
+        };
+
+        // Add CRUD operations for MCP and collect resources
+        const crudResources = DeploymentRestApiHelper.addCrudOperations(
+            mcpApiContext,
+            collectionResource,
+            itemResource,
+            'MCP',
+            restApi,
+            UseCaseDeploymentSchemas.mcp
+        );
+
+        this.createdResources.push(...crudResources);
+
+        // Add collection-level custom endpoints and collect resources
+        const uploadSchemasRequestModel = DeploymentRestApiHelper.createModel(
+            mcpApiContext,
+            this.restApi,
+            'UploadMCPSchemasApiRequest',
+            'Defines the required JSON structure for uploading MCP schemas',
+            uploadMcpSchemaBodySchema
+        );
+
+        const uploadSchemasResponseModel = DeploymentRestApiHelper.createModel(
+            mcpApiContext,
+            this.restApi,
+            'UploadMCPSchemasResponse',
+            'Defines the response structure for MCP schema upload requests',
+            uploadMcpSchemaResponseSchema
+        );
+
+        // Create upload schemas resource with helper method for consistent validation
+        const uploadSchemasResource = collectionResource.addResource('upload-schemas');
+        DeploymentRestApiHelper.configureCors(uploadSchemasResource, ['POST', 'OPTIONS']);
+
+        const uploadMethodOptions = DeploymentRestApiHelper.createMethodOptionsWithModels(
+            mcpApiContext,
+            'UploadMCPSchemas',
+            uploadSchemasRequestModel,
+            uploadSchemasResponseModel
+        );
+
+        uploadSchemasResource.addMethod('POST', mcpApiContext.integration, uploadMethodOptions);
+
+        this.createdResources.push(uploadSchemasResource);
+    }
+
+    /**
+     * Creates /deployments/agents API for agent management
+     */
+    private createAgentsPathAPI(
+        deploymentsResource: api.Resource,
+        props: DeploymentPlatformRestEndpointProps,
+        restApi: api.IRestApi
+    ): void {
+        const agentIntegration = new api.LambdaIntegration(props.agentManagementAPILambda, {
+            passthroughBehavior: api.PassthroughBehavior.NEVER
+        });
+
+        // Create /deployments/agents and /deployments/agents/{agent-id}
+        const { collectionResource, itemResource } = DeploymentRestApiHelper.createResourceStructure(
+            deploymentsResource,
+            'agents',
+            'useCaseId'
+        );
+
+        const agentApiContext: DeploymentApiContext = {
+            scope: this,
+            requestValidator: this.requestValidator,
+            authorizer: props.deploymentPlatformAuthorizer,
+            integration: agentIntegration
+        };
+
+        // Add CRUD operations for Agents and collect resources
+        const crudResources = DeploymentRestApiHelper.addCrudOperations(
+            agentApiContext,
+            collectionResource,
+            itemResource,
+            'Agent',
+            restApi,
+            UseCaseDeploymentSchemas.agent
+        );
+
+        this.createdResources.push(...crudResources);
+    }
+
+    /**
+     * Creates /deployments/workflows API for workflow management
+     */
+    private createWorkflowsPathAPI(
+        deploymentsResource: api.Resource,
+        props: DeploymentPlatformRestEndpointProps,
+        restApi: api.IRestApi
+    ): void {
+        const workflowIntegration = new api.LambdaIntegration(props.workflowManagementAPILambda, {
+            passthroughBehavior: api.PassthroughBehavior.NEVER
+        });
+
+        // Create /deployments/workflows and /deployments/workflows/{workflow-id}
+        const { collectionResource, itemResource } = DeploymentRestApiHelper.createResourceStructure(
+            deploymentsResource,
+            'workflows',
+            'useCaseId'
+        );
+
+        const workflowApiContext: DeploymentApiContext = {
+            scope: this,
+            requestValidator: this.requestValidator,
+            authorizer: props.deploymentPlatformAuthorizer,
+            integration: workflowIntegration
+        };
+
+        // Add CRUD operations for Workflows and collect resources
+        const crudResources = DeploymentRestApiHelper.addCrudOperations(
+            workflowApiContext,
+            collectionResource,
+            itemResource,
+            'Workflow',
+            restApi,
+            UseCaseDeploymentSchemas.workflow
+        );
+
+        this.createdResources.push(...crudResources);
+    }
+
+    /**
+     * Creates all API resources and methods for the model info API
      * @param props
      * @param restApi
      */
@@ -243,84 +347,47 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
         const modelInfoLambdaIntegration = new api.LambdaIntegration(props.modelInfoApiLambda, {
             passthroughBehavior: api.PassthroughBehavior.NEVER
         });
+
+        const modelInfoApiContext: DeploymentApiContext = {
+            scope: this,
+            requestValidator: this.requestValidator,
+            authorizer: props.deploymentPlatformAuthorizer,
+            integration: modelInfoLambdaIntegration
+        };
+
         const modelInfoResource = restApi.root.addResource('model-info');
 
         // Listing the available use case types
         const useCaseTypesResource = modelInfoResource.addResource('use-case-types');
-
-        useCaseTypesResource.addCorsPreflight({
-            allowOrigins: ['*'],
-            allowHeaders: ['Content-Type, Access-Control-Allow-Headers, X-Requested-With, Authorization'],
-            allowMethods: ['GET', 'OPTIONS']
-        });
-
-        useCaseTypesResource.addMethod('GET', modelInfoLambdaIntegration, {
-            operationName: 'GetUseCaseTypes',
-            authorizer: props.deploymentPlatformAuthorizer,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: this.requestValidator,
-            requestParameters: {
-                'method.request.header.authorization': true
-            }
-        });
+        DeploymentRestApiHelper.addCustomEndpoint(modelInfoApiContext, useCaseTypesResource, 'GET', 'GetUseCaseTypes');
 
         // Listing available model providers for a given use case
         const modelInfoByUseCaseResource = modelInfoResource.addResource('{useCaseType}');
         const providersResource = modelInfoByUseCaseResource.addResource('providers');
-
-        providersResource.addCorsPreflight({
-            allowOrigins: ['*'],
-            allowHeaders: ['Content-Type, Access-Control-Allow-Headers, X-Requested-With, Authorization'],
-            allowMethods: ['GET', 'OPTIONS']
-        });
-
-        providersResource.addMethod('GET', modelInfoLambdaIntegration, {
-            operationName: 'GetModelProviders',
-            authorizer: props.deploymentPlatformAuthorizer,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: this.requestValidator,
-            requestParameters: {
-                'method.request.header.authorization': true
-            }
-        });
+        DeploymentRestApiHelper.addCustomEndpoint(modelInfoApiContext, providersResource, 'GET', 'GetModelProviders');
 
         // Getting available models for a given provider/use case
         const modelsResource = modelInfoByUseCaseResource.addResource('{providerName}');
-
-        modelsResource.addCorsPreflight({
-            allowOrigins: ['*'],
-            allowHeaders: ['Content-Type, Access-Control-Allow-Headers, X-Requested-With, Authorization'],
-            allowMethods: ['GET', 'OPTIONS']
-        });
-
-        modelsResource.addMethod('GET', modelInfoLambdaIntegration, {
-            operationName: 'GetModels',
-            authorizer: props.deploymentPlatformAuthorizer,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: this.requestValidator,
-            requestParameters: {
-                'method.request.header.authorization': true
-            }
-        });
+        DeploymentRestApiHelper.addCustomEndpoint(modelInfoApiContext, modelsResource, 'GET', 'GetModels');
 
         // Getting model info for a given use case/provider/model
         const specificModelInfoResource = modelsResource.addResource('{modelId}');
+        DeploymentRestApiHelper.addCustomEndpoint(
+            modelInfoApiContext,
+            specificModelInfoResource,
+            'GET',
+            'GetModelInfo'
+        );
 
-        specificModelInfoResource.addCorsPreflight({
-            allowOrigins: ['*'],
-            allowHeaders: ['Content-Type, Access-Control-Allow-Headers, X-Requested-With, Authorization'],
-            allowMethods: ['GET', 'OPTIONS']
-        });
-
-        specificModelInfoResource.addMethod('GET', modelInfoLambdaIntegration, {
-            operationName: 'GetModelInfo',
-            authorizer: props.deploymentPlatformAuthorizer,
-            authorizationType: api.AuthorizationType.CUSTOM,
-            requestValidator: this.requestValidator,
-            requestParameters: {
-                'method.request.header.authorization': true
-            }
-        });
+        // Collect model info resources for suppressions
+        this.createdResources.push(
+            modelInfoResource,
+            useCaseTypesResource,
+            modelInfoByUseCaseResource,
+            providersResource,
+            modelsResource,
+            specificModelInfoResource
+        );
     }
 
     protected addSuppressions(): void {
@@ -339,15 +406,9 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
             }
         ]);
 
-        const resourcePathsToSuppress = [
-            'deployments',
-            'deployments/{useCaseId}',
-            'model-info',
-            'model-info/use-case-types',
-            'model-info/{useCaseType}/providers',
-            'model-info/{useCaseType}/{providerName}',
-            'model-info/{useCaseType}/{providerName}/{modelId}'
-        ];
+        // Extract resource paths from all created resources
+        const resourcePathsToSuppress = DeploymentRestApiHelper.collectResourcePaths(this.createdResources);
+
         const operationsToSuppress = ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'];
         resourcePathsToSuppress.forEach((_path) => {
             operationsToSuppress.forEach((_operation) => {
@@ -358,12 +419,14 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
                         [
                             {
                                 id: 'AwsSolutions-COG4',
-                                reason: 'A Custom authorizer must be used in order to authenticate using Cognito user groups'
+                                reason: 'The API uses a custom authorizer instead of Cognito user pool authorizer for authentication'
                             }
                         ],
                         false
                     );
-                } catch (error) {}
+                } catch (error) {
+                    // Ignore if resource doesn't exist
+                }
             });
         });
 

@@ -58,7 +58,10 @@ export const ModelProviderDropdown = (props: ModelProviderDropdownProps) => {
             } else if (modelProviderQueryResponse.isError) {
                 throw modelProviderQueryResponse.error;
             } else {
-                const options = formatModelProviderOptionsList(modelProviderQueryResponse.data);
+                const options = formatModelProviderOptionsList(
+                    modelProviderQueryResponse.data,
+                    props.modelData.excludedProviders
+                );
                 setModelProviderOptions(options);
                 setStatus('finished');
             }

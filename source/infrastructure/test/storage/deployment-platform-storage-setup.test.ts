@@ -42,18 +42,25 @@ describe('When creating the use case storage construct', () => {
             accessLoggingBucket: new s3.Bucket(stack, 'fakelogggingbucket')
         });
 
-        deploymentPlatform.addLambdaDependencies({
-            feedbackApiLambda: feedbackLambda,
-            modelInfoApiLambda: modelInfoLambda,
-            deploymentApiLambda: deploymentLambda
-        });
+        const mcpManagementLambda = new lambda.Function(stack, 'mcpManagementLambda', mockLambdaFuncProps);
+        const agentManagementLambda = new lambda.Function(stack, 'agentManagementLambda', mockLambdaFuncProps);
+        const workflowManagementLambda = new lambda.Function(stack, 'workflowManagementLambda', mockLambdaFuncProps);
+        const filesManagementLambda = new lambda.Function(stack, 'filesManagementLambda', mockLambdaFuncProps);
+
+        deploymentPlatform.configureDeploymentApiLambda(deploymentLambda);
+        deploymentPlatform.configureModelInfoApiLambda(modelInfoLambda);
+        deploymentPlatform.configureFeedbackApiLambda(feedbackLambda);
+        deploymentPlatform.configureFilesHandlerLambda(filesManagementLambda);
+        deploymentPlatform.configureUseCaseManagementApiLambda(mcpManagementLambda, 'MCP');
+        deploymentPlatform.configureUseCaseManagementApiLambda(agentManagementLambda, 'Agent');
+        deploymentPlatform.configureUseCaseManagementApiLambda(workflowManagementLambda, 'Workflow');
 
         template = Template.fromStack(stack);
     });
 
     it('has the correct resources', () => {
-        // use case mgmt, model info, feedback, custom resource
-        template.resourceCountIs('AWS::Lambda::Function', 4);
+        // deployment, model info, feedback, mcp management, agent management, workflow management, files metadata, custom resource
+        template.resourceCountIs('AWS::Lambda::Function', 8);
     });
 
     it('deployment platform api lambda is properly configured to access dynamodb with environment variables', () => {
@@ -191,6 +198,147 @@ describe('When creating the use case storage construct', () => {
                 'Version': '2012-10-17'
             },
             'PolicyName': Match.stringLikeRegexp('feedbackApiLambdaServiceRoleDefaultPolicy*')
+        });
+    });
+
+    it('mcp management api lambda is properly configured to access dynamodb with environment variables', () => {
+        // Check Lambda function properties
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            'Handler': 'index.handler',
+            'Role': {
+                'Fn::GetAtt': [Match.stringLikeRegexp('mcpManagementLambdaServiceRole*'), 'Arn']
+            },
+            'Runtime': 'nodejs22.x',
+            'Environment': {
+                'Variables': {
+                    [USE_CASES_TABLE_NAME_ENV_VAR]: {
+                        'Fn::GetAtt': [
+                            Match.stringLikeRegexp(
+                                'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                            ),
+                            Match.stringLikeRegexp('Outputs.TestStackTestSetupDeploymentPlatformStorageUseCasesTable*')
+                        ]
+                    },
+                    [USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]: {
+                        'Fn::GetAtt': [
+                            Match.stringLikeRegexp(
+                                'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                            ),
+                            Match.stringLikeRegexp('Outputs.TestStackTestSetupDeploymentPlatformStorageLLMConfigTable*')
+                        ]
+                    }
+                }
+            }
+        });
+
+        // Check DynamoDB policy for MCP management Lambda
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            'PolicyDocument': {
+                'Statement': [
+                    {
+                        'Action': [
+                            'dynamodb:Batch*',
+                            'dynamodb:ConditionCheckItem',
+                            'dynamodb:DeleteItem',
+                            'dynamodb:Get*',
+                            'dynamodb:PutItem',
+                            'dynamodb:Query',
+                            'dynamodb:Scan',
+                            'dynamodb:UpdateItem'
+                        ],
+                        'Effect': 'Allow',
+                        'Resource': [
+                            {
+                                'Fn::GetAtt': [
+                                    Match.stringLikeRegexp(
+                                        'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                                    ),
+                                    Match.stringLikeRegexp(
+                                        'Outputs.TestStackTestSetupDeploymentPlatformStorageUseCasesTable*'
+                                    )
+                                ]
+                            },
+                            {
+                                'Fn::GetAtt': [
+                                    Match.stringLikeRegexp(
+                                        'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                                    ),
+                                    Match.stringLikeRegexp(
+                                        'Outputs.TestStackTestSetupDeploymentPlatformStorageLLMConfigTable*'
+                                    )
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                'Version': '2012-10-17'
+            },
+            'PolicyName': Match.stringLikeRegexp('MCPManagementDDBPolicy*')
+        });
+    });
+
+    it('files handler lambda is properly configured to access LLM config with environment variables', () => {
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            'Handler': 'index.handler',
+            'Role': {
+                'Fn::GetAtt': [Match.stringLikeRegexp('filesManagementLambdaServiceRole*'), 'Arn']
+            },
+            'Runtime': 'nodejs22.x',
+            'Environment': {
+                'Variables': {
+                    [USE_CASE_CONFIG_TABLE_NAME_ENV_VAR]: {
+                        'Fn::GetAtt': [
+                            Match.stringLikeRegexp(
+                                'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                            ),
+                            Match.stringLikeRegexp('Outputs.TestStackTestSetupDeploymentPlatformStorageLLMConfigTable*')
+                        ]
+                    },
+                    [USE_CASES_TABLE_NAME_ENV_VAR]: {
+                        'Fn::GetAtt': [
+                            Match.stringLikeRegexp(
+                                'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                            ),
+                            Match.stringLikeRegexp('Outputs.TestStackTestSetupDeploymentPlatformStorageUseCasesTable*')
+                        ]
+                    }
+                }
+            }
+        });
+
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            'PolicyDocument': {
+                'Statement': [
+                    {
+                        'Action': ['dynamodb:GetItem', 'dynamodb:Query'],
+                        'Effect': 'Allow',
+                        'Resource': [
+                            {
+                                'Fn::GetAtt': [
+                                    Match.stringLikeRegexp(
+                                        'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                                    ),
+                                    Match.stringLikeRegexp(
+                                        'Outputs.TestStackTestSetupDeploymentPlatformStorageLLMConfigTable*'
+                                    )
+                                ]
+                            },
+                            {
+                                'Fn::GetAtt': [
+                                    Match.stringLikeRegexp(
+                                        'TestSetupDeploymentPlatformStorageNestedStackDeploymentPlatformStorageNestedStackResource*'
+                                    ),
+                                    Match.stringLikeRegexp(
+                                        'Outputs.TestStackTestSetupDeploymentPlatformStorageUseCasesTable*'
+                                    )
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                'Version': '2012-10-17'
+            },
+            'PolicyName': Match.stringLikeRegexp('filesManagementLambdaServiceRoleDefaultPolicy*')
         });
     });
 });

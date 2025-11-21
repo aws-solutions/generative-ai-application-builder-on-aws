@@ -18,6 +18,7 @@ export const Review = ({ info: { useCase, knowledgeBase, model, vpc, prompt }, s
                     header="Step 1: Use case"
                     useCaseData={useCase}
                     setActiveStepIndex={setActiveStepIndex}
+                    stepIndex={0} // UseCase is step 0 in all flows
                 />
 
                 <VpcConfigReview
@@ -30,7 +31,9 @@ export const Review = ({ info: { useCase, knowledgeBase, model, vpc, prompt }, s
                     header="Step 3: Model"
                     knowledgeBaseData={knowledgeBase}
                     modelData={model}
+                    useCaseData={useCase}
                     setActiveStepIndex={setActiveStepIndex}
+                    stepIndex={2}
                 />
 
                 <KnowledgeBaseReview

@@ -32,8 +32,8 @@ import {
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 } from '../../utils/constants';
 
-import { AgentUseCaseDeploymentAdapter } from '../../model/agent-use-case-adapter';
-import { ChatUseCaseDeploymentAdapter, ChatUseCaseInfoAdapter } from '../../model/chat-use-case-adapter';
+import { AgentUseCaseDeploymentAdapter } from '../../model/adapters/agent-use-case-adapter';
+import { ChatUseCaseDeploymentAdapter, ChatUseCaseInfoAdapter } from '../../model/adapters/chat-use-case-adapter';
 import {
     createAgentWithCognitoConfig,
     createUseCaseEvent,
@@ -152,6 +152,7 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
                 { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
                 { ParameterKey: CfnParameterKeys.FeedbackEnabled, ParameterValue: 'Yes' },
+                { ParameterKey: CfnParameterKeys.ProvisionedConcurrencyValue, ParameterValue: '0' },
                 {
                     ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                     ParameterValue: '11111111-11111111'
@@ -214,6 +215,7 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
                 { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
                 { ParameterKey: CfnParameterKeys.FeedbackEnabled, ParameterValue: 'Yes' },
+                { ParameterKey: CfnParameterKeys.ProvisionedConcurrencyValue, ParameterValue: '0' },
                 {
                     ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                     ParameterValue: '11111111-11111111'
@@ -455,6 +457,7 @@ describe('When creating StackCommandBuilders', () => {
                 { ParameterKey: CfnParameterKeys.DefaultUserEmail, ParameterValue: 'fake-email@example.com' },
                 { ParameterKey: CfnParameterKeys.DeployUI, ParameterValue: 'Yes' },
                 { ParameterKey: CfnParameterKeys.FeedbackEnabled, ParameterValue: 'Yes' },
+                { ParameterKey: CfnParameterKeys.ProvisionedConcurrencyValue, ParameterValue: '0' },
                 {
                     ParameterKey: CfnParameterKeys.UseCaseConfigRecordKey,
                     ParameterValue: '11111111-11111111'

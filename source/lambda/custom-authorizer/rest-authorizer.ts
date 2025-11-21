@@ -3,6 +3,7 @@
 
 import { AuthResponse, APIGatewayRequestAuthorizerEvent } from 'aws-lambda';
 import { CognitoJwtVerifier } from 'aws-jwt-verify';
+import { AWSClientManager } from 'aws-sdk-lib';
 import { denyAllPolicy, getPolicyDocument } from './utils/get-policy';
 import { matchArnWithValidation } from './utils/match-policy';
 import {
@@ -11,7 +12,7 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 import { jwtDecode } from 'jwt-decode';
 
-const cognitoClient = new CognitoIdentityProviderClient({});
+const cognitoClient = AWSClientManager.getServiceClient<CognitoIdentityProviderClient>('cognito');
 
 /**
  * Cognito JWT verifier to validate incoming APIGateway websocket authorization request.

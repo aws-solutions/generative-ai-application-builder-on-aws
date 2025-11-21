@@ -61,6 +61,96 @@ cd $template_dir/cdk-solution-helper
 npm ci --omit=dev
 
 echo "------------------------------------------------------------------------------"
+echo "[Prep] Copying gaab-strands-common to agent source directories"
+echo "------------------------------------------------------------------------------"
+
+copy_gaab_strands_common() {
+    local source_common="$template_dir/../deployment/ecr/gaab-strands-common"
+    local ecr_dir="$template_dir/../deployment/ecr"
+
+    # Validate source exists
+    if [ ! -d "$source_common" ]; then
+        echo "ERROR: gaab-strands-common source directory not found at $source_common"
+        exit 1
+    fi
+
+    echo "Source: $source_common"
+
+    # Known agent directories
+    local agent_dirs=("gaab-strands-agent" "gaab-strands-workflow-agent")
+    local copied_count=0
+
+    # Copy to each agent directory
+    for agent in "${agent_dirs[@]}"; do
+        local agent_dir="$ecr_dir/$agent"
+
+        if [ ! -d "$agent_dir" ]; then
+            echo "WARNING: Agent directory not found: $agent_dir"
+            continue
+        fi
+
+        echo "Processing $agent..."
+        local dest="$agent_dir/gaab-strands-common"
+
+        # Remove existing copy if present
+        if [ -d "$dest" ]; then
+            echo "  Removing existing gaab-strands-common"
+            rm -rf "$dest"
+        fi
+
+        # Copy with exclusions using rsync
+        echo "  Copying gaab-strands-common..."
+        rsync -a \
+            --exclude='.venv' \
+            --exclude='__pycache__' \
+            --exclude='.pytest_cache' \
+            --exclude='htmlcov' \
+            --exclude='.coverage' \
+            --exclude='*.pyc' \
+            --exclude='*.pyo' \
+            --exclude='.git' \
+            "$source_common/" "$dest/"
+
+        if [ $? -eq 0 ]; then
+            echo "  ✓ Successfully copied to $agent"
+            copied_count=$((copied_count + 1))
+        else
+            echo "ERROR: Failed to copy gaab-strands-common to $dest"
+            exit 1
+        fi
+    done
+
+    if [ $copied_count -eq 0 ]; then
+        echo "ERROR: No agent directories found or all copies failed"
+        exit 1
+    else
+        echo "Successfully copied gaab-strands-common to $copied_count agent directory(ies)"
+    fi
+
+    # Delete source directory in CI/CD pipeline only
+    # DIST_OUTPUT_BUCKET is only set in the CI/CD pipeline
+    # This prevents CodeBuild Stage 2 from scanning gaab-strands-common (which has no Dockerfile)
+    if [ -n "$DIST_OUTPUT_BUCKET" ]; then
+        echo "CI/CD pipeline detected (DIST_OUTPUT_BUCKET is set)"
+        echo "Deleting source gaab-strands-common directory..."
+
+        if rm -rf "$source_common"; then
+            echo "✓ Successfully deleted $source_common"
+        else
+            echo "ERROR: Failed to delete source gaab-strands-common directory at $source_common"
+            echo "This is required in CI/CD to prevent CodeBuild from scanning directories without Dockerfiles"
+            exit 1
+        fi
+    else
+        echo "Local build detected (DIST_OUTPUT_BUCKET not set)"
+        echo "Keeping source gaab-strands-common directory for local development"
+    fi
+}
+
+# Execute the copy function
+copy_gaab_strands_common
+
+echo "------------------------------------------------------------------------------"
 echo "[Synth] CDK Project"
 echo "------------------------------------------------------------------------------"
 cd $source_dir/infrastructure

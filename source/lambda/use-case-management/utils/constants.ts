@@ -2,6 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+export const MAX_INPUT_PAYLOAD_SIZE = 1024 * 1024; // 1MB for lambda event payload
+export const MAX_INPUT_PAYLOAD_OBJECT_DEPTH = 10; // Maximum allowed object depth to prevent deeply nested objects
 export const COGNITO_POLICY_TABLE_ENV_VAR = 'COGNITO_POLICY_TABLE_NAME';
 export const USER_POOL_ID_ENV_VAR = 'USER_POOL_ID';
 export const CLIENT_ID_ENV_VAR = 'CLIENT_ID';
@@ -16,8 +18,11 @@ export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
 export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
 export const USE_CASE_CONFIG_TABLE_NAME_ENV_VAR = 'USE_CASE_CONFIG_TABLE_NAME';
 export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
+export const FILES_METADATA_TABLE_NAME_ENV_VAR = 'MULTIMODAL_METADATA_TABLE_NAME';
+export const MULTIMODAL_DATA_BUCKET_ENV_VAR = 'MULTIMODAL_DATA_BUCKET';
 export const INFERENCE_PROFILE = 'inference-profile';
 export const STACK_DEPLOYMENT_SOURCE_USE_CASE = 'UseCase';
+export const AMAZON_TRACE_ID_HEADER = '_X_AMZN_TRACE_ID';
 
 export const REQUIRED_ENV_VARS = [
     COGNITO_POLICY_TABLE_ENV_VAR,
@@ -30,10 +35,33 @@ export const REQUIRED_ENV_VARS = [
     IS_INTERNAL_USER_ENV_VAR,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 ];
+export const GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR = 'GAAB_DEPLOYMENTS_BUCKET';
+
+export const DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR = 'DEPLOYMENT_PLATFORM_STACK_NAME';
+export const SHARED_ECR_CACHE_PREFIX_ENV_VAR = 'SHARED_ECR_CACHE_PREFIX';
+export const STRANDS_TOOLS_SSM_PARAM_ENV_VAR = 'STRANDS_TOOLS_SSM_PARAM';
+
+export const REQUIRED_MCP_ENV_VARS = [
+    POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
+    USE_CASES_TABLE_NAME_ENV_VAR,
+    USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+    GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR,
+    STRANDS_TOOLS_SSM_PARAM_ENV_VAR
+];
+
+export const AGENT_CORE_DEPLOYMENT_REQUIRED_ENV_VARS = [
+    ...REQUIRED_ENV_VARS,
+    GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR,
+    DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR,
+    SHARED_ECR_CACHE_PREFIX_ENV_VAR,
+    FILES_METADATA_TABLE_NAME_ENV_VAR,
+    MULTIMODAL_DATA_BUCKET_ENV_VAR
+];
 
 export const DEFAULT_LIST_USE_CASES_PAGE_SIZE = 10;
 
 export const TTL_SECONDS = 60 * 60 * 24 * 89; // 89 days, 90 days CFN deleted stack is not available
+export const CONFIG_TTL_SECONDS = 60 * 10; // 10 minutes for config cleanup
 export const DYNAMODB_TTL_ATTRIBUTE_NAME = 'TTL';
 export const DDB_SCAN_RECORDS_LIMIT = 500;
 
@@ -78,9 +106,16 @@ export enum CloudWatchMetrics {
     UC_DESCRIBE_FAILURE = 'UCDescribeFailure'
 }
 
+export enum Status {
+    SUCCESS = 'SUCCESS',
+    FAILED = 'FAILED'
+}
+
 export const enum CHAT_PROVIDERS {
     BEDROCK = 'Bedrock',
-    SAGEMAKER = 'SageMaker'
+    SAGEMAKER = 'SageMaker',
+    AGENT_CORE = 'AgentCore',
+    BEDROCK_AGENT = 'BedrockAgent'
 }
 
 export const enum ModelInfoTableKeys {
@@ -93,12 +128,17 @@ export const enum ModelInfoTableKeys {
 export const enum UseCaseTypes {
     CHAT = 'Chat',
     RAGChat = 'RAGChat',
-    AGENT = 'Agent'
+    AGENT = 'Agent',
+    AGENT_BUILDER = 'AgentBuilder',
+    MCP_SERVER = 'MCPServer',
+    WORKFLOW = 'Workflow'
 }
 
 export const enum UseCaseTypeFromApiEvent {
     TEXT = 'Text',
-    AGENT = 'Agent'
+    AGENT = 'Agent',
+    AGENT_BUILDER = 'AgentBuilder',
+    WORKFLOW = 'Workflow'
 }
 
 export const enum AgentProviders {
@@ -108,6 +148,11 @@ export const enum AgentProviders {
 export const enum KnowledgeBaseTypes {
     KENDRA = 'Kendra',
     BEDROCK = 'Bedrock'
+}
+
+export enum OUTBOUND_AUTH_PROVIDER_TYPES {
+    API_KEY = 'API_KEY',
+    OAUTH = 'OAUTH'
 }
 
 export const enum CfnParameterKeys {
@@ -125,6 +170,7 @@ export const enum CfnParameterKeys {
     ExistingPrivateSubnetIds = 'ExistingPrivateSubnetIds',
     ExistingSecurityGroupIds = 'ExistingSecurityGroupIds',
     ExistingCognitoUserPoolId = 'ExistingCognitoUserPoolId',
+    ComponentCognitoUserPoolId = 'ComponentCognitoUserPoolId',
     ExistingCognitoUserPoolClient = 'ExistingCognitoUserPoolClient',
     CognitoDomainPrefix = 'CognitoDomainPrefix',
     ExistingCognitoGroupPolicyTableName = 'ExistingCognitoGroupPolicyTableName',
@@ -138,9 +184,19 @@ export const enum CfnParameterKeys {
     BedrockAgentAliasId = 'BedrockAgentAliasId',
     UseInferenceProfile = 'UseInferenceProfile',
     FeedbackEnabled = 'FeedbackEnabled',
+    ProvisionedConcurrencyValue = 'ProvisionedConcurrencyValue',
     ExistingRestApiId = 'ExistingRestApiId',
     ExistingApiRootResourceId = 'ExistingApiRootResourceId',
-    StackDeploymentSource = 'StackDeploymentSource'
+    StackDeploymentSource = 'StackDeploymentSource',
+    EcrUri = 'EcrUri',
+    S3BucketName = 'S3BucketName',
+
+    // AgentCore deployment params
+    EnableLongTermMemory = 'EnableLongTermMemory',
+    SharedEcrCachePrefix = 'SharedEcrCachePrefix',
+    MultimodalEnabled = 'MultimodalEnabled',
+    ExistingMultimodalDataMetadataTable = 'ExistingMultimodalDataMetadataTable',
+    ExistingMultimodalDataBucket = 'ExistingMultimodalDataBucket'
 }
 
 export const enum CfnOutputKeys {
@@ -164,9 +220,19 @@ export const RetainedCfnParameterKeys = [
     CfnParameterKeys.ExistingCognitoUserPoolId
 ];
 
-export const ChatRequiredPlaceholders = { Bedrock: [], SageMaker: ['{input}', '{history}'] };
+export const ChatRequiredPlaceholders = {
+    Bedrock: [],
+    SageMaker: ['{input}', '{history}'],
+    AgentCore: [], // Agent Core doesn't use traditional prompt placeholders
+    BedrockAgent: [] // Bedrock Agent doesn't use traditional prompt placeholders
+};
 export const DisambiguationRequiredPlaceholders = ['{input}', '{history}'];
-export const RAGChatRequiredPlaceholders = { Bedrock: ['{context}'], SageMaker: ['{input}', '{context}', '{history}'] };
+export const RAGChatRequiredPlaceholders = {
+    Bedrock: ['{context}'],
+    SageMaker: ['{input}', '{context}', '{history}'],
+    AgentCore: [], // Agent Core doesn't use traditional RAG placeholders
+    BedrockAgent: [] // Bedrock Agent doesn't use traditional RAG placeholders
+};
 
 export const RETRY_CONFIG = {
     maxRetries: 5,
@@ -184,3 +250,77 @@ export const enum AUTHENTICATION_PROVIDERS {
 }
 
 export const SUPPORTED_AUTHENTICATION_PROVIDERS = [AUTHENTICATION_PROVIDERS.COGNITO];
+
+// MCP Operation Types
+export enum McpOperationTypes {
+    UPLOAD_SCHEMA = 'upload-schemas',
+    CREATE = 'create',
+    LIST = 'list',
+    GET = 'get',
+    UPDATE = 'update',
+    DELETE = 'delete',
+    DEPLOY = 'deploy',
+    PERMANENTLY_DELETE = 'permanentlyDelete'    
+}
+
+// Gateway Target Types for MCP Schema uploads
+export enum GATEWAY_TARGET_TYPES {
+    LAMBDA = 'lambda',
+    OPEN_API = 'openApiSchema',
+    SMITHY = 'smithyModel'
+}
+
+// Content types for MCP schema uploads - reusable across different constraints
+export const MCP_CONTENT_TYPES = {
+    JSON: 'application/json',
+    YAML: 'application/yaml',
+    TEXT_YAML: 'text/yaml',
+    TEXT_PLAIN: 'text/plain'
+} as const;
+
+// MCP Schema upload constraints
+export const MCP_SCHEMA_UPLOAD_CONSTRAINTS = {
+    MIN_FILE_SIZE_BYTES: 1, // Prevents empty file uploads
+    MAX_FILE_SIZE_BYTES: 2 * 1024 * 1024, // 2MB
+    ALLOWED_CONTENT_TYPES: Object.values(MCP_CONTENT_TYPES),
+    PRESIGNED_URL_EXPIRY_SECONDS: 300 // 5 minutes
+};
+
+// Schema type specific file extension mappings
+export const SCHEMA_TYPE_FILE_EXTENSIONS = {
+    [GATEWAY_TARGET_TYPES.LAMBDA]: [
+        '.json' // Lambda JSON schema files
+    ],
+    [GATEWAY_TARGET_TYPES.OPEN_API]: [
+        '.json', // OpenAPI JSON format
+        '.yaml', // OpenAPI YAML format
+        '.yml' // OpenAPI YAML format (alternative extension)
+    ],
+    [GATEWAY_TARGET_TYPES.SMITHY]: [
+        '.smithy', // Smithy IDL files
+        '.json' // Smithy JSON representation
+    ]
+};
+export const SUPPORTED_MCP_FILE_EXTENSIONS = [...new Set(Object.values(SCHEMA_TYPE_FILE_EXTENSIONS).flat())];
+
+// Workflow orchestration patterns
+export enum WORKFLOW_ORCHESTRATION_PATTERNS {
+    AGENTS_AS_TOOLS = 'agents-as-tools'
+}
+
+export const SUPPORTED_WORKFLOW_ORCHESTRATION_PATTERNS: string[] = Object.values(WORKFLOW_ORCHESTRATION_PATTERNS);
+
+export const ARN_RESOURCE_REGEX_MAP: Record<string, RegExp> = {
+    // bedrock agentcore oauth2credentialprovider identity resources
+    'bedrock-agentcore-identity-OAUTH': /^token-vault\/([A-Za-z0-9._-]+)\/oauth2credentialprovider\/([A-Za-z0-9._-]+)$/,
+    // bedrock agentcore apikeycredentialprovider identity resources
+    'bedrock-agentcore-identity-API_KEY':
+        /^token-vault\/([A-Za-z0-9._-]+)\/apikeycredentialprovider\/([A-Za-z0-9._-]+)$/,
+    // bedrock agentcore gateway resources
+    'bedrock-agentcore-gateway': /^gateway\/[a-zA-Z0-9-]+$/,
+    // lambda function resource
+    lambda: /^function:[^:]+(:[^:]+)?$/
+};
+
+export const AGENT_CORE_SYSTEM_PROMPT_MAX_LENGTH = 60000;
+

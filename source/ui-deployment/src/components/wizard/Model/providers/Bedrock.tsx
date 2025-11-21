@@ -4,7 +4,6 @@
 import { SpaceBetween } from '@cloudscape-design/components';
 import { BaseFormComponentProps } from '../../interfaces';
 
-import { ModelNameDropdown } from '../common/ModelNameDropdown';
 import BedrockInferenceTypeRadio from '../common/BedrockInferenceTypeRadio';
 import ModelArnInput from '../common/ModelArnInput';
 import InferenceProfileIdInput from '../common/InferenceProfileId';
@@ -31,7 +30,7 @@ export const BedrockModel = (props: BedrockModelProps) => {
     // Initialize inference type if not set
     useEffect(() => {
         if (!props.modelData.bedrockInferenceType) {
-            props.onChangeFn({ 'bedrockInferenceType': BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS });
+            props.onChangeFn({ 'bedrockInferenceType': BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES });
         }
     }, []);
 
@@ -86,8 +85,6 @@ export const BedrockModel = (props: BedrockModelProps) => {
     // Render the appropriate model selection component based on inferenceType
     const renderModelSelection = () => {
         switch (props.modelData.bedrockInferenceType) {
-            case BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS:
-                return <ModelNameDropdown {...props} />;
             case BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS:
                 return <BedrockModelIdInput {...props} registerErrorSetter={registerModelIdErrorSetter} />;
             case BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES:
@@ -111,7 +108,7 @@ export const BedrockModel = (props: BedrockModelProps) => {
                     />
                 );
             default:
-                return <ModelNameDropdown {...props} />;
+                return <BedrockModelIdInput {...props} registerErrorSetter={registerModelIdErrorSetter} />;
         }
     };
 

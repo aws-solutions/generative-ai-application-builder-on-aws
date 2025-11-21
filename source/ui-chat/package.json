@@ -1,7 +1,7 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-ui-chat",
   "private": true,
-  "version": "3.0.7",
+  "version": "4.0.0",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -11,7 +11,7 @@
     "start": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "format": "prettier --ignore-path ../.gitignore --write \"**/*.+(js|ts|tsx|json)\"",
+    "code-formatter": "prettier --config ../../.prettierrc.yml --ignore-path ../../.prettierignore --write '**/*.{js,jsx,ts,tsx,json,css,md}'",
     "preview": "vite preview",
     "test": "vitest run --coverage --silent",
     "test:watch": "vitest",
@@ -57,7 +57,7 @@
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "@vitejs/plugin-react-swc": "^3.7.2",
-    "@vitest/coverage-v8": "^3.0.3",
+    "@vitest/coverage-v8": "^4.0.10",
     "eslint": "^9.20.1",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-header": "^3.1.1",
@@ -72,10 +72,10 @@
     "jsdom": "^26.0.0",
     "msw": "^2.7.0",
     "node-fetch": "^3.3.2",
-    "prettier": "^3.5.1",
+    "prettier": "^3.6.2",
     "typescript": "^5.7.3",
     "vite": "^6.0.11",
-    "vitest": "^3.0.3"
+    "vitest": "^4.0.10"
   },
   "msw": {
     "workerDirectory": "public"

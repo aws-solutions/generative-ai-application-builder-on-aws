@@ -10,7 +10,7 @@ import {
     UpdateItemCommand
 } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
-import { customAwsConfig } from 'aws-node-user-agent-config';
+import { AWSClientManager } from 'aws-sdk-lib';
 import { ListUseCasesAdapter, UseCaseRecord } from '../model/list-use-cases';
 import { UseCase } from '../model/use-case';
 import { logger, tracer } from '../power-tools-init';
@@ -37,7 +37,7 @@ export class StorageManagement {
     private client: DynamoDBClient;
 
     constructor() {
-        this.client = new DynamoDBClient(customAwsConfig());
+        this.client = AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb', tracer);
     }
 
     /**

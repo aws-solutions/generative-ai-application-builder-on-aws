@@ -5,7 +5,8 @@ import { Button, Header, HeaderProps, SpaceBetween } from '@cloudscape-design/co
 import React, { useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HomeContext from '../../contexts/home.context';
-import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS, USECASE_TYPE_ROUTE } from '../../utils/constants';
+import { CFN_STACK_STATUS_INDICATOR, DEPLOYMENT_ACTIONS } from '../../utils/constants';
+import { getUseCaseRoute } from '../../utils/utils';
 import { statusIndicatorTypeSelector } from '../dashboard/deployments';
 import { InfoLink } from './info-link';
 
@@ -38,12 +39,10 @@ export function FullPageHeader({
         dispatch: homeDispatch
     } = useContext(HomeContext);
 
-    type UseCaseType = keyof typeof USECASE_TYPE_ROUTE;
-    const navigateWizardDestination =
-        USECASE_TYPE_ROUTE[selectedDeployment.UseCaseType?.toUpperCase() as UseCaseType] ?? USECASE_TYPE_ROUTE.TEXT;
+    const navigateWizardDestination = getUseCaseRoute(selectedDeployment.UseCaseType);
 
     function handleOnDeploymentIdClick() {
-        navigate(`/deployment-details/${selectedDeployment.UseCaseId}`);
+        navigate(`/deployment-details/${selectedDeployment.UseCaseType}/${selectedDeployment.UseCaseId}`);
     }
 
     function handleEditDeploymentClick() {

@@ -436,6 +436,97 @@ describe('When Chat use case is created', () => {
             }
         });
     });
+
+    it('should have a separate Lambda version policy with wildcard resource targeting', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            'PolicyDocument': {
+                'Statement': [
+                    {
+                        'Action': 'lambda:PublishVersion',
+                        'Effect': 'Allow',
+                        'Resource': {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        'Ref': 'AWS::Partition'
+                                    },
+                                    ':lambda:',
+                                    {
+                                        'Ref': 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        'Ref': 'AWS::AccountId'
+                                    },
+                                    ':function:*'
+                                ]
+                            ]
+                        }
+                    }
+                ],
+                'Version': '2012-10-17'
+            }
+        });
+    });
+
+    it('should have validation rules preventing multimodal parameters for Text use cases', () => {
+        const templateJson = template.toJSON();
+
+        expect(templateJson.Rules.NoMultimodalEnabledForTextUseCaseRule).toEqual({
+            RuleCondition: {
+                'Fn::Equals': [{ 'Ref': 'MultimodalEnabled' }, 'Yes']
+            },
+            Assertions: [
+                {
+                    Assert: {
+                        'Fn::Equals': ['false', 'true']
+                    },
+                    AssertDescription:
+                        'Multimodal functionality is not supported for Text Use Cases. Please set MultimodalEnabled to No.'
+                }
+            ]
+        });
+
+        expect(templateJson.Rules.NoMultimodalBucketForTextUseCaseRule).toEqual({
+            RuleCondition: {
+                'Fn::Not': [
+                    {
+                        'Fn::Equals': [{ 'Ref': 'ExistingMultimodalDataBucket' }, '']
+                    }
+                ]
+            },
+            Assertions: [
+                {
+                    Assert: {
+                        'Fn::Equals': ['false', 'true']
+                    },
+                    AssertDescription:
+                        'Multimodal data bucket is not supported for Text Use Cases. Please leave ExistingMultimodalDataBucket empty.'
+                }
+            ]
+        });
+
+        expect(templateJson.Rules.NoMultimodalTableForTextUseCaseRule).toEqual({
+            RuleCondition: {
+                'Fn::Not': [
+                    {
+                        'Fn::Equals': [{ 'Ref': 'ExistingMultimodalDataMetadataTable' }, '']
+                    }
+                ]
+            },
+            Assertions: [
+                {
+                    Assert: {
+                        'Fn::Equals': ['false', 'true']
+                    },
+                    AssertDescription:
+                        'Multimodal metadata table is not supported for Text Use Cases. Please leave ExistingMultimodalDataMetadataTable empty.'
+                }
+            ]
+        });
+    });
 });
 
 function buildStack(): [Template, cdk.Stack] {

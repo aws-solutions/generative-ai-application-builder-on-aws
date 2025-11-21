@@ -146,6 +146,16 @@ export class UseCaseRestEndpointSetup extends BaseRestEndpoint {
     public readonly methodOptions: api.MethodOptions;
 
     /**
+     * The request authorizer for the API
+     */
+    public readonly authorizer: api.IAuthorizer;
+
+    /**
+     * The request validator for the API
+     */
+    public readonly requestValidator: api.IRequestValidator;
+
+    /**
      * The method used to get the details from our rest API
      */
     public readonly detailsGETMethod: api.Method;
@@ -248,15 +258,18 @@ export class UseCaseRestEndpointSetup extends BaseRestEndpoint {
         );
 
         this.restApi = this.setRestApi(props);
-        const requestValidator = this.setRequestValidator(props);
+        this.requestValidator = this.setRequestValidator(props);
         const authorizerId = this.setRequestAuthorizer(props);
 
+        // Create the authorizer object for direct access
+        this.authorizer = {
+            authorizerId: authorizerId,
+            authorizationType: api.AuthorizationType.CUSTOM
+        } as api.RequestAuthorizer;
+
         this.methodOptions = {
-            authorizer: {
-                authorizerId: authorizerId,
-                authorizationType: api.AuthorizationType.CUSTOM
-            } as api.RequestAuthorizer,
-            requestValidator: requestValidator
+            authorizer: this.authorizer,
+            requestValidator: this.requestValidator
         } as api.MethodOptions;
 
         this.detailsGETMethod = this.createUseCaseDetailsApi(createApiRoutesCondition);

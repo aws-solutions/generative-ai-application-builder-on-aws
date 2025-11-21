@@ -5,7 +5,8 @@ import {
     DescribeTableCommandOutput,
     DynamoDBClient,
     GetItemCommand,
-    PutItemCommand
+    PutItemCommand,
+    UpdateItemCommand
 } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -201,6 +202,32 @@ describe('When retrieving the use case config details from the config table', ()
                 }
             });
             expect(configResponse).toEqual(mockUseCaseConfig.config);
+        });
+    });
+
+    describe('When marking config for deletion', () => {
+        it('should set TTL on config record', async () => {
+            const cfnParameters = new Map<string, string>();
+            cfnParameters.set(CfnParameterKeys.UseCaseConfigRecordKey, '1111111-fake-key');
+            const useCase = new UseCase(
+                '11111111-2222-2222',
+                'fake-test',
+                'Create a stack for test',
+                cfnParameters,
+                {},
+                'test-user',
+                'fake-template-name',
+                'Chat'
+            );
+
+            ddbMockedClient.on(UpdateItemCommand).resolves({});
+
+            await useCaseConfigManagement.markUseCaseConfigForDeletion(useCase);
+
+            expect(ddbMockedClient).toHaveReceivedCommandWith(UpdateItemCommand, {
+                UpdateExpression: 'SET #TTL = :expiry_time',
+                ExpressionAttributeNames: { '#TTL': 'TTL' }
+            });
         });
     });
 

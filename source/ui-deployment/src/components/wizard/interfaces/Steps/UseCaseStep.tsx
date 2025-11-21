@@ -4,7 +4,7 @@
 import { DEPLOYMENT_ACTIONS, IG_DOCS, USECASE_TYPES } from '@/utils/constants';
 import { Box } from '@cloudscape-design/components';
 import { DEFAULT_STEP_INFO } from '../../steps-config';
-import { StepContentProps, ToolHelpPanelContent } from '../Steps';
+import { StepContentProps, ToolHelpPanelContent, ComponentVisibility } from '../Steps';
 import { BaseWizardProps, BaseWizardStep } from './BaseWizardStep';
 import UseCase from '../../UseCase';
 import { mapUseCaseStepInfoFromDeployment } from '../../utils';
@@ -20,6 +20,7 @@ export interface UseCaseSettings extends BaseWizardProps {
     existingUserPoolId: string;
     useExistingUserPoolClient: boolean;
     existingUserPoolClientId: string;
+    provisionedConcurrencyValue: number;
 }
 export class UseCaseStep extends BaseWizardStep {
     public id: string = 'useCase';
@@ -36,6 +37,7 @@ export class UseCaseStep extends BaseWizardStep {
         existingUserPoolId: DEFAULT_STEP_INFO.useCase.existingUserPoolId,
         useExistingUserPoolClient: DEFAULT_STEP_INFO.useCase.useExistingUserPoolClient,
         existingUserPoolClientId: DEFAULT_STEP_INFO.useCase.existingUserPoolClientId,
+        provisionedConcurrencyValue: DEFAULT_STEP_INFO.useCase.provisionedConcurrencyValue,
         inError: false
     };
 
@@ -50,8 +52,8 @@ export class UseCaseStep extends BaseWizardStep {
         ]
     };
 
-    constructor(useCaseType: string = USECASE_TYPES.TEXT) {
-        super();
+    constructor(useCaseType: string, visibility: ComponentVisibility | null = null) {
+        super(visibility);
         this.props.useCaseType = useCaseType;
     }
 
@@ -71,6 +73,7 @@ export class UseCaseStep extends BaseWizardStep {
             existingUserPoolId: this.props.existingUserPoolId,
             useExistingUserPoolClient: this.props.useExistingUserPoolClient,
             existingUserPoolClientId: this.props.existingUserPoolClientId,
+            provisionedConcurrencyValue: this.props.provisionedConcurrencyValue,
             inError: this.props.inError
         } = mapUseCaseStepInfoFromDeployment(selectedDeployment));
 

@@ -190,7 +190,7 @@ export function getResourceProperties(
     asset: s3_asset.Asset,
     customResourceLambda?: lambda.Function,
     customResourceRole?: iam.IRole
-): { properties: { [key: string]: any }, policy: iam.Policy } {
+): { properties: { [key: string]: any }; policy: iam.Policy } {
     let assetReadPolicy: iam.Policy;
     let resourcePropertiesJson;
 
@@ -250,7 +250,7 @@ export function getResourceProperties(
     return {
         properties: resourcePropertiesJson,
         policy: assetReadPolicy
-    }
+    };
 }
 /**
  * Generates the CFN template URL to add it to the IAM policy condition. The intent is to restrict the policy to only
@@ -515,4 +515,102 @@ export function createCustomResourceForLambdaLogRetention(
             Resource: 'CW_LOG_RETENTION'
         }
     });
+}
+
+/**
+ * Setup Bedrock Agent Core permissions for the custom resource lambda
+ */
+export function setupAgentCorePermissions(role: iam.Role): iam.PolicyStatement {
+    const runtimePolicyStatement = new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+            'bedrock-agentcore:CreateAgentRuntime',
+            'bedrock-agentcore:UpdateAgentRuntime',
+            'bedrock-agentcore:DeleteAgentRuntime',
+            'bedrock-agentcore:GetAgentRuntime',
+            'bedrock-agentcore:ListAgentRuntimes',
+            'bedrock-agentcore:CreateAgentRuntimeEndpoint',
+            'bedrock-agentcore:UpdateAgentRuntimeEndpoint',
+            'bedrock-agentcore:DeleteAgentRuntimeEndpoint',
+            'bedrock-agentcore:GetAgentRuntimeEndpoint',
+            'bedrock-agentcore:ListAgentRuntimeEndpoints',
+            'bedrock-agentcore:ListAgentRuntimeVersions',
+            'bedrock-agentcore:GetGateway',
+            'bedrock-agentcore:UpdateGateway'
+        ],
+        resources: [
+            `arn:${cdk.Aws.PARTITION}:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:runtime/*`,
+            `arn:${cdk.Aws.PARTITION}:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:runtime/*/runtime-endpoint/*`,
+            `arn:${cdk.Aws.PARTITION}:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:gateway/*`
+        ]
+    },
+);
+
+    const serviceRolePolicyStatement = new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['iam:CreateServiceLinkedRole'],
+        resources: [
+            `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/aws-service-role/runtime-identity.bedrock-agentcore.amazonaws.com/AWSServiceRoleForBedrockAgentCoreRuntimeIdentity`
+        ],
+        conditions: {
+            StringEquals: { 'iam:AWSServiceName': 'runtime-identity.bedrock-agentcore.amazonaws.com' }
+        }
+    });
+    
+    role.addToPolicy(runtimePolicyStatement);
+    role.addToPolicy(serviceRolePolicyStatement);
+
+    NagSuppressions.addResourceSuppressions(role.node.tryFindChild('DefaultPolicy') as iam.Policy, [
+        {
+            id: 'AwsSolutions-IAM5',
+            reason: 'The IAM role allows the custom resource lambda to manage Bedrock AgentCore runtime resources for MCP server operations',
+            appliesTo: ['Resource::arn:<AWS::Partition>:bedrock-agentcore:<AWS::Region>:<AWS::AccountId>:runtime/*']
+        },
+        {
+            id: 'AwsSolutions-IAM5',
+            reason: 'The IAM role allows the custom resource lambda to manage Bedrock AgentCore runtime endpoint resources for MCP server operations',
+            appliesTo: [
+                'Resource::arn:<AWS::Partition>:bedrock-agentcore:<AWS::Region>:<AWS::AccountId>:runtime/*/runtime-endpoint/*'
+            ]
+        },
+        {
+            id: 'AwsSolutions-IAM5',
+            reason: 'The IAM role allows the custom resource lambda to manage Bedrock AgentCore gateway endpoint resources for permission manipulation',
+            appliesTo: ['Resource::arn:<AWS::Partition>:bedrock-agentcore:<AWS::Region>:<AWS::AccountId>:gateway/*']
+        }
+    ]);
+
+    return runtimePolicyStatement;
+}
+/**
+ * Setup Agent Core permissions for the custom resource lambda with optional PassRole policy
+ */
+export function setupAgentCorePermissionsWithPassRole(customResourceRole: iam.Role, executionRoleArn?: string): void {
+    // Setup the basic Agent Core Runtime permissions
+    setupAgentCorePermissions(customResourceRole);
+
+    // Add PassRole policy if execution role ARN is provided
+    if (executionRoleArn) {
+        const passRolePolicy = new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ['iam:PassRole'],
+            resources: [executionRoleArn],
+            conditions: {
+                StringEquals: {
+                    'iam:PassedToService': 'bedrock-agentcore.amazonaws.com'
+                }
+            }
+        });
+
+        customResourceRole.addToPolicy(passRolePolicy);
+
+        // Add CDK NAG suppression for the PassRole policy
+        NagSuppressions.addResourceSuppressions(customResourceRole.node.tryFindChild('DefaultPolicy') as iam.Policy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'The IAM role needs PassRole permission to allow Bedrock AgentCore to assume the execution role for MCP runtime operations',
+                appliesTo: [`Resource::${executionRoleArn}`]
+            }
+        ]);
+    }
 }

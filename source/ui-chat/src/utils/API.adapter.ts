@@ -55,7 +55,7 @@ export const API = {
             }),
             body: JSON.stringify(init.body)
         });
-        
+
         let responseBody;
         if (response.ok) {
             try {
@@ -81,10 +81,15 @@ export const API = {
         });
 
         let responseBody;
-        try {
-            responseBody = await response.json();
-        } catch (e) {
-            responseBody = {};
+        if (response.ok) {
+            try {
+                responseBody = await response.json();
+            } catch (e) {
+                responseBody = {};
+            }
+        } else {
+            const errorText = await response.text();
+            throw new Error(errorText);
         }
 
         return responseBody;
@@ -100,10 +105,15 @@ export const API = {
         });
 
         let responseBody;
-        try {
-            responseBody = await response.json();
-        } catch (e) {
-            responseBody = {};
+        if (response.ok) {
+            try {
+                responseBody = await response.json();
+            } catch (e) {
+                responseBody = {};
+            }
+        } else {
+            const errorText = await response.text();
+            throw new Error(errorText);
         }
 
         return responseBody;
@@ -111,14 +121,23 @@ export const API = {
     async del(apiName: string, path: string, init: RestApiOptions = {}): Promise<any> {
         const response = await fetch(baseUrl(apiName) + path + queryString(init.queryParams), {
             method: 'DELETE',
-            headers: await addAuthHeader(init.headers)
+            headers: await addAuthHeader({
+                ...init.headers,
+                'Content-Type': 'application/json'
+            }),
+            body: init.body ? JSON.stringify(init.body) : undefined
         });
 
         let responseBody;
-        try {
-            responseBody = await response.json();
-        } catch (e) {
-            responseBody = {};
+        if (response.ok) {
+            try {
+                responseBody = await response.json();
+            } catch (e) {
+                responseBody = {};
+            }
+        } else {
+            const errorText = await response.text();
+            throw new Error(errorText);
         }
 
         return responseBody;

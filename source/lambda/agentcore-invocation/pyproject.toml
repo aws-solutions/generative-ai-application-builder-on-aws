@@ -1,0 +1,50 @@
+[tool.poetry]
+name = "agent-invocation"
+version = "4.0.0"
+authors = [ "Amazon Web Services" ]
+description = "Lambda implementation for agent invocation feature"
+packages = [
+    { include = "*.py" },
+    { include = "./**/*.py" },
+    { include = "./**/**/*.py" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+]
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+aws-lambda-powertools = "3.19.0"
+aws-xray-sdk = "2.14.0"
+boto3 = "^1.35.0"
+botocore = "^1.35.0"
+
+[tool.poetry.group.test.dependencies]
+freezegun = "1.5.1"
+mock = "5.1.0"
+moto = "5.0.28"
+pytest = "8.3.4"
+pytest-cov = "6.0.0"
+pytest-env = "1.1.5"
+PyYAML = "6.0.2"
+setuptools = "80.8.0"
+requests = "2.32.4"
+urllib3 = "2.5.0"
+boto3-layer = { path = "../layers/aws_boto3/", develop = true }
+custom_boto3_init = { path = "../layers/custom_boto3_init", develop = true }
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+line_length = 120
+profile = "black"
+
+[build-system]
+requires = [ "poetry-core>=1.0.8" ]
+build-backend = "poetry.core.masonry.api"

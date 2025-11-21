@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { TextUseCaseConfig, AgentUseCaseConfig } from './use-case-config';
+import { TextUseCaseConfig, AgentUseCaseConfig, AgentBuilderUseCaseConfig, WorkflowUseCaseConfig } from './use-case-config';
 
 export interface RuntimeConfig {
     IsInternalUser: string;
@@ -16,6 +16,6 @@ export interface RuntimeConfig {
     CognitoDomain: string;
     UseCaseConfigKey: string;
     UseCaseId: string;
-    UseCaseConfig?: TextUseCaseConfig | AgentUseCaseConfig;
+    UseCaseConfig?: TextUseCaseConfig | AgentUseCaseConfig | AgentBuilderUseCaseConfig | WorkflowUseCaseConfig;
     RestApiEndpoint: string;
 }

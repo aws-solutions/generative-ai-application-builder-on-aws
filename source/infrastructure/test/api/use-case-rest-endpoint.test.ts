@@ -431,10 +431,11 @@ describe('NewUseCaseRestEndpointDeployment', () => {
                                             'OrStatement': {
                                                 'Statements': [
                                                     {
-                                                        'ByteMatchStatement': {
-                                                            'FieldToMatch': { 'UriPath': {} },
-                                                            'PositionalConstraint': 'ENDS_WITH',
-                                                            'SearchString': '/deployments',
+                                                        'RegexMatchStatement': {
+                                                            'FieldToMatch': {
+                                                                'UriPath': {}
+                                                            },
+                                                            'RegexString': '/deployments(/mcp|/agents|/workflows)?$',
                                                             'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
                                                         }
                                                     },
@@ -444,7 +445,7 @@ describe('NewUseCaseRestEndpointDeployment', () => {
                                                                 'UriPath': {}
                                                             },
                                                             'RegexString':
-                                                                '/deployments/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+                                                                '/deployments(/mcp|/agents|/workflows)?/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
                                                             'TextTransformations': [{ 'Priority': 0, 'Type': 'NONE' }]
                                                         }
                                                     }

@@ -1,8 +1,9 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "3.0.7",
+  "version": "4.0.0",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
+    "@aws-sdk/util-arn-parser": "^3.893.0",
     "@cloudscape-design/code-view": "3.0.16",
     "@cloudscape-design/components": "^3.0.694",
     "@cloudscape-design/global-styles": "^1.0.31",
@@ -31,6 +32,7 @@
     "file-loader": "^6.2.0",
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^24.1.1",
+    "prettier": "^3.6.2",
     "patch-package": "^8.0.1",
     "react-test-renderer": "^18.3.1",
     "vite": "^5.3.5",
@@ -49,7 +51,7 @@
     "test:debug": "vitest run",
     "test:no-cov": "vitest run --silent",
     "clean": "rm -rf node_modules",
-    "code-formatter": "./node_modules/prettier/bin-prettier.js --config ../../.prettierrc.yml '**/*.{js,json,css,md}' !package*.json --write",
+    "code-formatter": "prettier --config ../../.prettierrc.yml --ignore-path ../../.prettierignore --write '**/*.{js,jsx,ts,tsx,json,css,md}'",
     "code-linter": "./node_modules/eslint/bin/eslint.js . -c ../.eslintrc.js --ext .js"
   },
   "eslintConfig": {

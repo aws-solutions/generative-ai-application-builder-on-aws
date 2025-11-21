@@ -19,6 +19,7 @@ import { act } from 'react-test-renderer';
 import { TextUseCaseType } from '@/components/wizard/interfaces/UseCaseTypes/Text';
 import { USECASE_TYPE_ROUTE } from '@/utils/constants';
 import { createAgentLink } from '@/components/useCaseDetails/agent/AgentDetails';
+import WizardView from '../../wizard/WizardView';
 import { useUseCaseDetailsQuery } from '@/hooks/useQueries';
 import {
     agentDetailsApiResponse,
@@ -28,6 +29,16 @@ import {
     nonRagWithVpc,
     sagemakerNonRagResponse
 } from '../__mocks__/mock-details-api-response';
+
+vi.mock('../../wizard/WizardView', () => ({
+    default: ({ useCase }: any) => <div data-testid="wizard-view">Mocked WizardView</div>
+}));
+
+vi.mock('../../useCaseDetails/export/ExportDropdownButton', () => ({
+    ExportButtonDropdown: ({ useCaseId, disabled }: any) => (
+        <div data-testid="export-button-dropdown">Export Button (Mocked)</div>
+    )
+}));
 
 vi.mock('@/hooks/useQueries', async () => {
     const actual = await vi.importActual('@/hooks/useQueries');
@@ -50,15 +61,13 @@ function mockUseCaseDetailsQuery(data: any) {
 }
 
 describe('UseCaseView', () => {
-    let WizardView: any;
     const contextValue = {
         dispatch: vi.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: baseMock
     };
 
-    beforeAll(async () => {
+    beforeAll(() => {
         mockReactMarkdown();
-        WizardView = (await import('../../wizard/WizardView')).default;
     });
 
     beforeEach(() => {
@@ -254,19 +263,22 @@ describe('UseCaseView', () => {
 });
 
 describe('Navigating to edit/clone from UseCaseView', () => {
-    let WizardView: any;
     const contextValue = {
-        dispatch: jest.fn() as Dispatch<ActionType<HomeInitialState>>,
+        dispatch: vi.fn() as Dispatch<ActionType<HomeInitialState>>,
         state: baseMock
     };
 
-    beforeAll(async () => {
+    beforeAll(() => {
         mockReactMarkdown();
-        WizardView = (await import('../../wizard/WizardView')).default;
     });
 
-    beforeEach(async () => {
+    beforeEach(() => {
         mockUseCaseDetailsQuery(bedrockKnowledgeBaseResponse);
+    });
+
+    afterEach(() => {
+        vi.resetAllMocks();
+        cleanup();
     });
 
     test('The edit wizard is correctly rendered', async () => {

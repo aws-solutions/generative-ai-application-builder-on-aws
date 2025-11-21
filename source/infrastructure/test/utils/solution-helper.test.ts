@@ -18,48 +18,29 @@ describe('When solution helper construct is created', () => {
         });
         const customInfra = new CustomInfraSetup(stack, 'TestInfra', {
             solutionID: rawCdkJson.context.solution_id,
-            solutionVersion: rawCdkJson.context.solution_version,
-            sendAnonymousMetricsCondition: condition
+            solutionVersion: rawCdkJson.context.solution_version
         });
         new SolutionHelper(stack, 'SolutionHelper', {
             customResource: customInfra.customResourceLambda,
             solutionID: 'SO0999',
-            version: 'v9.9.9',
-            sendAnonymousMetricsCondition: condition
+            version: 'v9.9.9'
         });
 
         template = Template.fromStack(stack);
         jsonTemplate = template.toJSON();
     });
 
-    it('should create a custom resource for anonymous data', () => {
+    it('should create a custom resource for data', () => {
         const customResourceLambda = new Capture();
 
-        template.resourceCountIs('Custom::AnonymousData', 1);
-        template.hasResourceProperties('Custom::AnonymousData', {
+        template.resourceCountIs('Custom::Data', 1);
+        template.hasResourceProperties('Custom::Data', {
             ServiceToken: {
                 'Fn::GetAtt': [customResourceLambda, 'Arn']
             },
-            Resource: 'ANONYMOUS_METRIC'
+            Resource: 'METRIC'
         });
 
         expect(jsonTemplate['Resources'][customResourceLambda.asString()]['Type']).toEqual('AWS::Lambda::Function');
-    });
-
-    const conditionLogicalId = new Capture();
-    it('should have a custom resource block with a condition', () => {
-        template.hasResource('Custom::AnonymousData', {
-            Type: 'Custom::AnonymousData',
-            Properties: Match.anyValue(),
-            UpdateReplacePolicy: 'Delete',
-            DeletionPolicy: 'Delete',
-            Condition: conditionLogicalId
-        });
-    });
-
-    it('should have a conditions block in the template', () => {
-        template.hasCondition(conditionLogicalId.asString(), {
-            'Fn::Equals': ['Yes', 'Yes']
-        });
     });
 });

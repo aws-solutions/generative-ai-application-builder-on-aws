@@ -4,7 +4,28 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { RuntimeConfig, TextUseCaseConfig, UseCaseType, AgentUseCaseConfig } from '../models';
 import { RootState } from './store';
-import { DEFAULT_CHAT_INPUT_MAX_LENGTH, MAX_PROMPT_TEMPLATE_LENGTH, USE_CASE_TYPES } from '../utils/constants';
+import {
+    DEFAULT_CHAT_INPUT_MAX_LENGTH,
+    AGENT_BUILDER_CHAT_INPUT_MAX_LENGTH,
+    MAX_PROMPT_TEMPLATE_LENGTH,
+    USE_CASE_TYPES,
+    MULTIMODAL_SUPPORTED_USE_CASE_TYPES
+} from '../utils/constants';
+
+interface MultimodalCapableConfig {
+    UseCaseType: string;
+    LlmParams?: {
+        MultimodalParams?: {
+            MultimodalEnabled?: boolean;
+        };
+    };
+}
+
+const isMultimodalSupportedUseCase = (
+    useCaseType: string
+): useCaseType is (typeof MULTIMODAL_SUPPORTED_USE_CASE_TYPES)[number] => {
+    return (MULTIMODAL_SUPPORTED_USE_CASE_TYPES as readonly string[]).includes(useCaseType);
+};
 
 /**
  * Interface representing the configuration state
@@ -113,6 +134,8 @@ export const getMaxInputTextLength = (state: RootState): number => {
     const useCaseConfig = state.config.runtimeConfig?.UseCaseConfig;
     if (useCaseConfig?.UseCaseType === USE_CASE_TYPES.AGENT) {
         return DEFAULT_CHAT_INPUT_MAX_LENGTH;
+    } else if (useCaseConfig?.UseCaseType === USE_CASE_TYPES.AGENT_BUILDER || useCaseConfig?.UseCaseType === USE_CASE_TYPES.WORKFLOW) {
+        return AGENT_BUILDER_CHAT_INPUT_MAX_LENGTH;
     }
     const textConfig = useCaseConfig as TextUseCaseConfig;
     return textConfig?.LlmParams?.PromptParams?.MaxInputTextLength ?? DEFAULT_CHAT_INPUT_MAX_LENGTH;
@@ -162,6 +185,47 @@ export const getUseCaseConfig = (state: RootState): AgentUseCaseConfig | TextUse
  */
 export const getFeedbackEnabledState = (state: RootState): any => {
     return state.config.runtimeConfig?.UseCaseConfig?.FeedbackParams?.FeedbackEnabled ?? false;
+};
+
+/**
+ * Gets the multimodal enabled state from the runtime config
+ * @param state Root application state
+ * @returns Boolean indicating if multimodal is enabled for supported use case types
+ */
+export const getMultimodalEnabledState = (state: RootState): boolean => {
+    const useCaseConfig = state.config.runtimeConfig?.UseCaseConfig;
+
+    if (!useCaseConfig) {
+        return false;
+    }
+
+    const hasMultimodalStructure = (
+        config: unknown
+    ): config is {
+        UseCaseType: string;
+        LlmParams?: {
+            MultimodalParams?: {
+                MultimodalEnabled?: boolean;
+            };
+        };
+    } => {
+        return (
+            config !== null &&
+            typeof config === 'object' &&
+            'UseCaseType' in config &&
+            typeof (config as any).UseCaseType === 'string'
+        );
+    };
+
+    if (!hasMultimodalStructure(useCaseConfig)) {
+        return false;
+    }
+
+    if (!isMultimodalSupportedUseCase(useCaseConfig.UseCaseType)) {
+        return false;
+    }
+
+    return useCaseConfig.LlmParams?.MultimodalParams?.MultimodalEnabled === true;
 };
 
 /**

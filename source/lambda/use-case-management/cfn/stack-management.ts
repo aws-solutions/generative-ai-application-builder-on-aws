@@ -15,7 +15,7 @@ import {
     UpdateStackCommandOutput
 } from '@aws-sdk/client-cloudformation';
 import { parse, validate } from '@aws-sdk/util-arn-parser';
-import { customAwsConfig } from 'aws-node-user-agent-config';
+import { AWSClientManager } from 'aws-sdk-lib';
 import { StackInfo, UseCaseRecord } from '../model/list-use-cases';
 import { UseCase } from '../model/use-case';
 import { logger, metrics, tracer } from '../power-tools-init';
@@ -53,8 +53,7 @@ export class StackManagement {
     private cfnClient: CloudFormationClient;
 
     constructor() {
-        this.cfnClient = new CloudFormationClient(customAwsConfig());
-        tracer.captureAWSv3Client(this.cfnClient);
+        this.cfnClient = AWSClientManager.getServiceClient<CloudFormationClient>('cloudformation', tracer);
     }
     /**
      * Method that creates a use case stack using cloudformation
@@ -66,6 +65,7 @@ export class StackManagement {
     public async createStack(useCase: UseCase): Promise<string> {
         const input = await new CreateStackCommandInputBuilder(useCase).build(); //NOSONAR - removing await, input is empty
         const command = new CreateStackCommand(input);
+        logger.debug(`Stack parameters: ${JSON.stringify(input.Parameters)}`);
 
         let response: CreateStackCommandOutput;
         try {
@@ -95,6 +95,7 @@ export class StackManagement {
 
         const input = await builder.build(); //NOSONAR - removing await, input is empty
         const command = new UpdateStackCommand(input);
+        logger.debug(`Update stack parameters: ${JSON.stringify(input.Parameters, null, 2)}`);
 
         let response: UpdateStackCommandOutput;
         try {
@@ -243,7 +244,7 @@ export class StackManagement {
      * @returns
      */
     private createStackInfoFromDdbRecord = (useCaseRecord: UseCaseRecord): StackInfo => {
-        console.debug(`useCaseRecord: ${JSON.stringify(useCaseRecord)}`);
+        logger.debug(`useCaseRecord: ${JSON.stringify(useCaseRecord)}`);
         if (!validate(useCaseRecord.StackId)) {
             throw new Error(`Invalid stackId ARN provided in DDB record: ${useCaseRecord.StackId}`);
         }

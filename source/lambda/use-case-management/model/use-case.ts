@@ -1,8 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { CfnParameterKeys } from '../utils/constants';
-import { UseCaseConfiguration } from './types';
+import { CfnParameterKeys, RetainedCfnParameterKeys } from '../utils/constants';
+import {
+    MCPUseCaseConfiguration,
+    UseCaseConfiguration,
+    AgentUseCaseConfiguration,
+    AgentBuilderUseCaseConfiguration,
+    WorkflowUseCaseConfiguration
+} from './types';
 
 /**
  * Data Model to store capture use case specific information
@@ -41,12 +47,17 @@ export class UseCase {
     /**
      * Name of the provider for the use case
      */
-    public readonly providerName: string;
+    public readonly providerName: string | undefined;
 
     /**
      * Additional configuration for the use case, stored as a JSON object in SSM
      */
-    public configuration: UseCaseConfiguration;
+    public configuration:
+        | UseCaseConfiguration
+        | AgentUseCaseConfiguration
+        | MCPUseCaseConfiguration
+        | AgentBuilderUseCaseConfiguration
+        | WorkflowUseCaseConfiguration;
 
     /**
      * The template which should be used to deploy the use case
@@ -74,9 +85,9 @@ export class UseCase {
         name: string,
         description: string | undefined,
         cfnParameters: Map<string, string> | undefined,
-        configuration: UseCaseConfiguration,
+        configuration: UseCaseConfiguration | AgentUseCaseConfiguration | MCPUseCaseConfiguration | AgentBuilderUseCaseConfiguration | WorkflowUseCaseConfiguration,
         userId: string,
-        providerName: string,
+        providerName: string | undefined,
         useCaseType: string,
     ) {
         this.useCaseId = useCaseId;
@@ -87,8 +98,20 @@ export class UseCase {
         this.userId = userId;
         this.providerName = providerName
         this.shortUUID = this.useCaseId.substring(0, 8);
-        this.templateName = `${providerName}${useCaseType}`;
         this.useCaseType = useCaseType;
+        this.templateName = this.generateTemplateName(providerName, useCaseType);
+    }
+
+    /**
+     * Generates the template name for the use case. Can be overridden by subclasses
+     * to provide custom template naming logic.
+     *
+     * @param providerName The provider name (e.g., 'Bedrock', 'SageMaker')
+     * @param useCaseType The use case type (e.g., 'Chat', 'Agent')
+     * @returns The template name to use for CloudFormation deployment
+     */
+    protected generateTemplateName(providerName: string | undefined, useCaseType: string): string {
+        return providerName === undefined ? useCaseType : `${providerName}${useCaseType}`;
     }
 
     private createCfnParametersMapIfNotExists(): void {
@@ -123,6 +146,16 @@ export class UseCase {
     }
 
     /**
+     * Returns the list of CloudFormation parameters that should be retained during stack updates.
+     * Can be overridden by subclasses to provide use case-specific retention behavior.
+     *
+     * @returns Array of parameter keys that should use previous values during updates
+     */
+    public getRetainedParameterKeys(): string[] {
+        return RetainedCfnParameterKeys;
+    }
+
+    /**
      * Performs a deep copy of this object, preserving methods and property values
      *
      * @returns a deep copy of the object
@@ -135,11 +168,8 @@ export class UseCase {
             new Map<string, string>(this.cfnParameters),
             { ...this.configuration },
             this.userId,
-            this.templateName
-                .split(/(?=[A-Z])/)
-                .slice(0, -1)
-                .join(''), // provider name
-            this.templateName.split(/(?=[A-Z])/).pop()! // use case type, the last capitalized portion
+            this.providerName,
+            this.useCaseType
         );
 
         return newUseCase;

@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react';
 import { AUTHORS } from '../../../pages/chat/config';
 import '@cloudscape-design/chat-components/test-utils/dom';
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
-import { ScrollableContainer, ChatBubbleAvatar, Actions } from '../../../components/common/common-components';
+import { ScrollableContainer, ChatBubbleAvatar, Actions, ExternalLinkWarningModal } from '../../../components/common/common-components';
 
 describe('Common Components', () => {
     describe('ScrollableContainer', () => {
@@ -85,6 +85,26 @@ describe('Common Components', () => {
 
             const popover = wrapper.findStatusIndicator();
             expect(popover).toBeDefined();
+        });
+    });
+
+    describe('ExternalLinkWarningModal Export', () => {
+        it('exports ExternalLinkWarningModal component', () => {
+            expect(ExternalLinkWarningModal).toBeDefined();
+            expect(typeof ExternalLinkWarningModal).toBe('function');
+        });
+
+        it('renders ExternalLinkWarningModal when imported from common-components', () => {
+            const { container } = render(
+                <ExternalLinkWarningModal
+                    visible={true}
+                    onDiscard={() => {}}
+                    externalLink="https://example.com"
+                    resourceType="test link"
+                />
+            );
+
+            expect(screen.getByTestId('external-link-warning-modal')).toBeInTheDocument();
         });
     });
 });

@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Gateway Component Snapshots > Gateway component with missing data 1`] = `null`;
+
+exports[`Gateway Component Snapshots > Gateway component with null deployment 1`] = `null`;
+
+exports[`Gateway Component Snapshots > Gateway component with valid data 1`] = `null`;

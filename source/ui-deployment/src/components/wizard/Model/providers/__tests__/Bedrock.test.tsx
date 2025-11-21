@@ -68,10 +68,10 @@ describe('Bedrock', () => {
     });
 
     test('renders with default inference type', () => {
-        jest.spyOn(QueryHooks, 'useModelNameQuery').mockReturnValue(modelNameQueryReturn as any);
         const mockModelData = {
             modelProvider: MODEL_FAMILY_PROVIDER_OPTIONS[BEDROCK_MODEL_OPTION_IDX],
-            modelName: 'anthropic.claude-v2'
+            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES,
+            inferenceProfileId: 'us.anthropic.claude-3-5-sonnet-20241022-v2:0'
         };
 
         const { cloudscapeWrapper } = renderWithProvider(
@@ -80,20 +80,12 @@ describe('Bedrock', () => {
         );
 
         expect(screen.getByTestId('bedrock-model-components')).toBeDefined();
-        expect(screen.getByTestId('model-name-dropdown')).toBeDefined();
-
-        const select = cloudscapeWrapper.findSelect();
-        select?.openDropdown();
-        expect(select?.findDropdown().findOptions().length).toBe(4);
-        expect(select?.findDropdown().findOptionByValue('amazon.titan-text-express-v1')).toBeTruthy();
-        expect(select?.findDropdown().findOptionByValue('anthropic.claude-instant-v1')).toBeTruthy();
-        expect(select?.findDropdown().findOptionByValue('anthropic.claude-v1')).toBeTruthy();
-        expect(select?.findDropdown().findOptionByValue('anthropic.claude-v2')).toBeTruthy();
+        expect(screen.getByTestId('inference-profile-id-field')).toBeDefined();
 
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="bedrock-inference-type-radio-group"]');
         expect(radioGroup).toBeDefined();
         expect(
-            radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS)?.getElement().checked
+            radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES)?.getElement().checked
         ).toBeTruthy();
     });
 
@@ -110,7 +102,7 @@ describe('Bedrock', () => {
         });
 
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
-            'bedrockInferenceType': BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS
+            'bedrockInferenceType': BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES
         });
     });
 
@@ -189,19 +181,18 @@ describe('Bedrock', () => {
 
         // Now change the inference type to clear errors
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="bedrock-inference-type-radio-group"]');
-        radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS)?.getElement().click();
+        radioGroup?.findInputByValue(BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES)?.getElement().click();
 
         // Verify that onChange was called with the new inference type and reset values
         expect(callbacks.onChangeFn).toHaveBeenCalledWith({
-            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS,
+            bedrockInferenceType: BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES,
             modelName: '',
             inferenceProfileId: '',
             modelArn: ''
         });
     });
 
-    test('falls back to ModelNameDropdown for unknown inference types', () => {
-        jest.spyOn(QueryHooks, 'useModelNameQuery').mockReturnValue(modelNameQueryReturn as any);
+    test('falls back to BedrockModelIdInput for unknown inference types', () => {
         const mockModelData = {
             modelProvider: MODEL_FAMILY_PROVIDER_OPTIONS[BEDROCK_MODEL_OPTION_IDX],
             bedrockInferenceType: 'UNKNOWN_TYPE',
@@ -212,6 +203,6 @@ describe('Bedrock', () => {
             route: USECASE_TYPE_ROUTE.TEXT
         });
 
-        expect(screen.getByTestId('model-name-dropdown')).toBeDefined();
+        expect(screen.getByTestId('model-id-field')).toBeDefined();
     });
 });

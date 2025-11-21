@@ -3,6 +3,7 @@
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
+import { AWSClientManager } from 'aws-sdk-lib';
 import { logger, metrics, tracer } from '../power-tools-init';
 import { FeedbackRequest, EnrichedFeedback } from '../model/data-model';
 import { ConfigMappingService } from './config-mapping-service';
@@ -29,9 +30,7 @@ export class FeedbackStorageService {
     private readonly MESSAGE_CACHE_TTL = 3600000; // 1 hour in milliseconds
 
     constructor(options?: FeedbackStorageOptions) {
-        this.s3Client = new S3Client({
-            region: options?.region || process.env.AWS_REGION
-        });
+        this.s3Client = AWSClientManager.getServiceClient<S3Client>('s3', tracer);
         this.bucketName = options?.bucket || process.env.FEEDBACK_BUCKET_NAME || '';
         this.configMappingService = new ConfigMappingService();
         this.cacheManager = CacheManager.getInstance();

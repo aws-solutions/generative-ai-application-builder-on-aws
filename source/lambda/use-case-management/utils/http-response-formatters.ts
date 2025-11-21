@@ -11,11 +11,11 @@
  * @returns
  */
 export const formatResponse = (
-    body: string | { [key: string]: string },
+    body: string | { [key: string]: any },
     extraHeaders: { [key: string]: string } = {}
 ) => {
     const defaultHeaders = {
-        'Content-Type': 'application/json',
+        'Content-Type':'application/json',
         'Access-Control-Allow-Headers': 'Origin,X-Requested-With,Content-Type,Accept',
         'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
         'Access-Control-Allow-Credentials': true,

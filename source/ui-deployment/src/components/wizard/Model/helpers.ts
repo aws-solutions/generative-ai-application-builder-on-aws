@@ -211,8 +211,6 @@ export const initModelRequiredFields = (modelProvider: string) => {
 const getRequiredFields = (bedrockInferenceType?: string): string[] => {
     if (bedrockInferenceType) {
         switch (bedrockInferenceType) {
-            case BEDROCK_INFERENCE_TYPES.QUICK_START_MODELS:
-                return ['modelName'];
             case BEDROCK_INFERENCE_TYPES.OTHER_FOUNDATION_MODELS:
                 return ['modelName'];
             case BEDROCK_INFERENCE_TYPES.INFERENCE_PROFILES:

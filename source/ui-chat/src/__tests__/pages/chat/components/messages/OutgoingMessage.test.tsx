@@ -3,13 +3,46 @@
 
 import '@cloudscape-design/chat-components/test-utils/dom';
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import createWrapper from '@cloudscape-design/components/test-utils/dom';
 import { ChatBubbleMessage } from '../../../../../pages/chat/types';
 import { OutgoingMessageProps } from '../../../../../pages/chat/components/messages/types';
 import { OutgoingMessage } from '../../../../../pages/chat/components/messages/OutgoingMessage';
+import { UploadedFile } from '../../../../../types/file-upload';
 import { act } from 'react';
+import { UserProvider } from '../../../../../contexts/UserContext';
+
+vi.mock('../../../../../contexts/UserContext', async () => {
+    const actual = await vi.importActual('../../../../../contexts/UserContext');
+    return {
+        ...actual,
+        useUser: vi.fn(() => ({
+            getAccessToken: vi.fn(() => Promise.resolve('mock-token'))
+        })),
+        UserProvider: ({ children }: { children: React.ReactNode }) => children
+    };
+});
+
+vi.mock('@reduxjs/toolkit/query', () => ({
+    createApi: vi.fn(),
+    fetchBaseQuery: vi.fn()
+}));
+
+vi.mock('../../../../../store/solutionApi', () => ({
+    useGetDeploymentQuery: vi.fn(() => ({ data: null, error: null })),
+    useLazyGetFileDownloadUrlQuery: () => [vi.fn(), {}]
+}));
+
+vi.mock('react-redux', () => ({
+    useDispatch: vi.fn(() => vi.fn()),
+    useSelector: vi.fn(() => ({}))
+}));
+
+vi.mock('@aws-amplify/auth', () => ({
+    getCurrentUser: vi.fn(() => Promise.resolve({ userId: 'test-user', username: 'testuser' })),
+    fetchUserAttributes: vi.fn(() => Promise.resolve({ name: 'Test User', email: 'test@example.com' }))
+}));
 
 const customScreen = {
     ...screen,
@@ -243,6 +276,77 @@ describe('OutgoingMessage', () => {
 
         afterEach(() => {
             vi.restoreAllMocks();
+        });
+    });
+
+    describe('FileDisplay', () => {
+        const mockFiles: UploadedFile[] = [
+            {
+                key: 'file-key-1',
+                fileName: 'document.pdf',
+                fileContentType: 'application/pdf',
+                fileExtension: 'pdf',
+                fileSize: 1024000
+            }
+        ];
+
+        it('renders FileDisplay component when files are present', () => {
+            const messageWithFiles: ChatBubbleMessage = {
+                ...mockMessage,
+                files: mockFiles
+            };
+
+            const propsWithFiles: OutgoingMessageProps = {
+                ...mockProps,
+                message: messageWithFiles
+            };
+
+            const { container } = render(
+                <UserProvider>
+                    <OutgoingMessage {...propsWithFiles} />
+                </UserProvider>
+            );
+            const fileDisplay = container.querySelector('[data-testid="file-display"]');
+            expect(fileDisplay).toBeInTheDocument();
+        });
+
+        it('does not render FileDisplay when no files are present', () => {
+            const { container } = render(
+                <UserProvider>
+                    <OutgoingMessage {...mockProps} />
+                </UserProvider>
+            );
+            const fileDisplay = container.querySelector('[data-testid="file-display"]');
+            expect(fileDisplay).not.toBeInTheDocument();
+        });
+
+        it('renders files above message content in correct order', () => {
+            const messageWithFiles: ChatBubbleMessage = {
+                ...mockMessage,
+                content: 'Message with files attached',
+                files: mockFiles
+            };
+
+            const propsWithFiles: OutgoingMessageProps = {
+                ...mockProps,
+                message: messageWithFiles
+            };
+
+            const { container } = render(
+                <UserProvider>
+                    <OutgoingMessage {...propsWithFiles} />
+                </UserProvider>
+            );
+
+            const fileDisplay = container.querySelector('[data-testid="file-display"]');
+            const messageContent = container.querySelector('.outgoing-message__content-wrapper');
+
+            expect(fileDisplay).toBeInTheDocument();
+            expect(messageContent).toBeInTheDocument();
+
+            if (fileDisplay && messageContent) {
+                expect(fileDisplay.compareDocumentPosition(messageContent)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+            }
         });
     });
 });

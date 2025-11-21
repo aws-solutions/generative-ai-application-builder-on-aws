@@ -35,21 +35,6 @@ export interface DeploymentPlatformStorageProps extends BaseStackProps {
     accessLoggingBucket: s3.Bucket;
 }
 
-export interface LambdaDependencies {
-    /**
-     * Lambda which backs API calls interacting with the use cases
-     */
-    deploymentApiLambda: lambda.Function;
-    /**
-     * Lambda which backs API calls for retrieving model info
-     */
-    modelInfoApiLambda: lambda.Function;
-    /**
-     * Lambda which backs API calls for retrieving feedback
-     */
-    feedbackApiLambda: lambda.Function;
-}
-
 /**
  * This Construct sets up the nested stack managing dynamoDB tables for use case management
  */
@@ -79,9 +64,8 @@ export class DeploymentPlatformStorageSetup extends Construct {
         });
     }
 
-    public addLambdaDependencies(lambdas: LambdaDependencies): void {
-        // Create and attach the DDB policy for the Lambda functions
-        const ddbUCMLPolicy = new iam.Policy(this, 'DDBUCMLPolicy', {
+    public configureDeploymentApiLambda(deploymentApiLambda: lambda.Function): void {
+        const ddbPolicy = new iam.Policy(this, 'DeploymentApiDDBPolicy', {
             statements: [
                 new iam.PolicyStatement({
                     actions: [
@@ -102,34 +86,35 @@ export class DeploymentPlatformStorageSetup extends Construct {
                 })
             ]
         });
-        ddbUCMLPolicy.attachToRole(lambdas.deploymentApiLambda.role!);
+        ddbPolicy.attachToRole(deploymentApiLambda.role!);
 
-        // Add environment variables to the deployment API Lambda
-        lambdas.deploymentApiLambda.addEnvironment(
+        deploymentApiLambda.addEnvironment(
             USE_CASES_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.useCasesTable.tableName
         );
-
-        lambdas.deploymentApiLambda.addEnvironment(
+        deploymentApiLambda.addEnvironment(
             MODEL_INFO_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.modelInfoTable.tableName
         );
-
-        lambdas.deploymentApiLambda.addEnvironment(
+        deploymentApiLambda.addEnvironment(
             USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.useCaseConfigTable.tableName
         );
 
-        // Set up model info Lambda with DynamoDB
+        this.addDynamoDBNagSuppressions(ddbPolicy, 'deploymentAPI');
+    }
+
+    public configureModelInfoApiLambda(modelInfoApiLambda: lambda.Function): void {
         new LambdaToDynamoDB(this, 'ModelInfoLambdaToModelInfoDDB', {
-            existingLambdaObj: lambdas.modelInfoApiLambda,
+            existingLambdaObj: modelInfoApiLambda,
             existingTableObj: this.deploymentPlatformStorage.modelInfoTable,
             tablePermissions: 'Read',
             tableEnvironmentVariableName: MODEL_INFO_TABLE_NAME_ENV_VAR
         });
+    }
 
-        // Add permissions for feedback API Lambda
-        lambdas.feedbackApiLambda.addToRolePolicy(
+    public configureFeedbackApiLambda(feedbackApiLambda: lambda.Function): void {
+        feedbackApiLambda.addToRolePolicy(
             new iam.PolicyStatement({
                 effect: iam.Effect.ALLOW,
                 actions: ['dynamodb:GetItem', 'dynamodb:Query'],
@@ -140,21 +125,95 @@ export class DeploymentPlatformStorageSetup extends Construct {
             })
         );
 
-        lambdas.feedbackApiLambda.addEnvironment(
+        feedbackApiLambda.addEnvironment(
+            USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.useCaseConfigTable.tableName
+        );
+        feedbackApiLambda.addEnvironment(
+            USE_CASES_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.useCasesTable.tableName
+        );
+    }
+
+    public configureFilesHandlerLambda(filesMetadataLambda: lambda.Function): void {
+        filesMetadataLambda.addToRolePolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['dynamodb:GetItem', 'dynamodb:Query'],
+                resources: [
+                    this.deploymentPlatformStorage.useCaseConfigTable.tableArn,
+                    this.deploymentPlatformStorage.useCasesTable.tableArn
+                ]
+            })
+        );
+
+        filesMetadataLambda.addEnvironment(
+            USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.useCaseConfigTable.tableName
+        );
+        filesMetadataLambda.addEnvironment(
+            USE_CASES_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.useCasesTable.tableName
+        );
+    }
+
+    public configureUseCaseManagementApiLambda(
+        managementApiLambda: lambda.Function,
+        type: string,
+        includeModelInfoTable: boolean = false
+    ): void {
+        const resources = [
+            this.deploymentPlatformStorage.useCasesTable.tableArn,
+            this.deploymentPlatformStorage.useCaseConfigTable.tableArn
+        ];
+
+        if (includeModelInfoTable) {
+            resources.push(this.deploymentPlatformStorage.modelInfoTable.tableArn);
+        }
+
+        const ddbPolicy = new iam.Policy(this, `${type}ManagementDDBPolicy`, {
+            statements: [
+                new iam.PolicyStatement({
+                    actions: [
+                        'dynamodb:Batch*',
+                        'dynamodb:ConditionCheckItem',
+                        'dynamodb:DeleteItem',
+                        'dynamodb:Get*',
+                        'dynamodb:PutItem',
+                        'dynamodb:Query',
+                        'dynamodb:Scan',
+                        'dynamodb:UpdateItem'
+                    ],
+                    resources: resources
+                })
+            ]
+        });
+        ddbPolicy.attachToRole(managementApiLambda.role!);
+
+        managementApiLambda.addEnvironment(
+            USE_CASES_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.useCasesTable.tableName
+        );
+        managementApiLambda.addEnvironment(
             USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.useCaseConfigTable.tableName
         );
 
-        lambdas.feedbackApiLambda.addEnvironment(
-            USE_CASES_TABLE_NAME_ENV_VAR,
-            this.deploymentPlatformStorage.useCasesTable.tableName
-        );
+        if (includeModelInfoTable) {
+            managementApiLambda.addEnvironment(
+                MODEL_INFO_TABLE_NAME_ENV_VAR,
+                this.deploymentPlatformStorage.modelInfoTable.tableName
+            );
+        }
 
-        // Add NAG suppressions
-        NagSuppressions.addResourceSuppressions(ddbUCMLPolicy, [
+        this.addDynamoDBNagSuppressions(ddbPolicy, `${type.toLowerCase()}Management`);
+    }
+
+    private addDynamoDBNagSuppressions(policy: iam.Policy, lambdaType: string): void {
+        NagSuppressions.addResourceSuppressions(policy, [
             {
                 id: 'AwsSolutions-IAM5',
-                reason: 'The IAM role allows the Lambda function to create, delete table. Table name is not known',
+                reason: `The IAM role allows the ${lambdaType} Lambda function to perform DynamoDB operations. Table name is not known here.`,
                 appliesTo: ['Action::dynamodb:Batch*', 'Action::dynamodb:Get*']
             }
         ]);

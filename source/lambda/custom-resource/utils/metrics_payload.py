@@ -103,6 +103,83 @@ def get_cloudwatch_metrics_queries():
         )
     ]
 
+    # Multimodal metrics queries
+    multimodal_metrics_queries = [
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED.value})",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED.value}) FROM "{CloudWatchNamespaces.FILE_HANDLING.value}" WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILE_DELETE.value})",
+            f"""SELECT COUNT({CloudWatchMetrics.FILE_DELETE.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILE_DOWNLOAD.value})",
+            f"""SELECT COUNT({CloudWatchMetrics.FILE_DOWNLOAD.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement'""",
+        ),
+        (
+            f"AVG({CloudWatchMetrics.FILE_SIZE.value})",
+            f"""SELECT AVG({CloudWatchMetrics.FILE_SIZE.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement'""",
+        ),
+        # File extensions
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_gif)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'gif'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_jpg)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'jpg'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_jpeg)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'jpeg'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_png)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'png'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_webp)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'webp'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_pdf)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'pdf'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_csv)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'csv'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_doc)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'doc'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_docx)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'docx'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_xls)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'xls'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_xlsx)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'xlsx'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_html)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'html'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_txt)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'txt'""",
+        ),
+        (
+            f"COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}_md)",
+            f"""SELECT COUNT({CloudWatchMetrics.FILES_UPLOADED_WITH_EXTENSION.value}) FROM SCHEMA("{CloudWatchNamespaces.FILE_HANDLING.value}", UseCaseId, service, FileExtension) WHERE UseCaseId = '{USE_CASE_UUID}' AND service = 'FilesManagement' AND FileExtension = 'md'""",
+        ),
+    ]
+
     queries = []
     formatted_queries = []
     queries += langchain_metrics_queries if METRICS_SERVICE_NAME else []
@@ -112,6 +189,7 @@ def get_cloudwatch_metrics_queries():
     queries += cognito_usecase_metrics_queries if USER_POOL_ID and USER_CLIENT_ID else []
     queries += bedrock_metrics_queries if METRICS_SERVICE_NAME else []
     queries += feedback_metrics_queries if FEEDBACK_ENABLED and USE_CASE_UUID else []
+    queries += multimodal_metrics_queries if USE_CASE_UUID else []
 
     for query_label_pair in queries:
         formatted_queries.append(

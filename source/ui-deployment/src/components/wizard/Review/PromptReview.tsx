@@ -1,7 +1,7 @@
 import { Button, Container, Header, SpaceBetween } from '@cloudscape-design/components';
 import { PromptDetails } from '@/components/useCaseDetails/prompt/PromptDetails';
 import { ReviewSectionProps } from '../interfaces/Steps';
-import { createConversationMemoryApiParams, createLLMParamsApiParams } from '../utils';
+import { createConversationMemoryApiParams, createLLMParamsApiParams } from '../params-builder';
 import { WIZARD_PAGE_INDEX } from '../steps-config';
 
 interface PromptReviewProps extends ReviewSectionProps {
@@ -12,7 +12,10 @@ interface PromptReviewProps extends ReviewSectionProps {
 }
 
 export const PromptReview = (props: PromptReviewProps) => {
-    const llmParamsPayload = createLLMParamsApiParams(props.modelData, props.promptData, props.isRag);
+    const llmParamsPayload = createLLMParamsApiParams(props.modelData, {
+        promptStepInfo: props.promptData,
+        isRagEnabled: props.isRag
+    });
     const memoryParamsPayload = createConversationMemoryApiParams(props.promptData);
     const deployment = {
         ...llmParamsPayload,

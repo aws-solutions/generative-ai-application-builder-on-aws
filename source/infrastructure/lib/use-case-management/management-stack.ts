@@ -6,7 +6,8 @@ import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
-
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import { ConstructsFactories } from '@aws-solutions-constructs/aws-constructs-factories';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
 import { BaseNestedStack } from '../framework/base-nested-stack';
@@ -15,7 +16,6 @@ import * as cfn_nag from '../utils/cfn-guard-suppressions';
 import {
     createCustomResourceForLambdaLogRetention,
     createDefaultLambdaRole,
-    generateCfnTemplateUrl,
     generateTemplateMapping,
     createVpcConfigForLambda
 } from '../utils/common-utils';
@@ -30,16 +30,20 @@ import {
     OPTIONAL_EMAIL_REGEX_PATTERN,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR,
-    USE_CASE_API_KEY_SUFFIX_ENV_VAR,
     USE_CASE_MANAGEMENT_NAMESPACE,
     WEBCONFIG_SSM_KEY_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     CLIENT_ID_ENV_VAR,
-    USER_POOL_ID_ENV_VAR
+    USER_POOL_ID_ENV_VAR,
+    GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR,
+    DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR,
+    MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR,
+    MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR
 } from '../utils/constants';
 import { ExistingVPCParameters } from '../vpc/exisiting-vpc-params';
 import { CognitoSetup } from '../auth/cognito-setup';
 import { SearchAndReplaceRefactorAspect } from '../utils/search-and-replace-refactor-aspect';
+import { createCfnDeployRole } from './cfn-deploy-role-factory';
 
 export class UseCaseManagementParameters {
     /**
@@ -195,6 +199,21 @@ export class UseCaseManagement extends BaseNestedStack {
     public readonly modelInfoApiLambda: lambda.Function;
 
     /**
+     * The lambda backing MCP management API calls
+     */
+    public readonly mcpManagementApiLambda: lambda.Function;
+
+    /**
+     * The lambda backing agent management API calls
+     */
+    public readonly agentManagementApiLambda: lambda.Function;
+
+    /**
+     * The lambda backing workflow management API calls
+     */
+    public readonly workflowManagementApiLambda: lambda.Function;
+
+    /**
      * condition to check if vpc configuration should be applied to lambda functions
      */
     public readonly deployVPCCondition: cdk.CfnCondition;
@@ -219,6 +238,10 @@ export class UseCaseManagement extends BaseNestedStack {
      */
     public readonly objectPrefix: string;
 
+    /**
+     * s3 Bucket to deployment dashboard artifacts, such exports artifacts, and user uploaded schema
+     */
+    public readonly deploymentPlatformBucket: s3.Bucket;
 
     /**
      * The CognitoSetup construct to use for user pool and client setup
@@ -258,7 +281,13 @@ export class UseCaseManagement extends BaseNestedStack {
             expression: cdk.Fn.conditionEquals(
                 cdk.Fn.select(
                     0,
-                    cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', cdk.Fn.join("", [this.stackParameters.defaultUserEmail, "@example.com"]))))
+                    cdk.Fn.split(
+                        '.',
+                        cdk.Fn.select(
+                            1,
+                            cdk.Fn.split('@', cdk.Fn.join('', [this.stackParameters.defaultUserEmail, '@example.com']))
+                        )
+                    )
                 ),
                 INTERNAL_EMAIL_DOMAIN
             )
@@ -298,6 +327,7 @@ export class UseCaseManagement extends BaseNestedStack {
             },
             deployWebApp: this.stackParameters.deployWebApp.valueAsString
         });
+        this.cognitoSetup.createAgentCoreResourceServer();
 
         //this construct has undergone a refactor from its original definition and many
         //of the resources have new logical IDs. To prevent customers that upgrade existing
@@ -320,7 +350,32 @@ export class UseCaseManagement extends BaseNestedStack {
         );
 
         const useCaseMgmtRole = createDefaultLambdaRole(this, 'UCMLRole', this.deployVPCCondition);
-        const cfnDeployRole = buildCfnDeployRole(this, useCaseMgmtRole);
+        const cfnDeployRole = createCfnDeployRole(this, 'CfnDeployRole', useCaseMgmtRole, {
+            includeVpcPermissions: true, // Text use cases support VPC
+            includeKendraPermissions: true, // Text use cases use Kendra
+            includeEcrPermissions: false, // Text use cases don't need ECR
+            additionalPassRoleServices: ['kendra.amazonaws.com', 'vpc-flow-logs.amazonaws.com'], // Original services
+            roleName: 'CfnDeployRole'
+        });
+
+        // Create Agent Builder CFN deploy role for agent management lambda
+        const agentManagementAPILambdaRole = createDefaultLambdaRole(
+            this,
+            'AgentManagementLambdaRole',
+            this.deployVPCCondition
+        );
+        const agentBuilderCfnDeployRole = createCfnDeployRole(
+            this,
+            'AgentBuilderCfnDeployRole',
+            agentManagementAPILambdaRole,
+            {
+                includeVpcPermissions: false, // Text use cases support VPC
+                includeKendraPermissions: false, // Text use cases use Kendra
+                includeEcrPermissions: true, // Text use cases don't need ECR
+                additionalPassRoleServices: ['bedrock-agentcore.amazonaws.com'], // Original services
+                roleName: 'AgentBuilderCfnDeployRole'
+            }
+        );
 
         this.useCaseManagementApiLambda = new lambda.Function(this, 'UseCaseMgmt', {
             description: 'Lambda function backing the REST API for use case management',
@@ -332,7 +387,7 @@ export class UseCaseManagement extends BaseNestedStack {
             ),
             role: useCaseMgmtRole,
             runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
-            handler: 'index.handler',
+            handler: 'use-case-handler.handler',
             timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
             tracing: lambda.Tracing.ACTIVE,
             environment: {
@@ -344,7 +399,6 @@ export class UseCaseManagement extends BaseNestedStack {
                 [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: USE_CASE_MANAGEMENT_NAMESPACE,
                 [WEBCONFIG_SSM_KEY_ENV_VAR]: this.stackParameters.webConfigSSMKey,
                 [TEMPLATE_FILE_EXTN_ENV_VAR]: process.env.TEMPLATE_OUTPUT_BUCKET ? '.template' : '.template.json',
-                [USE_CASE_API_KEY_SUFFIX_ENV_VAR]: 'api-key',
                 [IS_INTERNAL_USER_ENV_VAR]: cdk.Fn.conditionIf(
                     isInternalUserCondition.logicalId,
                     'true',
@@ -355,15 +409,7 @@ export class UseCaseManagement extends BaseNestedStack {
         });
 
         // Env vars which need to be passed to use cases on deployment
-        this.useCaseManagementApiLambda.addEnvironment(
-            COGNITO_POLICY_TABLE_ENV_VAR,
-            this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName
-        );
-        this.useCaseManagementApiLambda.addEnvironment(USER_POOL_ID_ENV_VAR, this.cognitoSetup.getUserPool(this).userPoolId);
-        this.useCaseManagementApiLambda.addEnvironment(
-            CLIENT_ID_ENV_VAR,
-            this.cognitoSetup.getUserPoolClient(this).userPoolClientId
-        );
+        this.addCommonEnvironmentVariables(this.useCaseManagementApiLambda);
 
         createCustomResourceForLambdaLogRetention(
             this,
@@ -446,6 +492,212 @@ export class UseCaseManagement extends BaseNestedStack {
             cdk.Fn.join(',', this.stackParameters.existingSecurityGroupIds.valueAsList)
         );
 
+        const accessLoggingS3Bucket = s3.Bucket.fromBucketArn(
+            this,
+            'DeploymentPlatformLoggingBucket',
+            this.accessLoggingBucket
+        );
+
+        const factories = new ConstructsFactories(this, 'Factories');
+
+        this.deploymentPlatformBucket = factories.s3BucketFactory('DeploymentPlatformBucket', {
+            bucketProps: {
+                versioned: false, // bucket versioning is recommended in the IG, but is not enforced
+                blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+                removalPolicy: cdk.RemovalPolicy.RETAIN,
+                encryption: s3.BucketEncryption.S3_MANAGED,
+                enforceSSL: true,
+                lifecycleRules: [],
+                serverAccessLogsBucket: accessLoggingS3Bucket,
+                serverAccessLogsPrefix: 'deployment-platform-bucket-logs/',
+                cors: [
+                    {
+                        allowedMethods: [s3.HttpMethods.POST],
+                        allowedOrigins: ['*'],
+                        allowedHeaders: ['*'],
+                        maxAge: 3600
+                    }
+                ]
+            }
+        }).s3Bucket;
+
+        this.deploymentPlatformBucket.policy?.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+
+        // A common warning was logged during synth stage when the referenced bucket is not part of the same stack
+        // This annotation is to suppress this warning given that log bucket is added to the feedbackBucket
+        cdk.Annotations.of(this.deploymentPlatformBucket).acknowledgeWarning(
+            '@aws-cdk/aws-s3:accessLogsPolicyNotAdded'
+        );
+
+        const mcpManagementAPILambdaRole = createDefaultLambdaRole(
+            this,
+            'MCPManagementLambdaRole',
+            this.deployVPCCondition
+        );
+
+        const mcpCfnDeployRole = createCfnDeployRole(this, 'MCPCfnDeployRole', mcpManagementAPILambdaRole, {
+            includeVpcPermissions: false, // AgentCore doesn't support VPC
+            includeKendraPermissions: false, // AgentCore doesn't use Kendra
+            includeEcrPermissions: false, // Needed for pull-through cache
+            additionalPassRoleServices: ['bedrock-agentcore.amazonaws.com'], // Allow passing roles to AgentCore
+            roleName: 'MCPCfnDeployRole'
+        });
+
+        this.mcpManagementApiLambda = new lambda.Function(this, 'MCPManagementLambda', {
+            description: 'Lambda function backing the REST API for MCP server management',
+            code: lambda.Code.fromAsset(
+                '../lambda/use-case-management',
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME)
+                    .options(this, '../lambda/use-case-management')
+            ),
+            role: mcpManagementAPILambdaRole,
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'mcp-handler.mcpHandler',
+            timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueue: this.dlq,
+            environment: {
+                [ARTIFACT_BUCKET_ENV_VAR]: this.assetBucket,
+                ...(this.objectPrefix && {
+                    [ARTIFACT_KEY_PREFIX_ENV_VAR]: this.objectPrefix
+                }),
+                [CFN_DEPLOY_ROLE_ARN_ENV_VAR]: mcpCfnDeployRole.roleArn,
+                [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: USE_CASE_MANAGEMENT_NAMESPACE,
+                [GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR]: this.deploymentPlatformBucket.bucketName,
+                [TEMPLATE_FILE_EXTN_ENV_VAR]: process.env.TEMPLATE_OUTPUT_BUCKET ? '.template' : '.template.json',
+                [USER_POOL_ID_ENV_VAR]: this.cognitoSetup.getUserPool(this).userPoolId,
+                [IS_INTERNAL_USER_ENV_VAR]: cdk.Fn.conditionIf(
+                    isInternalUserCondition.logicalId,
+                    'true',
+                    'false'
+                ).toString()
+            }
+        });
+
+        lambdaDDBPolicy.attachToRole(mcpManagementAPILambdaRole);
+        this.addCommonEnvironmentVariables(this.mcpManagementApiLambda);
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'MCPManagementLambdaLogRetention',
+            this.mcpManagementApiLambda.functionName,
+            this.customResourceLambdaArn
+        );
+
+        this.addMCPLambdaPermissions(mcpManagementAPILambdaRole, this.deploymentPlatformBucket);
+
+        this.agentManagementApiLambda = new lambda.Function(this, 'AgentManagementLambda', {
+            description: 'Lambda function backing the REST API for agent management',
+            code: lambda.Code.fromAsset(
+                '../lambda/use-case-management',
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME)
+                    .options(this, '../lambda/use-case-management')
+            ),
+            role: agentManagementAPILambdaRole,
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'agents-handler.agentsHandler',
+            timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueue: this.dlq,
+            environment: {
+                [ARTIFACT_BUCKET_ENV_VAR]: this.assetBucket,
+                ...(this.objectPrefix && {
+                    [ARTIFACT_KEY_PREFIX_ENV_VAR]: this.objectPrefix
+                }),
+                [CFN_DEPLOY_ROLE_ARN_ENV_VAR]: agentBuilderCfnDeployRole.roleArn,
+                [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: USE_CASE_MANAGEMENT_NAMESPACE,
+                [WEBCONFIG_SSM_KEY_ENV_VAR]: this.stackParameters.webConfigSSMKey,
+                [TEMPLATE_FILE_EXTN_ENV_VAR]: process.env.TEMPLATE_OUTPUT_BUCKET ? '.template' : '.template.json',
+                [IS_INTERNAL_USER_ENV_VAR]: cdk.Fn.conditionIf(
+                    isInternalUserCondition.logicalId,
+                    'true',
+                    'false'
+                ).toString(),
+                [GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR]: this.deploymentPlatformBucket.bucketName,
+                [DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR]: cdk.Stack.of(this).stackName
+            }
+        });
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'AgentManagementLambdaLogRetention',
+            this.agentManagementApiLambda.functionName,
+            this.customResourceLambdaArn
+        );
+
+        // Add common environment variables for agent management lambda
+        this.addCommonEnvironmentVariables(this.agentManagementApiLambda);
+
+        // Add agent management specific permissions
+        this.addAgentManagementLambdaPermissions(agentManagementAPILambdaRole, this.deploymentPlatformBucket);
+
+        const workflowManagementAPILambdaRole = createDefaultLambdaRole(
+            this,
+            'WorkflowManagementLambdaRole',
+            this.deployVPCCondition
+        );
+
+        const workflowCfnDeployRole = createCfnDeployRole(
+            this,
+            'WorkflowCfnDeployRole',
+            workflowManagementAPILambdaRole,
+            {
+                includeVpcPermissions: false,
+                includeKendraPermissions: false,
+                includeEcrPermissions: true,
+                additionalPassRoleServices: ['bedrock-agentcore.amazonaws.com'], // Allow passing roles to AgentCore
+                roleName: 'WorkflowCfnDeployRole'
+            }
+        );
+
+        this.workflowManagementApiLambda = new lambda.Function(this, 'WorkflowManagementLambda', {
+            description: 'Lambda function backing the REST API for workflow management',
+            code: lambda.Code.fromAsset(
+                '../lambda/use-case-management',
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME)
+                    .options(this, '../lambda/use-case-management')
+            ),
+            role: workflowManagementAPILambdaRole,
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'workflows-handler.workflowsHandler',
+            timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueue: this.dlq,
+            environment: {
+                [ARTIFACT_BUCKET_ENV_VAR]: this.assetBucket,
+                ...(this.objectPrefix && {
+                    [ARTIFACT_KEY_PREFIX_ENV_VAR]: this.objectPrefix
+                }),
+                [CFN_DEPLOY_ROLE_ARN_ENV_VAR]: workflowCfnDeployRole.roleArn,
+                [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: USE_CASE_MANAGEMENT_NAMESPACE,
+                [WEBCONFIG_SSM_KEY_ENV_VAR]: this.stackParameters.webConfigSSMKey,
+                [TEMPLATE_FILE_EXTN_ENV_VAR]: process.env.TEMPLATE_OUTPUT_BUCKET ? '.template' : '.template.json',
+                [IS_INTERNAL_USER_ENV_VAR]: cdk.Fn.conditionIf(
+                    isInternalUserCondition.logicalId,
+                    'true',
+                    'false'
+                ).toString(),
+                [GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR]: this.deploymentPlatformBucket.bucketName,
+                [DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR]: cdk.Stack.of(this).stackName
+            }
+        });
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'WorkflowManagementLambdaLogRetention',
+            this.workflowManagementApiLambda.functionName,
+            this.customResourceLambdaArn
+        );
+
+        // Add common environment variables for workflow management lambda
+        this.addCommonEnvironmentVariables(this.workflowManagementApiLambda);
+
+        // Add workflow management specific permissions
+        this.addWorkflowManagementLambdaPermissions(workflowManagementAPILambdaRole, this.deploymentPlatformBucket);
+
         NagSuppressions.addResourceSuppressions(
             this.useCaseManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
             [
@@ -458,6 +710,36 @@ export class UseCaseManagement extends BaseNestedStack {
 
         NagSuppressions.addResourceSuppressions(
             this.modelInfoApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'The IAM role allows the Lambda function to perform x-ray tracing'
+                }
+            ]
+        );
+
+        NagSuppressions.addResourceSuppressions(
+            this.mcpManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'The IAM role allows the Lambda function to perform x-ray tracing'
+                }
+            ]
+        );
+
+        NagSuppressions.addResourceSuppressions(
+            this.agentManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'The IAM role allows the Lambda function to perform x-ray tracing'
+                }
+            ]
+        );
+
+        NagSuppressions.addResourceSuppressions(
+            this.workflowManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
             [
                 {
                     id: 'AwsSolutions-IAM5',
@@ -522,456 +804,280 @@ export class UseCaseManagement extends BaseNestedStack {
                 reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
             }
         ]);
+
+        cfn_nag.addCfnSuppressRules(this.mcpManagementApiLambda, [
+            {
+                id: 'W89',
+                reason: 'VPC deployment is not enforced. If the solution is deployed in a VPC, this lambda function will be deployed with VPC enabled configuration'
+            },
+            {
+                id: 'W92',
+                reason: 'The solution does not enforce reserved concurrency'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(mcpManagementAPILambdaRole, [
+            {
+                id: 'F10',
+                reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(this.agentManagementApiLambda, [
+            {
+                id: 'W89',
+                reason: 'VPC deployment is not enforced. If the solution is deployed in a VPC, this lambda function will be deployed with VPC enabled configuration'
+            },
+            {
+                id: 'W92',
+                reason: 'The solution does not enforce reserved concurrency'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(agentManagementAPILambdaRole, [
+            {
+                id: 'F10',
+                reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(this.workflowManagementApiLambda, [
+            {
+                id: 'W89',
+                reason: 'VPC deployment is not enforced. If the solution is deployed in a VPC, this lambda function will be deployed with VPC enabled configuration'
+            },
+            {
+                id: 'W92',
+                reason: 'The solution does not enforce reserved concurrency'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(workflowManagementAPILambdaRole, [
+            {
+                id: 'F10',
+                reason: 'The inline policy avoids a rare race condition between the lambda, Role and the policy resource creation.'
+            }
+        ]);
+    }
+
+    /**
+     * Adds all necessary permissions for MCP Management Lambda including S3 and Bedrock AgentCore permissions
+     * @param role The IAM role to attach the permissions to
+     * @param deploymentBucket The S3 bucket for deployment platform storage
+     */
+    private addMCPLambdaPermissions(role: iam.Role, deploymentBucket: s3.Bucket): void {
+        const s3Policy = new iam.Policy(this, 'MCPLambdaS3Policy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject', 's3:PutObjectTagging'],
+                    resources: [
+                        deploymentBucket.bucketArn,
+                        `${deploymentBucket.bucketArn}/mcp/*`,
+                        `arn:${cdk.Aws.PARTITION}:s3:::${this.assetBucket}`,
+                        `arn:${cdk.Aws.PARTITION}:s3:::${this.assetBucket}/*`
+                    ]
+                })
+            ]
+        });
+        s3Policy.attachToRole(role);
+
+        // Add NAG suppressions for S3 policy
+        NagSuppressions.addResourceSuppressions(s3Policy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'The IAM role allows the MCP Management Lambda to access deployment platform S3 bucket and its objects under the mcp/ prefix, and CDK assets bucket for template access',
+                appliesTo: [
+                    `Resource::<${cdk.Stack.of(this).getLogicalId(
+                        deploymentBucket.node.defaultChild as cdk.CfnResource
+                    )}.Arn>/mcp/*`,
+                    process.env.TEMPLATE_OUTPUT_BUCKET
+                        ? 'Resource::arn:<AWS::Partition>:s3:::{"Fn::FindInMap":["Template","General","S3Bucket"]}/*'
+                        : 'Resource::arn:<AWS::Partition>:s3:::cdk-hnb659fds-assets-<AWS::AccountId>-<AWS::Region>/*'
+                ]
+            }
+        ]);
+    }
+
+    /**
+     * Adds all necessary permissions for Agent Management Lambda
+     * @param role The IAM role to attach the permissions to
+     * @param deploymentBucket The S3 bucket for deployment platform storage
+     */
+    private addAgentManagementLambdaPermissions(role: iam.Role, deploymentBucket: s3.Bucket): void {
+        const agentManagementPolicy = new iam.Policy(this, 'AgentManagementLambdaPolicy', {
+            statements: [
+                // API Gateway permissions for reading REST APIs
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['apigateway:GET'],
+                    resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/restapis/*`]
+                }),
+                // S3 permissions for agent artifacts
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['s3:GetObject', 's3:PutObject'],
+                    resources: [cdk.Fn.join('', [deploymentBucket.bucketArn, '/agents/*'])] // restrict scope to /agents prefix
+                }),
+                // DynamoDB permissions for use case configuration
+                new iam.PolicyStatement({
+                    actions: [
+                        'dynamodb:CreateTable',
+                        'dynamodb:DeleteTable',
+                        'dynamodb:DescribeTable',
+                        'dynamodb:*TimeToLive', // Describe|Update TimeToLive
+                        'dynamodb:ListTagsOfResource',
+                        'dynamodb:TagResource'
+                    ],
+                    resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`]
+                }),
+                // SSM permissions for web config
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['ssm:GetParameter'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter${this.stackParameters.webConfigSSMKey}`
+                    ]
+                }),
+                // CloudWatch Logs permissions for deployed use cases
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: [
+                        'logs:CreateLogGroup',
+                        'logs:DescribeLogGroups',
+                        'logs:PutRetentionPolicy',
+                        'logs:TagResource',
+                        'logs:ListTagsForResource'
+                    ],
+                    resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:*`]
+                })
+            ]
+        });
+        agentManagementPolicy.attachToRole(role);
+
+        NagSuppressions.addResourceSuppressions(agentManagementPolicy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'The IAM role allows the Agent Management Lambda to access API Gateway REST APIs, DynamoDB tables, CloudWatch Logs, and deployment platform S3 bucket objects under the agents/ prefix',
+                appliesTo: [
+                    'Resource::arn:<AWS::Partition>:apigateway:<AWS::Region>::/restapis/*',
+                    `Resource::<${cdk.Stack.of(this).getLogicalId(
+                        deploymentBucket.node.defaultChild as cdk.CfnResource
+                    )}.Arn>/agents/*`,
+                    'Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*',
+                    'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:*',
+                    'Action::dynamodb:*TimeToLive'
+                ]
+            }
+        ]);
+    }
+
+    /**
+     * Adds all necessary permissions for Workflow Management Lambda
+     * @param role The IAM role to attach the permissions to
+     * @param deploymentBucket The S3 bucket for deployment platform storage
+     */
+    private addWorkflowManagementLambdaPermissions(role: iam.Role, deploymentBucket: s3.Bucket): void {
+        const workflowManagementPolicy = new iam.Policy(this, 'WorkflowManagementLambdaPolicy', {
+            statements: [
+                // API Gateway permissions for reading REST APIs
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['apigateway:GET'],
+                    resources: [`arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/restapis/*`]
+                }),
+                // S3 permissions for workflow artifacts
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['s3:GetObject', 's3:PutObject'],
+                    resources: [cdk.Fn.join('', [deploymentBucket.bucketArn, '/workflows/*'])] // restrict scope to /workflows prefix
+                }),
+                // DynamoDB permissions for use case configuration
+                new iam.PolicyStatement({
+                    actions: [
+                        'dynamodb:CreateTable',
+                        'dynamodb:DeleteTable',
+                        'dynamodb:DescribeTable',
+                        'dynamodb:*TimeToLive', // Describe|Update TimeToLive
+                        'dynamodb:ListTagsOfResource',
+                        'dynamodb:TagResource'
+                    ],
+                    resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`]
+                }),
+                // SSM permissions for web config
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['ssm:GetParameter'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter${this.stackParameters.webConfigSSMKey}`
+                    ]
+                }),
+                // CloudWatch Logs permissions for deployed use cases
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: [
+                        'logs:CreateLogGroup',
+                        'logs:DescribeLogGroups',
+                        'logs:PutRetentionPolicy',
+                        'logs:TagResource',
+                        'logs:ListTagsForResource'
+                    ],
+                    resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:*`]
+                })
+            ]
+        });
+        workflowManagementPolicy.attachToRole(role);
+
+        NagSuppressions.addResourceSuppressions(workflowManagementPolicy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'The IAM role allows the Workflow Management Lambda to access API Gateway REST APIs, DynamoDB tables, CloudWatch Logs, and deployment platform S3 bucket objects under the workflows/ prefix',
+                appliesTo: [
+                    'Resource::arn:<AWS::Partition>:apigateway:<AWS::Region>::/restapis/*',
+                    `Resource::<${cdk.Stack.of(this).getLogicalId(
+                        deploymentBucket.node.defaultChild as cdk.CfnResource
+                    )}.Arn>/workflows/*`,
+                    'Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*',
+                    'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:*',
+                    'Action::dynamodb:*TimeToLive'
+                ]
+            }
+        ]);
+    }
+
+    /**
+     * Adds common environment variables needed by management lambdas
+     * @param lambdaFunction The lambda function to add environment variables to
+     */
+    private addCommonEnvironmentVariables(lambdaFunction: lambda.Function): void {
+        lambdaFunction.addEnvironment(
+            COGNITO_POLICY_TABLE_ENV_VAR,
+            this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName
+        );
+        lambdaFunction.addEnvironment(USER_POOL_ID_ENV_VAR, this.cognitoSetup.getUserPool(this).userPoolId);
+        lambdaFunction.addEnvironment(CLIENT_ID_ENV_VAR, this.cognitoSetup.getUserPoolClient(this).userPoolClientId);
+    }
+
+    /**
+     * Sets multimodal environment variables for the agent and workflows management lambda
+     * This method should be called after the multimodal setup is created
+     * @param multimodalDataBucketName The name of the multimodal data bucket
+     * @param multimodalDataMetadataTableName The name of the multimodal data metadata table
+     */
+    public setMultimodalEnvironmentVariables(
+        multimodalDataBucketName: string,
+        multimodalDataMetadataTableName: string
+    ): void {
+        this.agentManagementApiLambda.addEnvironment(MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR, multimodalDataBucketName);
+        this.agentManagementApiLambda.addEnvironment(
+            MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR,
+            multimodalDataMetadataTableName
+        );
+
+        this.workflowManagementApiLambda.addEnvironment(MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR, multimodalDataBucketName);
+        this.workflowManagementApiLambda.addEnvironment(
+            MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR,
+            multimodalDataMetadataTableName
+        );
     }
 }
-
-const buildCfnDeployRole = (scope: Construct, lambdaRole: iam.Role): iam.Role => {
-    const awsTagKeysCondition = {
-        'ForAllValues:StringEquals': {
-            'aws:TagKeys': ['createdVia', 'userId']
-        }
-    };
-
-    const awsCalledViaCondition = {
-        'ForAnyValue:StringEquals': {
-            'aws:CalledVia': ['cloudformation.amazonaws.com']
-        }
-    };
-
-    const cfnDeployRole = new iam.Role(scope, 'CfnDeployRole', {
-        assumedBy: new iam.ServicePrincipal('cloudformation.amazonaws.com'),
-        inlinePolicies: {
-            CfnDeployPolicy: new iam.PolicyDocument({
-                statements: [
-                    new iam.PolicyStatement({
-                        actions: [
-                            'dynamodb:CreateTable',
-                            'dynamodb:DeleteTable',
-                            'dynamodb:DescribeTable',
-                            'dynamodb:DescribeTimeToLive',
-                            'dynamodb:ListTagsOfResource',
-                            'dynamodb:UpdateTimeToLive',
-                            'dynamodb:TagResource'
-                        ],
-                        resources: [`arn:${cdk.Aws.PARTITION}:dynamodb:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:table/*`]
-                    }),
-                    new iam.PolicyStatement({
-                        effect: iam.Effect.ALLOW,
-                        actions: ['ssm:GetParameter'],
-                        resources: [`arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter*`]
-                    })
-                ]
-            })
-        }
-    });
-
-    const cfnDeployPolicy = new iam.Policy(scope, 'CfnDeployPolicy', {
-        statements: [
-            new iam.PolicyStatement({
-                actions: ['cloudformation:CreateStack', 'cloudformation:UpdateStack'],
-                effect: iam.Effect.ALLOW,
-                resources: [`arn:${cdk.Aws.PARTITION}:cloudformation:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stack/*`],
-                conditions: {
-                    'ForAllValues:StringEquals': {
-                        'aws:TagKeys': ['createdVia', 'userId']
-                    },
-                    'StringLike': {
-                        'cloudformation:TemplateUrl': generateCfnTemplateUrl(scope)
-                    }
-                }
-            }),
-            new iam.PolicyStatement({
-                actions: ['cloudformation:DeleteStack', 'cloudformation:DescribeStack*', 'cloudformation:ListStacks'],
-                effect: iam.Effect.ALLOW,
-                resources: [`arn:${cdk.Aws.PARTITION}:cloudformation:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:stack/*`]
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'iam:CreateRole',
-                    'iam:DeleteRole*',
-                    'iam:DetachRolePolicy',
-                    'iam:GetRole',
-                    'iam:ListRoleTags',
-                    'iam:*tRolePolicy', // Get|Put RolePolicy
-                    'iam:TagRole',
-                    'iam:UpdateAssumeRolePolicy'
-                ],
-                resources: [
-                    `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/*`,
-                    `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:policy/*`
-                ],
-                conditions: {
-                    'ForAllValues:StringEquals': {
-                        'aws:TagKeys': ['createdVia', 'userId', 'Name']
-                    }
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: ['iam:PassRole'],
-                resources: [`arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/*`],
-                conditions: {
-                    'ForAllValues:StringEquals': {
-                        'aws:TagKeys': ['createdVia', 'userId', 'Name']
-                    },
-                    'StringEquals': {
-                        'iam:PassedToService': [
-                            'lambda.amazonaws.com',
-                            'apigateway.amazonaws.com',
-                            'kendra.amazonaws.com',
-                            'vpc-flow-logs.amazonaws.com',
-                            'cloudformation.amazonaws.com'
-                        ]
-                    }
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: ['iam:AttachRolePolicy'],
-                resources: [`arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:role/*`],
-                conditions: {
-                    ...awsCalledViaCondition,
-                    ...awsTagKeysCondition,
-                    StringEquals: {
-                        'iam:PolicyARN': [
-                            `arn:${cdk.Aws.PARTITION}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole`
-                        ]
-                    }
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'lambda:AddPermission',
-                    'lambda:CreateFunction',
-                    'lambda:Delete*',
-                    'lambda:GetFunction',
-                    'lambda:*LayerVersion', // Get|Publish LayerVersion
-                    'lambda:InvokeFunction',
-                    'lambda:ListTags',
-                    'lambda:RemovePermission',
-                    'lambda:TagResource',
-                    'lambda:UpdateEventSourceMapping',
-                    'lambda:UpdateFunction*'
-                ],
-                resources: [
-                    `arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:function:*`,
-                    `arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:layer:*`,
-                    `arn:${cdk.Aws.PARTITION}:lambda:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:event-source-mapping:*`
-                ],
-                conditions: {
-                    ...awsTagKeysCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    's3:CreateBucket',
-                    's3:DeleteBucketPolicy',
-                    's3:GetBucketAcl',
-                    's3:GetBucketPolicy*',
-                    's3:GetBucketVersioning',
-                    's3:*EncryptionConfiguration', // Get|Put EncryptionConfiguration
-                    's3:GetObject',
-                    's3:PutBucket*'
-                ],
-                resources: [`arn:${cdk.Aws.PARTITION}:s3:::*`]
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'events:DeleteRule',
-                    'events:DescribeRule',
-                    'events:PutRule',
-                    'events:*Targets' // Put|Remove Targets
-                ],
-                resources: [`arn:${cdk.Aws.PARTITION}:events:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:rule/*`]
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: ['servicecatalog:*'],
-                resources: [
-                    `arn:${cdk.Aws.PARTITION}:servicecatalog:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:/attribute-groups/*`,
-                    `arn:${cdk.Aws.PARTITION}:servicecatalog:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:/applications/*`
-                ],
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'apigateway:CreateRestApi',
-                    'apigateway:CreateStage',
-                    'apigateway:DELETE',
-                    'apigateway:Delete*',
-                    'apigateway:GET',
-                    'apigateway:PATCH',
-                    'apigateway:POST',
-                    'apigateway:PUT',
-                    'apigateway:SetWebACL',
-                    'apigateway:TagResource',
-                    'wafv2:*ForResource',
-                    'wafv2:*WebACL',
-                    'wafv2:TagResource'
-                ],
-                resources: [
-                    `arn:${cdk.Aws.PARTITION}:apigateway:${cdk.Aws.REGION}::/*`,
-                    `arn:${cdk.Aws.PARTITION}:wafv2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:regional/*/*/*`
-                ],
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'cognito-idp:AdminAddUserToGroup',
-                    'cognito-idp:AdminCreateUser',
-                    'cognito-idp:AdminDeleteUser',
-                    'cognito-idp:AdminGetUser',
-                    'cognito-idp:AdminListGroupsForUser',
-                    'cognito-idp:AdminRemoveUserFromGroup',
-                    'cognito-idp:CreateGroup',
-                    'cognito-idp:CreateUserPool*',
-                    'cognito-idp:Delete*',
-                    'cognito-idp:GetGroup',
-                    'cognito-idp:SetUserPoolMfaConfig',
-                    'cognito-idp:*UserPoolClient' // Describe|Update UserPoolClient
-                ],
-                resources: [`arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`],
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: ['cognito-idp:DescribeUserPool'],
-                resources: [`arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/*`]
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'cloudfront:Create*',
-                    'cloudfront:Delete*',
-                    'cloudfront:DescribeFunction',
-                    'cloudfront:Get*',
-                    'cloudfront:ListTagsForResource',
-                    'cloudfront:PublishFunction',
-                    'cloudfront:TagResource',
-                    'cloudfront:Update*'
-                ],
-                resources: [
-                    `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:function/*`,
-                    `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:origin-access-control/*`,
-                    `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:distribution/*`,
-                    `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:response-headers-policy/*`
-                ]
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'kms:CreateGrant',
-                    'kms:Decrypt',
-                    'kms:DescribeKey',
-                    'kms:EnableKeyRotation',
-                    'kms:Encrypt',
-                    'kms:GenerateDataKey',
-                    'kms:PutKeyPolicy',
-                    'kms:TagResource'
-                ],
-                resources: [`arn:${cdk.Aws.PARTITION}:kms:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:key/*`],
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                actions: [
-                    'kms:CreateKey',
-                    'kendra:CreateIndex',
-                    'lambda:CreateEventSourceMapping',
-                    'lambda:DeleteEventSourceMapping',
-                    'lambda:GetEventSourceMapping'
-                ],
-                effect: iam.Effect.ALLOW,
-                resources: ['*'], // these actions requires the resource to be '*'. There are additional conditions on the policy to help put guard rails
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'kendra:DescribeIndex',
-                    'kendra:ListTagsForResource',
-                    'kendra:TagResource',
-                    'kendra:UpdateIndex'
-                ],
-                resources: [`arn:${cdk.Aws.PARTITION}:kendra:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:index/*`],
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: ['cloudwatch:*Dashboard*', 'cloudwatch:GetMetricData', 'cloudwatch:TagResource'],
-                resources: [`arn:${cdk.Aws.PARTITION}:cloudwatch::${cdk.Aws.ACCOUNT_ID}:dashboard/*`],
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'sqs:CreateQueue',
-                    'sqs:GetQueueAttributes',
-                    'sqs:TagQueue',
-                    'sqs:DeleteQueue',
-                    'sqs:SetQueueAttributes'
-                ],
-                resources: [`arn:${cdk.Aws.PARTITION}:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:*`],
-                conditions: {
-                    ...awsCalledViaCondition
-                }
-            })
-        ]
-    });
-    cfnDeployPolicy.attachToRole(lambdaRole);
-    cfnDeployPolicy.attachToRole(cfnDeployRole);
-
-    const vpcCreationPolicy = new iam.Policy(scope, 'VpcCreationPolicy', {
-        statements: [
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'ec2:AllocateAddress',
-                    'ec2:AssociateRouteTable',
-                    'ec2:AttachInternetGateway',
-                    'ec2:AuthorizeSecurityGroup*',
-                    'ec2:CreateFlowLogs',
-                    'ec2:CreateInternetGateway',
-                    'ec2:CreateNatGateway',
-                    'ec2:CreateNetworkAcl*',
-                    'ec2:CreateRoute*',
-                    'ec2:CreateSecurityGroup',
-                    'ec2:CreateSubnet',
-                    'ec2:CreateTags',
-                    'ec2:createVPC*',
-                    'ec2:Delete*',
-                    'ec2:Detach*',
-                    'ec2:Disassociate*',
-                    'ec2:Modify*',
-                    'ec2:ReleaseAddress',
-                    'ec2:ReplaceNetworkAcl*',
-                    'ec2:RevokeSecurityGroup*',
-                    'ec2:UpdateSecurityGroupRuleDescriptions*'
-                ],
-                resources: [
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:route-table/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:security-group/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:vpc*/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:subnet/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:internet-gateway/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:elastic-ip/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:natgateway/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:network-interface/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:network-acl/*`,
-                    `arn:${cdk.Aws.PARTITION}:ec2:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:ipam-pool/*`
-                ]
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: ['ec2:Describe*'],
-                resources: ['*']
-            }),
-            new iam.PolicyStatement({
-                effect: iam.Effect.ALLOW,
-                actions: [
-                    'logs:CreateLogGroup',
-                    'logs:DescribeLogGroups',
-                    'logs:PutRetentionPolicy',
-                    'logs:TagResource',
-                    'logs:ListTagsForResource'
-                ],
-                resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:*`],
-                conditions: {
-                    ...awsTagKeysCondition
-                }
-            })
-        ]
-    });
-
-    vpcCreationPolicy.attachToRole(lambdaRole);
-    vpcCreationPolicy.attachToRole(cfnDeployRole);
-
-    NagSuppressions.addResourceSuppressions(cfnDeployPolicy, [
-        {
-            id: 'AwsSolutions-IAM5',
-            reason: 'This the minimum policy required for CloudFormation service to deploy the stack. Where possible there is a condition using aws:CalledVia for supported services'
-        }
-    ]);
-
-    NagSuppressions.addResourceSuppressions(vpcCreationPolicy, [
-        {
-            id: 'AwsSolutions-IAM5',
-            reason: 'Even though the resource is "*", the actions have been scoped down only to the ones required by the solution',
-            appliesTo: [
-                'Resource::*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:vpc/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:vpc*/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:security-group/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:route-table/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:elastic-ip/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:internet-gateway/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:natgateway/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:network-interface/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:subnet/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:network-acl/*',
-                'Resource::arn:<AWS::Partition>:ec2:<AWS::Region>:<AWS::AccountId>:ipam-pool/*',
-                'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:*',
-                'Action::ec2:AuthorizeSecurityGroup*',
-                'Action::ec2:CreateNetworkAcl*',
-                'Action::ec2:CreateRoute*',
-                'Action::ec2:createVPC*',
-                'Action::ec2:Delete*',
-                'Action::ec2:Describe*',
-                'Action::ec2:Detach*',
-                'Action::ec2:Disassociate*',
-                'Action::ec2:Modify*',
-                'Action::ec2:ReplaceNetworkAcl*',
-                'Action::ec2:RevokeSecurityGroup*',
-                'Action::ec2:UpdateSecurityGroupRuleDescriptions*'
-            ]
-        }
-    ]);
-
-    NagSuppressions.addResourceSuppressions(cfnDeployRole, [
-        {
-            id: 'AwsSolutions-IAM5',
-            reason: 'Resource name is unknown and hence the wild card',
-            appliesTo: [
-                'Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*',
-                'Resource::arn:<AWS::Partition>:ssm:<AWS::Region>:<AWS::AccountId>:parameter*'
-            ]
-        }
-    ]);
-
-    cfn_nag.addCfnSuppressRules(cfnDeployPolicy, [
-        {
-            id: 'F4',
-            reason: 'Due to policy byte size limitation, had to convert servicecatalog actions to use wildcard'
-        }
-    ]);
-
-    cfn_nag.addCfnSuppressRules(cfnDeployRole, [
-        {
-            id: 'F10',
-            reason: 'The inline policy is to avoid concurrency issues where a policy is created but not yet attached to the role.'
-        }
-    ]);
-
-    // this role returned here is used for setting lambda's environment variable. This role is to ensue backward compatibility
-    // of existing use case stacks. This role will not be used when new stacks are created in v2.0.0.
-    return cfnDeployRole;
-};

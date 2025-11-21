@@ -400,7 +400,7 @@ describe('When passing additional properties to createWebConfigStorage', () => {
     });
 });
 
-describe('Before and after addAnonymousMetricsCustomLambda is called', () => {
+describe('Before and after addMetricsCustomLambda is called', () => {
     let template: Template;
 
     beforeAll(() => {
@@ -409,11 +409,11 @@ describe('Before and after addAnonymousMetricsCustomLambda is called', () => {
         template = Template.fromStack(stack);
     });
 
-    it('should have a not Custom Anonymous Data resource', () => {
-        template.resourceCountIs('Custom::AnonymousData', 0);
+    it('should have a not Custom Data resource', () => {
+        template.resourceCountIs('Custom::Data', 0);
     });
 
-    describe('When addAnonymousMetricsCustomLambda is called', () => {
+    describe('When addMetricsCustomLambda is called', () => {
         beforeAll(() => {
             const app = new cdk.App();
             const stack = new cdk.Stack(app, 'TestStack');
@@ -423,31 +423,20 @@ describe('Before and after addAnonymousMetricsCustomLambda is called', () => {
                 solutionVersion: rawCdkJson.context.solution_version
             });
 
-            applicationSetup.addAnonymousMetricsCustomLambda('SO0999', 'v9.9.9');
+            applicationSetup.addMetricsCustomLambda('SO0999', 'v9.9.9');
             template = Template.fromStack(stack);
         });
 
-        it('should have a Custom Anonymous Data properties', () => {
+        it('should have a Custom Data properties', () => {
             const customResourceLambda = new Capture();
-            template.resourceCountIs('Custom::AnonymousData', 1);
-            template.hasResourceProperties('Custom::AnonymousData', {
+            template.resourceCountIs('Custom::Data', 1);
+            template.hasResourceProperties('Custom::Data', {
                 ServiceToken: {
                     'Fn::GetAtt': [customResourceLambda, 'Arn']
                 },
-                Resource: 'ANONYMOUS_METRIC',
+                Resource: 'METRIC',
                 SolutionId: 'SO0999',
                 Version: 'v9.9.9'
-            });
-        });
-
-        it('should have a custom resource block with a condition', () => {
-            const conditionLogicalId = new Capture();
-            template.hasResource('Custom::AnonymousData', {
-                Type: 'Custom::AnonymousData',
-                Properties: Match.anyValue(),
-                UpdateReplacePolicy: 'Delete',
-                DeletionPolicy: 'Delete',
-                Condition: conditionLogicalId
             });
         });
     });

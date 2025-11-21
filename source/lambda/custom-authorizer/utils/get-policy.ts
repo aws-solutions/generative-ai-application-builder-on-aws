@@ -5,7 +5,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { BatchGetCommand, BatchGetCommandOutput, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 import { CognitoAccessTokenPayload } from 'aws-jwt-verify/jwt-model';
 import { AuthResponse } from 'aws-lambda';
-import { customAwsConfig } from 'aws-node-user-agent-config';
+import { AWSClientManager } from 'aws-sdk-lib';
 
 /**
  * Function that generates a IAM policy that denies all requests.
@@ -79,7 +79,7 @@ export const getPolicyDocument = async (idToken: CognitoAccessTokenPayload): Pro
  * @returns
  */
 export const batchQueryDynamoDB = async (tableName: string, groups: string[]): Promise<BatchGetCommandOutput> => {
-    const ddbClient = new DynamoDBClient(customAwsConfig());
+    const ddbClient = AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb');
     const ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
 
     const result = await ddbDocClient.send(

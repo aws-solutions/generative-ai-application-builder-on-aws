@@ -24,10 +24,10 @@ export const BedrockDetails = ({ selectedDeployment }: Partial<BaseDetailsContai
     const inferenceType = bedrockParams.BedrockInferenceType;
 
     const inferenceTypeLabels: Record<string, string> = {
-        'QUICK_START': 'Quick Start Models',
-        'OTHER_FOUNDATION': 'Other Foundation Models',
+        'OTHER_FOUNDATION': 'Foundation Models',
         'INFERENCE_PROFILE': 'Inference Profiles',
-        'PROVISIONED': 'Provisioned Models'
+        'PROVISIONED': 'Provisioned Models',
+        'QUICK_START': 'Foundation Models' // Legacy mapping for backward compatibility
     };
 
     return (
@@ -42,6 +42,7 @@ export const BedrockDetails = ({ selectedDeployment }: Partial<BaseDetailsContai
                 )}
 
                 {/* Model details based on inference type */}
+                {/* Legacy QUICK_START deployments */}
                 {inferenceType === 'QUICK_START' && bedrockParams.ModelId && (
                     <ValueWithLabel label={'Model Name'}>{bedrockParams.ModelId}</ValueWithLabel>
                 )}

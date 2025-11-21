@@ -29,6 +29,9 @@
     "moduleResolution": "Node",
     "rootDir": ".",
     "paths": {
+      "aws-sdk-lib": [
+        "../layers/aws-sdk-lib/dist"
+      ],
       "aws-node-user-agent-config": [
         "../layers/aws-node-user-agent-config/dist"
       ],

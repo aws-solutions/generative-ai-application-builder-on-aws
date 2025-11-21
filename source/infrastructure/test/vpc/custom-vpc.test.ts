@@ -588,7 +588,9 @@ describe('When creating a custom VPC', () => {
         expect(jsonTemplate['Resources'][natGatewayIdCapture.asString()]['Type']).toBe('AWS::EC2::NatGateway');
     });
 
-    it('should have additional interface endpoints for CloudFormation and CloudWatch', () => {
+    it('should have interface endpoints for CloudWatch, CloudWatch Logs, X-Ray and SQS', () => {
+        // Verify we have the expected number of VPC endpoints: 2 Gateway (S3, DDB) + 4 Interface (CloudWatch, Logs, X-Ray, SQS)
+        template.resourceCountIs('AWS::EC2::VPCEndpoint', 6);
         template.hasResourceProperties('AWS::EC2::VPCEndpoint', {
             PolicyDocument: {
                 Statement: [

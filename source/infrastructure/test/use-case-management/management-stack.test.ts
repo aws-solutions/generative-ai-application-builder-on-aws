@@ -11,11 +11,16 @@ import {
     CLIENT_ID_ENV_VAR,
     COGNITO_POLICY_TABLE_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+    DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR,
+    GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR,
     IS_INTERNAL_USER_ENV_VAR,
+    MCP_INACTIVE_SCHEMA_EXPIRATION_DAYS,
     OPTIONAL_EMAIL_REGEX_PATTERN,
     POWERTOOLS_METRICS_NAMESPACE_ENV_VAR,
     USER_POOL_ID_ENV_VAR,
-    WEBCONFIG_SSM_KEY_ENV_VAR
+    WEBCONFIG_SSM_KEY_ENV_VAR,
+    MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR,
+    MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR
 } from '../../lib/utils/constants';
 
 describe('When creating a use case management Stack', () => {
@@ -209,7 +214,7 @@ describe('When creating a use case management Stack', () => {
     it('should have a lambda function with environment variables', () => {
         template.hasResourceProperties('AWS::Lambda::Function', {
             Code: Match.anyValue(),
-            Handler: 'index.handler',
+            Handler: 'use-case-handler.handler',
             Runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
             Role: {
                 'Fn::GetAtt': [lambdaRoleCapture, 'Arn']
@@ -362,757 +367,183 @@ describe('When creating a use case management Stack', () => {
                 Version: '2012-10-17'
             },
             PolicyName: Match.stringLikeRegexp('UseCaseConfigAccess*'),
-            Roles: [
+            Roles: Match.arrayWith([
                 {
                     Ref: Match.stringLikeRegexp('UCMLRole*')
                 }
-            ]
+            ])
         });
     });
 
     it('should have policies for cloudformation deployment that so that it can create, update, and delete stacks', () => {
+        // Test that CloudFormation deployment policies exist with required permissions
         template.hasResourceProperties('AWS::IAM::Policy', {
             PolicyDocument: {
-                Statement: [
-                    {
-                        Action: ['cloudformation:CreateStack', 'cloudformation:UpdateStack'],
+                Statement: Match.arrayWith([
+                    Match.objectLike({
+                        Action: Match.arrayWith(['cloudformation:CreateStack', 'cloudformation:UpdateStack']),
+                        Effect: 'Allow'
+                    })
+                ])
+            },
+            PolicyName: Match.stringLikeRegexp('.*CorePolicy.*')
+        });
+    });
+
+    it('should have IAM role management policies for CFN deployment', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    Match.objectLike({
+                        Action: Match.arrayWith(['iam:CreateRole', 'iam:DeleteRole*']),
+                        Effect: 'Allow'
+                    })
+                ])
+            },
+            PolicyName: Match.stringLikeRegexp('.*CorePolicy.*')
+        });
+    });
+
+    it('should have Lambda management policies for CFN deployment', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    Match.objectLike({
+                        Action: Match.arrayWith(['lambda:CreateFunction', 'lambda:Delete*']),
+                        Effect: 'Allow'
+                    })
+                ])
+            },
+            PolicyName: Match.stringLikeRegexp('.*CorePolicy.*')
+        });
+    });
+
+    it('should have agent management lambda function with correct properties', () => {
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            Handler: 'agents-handler.agentsHandler',
+            Runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
+            Environment: {
+                Variables: Match.objectLike({
+                    [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: 'UseCaseManagement',
+                    [GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR]: {
+                        Ref: Match.stringLikeRegexp('FactoriesDeploymentPlatformBucket*')
+                    },
+                    [DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR]: {
+                        Ref: 'AWS::StackName'
+                    }
+                })
+            }
+        });
+    });
+
+    it('should have agent builder CFN deploy role with ECR permissions', () => {
+        // Test that agent builder has ECR policy with pull-through cache permissions
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    Match.objectLike({
+                        Action: Match.arrayWith([
+                            'ecr:CreatePullThroughCacheRule',
+                            'ecr:DeletePullThroughCacheRule',
+                            'ecr:DescribePullThroughCacheRules'
+                        ]),
+                        Effect: 'Allow',
+                        Resource: '*'
+                    }),
+                    Match.objectLike({
+                        Action: 'ecr:GetAuthorizationToken',
+                        Effect: 'Allow',
+                        Resource: '*'
+                    })
+                ])
+            },
+            PolicyName: Match.stringLikeRegexp('AgentBuilderCfnDeployRoleEcrPolicy.*')
+        });
+    });
+
+    it('should have separate CFN deploy roles for text and agent use cases', () => {
+        // Test for the regular CFN deploy role (for text use cases)
+        template.hasResourceProperties('AWS::IAM::Role', {
+            AssumeRolePolicyDocument: {
+                Statement: Match.arrayWith([
+                    Match.objectLike({
+                        Principal: {
+                            Service: 'cloudformation.amazonaws.com'
+                        }
+                    })
+                ])
+            }
+        });
+
+        // Find all IAM roles to verify we have both types
+        const allRoles = template.findResources('AWS::IAM::Role');
+        const roleNames = Object.keys(allRoles);
+
+        // Look for the specific CFN deploy roles by name pattern
+        const hasCfnDeployRole = roleNames.some(
+            (name) => name.startsWith('CfnDeployRole') && !name.includes('AgentBuilder')
+        );
+        const hasAgentBuilderRole = roleNames.some((name) => name.startsWith('AgentBuilderCfnDeployRole'));
+
+        expect(hasCfnDeployRole).toBe(true);
+        expect(hasAgentBuilderRole).toBe(true);
+    });
+
+    it('should have agent builder CFN deploy role without VPC and Kendra permissions', () => {
+        // Agent builder should NOT have VPC policy
+        const vpcPolicies = template.findResources('AWS::IAM::Policy', {
+            PolicyName: Match.stringLikeRegexp('.*AgentBuilder.*VpcPolicy.*')
+        });
+        expect(Object.keys(vpcPolicies).length).toBe(0);
+
+        // Agent builder should NOT have Kendra policy
+        const kendraPolicies = template.findResources('AWS::IAM::Policy', {
+            PolicyName: Match.stringLikeRegexp('.*AgentBuilder.*KendraPolicy.*')
+        });
+        expect(Object.keys(kendraPolicies).length).toBe(0);
+    });
+
+    it('should have comprehensive CFN deployment policies for text use cases', () => {
+        // Test that the text use case CFN deploy role has comprehensive permissions
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: Match.arrayWith([
+                    // CloudFormation stack operations
+                    Match.objectLike({
+                        Action: Match.arrayWith(['cloudformation:CreateStack', 'cloudformation:UpdateStack']),
+                        Effect: 'Allow',
                         Condition: {
                             'ForAllValues:StringEquals': {
                                 'aws:TagKeys': ['createdVia', 'userId']
                             },
                             StringLike: {
-                                'cloudformation:TemplateUrl': [Match.anyValue(), Match.anyValue()]
+                                'cloudformation:TemplateUrl': Match.anyValue()
                             }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':cloudformation:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':stack/*'
-                                ]
-                            ]
                         }
-                    },
-                    {
-                        Action: [
-                            'cloudformation:DeleteStack',
-                            'cloudformation:DescribeStack*',
-                            'cloudformation:ListStacks'
-                        ],
+                    }),
+                    // IAM role management
+                    Match.objectLike({
+                        Action: Match.arrayWith(['iam:CreateRole', 'iam:DeleteRole*']),
                         Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':cloudformation:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':stack/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: [
-                            'iam:*tRolePolicy',
-                            'iam:CreateRole',
-                            'iam:DeleteRole*',
-                            'iam:DetachRolePolicy',
-                            'iam:GetRole',
-                            'iam:ListRoleTags',
-                            'iam:TagRole',
-                            'iam:UpdateAssumeRolePolicy'
-                        ],
-                        Condition: {
-                            'ForAllValues:StringEquals': {
-                                'aws:TagKeys': ['createdVia', 'userId', 'Name']
-                            }
-                        },
+                        Resource: Match.arrayWith([
+                            Match.objectLike({
+                                'Fn::Join': Match.anyValue()
+                            })
+                        ])
+                    }),
+                    // Lambda function management
+                    Match.objectLike({
+                        Action: Match.arrayWith(['lambda:CreateFunction', 'lambda:Delete*']),
                         Effect: 'Allow',
-                        Resource: [
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':iam::',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':policy/*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':iam::',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':role/*'
-                                    ]
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        Action: 'iam:PassRole',
-                        Condition: {
-                            'ForAllValues:StringEquals': {
-                                'aws:TagKeys': ['createdVia', 'userId', 'Name']
-                            },
-                            StringEquals: {
-                                'iam:PassedToService': [
-                                    'lambda.amazonaws.com',
-                                    'apigateway.amazonaws.com',
-                                    'kendra.amazonaws.com',
-                                    'vpc-flow-logs.amazonaws.com',
-                                    'cloudformation.amazonaws.com'
-                                ]
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':iam::',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':role/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: 'iam:AttachRolePolicy',
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            },
-                            'ForAllValues:StringEquals': {
-                                'aws:TagKeys': ['createdVia', 'userId']
-                            },
-                            StringEquals: {
-                                'iam:PolicyARN': [
-                                    {
-                                        'Fn::Join': [
-                                            '',
-                                            [
-                                                'arn:',
-                                                {
-                                                    Ref: 'AWS::Partition'
-                                                },
-                                                ':iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
-                                            ]
-                                        ]
-                                    }
-                                ]
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':iam::',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':role/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: [
-                            'lambda:*LayerVersion',
-                            'lambda:AddPermission',
-                            'lambda:CreateFunction',
-                            'lambda:Delete*',
-                            'lambda:GetFunction',
-                            'lambda:InvokeFunction',
-                            'lambda:ListTags',
-                            'lambda:RemovePermission',
-                            'lambda:TagResource',
-                            'lambda:UpdateEventSourceMapping',
-                            'lambda:UpdateFunction*'
-                        ],
                         Condition: {
                             'ForAllValues:StringEquals': {
                                 'aws:TagKeys': ['createdVia', 'userId']
                             }
-                        },
-                        Effect: 'Allow',
-                        Resource: [
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':lambda:',
-                                        {
-                                            Ref: 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':event-source-mapping:*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':lambda:',
-                                        {
-                                            Ref: 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':function:*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':lambda:',
-                                        {
-                                            Ref: 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':layer:*'
-                                    ]
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        Action: [
-                            's3:*EncryptionConfiguration',
-                            's3:CreateBucket',
-                            's3:DeleteBucketPolicy',
-                            's3:GetBucketAcl',
-                            's3:GetBucketPolicy*',
-                            's3:GetBucketVersioning',
-                            's3:GetObject',
-                            's3:PutBucket*'
-                        ],
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':s3:::*'
-                                ]
-                            ]
                         }
-                    },
-                    {
-                        Action: ['events:*Targets', 'events:DeleteRule', 'events:DescribeRule', 'events:PutRule'],
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':events:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':rule/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: 'servicecatalog:*',
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: [
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':servicecatalog:',
-                                        {
-                                            Ref: 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':/applications/*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':servicecatalog:',
-                                        {
-                                            Ref: 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':/attribute-groups/*'
-                                    ]
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        Action: [
-                            'apigateway:CreateRestApi',
-                            'apigateway:CreateStage',
-                            'apigateway:DELETE',
-                            'apigateway:Delete*',
-                            'apigateway:GET',
-                            'apigateway:PATCH',
-                            'apigateway:POST',
-                            'apigateway:PUT',
-                            'apigateway:SetWebACL',
-                            'apigateway:TagResource',
-                            'wafv2:*ForResource',
-                            'wafv2:*WebACL',
-                            'wafv2:TagResource'
-                        ],
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: [
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':apigateway:',
-                                        {
-                                            Ref: 'AWS::Region'
-                                        },
-                                        '::/*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            'Ref': 'AWS::Partition'
-                                        },
-                                        ':wafv2:',
-                                        {
-                                            'Ref': 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            'Ref': 'AWS::AccountId'
-                                        },
-                                        ':regional/*/*/*'
-                                    ]
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        Action: [
-                            'cognito-idp:*UserPoolClient',
-                            'cognito-idp:AdminAddUserToGroup',
-                            'cognito-idp:AdminCreateUser',
-                            'cognito-idp:AdminDeleteUser',
-                            'cognito-idp:AdminGetUser',
-                            'cognito-idp:AdminListGroupsForUser',
-                            'cognito-idp:AdminRemoveUserFromGroup',
-                            'cognito-idp:CreateGroup',
-                            'cognito-idp:CreateUserPool*',
-                            'cognito-idp:Delete*',
-                            'cognito-idp:GetGroup',
-                            'cognito-idp:SetUserPoolMfaConfig'
-                        ],
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':cognito-idp:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':userpool/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: 'cognito-idp:DescribeUserPool',
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':cognito-idp:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':userpool/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: [
-                            'cloudfront:Create*',
-                            'cloudfront:Delete*',
-                            'cloudfront:DescribeFunction',
-                            'cloudfront:Get*',
-                            'cloudfront:ListTagsForResource',
-                            'cloudfront:PublishFunction',
-                            'cloudfront:TagResource',
-                            'cloudfront:Update*'
-                        ],
-                        Effect: 'Allow',
-                        Resource: [
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':cloudfront::',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':distribution/*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':cloudfront::',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':function/*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':cloudfront::',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':origin-access-control/*'
-                                    ]
-                                ]
-                            },
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            Ref: 'AWS::Partition'
-                                        },
-                                        ':cloudfront::',
-                                        {
-                                            Ref: 'AWS::AccountId'
-                                        },
-                                        ':response-headers-policy/*'
-                                    ]
-                                ]
-                            }
-                        ]
-                    },
-                    {
-                        Action: [
-                            'kms:CreateGrant',
-                            'kms:Decrypt',
-                            'kms:DescribeKey',
-                            'kms:EnableKeyRotation',
-                            'kms:Encrypt',
-                            'kms:GenerateDataKey',
-                            'kms:PutKeyPolicy',
-                            'kms:TagResource'
-                        ],
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':kms:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':key/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: [
-                            'kendra:CreateIndex',
-                            'kms:CreateKey',
-                            'lambda:CreateEventSourceMapping',
-                            'lambda:DeleteEventSourceMapping',
-                            'lambda:GetEventSourceMapping'
-                        ],
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: '*'
-                    },
-                    {
-                        Action: [
-                            'kendra:DescribeIndex',
-                            'kendra:ListTagsForResource',
-                            'kendra:TagResource',
-                            'kendra:UpdateIndex'
-                        ],
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':kendra:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':index/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: ['cloudwatch:*Dashboard*', 'cloudwatch:GetMetricData', 'cloudwatch:TagResource'],
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':cloudwatch::',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':dashboard/*'
-                                ]
-                            ]
-                        }
-                    },
-                    {
-                        Action: [
-                            'sqs:CreateQueue',
-                            'sqs:DeleteQueue',
-                            'sqs:GetQueueAttributes',
-                            'sqs:SetQueueAttributes',
-                            'sqs:TagQueue'
-                        ],
-                        Condition: {
-                            'ForAnyValue:StringEquals': {
-                                'aws:CalledVia': ['cloudformation.amazonaws.com']
-                            }
-                        },
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::Join': [
-                                '',
-                                [
-                                    'arn:',
-                                    {
-                                        Ref: 'AWS::Partition'
-                                    },
-                                    ':sqs:',
-                                    {
-                                        Ref: 'AWS::Region'
-                                    },
-                                    ':',
-                                    {
-                                        Ref: 'AWS::AccountId'
-                                    },
-                                    ':*'
-                                ]
-                            ]
-                        }
-                    }
-                ],
-                Version: '2012-10-17'
+                    })
+                ])
             },
-            PolicyName: Match.stringLikeRegexp('CfnDeployPolicy*'),
-            Roles: [
-                {
-                    Ref: Match.stringLikeRegexp('UCMLRole*')
-                },
-                {
-                    Ref: Match.stringLikeRegexp('CfnDeployRole*')
-                }
-            ]
+            PolicyName: Match.stringLikeRegexp('CfnDeployRoleCorePolicy.*')
         });
     });
 
@@ -1391,7 +822,7 @@ describe('When creating a use case management Stack', () => {
                 ],
                 Version: '2012-10-17'
             },
-            PolicyName: Match.stringLikeRegexp('VpcCreationPolicy*'),
+            PolicyName: Match.stringLikeRegexp('.*VpcPolicy.*'),
             Roles: [
                 {
                     Ref: Match.stringLikeRegexp('UCMLRole*')
@@ -1439,6 +870,187 @@ describe('When creating a use case management Stack', () => {
             General: {
                 S3Bucket: 'fake-bucket',
                 KeyPrefix: `${rawCdkJson.context.solution_name}/${rawCdkJson.context.solution_version}`
+            }
+        });
+    });
+
+    it('should create MCP management lambda function with correct properties', () => {
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            Description: 'Lambda function backing the REST API for MCP server management',
+            Handler: 'mcp-handler.mcpHandler',
+            Runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
+            Role: {
+                'Fn::GetAtt': [Match.stringLikeRegexp('MCPManagementLambdaRole*'), 'Arn']
+            },
+            Environment: {
+                Variables: {
+                    [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: 'UseCaseManagement',
+                    [GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR]: {
+                        Ref: Match.stringLikeRegexp('FactoriesDeploymentPlatformBucket*')
+                    }
+                }
+            },
+            DeadLetterConfig: {
+                TargetArn: {
+                    'Fn::GetAtt': [Match.stringLikeRegexp('UseCaseManagementDLQ*'), 'Arn']
+                }
+            }
+        });
+    });
+
+    it('should have S3 permissions for MCP management lambda', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: [
+                    {
+                        Effect: 'Allow',
+                        Action: ['s3:DeleteObject', 's3:GetObject', 's3:PutObject', 's3:PutObjectTagging'],
+                        Resource: Match.arrayWith([
+                            {
+                                'Fn::GetAtt': [Match.stringLikeRegexp('FactoriesDeploymentPlatformBucket*'), 'Arn']
+                            },
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        {
+                                            'Fn::GetAtt': [
+                                                Match.stringLikeRegexp('FactoriesDeploymentPlatformBucket*'),
+                                                'Arn'
+                                            ]
+                                        },
+                                        '/mcp/*'
+                                    ]
+                                ]
+                            }
+                        ])
+                    }
+                ]
+            },
+            PolicyName: Match.stringLikeRegexp('MCPLambdaS3Policy*')
+        });
+    });
+
+    it('should have S3 permissions for MCP management lambda with mcp/ prefix scope', () => {
+        template.hasResourceProperties('AWS::IAM::Policy', {
+            PolicyDocument: {
+                Statement: [
+                    {
+                        Effect: 'Allow',
+                        Action: ['s3:DeleteObject', 's3:GetObject', 's3:PutObject', 's3:PutObjectTagging'],
+                        Resource: Match.arrayWith([
+                            {
+                                'Fn::Join': [
+                                    '',
+                                    [
+                                        {
+                                            'Fn::GetAtt': [
+                                                Match.stringLikeRegexp('FactoriesDeploymentPlatformBucket*'),
+                                                'Arn'
+                                            ]
+                                        },
+                                        '/mcp/*'
+                                    ]
+                                ]
+                            }
+                        ])
+                    }
+                ]
+            },
+            PolicyName: Match.stringLikeRegexp('MCPLambdaS3Policy*')
+        });
+    });
+
+
+    it('should create agent management lambda function with correct properties', () => {
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            Description: 'Lambda function backing the REST API for agent management',
+            Handler: 'agents-handler.agentsHandler',
+            Runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
+            Role: {
+                'Fn::GetAtt': [Match.stringLikeRegexp('AgentManagementLambdaRole*'), 'Arn']
+            },
+            Environment: {
+                Variables: {
+                    GAAB_DEPLOYMENTS_BUCKET: {
+                        Ref: Match.stringLikeRegexp('FactoriesDeploymentPlatformBucket*')
+                    },
+                    DEPLOYMENT_PLATFORM_STACK_NAME: {
+                        Ref: 'AWS::StackName'
+                    }
+                }
+            },
+            DeadLetterConfig: {
+                TargetArn: {
+                    'Fn::GetAtt': [Match.stringLikeRegexp('UseCaseManagementDLQ*'), 'Arn']
+                }
+            }
+        });
+    });
+
+    it('should create workflow management lambda function with correct properties', () => {
+        template.hasResourceProperties('AWS::Lambda::Function', {
+            Description: 'Lambda function backing the REST API for workflow management',
+            Handler: 'workflows-handler.workflowsHandler',
+            Runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME.name,
+            Role: {
+                'Fn::GetAtt': [Match.stringLikeRegexp('WorkflowManagementLambdaRole*'), 'Arn']
+            },
+            Environment: {
+                Variables: {
+                    [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: 'UseCaseManagement',
+                    [GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR]: {
+                        Ref: Match.stringLikeRegexp('FactoriesDeploymentPlatformBucket*')
+                    },
+                    [DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR]: {
+                        Ref: 'AWS::StackName'
+                    }
+                }
+            },
+            DeadLetterConfig: {
+                TargetArn: {
+                    'Fn::GetAtt': [Match.stringLikeRegexp('UseCaseManagementDLQ*'), 'Arn']
+                }
+            }
+        });
+    });
+
+
+
+    it('should set multimodal environment variables on lambda functions when called', () => {
+        const app = new cdk.App({ context: rawCdkJson.context });
+        const tempStack = new cdk.Stack(app, 'ParentStackForMultimodal');
+        const managementStack = new UseCaseManagement(tempStack, 'ManagementStackForMultimodal', {
+            parameters: {
+                DefaultUserEmail: 'test@example.com',
+                ApplicationTrademarkName: 'Test Application',
+                WebConfigSSMKey: '/test-webconfig/key'
+            }
+        });
+
+        const testBucketName = 'test-multimodal-bucket';
+        const testTableName = 'test-multimodal-table';
+        managementStack.setMultimodalEnvironmentVariables(testBucketName, testTableName);
+
+        const multimodalTemplate = Template.fromStack(managementStack);
+
+        multimodalTemplate.hasResourceProperties('AWS::Lambda::Function', {
+            Handler: 'agents-handler.agentsHandler',
+            Environment: {
+                Variables: Match.objectLike({
+                    [MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR]: testBucketName,
+                    [MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR]: testTableName
+                })
+            }
+        });
+
+        multimodalTemplate.hasResourceProperties('AWS::Lambda::Function', {
+            Handler: 'workflows-handler.workflowsHandler',
+            Environment: {
+                Variables: Match.objectLike({
+                    [MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR]: testBucketName,
+                    [MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR]: testTableName
+                })
             }
         });
     });

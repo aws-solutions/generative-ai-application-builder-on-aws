@@ -220,14 +220,53 @@ describe('When Chat use case is created', () => {
             Description: 'If set to No, the deployed use case stack will not have access to the feedback feature.'
         });
 
+        template.hasParameter('MultimodalEnabled', {
+            Type: 'String',
+            AllowedValues: ['Yes', 'No'],
+            Default: 'No',
+            Description:
+                'If set to Yes, the deployed use case stack will have access to multimodal functionality. This functionality is only enabled for Agentcore-based AgentBuilder and Workflow usecases.'
+        });
+
+        template.hasParameter('ExistingMultimodalDataMetadataTable', {
+            Type: 'String',
+            Default: '',
+            Description: 'Existing multimodal data metadata table name which contains references of the files in S3',
+            ConstraintDescription: 'Must be a valid DynamoDB table name or empty string'
+        });
+
+        template.hasParameter('ExistingMultimodalDataBucket', {
+            Type: 'String',
+            Default: '',
+            Description: 'Existing multimodal data bucket name which stores the multimodal data files',
+            ConstraintDescription: 'Must be a valid S3 bucket name or empty string'
+        });
+
+        template.hasParameter('ProvisionedConcurrencyValue', {
+            Type: 'Number',
+            Description:
+                'Provisioned concurrency value for Lambda functions. Set to 0 to disable provisioned concurrency.',
+            Default: 0,
+            MinValue: 0,
+            MaxValue: 5
+        });
+
         template.hasOutput('WebsocketEndpoint', {
             Description: 'Websocket API endpoint',
             Value: {
-                'Fn::GetAtt': [
-                    Match.stringLikeRegexp(
-                        'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApiApiGatewayV2WebSocketToSqs'
-                    ),
-                    'ApiEndpoint'
+                'Fn::Join': [
+                    '',
+                    [
+                        {
+                            'Fn::GetAtt': [
+                                Match.stringLikeRegexp(
+                                    'WebsocketRequestProcessorWebSocketEndpointApiGatewayV2WebSocketToSqsWebSocketApiApiGatewayV2WebSocketToSqs'
+                                ),
+                                'ApiEndpoint'
+                            ]
+                        },
+                        '/prod'
+                    ]
                 ]
             }
         });
@@ -286,8 +325,168 @@ describe('When Chat use case is created', () => {
             }
         });
 
+        template.hasOutput('MultimodalDataBucketName', {
+            Description: 'S3 bucket for storing multimodal files',
+            Value: {
+                'Fn::If': [
+                    'CreateMultimodalResourcesCondition',
+                    Match.anyValue(),
+                    {
+                        'Ref': 'ExistingMultimodalDataBucket'
+                    }
+                ]
+            },
+            Condition: 'MultimodalEnabledCondition'
+        });
+
+        template.hasOutput('MultimodalDataMetadataTableName', {
+            Description: 'DynamoDB table for storing multimodal files metadata',
+            Value: {
+                'Fn::If': [
+                    'CreateMultimodalResourcesCondition',
+                    Match.anyValue(),
+                    {
+                        'Ref': 'ExistingMultimodalDataMetadataTable'
+                    }
+                ]
+            },
+            Condition: 'MultimodalEnabledCondition'
+        });
+
         // Ensure you expected to add a new CfnOutput before incrementing this value
-        expect(Object.keys(template.findOutputs('*')).length).toEqual(12);
+        expect(Object.keys(template.findOutputs('*')).length).toEqual(14);
+    });
+
+    describe('Multimodal functionality tests', () => {
+        it('should apply ResourceConditionsAspect to multimodal setup', () => {
+            template.hasCondition('CreateMultimodalResourcesCondition', {
+                'Fn::And': [
+                    {
+                        'Condition': 'MultimodalEnabledCondition'
+                    },
+                    {
+                        'Fn::Not': [
+                            {
+                                'Condition': 'MultimodalDataProvidedCondition'
+                            }
+                        ]
+                    },
+                    {
+                        'Condition': 'CreateApiResourcesCondition'
+                    }
+                ]
+            });
+        });
+
+        it('should create multimodal resources in standalone mode when no existing resources provided', () => {
+            template.hasCondition('CreateMultimodalResourcesCondition', {
+                'Fn::And': [
+                    {
+                        'Condition': 'MultimodalEnabledCondition'
+                    },
+                    {
+                        'Fn::Not': [
+                            {
+                                'Condition': 'MultimodalDataProvidedCondition'
+                            }
+                        ]
+                    },
+                    {
+                        'Condition': 'CreateApiResourcesCondition'
+                    }
+                ]
+            });
+
+            // Verify that multimodal outputs are created conditionally
+            template.hasOutput('MultimodalDataBucketName', {
+                Condition: 'MultimodalEnabledCondition'
+            });
+
+            template.hasOutput('MultimodalDataMetadataTableName', {
+                Condition: 'MultimodalEnabledCondition'
+            });
+        });
+
+        it('has conditions that make sure to not create multimodal setup resources when existing resources are provided', () => {
+            template.hasCondition('CreateMultimodalResourcesCondition', {
+                'Fn::And': [
+                    {
+                        'Condition': 'MultimodalEnabledCondition'
+                    },
+                    {
+                        'Fn::Not': [
+                            {
+                                'Condition': 'MultimodalDataProvidedCondition'
+                            }
+                        ]
+                    },
+                    {
+                        'Condition': 'CreateApiResourcesCondition'
+                    }
+                ]
+            });
+
+            template.hasCondition('MultimodalDataProvidedCondition', {
+                'Fn::And': [
+                    {
+                        'Condition': 'MultimodalBucketProvided'
+                    },
+                    {
+                        'Condition': 'MultimodalTableProvided'
+                    }
+                ]
+            });
+        });
+
+        it('should integrate multimodal setup with use case REST API when conditions are met', () => {
+            template.hasCondition('CreateMultimodalResourcesCondition', {
+                'Fn::And': [
+                    {
+                        'Condition': 'MultimodalEnabledCondition'
+                    },
+                    {
+                        'Fn::Not': [
+                            {
+                                'Condition': 'MultimodalDataProvidedCondition'
+                            }
+                        ]
+                    },
+                    {
+                        'Condition': 'CreateApiResourcesCondition'
+                    }
+                ]
+            });
+        });
+
+        it('should have conditional outputs for multimodal resources', () => {
+            template.hasOutput('MultimodalDataBucketName', {
+                Description: 'S3 bucket for storing multimodal files',
+                Value: {
+                    'Fn::If': [
+                        'CreateMultimodalResourcesCondition',
+                        Match.anyValue(),
+                        {
+                            'Ref': 'ExistingMultimodalDataBucket'
+                        }
+                    ]
+                },
+                Condition: 'MultimodalEnabledCondition'
+            });
+
+            template.hasOutput('MultimodalDataMetadataTableName', {
+                Description: 'DynamoDB table for storing multimodal files metadata',
+                Value: {
+                    'Fn::If': [
+                        'CreateMultimodalResourcesCondition',
+                        Match.anyValue(),
+                        {
+                            'Ref': 'ExistingMultimodalDataMetadataTable'
+                        }
+                    ]
+                },
+                Condition: 'MultimodalEnabledCondition'
+            });
+        });
     });
 
     describe('When nested stacks are created', () => {
@@ -302,6 +501,18 @@ describe('When Chat use case is created', () => {
 
         it('should create nested stacks for chat provider and ddb storage', () => {
             template.resourceCountIs('AWS::CloudFormation::Stack', 6);
+        });
+
+        it('should create multimodal resources conditionally', () => {
+            template.hasResource('AWS::S3::Bucket', {
+                Type: 'AWS::S3::Bucket',
+                Condition: 'CreateMultimodalResourcesCondition'
+            });
+
+            template.hasResource('AWS::DynamoDB::Table', {
+                Type: 'AWS::DynamoDB::Table',
+                Condition: 'CreateMultimodalResourcesCondition'
+            });
         });
 
         it('should have a description in the nested stacks', () => {
@@ -366,6 +577,124 @@ describe('When Chat use case is created', () => {
                 ]
             });
         });
+
+        it('has validation rules for multimodal configuration', () => {
+            expect(jsonTemplate['Rules']).toBeDefined();
+            expect(jsonTemplate['Rules']['ValidateMultimodalResourcesConfiguration']).toEqual({
+                RuleCondition: {
+                    'Fn::Equals': [
+                        {
+                            'Ref': 'MultimodalEnabled'
+                        },
+                        'Yes'
+                    ]
+                },
+                Assertions: [
+                    {
+                        Assert: {
+                            'Fn::Or': [
+                                {
+                                    'Fn::And': [
+                                        {
+                                            'Fn::Not': [
+                                                {
+                                                    'Fn::Equals': [
+                                                        {
+                                                            'Ref': 'ExistingMultimodalDataBucket'
+                                                        },
+                                                        ''
+                                                    ]
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            'Fn::Not': [
+                                                {
+                                                    'Fn::Equals': [
+                                                        {
+                                                            'Ref': 'ExistingMultimodalDataMetadataTable'
+                                                        },
+                                                        ''
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    'Fn::And': [
+                                        {
+                                            'Fn::Equals': [
+                                                {
+                                                    'Ref': 'ExistingMultimodalDataBucket'
+                                                },
+                                                ''
+                                            ]
+                                        },
+                                        {
+                                            'Fn::Equals': [
+                                                {
+                                                    'Ref': 'ExistingMultimodalDataMetadataTable'
+                                                },
+                                                ''
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        AssertDescription:
+                            'When multimodal functionality is enabled, both multimodal data bucket and metadata table must be provided together, or both must be empty to create new resources'
+                    }
+                ]
+            });
+
+            expect(jsonTemplate['Rules']['ValidateMultimodalEnabledWithResources']).toEqual({
+                RuleCondition: {
+                    'Fn::And': [
+                        {
+                            'Fn::Not': [
+                                {
+                                    'Fn::Equals': [
+                                        {
+                                            'Ref': 'ExistingMultimodalDataBucket'
+                                        },
+                                        ''
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            'Fn::Not': [
+                                {
+                                    'Fn::Equals': [
+                                        {
+                                            'Ref': 'ExistingMultimodalDataMetadataTable'
+                                        },
+                                        ''
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                Assertions: [
+                    {
+                        Assert: {
+                            'Fn::Equals': [
+                                {
+                                    'Ref': 'MultimodalEnabled'
+                                },
+                                'Yes'
+                            ]
+                        },
+                        AssertDescription:
+                            'When existing multimodal data bucket and metadata table are provided, multimodal functionality must be enabled (MultimodalEnabled=Yes)'
+                    }
+                ]
+            });
+        });
+
         it('has a condition for Feedback Setup nested stack to deploy', () => {
             template.hasResource('AWS::CloudFormation::Stack', {
                 Type: 'AWS::CloudFormation::Stack',
@@ -436,6 +765,75 @@ describe('When Chat use case is created', () => {
                 UpdateReplacePolicy: 'Delete',
                 DeletionPolicy: 'Delete',
                 Condition: 'CreateFeedbackResources'
+            });
+        });
+
+        it('validates provisioned concurrency parameter constraints', () => {
+            template.hasParameter('ProvisionedConcurrencyValue', {
+                Type: 'Number',
+                Description:
+                    'Provisioned concurrency value for Lambda functions. Set to 0 to disable provisioned concurrency.',
+                Default: 0,
+                MinValue: 0,
+                MaxValue: 5
+            });
+        });
+
+        it('should create Lambda version using custom resource', () => {
+            // Verify that a custom resource for Lambda version is created
+            template.resourceCountIs('Custom::LambdaVersion', 1);
+
+            // Verify the custom resource references the chat Lambda function
+            template.hasResourceProperties('Custom::LambdaVersion', {
+                FunctionName: {
+                    Ref: Match.stringLikeRegexp('ChatLlmProviderLambda.*')
+                },
+                Resource: 'LAMBDA_VERSION_GENERATOR'
+            });
+        });
+
+        it('should create Lambda alias pointing to the version', () => {
+            // Verify that a Lambda alias is created
+            template.resourceCountIs('AWS::Lambda::Alias', 1);
+
+            // Verify the alias configuration
+            template.hasResourceProperties('AWS::Lambda::Alias', {
+                Name: 'live',
+                Description: 'Alias for chat Lambda function'
+            });
+        });
+
+        it('should configure provisioned concurrency conditionally on alias', () => {
+            // Verify the alias has conditional provisioned concurrency
+            template.hasResourceProperties('AWS::Lambda::Alias', {
+                ProvisionedConcurrencyConfig: {
+                    'Fn::If': [
+                        'ProvisionedConcurrencyCondition',
+                        {
+                            ProvisionedConcurrentExecutions: {
+                                Ref: 'ProvisionedConcurrencyValue'
+                            }
+                        },
+                        {
+                            Ref: 'AWS::NoValue'
+                        }
+                    ]
+                }
+            });
+        });
+
+        it('should have provisioned concurrency condition', () => {
+            template.hasCondition('ProvisionedConcurrencyCondition', {
+                'Fn::Not': [
+                    {
+                        'Fn::Equals': [
+                            {
+                                Ref: 'ProvisionedConcurrencyValue'
+                            },
+                            0
+                        ]
+                    }
+                ]
             });
         });
 
@@ -553,8 +951,8 @@ describe('When Chat use case is created', () => {
     });
 
     describe('Creates the LLM provider setup', () => {
-        it('should create 8 lambda functions', () => {
-            template.resourceCountIs('AWS::Lambda::Function', 8);
+        it('should create 10 lambda functions', () => {
+            template.resourceCountIs('AWS::Lambda::Function', 10);
         });
 
         it('should create chat provider lambda function with correct env vars set', () => {
@@ -936,7 +1334,6 @@ describe('With all environment variables and context.json available', () => {
 
     describe('When synthesizing through standard pipeline, it should generate necessary mapping', () => {
         it('has mapping for "Data"', () => {
-            expect(jsonTemplate['Mappings']['Solution']['Data']['SendAnonymousUsageData']).toEqual('Yes');
             expect(jsonTemplate['Mappings']['Solution']['Data']['ID']).toEqual(process.env.SOLUTION_ID);
             expect(jsonTemplate['Mappings']['Solution']['Data']['Version']).toEqual(process.env.VERSION);
             expect(jsonTemplate['Mappings']['Solution']['Data']['SolutionName']).toEqual(process.env.SOLUTION_NAME);

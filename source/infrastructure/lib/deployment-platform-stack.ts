@@ -3,10 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 
 import { Construct } from 'constructs';
 import { ApplicationSetup } from './framework/application-setup';
-import { BaseStack, BaseStackProps } from './framework/base-stack';
+import { BaseStack, BaseStackProps, BaseParameters } from './framework/base-stack';
 import { DashboardType } from './metrics/custom-dashboard';
 import { CopyUIAssets } from './s3web/copy-ui-assets-nested-stack';
 import { UIDistribution } from './s3web/ui-distribution-nested-stack';
@@ -18,11 +19,27 @@ import {
     INTERNAL_EMAIL_DOMAIN,
     OPTIONAL_EMAIL_REGEX_PATTERN,
     REST_API_NAME_ENV_VAR,
+    SHARED_ECR_CACHE_PREFIX_ENV_VAR,
     UIAssetFolders,
     USE_CASE_UUID_ENV_VAR,
     WEB_CONFIG_PREFIX
 } from './utils/constants';
 import { VPCSetup } from './vpc/vpc-setup';
+import { ECRPullThroughCache } from './use-case-stacks/agent-core/components/ecr-pull-through-cache';
+
+export class DeploymentPlatformParameters extends BaseParameters {
+    constructor(stack: cdk.Stack) {
+        super(stack);
+    }
+
+    protected setupUseCaseConfigTableParams(stack: cdk.Stack): void {
+        //override
+    }
+
+    protected setupUUIDParams(stack: cdk.Stack): void {
+        // override
+    }
+}
 
 /**
  * The main stack creating the infrastructure
@@ -49,13 +66,17 @@ export class DeploymentPlatformStack extends BaseStack {
      */
     public readonly deploymentPlatformStorageSetup: DeploymentPlatformStorageSetup;
 
+    /**
+     * Shared ECR Pull-Through Cache for AgentCore images used by dashboard-deployed use cases
+     */
+    public readonly sharedEcrPullThroughCache: ECRPullThroughCache;
+
     constructor(scope: Construct, id: string, props: BaseStackProps) {
         super(scope, id, props);
 
         new cdk.CfnMapping(this, 'Solution', {
             mapping: {
                 Data: {
-                    SendAnonymousUsageData: 'Yes',
                     ID: props.solutionID,
                     Version: props.solutionVersion,
                     SolutionName: props.solutionName
@@ -73,34 +94,21 @@ export class DeploymentPlatformStack extends BaseStack {
 
         const adminUserEmail = new cdk.CfnParameter(this, 'AdminUserEmail', {
             type: 'String',
-            description: 'Optional - Email used to create the default cognito user for the admin platform. If empty, the Cognito User, Group and Attachment will not be created.',
+            description:
+                'Optional - Email used to create the default cognito user for the admin platform. If empty, the Cognito User, Group and Attachment will not be created.',
             allowedPattern: OPTIONAL_EMAIL_REGEX_PATTERN,
             constraintDescription: 'Please provide a valid email'
         });
 
-        const existingCognitoUserPoolId = new cdk.CfnParameter(this, 'ExistingCognitoUserPoolId', {
-            type: 'String',
-            allowedPattern: '^$|^[0-9a-zA-Z_-]{9,24}$',
-            maxLength: 24,
-            description:
-                'UserPoolId of an existing cognito user pool which this use case will be authenticated with. Typically will be provided when deploying from the deployment platform, but can be omitted when deploying this use-case stack standalone.',
-            default: ''
-        });
-
-        const existingUserPoolClientId = new cdk.CfnParameter(this, 'ExistingCognitoUserPoolClient', {
-            type: 'String',
-            allowedPattern: '^$|^[a-z0-9]{3,128}$',
-            maxLength: 128,
-            description:
-                'Optional - Provide a User Pool Client (App Client) to use an existing one. If not provided a new User Pool Client will be created. This parameter can only be provided if an existing User Pool Id is provided',
-            default: ''
-        });
-
         new cdk.CfnRule(this, 'CognitoUserPoolAndClientRule', {
-            ruleCondition: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(existingCognitoUserPoolId.valueAsString, '')),
+            ruleCondition: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.stackParameters.existingCognitoUserPoolId.valueAsString, '')
+            ),
             assertions: [
                 {
-                    assert: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(existingUserPoolClientId.valueAsString, '')),
+                    assert: cdk.Fn.conditionNot(
+                        cdk.Fn.conditionEquals(this.stackParameters.existingUserPoolClientId.valueAsString, '')
+                    ),
                     assertDescription:
                         'If an existing User Pool Id is provided, then an existing User Pool Client Id must also be provided.'
                 }
@@ -108,7 +116,9 @@ export class DeploymentPlatformStack extends BaseStack {
         });
 
         new cdk.CfnRule(this, 'CognitoDomainNotProvidedIfPoolIsRule', {
-            ruleCondition: cdk.Fn.conditionNot(cdk.Fn.conditionEquals(existingCognitoUserPoolId.valueAsString, '')),
+            ruleCondition: cdk.Fn.conditionNot(
+                cdk.Fn.conditionEquals(this.stackParameters.existingCognitoUserPoolId.valueAsString, '')
+            ),
             assertions: [
                 {
                     assert: cdk.Fn.conditionEquals(this.stackParameters.cognitoUserPoolClientDomain.valueAsString, ''),
@@ -150,13 +160,25 @@ export class DeploymentPlatformStack extends BaseStack {
                 default:
                     'Optional: Provide existing Cognito UserPool and UserPoolClient IDs if you want to use your own managed resources. If left empty, the solution will manage these resources for you. Note: To prevent the creation of Cognito resources within the user pool (Users/Groups), simply leave the AdminUserEmail parameter empty.'
             },
-            Parameters: [existingCognitoUserPoolId.logicalId, existingUserPoolClientId.logicalId]
+            Parameters: [
+                this.stackParameters.existingCognitoUserPoolId.logicalId,
+                this.stackParameters.existingUserPoolClientId.logicalId
+            ]
         });
 
         // internal users are identified by being of the form "X@amazon.Y"
         const isInternalUserCondition: cdk.CfnCondition = new cdk.CfnCondition(this, 'IsInternalUserCondition', {
             expression: cdk.Fn.conditionEquals(
-                cdk.Fn.select(0, cdk.Fn.split('.', cdk.Fn.select(1, cdk.Fn.split('@', cdk.Fn.join("", [adminUserEmail.valueAsString, "@example.com"]))))),
+                cdk.Fn.select(
+                    0,
+                    cdk.Fn.split(
+                        '.',
+                        cdk.Fn.select(
+                            1,
+                            cdk.Fn.split('@', cdk.Fn.join('', [adminUserEmail.valueAsString, '@example.com']))
+                        )
+                    )
+                ),
                 INTERNAL_EMAIL_DOMAIN
             )
         });
@@ -188,6 +210,15 @@ export class DeploymentPlatformStack extends BaseStack {
             ...this.baseStackProps
         });
 
+        // Create shared ECR Pull-Through Cache for AgentCore images
+        // This cache will be used by all agent builder and workflow use cases deployed through the dashboard
+        const solutionVersion = process.env.VERSION ?? this.node.tryGetContext('solution_version');
+        this.sharedEcrPullThroughCache = new ECRPullThroughCache(this, 'SharedECRPullThroughCache', {
+            gaabVersion: solutionVersion,
+            customResourceLambda: this.applicationSetup.customResourceLambda
+            // No useCaseShortId provided - will generate from stack name (shared cache)
+        });
+
         this.useCaseManagementSetup = new UseCaseManagementSetup(this, 'UseCaseManagementSetup', {
             defaultUserEmail: adminUserEmail.valueAsString,
             webConfigSSMKey: webConfigSsmKey,
@@ -199,21 +230,91 @@ export class DeploymentPlatformStack extends BaseStack {
             deployWebApp: this.deployWebApp.valueAsString,
             deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition,
             accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
-            existingCognitoUserPoolId: existingCognitoUserPoolId.valueAsString,
-            existingCognitoUserPoolClientId: existingUserPoolClientId.valueAsString,
+            existingCognitoUserPoolId: this.stackParameters.existingCognitoUserPoolId.valueAsString,
+            existingCognitoUserPoolClientId: this.stackParameters.existingUserPoolClientId.valueAsString,
             llmConfigTable: this.deploymentPlatformStorageSetup.deploymentPlatformStorage.useCaseConfigTable,
             ...this.baseStackProps
         });
 
-        this.deploymentPlatformStorageSetup.addLambdaDependencies({
-            deploymentApiLambda: this.useCaseManagementSetup.useCaseManagement.useCaseManagementApiLambda,
-            modelInfoApiLambda: this.useCaseManagementSetup.useCaseManagement.modelInfoApiLambda,
-            feedbackApiLambda: this.useCaseManagementSetup.feedbackSetupStack.feedbackAPILambda
+        this.deploymentPlatformStorageSetup.configureDeploymentApiLambda(
+            this.useCaseManagementSetup.useCaseManagement.useCaseManagementApiLambda
+        );
+        this.deploymentPlatformStorageSetup.configureModelInfoApiLambda(
+            this.useCaseManagementSetup.useCaseManagement.modelInfoApiLambda
+        );
+        this.deploymentPlatformStorageSetup.configureFeedbackApiLambda(
+            this.useCaseManagementSetup.feedbackSetupStack.feedbackAPILambda
+        );
+        this.deploymentPlatformStorageSetup.configureUseCaseManagementApiLambda(
+            this.useCaseManagementSetup.useCaseManagement.mcpManagementApiLambda,
+            'MCP'
+        );
+        this.deploymentPlatformStorageSetup.configureUseCaseManagementApiLambda(
+            this.useCaseManagementSetup.useCaseManagement.agentManagementApiLambda,
+            'Agent',
+            true
+        );
+        this.deploymentPlatformStorageSetup.configureUseCaseManagementApiLambda(
+            this.useCaseManagementSetup.useCaseManagement.workflowManagementApiLambda,
+            'Workflow',
+            true
+        );
+        this.deploymentPlatformStorageSetup.configureFilesHandlerLambda(
+            this.useCaseManagementSetup.multimodalSetup.filesHandlerLambda
+        );
+
+        // Create SSM parameter for Strands tools configuration
+        const strandsToolsParameter = new ssm.StringParameter(this, 'StrandsToolsParameter', {
+            parameterName: `/gaab/${cdk.Aws.STACK_NAME}/strands-tools`,
+            stringValue: JSON.stringify([
+                {
+                    name: 'Calculator',
+                    description: 'Perform mathematical calculations and operations',
+                    value: 'calculator',
+                    category: 'Math',
+                    isDefault: true
+                },
+                {
+                    name: 'Current Time',
+                    description: 'Get current date and time information',
+                    value: 'current_time',
+                    category: 'Utilities',
+                    isDefault: true
+                },
+                {
+                    name: 'Environment',
+                    description: 'Access environment variables and system information',
+                    value: 'environment',
+                    category: 'System',
+                    isDefault: false
+                }
+            ]),
+            description: 'Available Strands SDK tools for Agent Builder and Workflow use cases',
+            simpleName: false
         });
+
+        // Grant MCP Management Lambda permission to read Strands tools parameter and set environment variable
+        strandsToolsParameter.grantRead(this.useCaseManagementSetup.useCaseManagement.mcpManagementApiLambda.role!);
+        this.useCaseManagementSetup.useCaseManagement.mcpManagementApiLambda.addEnvironment(
+            'STRANDS_TOOLS_SSM_PARAM',
+            strandsToolsParameter.parameterName
+        );
 
         this.applicationSetup.scheduledMetricsLambda.addEnvironment(
             REST_API_NAME_ENV_VAR,
             `${this.useCaseManagementSetup.useCaseManagement.stackName}-UseCaseManagementAPI`
+        );
+
+        // Add shared ECR cache prefix to agent management lambda
+        this.useCaseManagementSetup.useCaseManagement.agentManagementApiLambda.addEnvironment(
+            SHARED_ECR_CACHE_PREFIX_ENV_VAR,
+            this.sharedEcrPullThroughCache.getRepositoryPrefix()
+        );
+
+        // Add shared ECR cache prefix to workflow management lambda
+        this.useCaseManagementSetup.useCaseManagement.workflowManagementApiLambda.addEnvironment(
+            SHARED_ECR_CACHE_PREFIX_ENV_VAR,
+            this.sharedEcrPullThroughCache.getRepositoryPrefix()
         );
 
         const userPoolId = this.useCaseManagementSetup.userPool.userPoolId;
@@ -281,6 +382,11 @@ export class DeploymentPlatformStack extends BaseStack {
         });
         cloudfrontUrlOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
 
+        new cdk.CfnOutput(cdk.Stack.of(this), 'SharedECRCachePrefix', {
+            value: this.sharedEcrPullThroughCache.getRepositoryPrefix(),
+            description: 'Shared ECR Pull-Through Cache repository prefix for AgentCore images'
+        });
+
         new cdk.CfnOutput(cdk.Stack.of(this), 'CognitoClientId', {
             value: userPoolClientId
         });
@@ -301,13 +407,25 @@ export class DeploymentPlatformStack extends BaseStack {
             value: this.deploymentPlatformStorageSetup.deploymentPlatformStorage.useCasesTable.tableName
         });
 
-        this.applicationSetup.addAnonymousMetricsCustomLambda(props.solutionID, props.solutionVersion, {
+        new cdk.CfnOutput(cdk.Stack.of(this), 'MultimodalDataBucketName', {
+            value: this.useCaseManagementSetup.multimodalSetup.multimodalDataBucket.bucketName,
+            description: 'S3 bucket for storing multimodal files'
+        });
+
+        new cdk.CfnOutput(cdk.Stack.of(this), 'MultimodalDataMetadataTable', {
+            value: this.useCaseManagementSetup.multimodalSetup.multimodalDataMetadataTable.tableName,
+            description: 'DynamoDB table for storing multimodal files metadata'
+        });
+
+        this.applicationSetup.addMetricsCustomLambda(props.solutionID, props.solutionVersion, {
             UUID: uuid,
             VPC_ENABLED: this.vpcEnabled.valueAsString,
             CREATE_VPC: this.createNewVpc.valueAsString
         });
     }
-
+    protected initializeCfnParameters(): void {
+        this.stackParameters = new DeploymentPlatformParameters(this);
+    }
     protected setupVPC(): VPCSetup {
         return new VPCSetup(this, 'VPC', {
             stackType: 'deployment-platform',

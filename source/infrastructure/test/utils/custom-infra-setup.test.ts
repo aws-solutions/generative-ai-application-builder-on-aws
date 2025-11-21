@@ -16,17 +16,14 @@ describe('When creating the custom resource infrastructure construct', () => {
         const stack = new cdk.Stack(app, 'TestStack');
         new CustomInfraSetup(stack, 'TestInfraSetup', {
             solutionID: rawCdkJson.context.solution_id,
-            solutionVersion: rawCdkJson.context.solution_version,
-            sendAnonymousMetricsCondition: new cdk.CfnCondition(stack, 'TestCondition', {
-                expression: cdk.Fn.conditionEquals('Yes', 'Yes')
-            })
+            solutionVersion: rawCdkJson.context.solution_version
         });
 
         template = Template.fromStack(stack);
     });
 
     const customResourceLambdaRole = new Capture();
-    const anonymousMetricsLambda = new Capture();
+    const metricsLambda = new Capture();
 
     it('should have a custom resource lambda definition', () => {
         template.hasResourceProperties('AWS::Lambda::Function', {
@@ -232,7 +229,7 @@ describe('When creating the custom resource infrastructure construct', () => {
         });
     });
 
-    it('should have an anonymous metrics lambda definition', () => {
+    it('should have a metrics lambda definition', () => {
         template.hasResourceProperties('AWS::Lambda::Function', {
             Code: Match.anyValue(),
             Role: {
@@ -246,7 +243,7 @@ describe('When creating the custom resource infrastructure construct', () => {
             },
             Environment: {
                 Variables: {
-                    POWERTOOLS_SERVICE_NAME: 'ANONYMOUS-CW-METRICS',
+                    POWERTOOLS_SERVICE_NAME: 'CW-METRICS',
                     SOLUTION_ID: rawCdkJson.context.solution_id,
                     SOLUTION_VERSION: rawCdkJson.context.solution_version,
                     LOG_LEVEL: Match.absent(),
@@ -256,14 +253,14 @@ describe('When creating the custom resource infrastructure construct', () => {
         });
     });
 
-    it('Should create and attach the anonymous metrics event rule with scheduled expression', () => {
+    it('Should create and attach the metrics event rule with scheduled expression', () => {
         template.hasResourceProperties('AWS::Events::Rule', {
             ScheduleExpression: 'rate(3 hours)',
             State: 'ENABLED',
             Targets: [
                 {
                     Arn: {
-                        'Fn::GetAtt': [anonymousMetricsLambda, 'Arn']
+                        'Fn::GetAtt': [metricsLambda, 'Arn']
                     },
                     Id: 'Target0'
                 }
@@ -271,7 +268,7 @@ describe('When creating the custom resource infrastructure construct', () => {
         });
     });
 
-    it('should have an anonymous metrics with roles', () => {
+    it('should have metrics with roles', () => {
         template.resourceCountIs('AWS::IAM::Role', 2);
         template.hasResourceProperties('AWS::IAM::Policy', {
             PolicyDocument: {
@@ -372,7 +369,7 @@ describe('When creating the custom resource infrastructure construct', () => {
         template.hasResourceProperties('AWS::Lambda::Permission', {
             Action: 'lambda:InvokeFunction',
             FunctionName: {
-                'Fn::GetAtt': [Match.stringLikeRegexp('ScheduledAnonymousMetrics'), 'Arn']
+                'Fn::GetAtt': [Match.stringLikeRegexp('ScheduledMetrics'), 'Arn']
             },
             Principal: 'events.amazonaws.com',
             SourceArn: {

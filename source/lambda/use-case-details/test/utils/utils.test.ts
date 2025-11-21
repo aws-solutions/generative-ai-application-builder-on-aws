@@ -92,6 +92,145 @@ describe('Utils', () => {
             const result = castToResponse(testParams);
             expect(result).toEqual(expected);
         });
+
+        it('should include MultimodalParams when present and enabled', () => {
+            const paramsWithMultimodal = {
+                ...testParams,
+                LlmParams: {
+                    ...testParams.LlmParams,
+                    MultimodalParams: {
+                        MultimodalEnabled: true
+                    }
+                }
+            };
+
+            const result = castToResponse(paramsWithMultimodal);
+
+            expect(result.LlmParams?.MultimodalParams).toEqual({
+                MultimodalEnabled: true
+            });
+        });
+
+        it('should include MultimodalParams when present and disabled', () => {
+            const paramsWithMultimodal = {
+                ...testParams,
+                LlmParams: {
+                    ...testParams.LlmParams,
+                    MultimodalParams: {
+                        MultimodalEnabled: false
+                    }
+                }
+            };
+
+            const result = castToResponse(paramsWithMultimodal);
+
+            expect(result.LlmParams?.MultimodalParams).toEqual({
+                MultimodalEnabled: false
+            });
+        });
+
+        it('should not include MultimodalParams when not present', () => {
+            const result = castToResponse(testParams);
+            expect(result.LlmParams?.MultimodalParams).toBeUndefined();
+        });
+
+        it('should handle MultimodalParams with other LlmParams', () => {
+            const paramsWithMultimodal = {
+                ...testParams,
+                LlmParams: {
+                    ...testParams.LlmParams,
+                    MultimodalParams: {
+                        MultimodalEnabled: true
+                    }
+                }
+            };
+
+            const result = castToResponse(paramsWithMultimodal);
+
+            expect(result.LlmParams?.MultimodalParams).toEqual({
+                MultimodalEnabled: true
+            });
+            expect(result.LlmParams?.RAGEnabled).toBe(false);
+            expect(result.LlmParams?.PromptParams).toBeDefined();
+        });
+
+        it('should handle MultimodalParams only (no other LlmParams)', () => {
+            const paramsWithOnlyMultimodal = {
+                UseCaseName: 'Multimodal Only',
+                UseCaseType: 'Multimodal',
+                LlmParams: {
+                    ModelProvider: 'Bedrock',
+                    MultimodalParams: {
+                        MultimodalEnabled: true
+                    }
+                }
+            };
+
+            const result = castToResponse(paramsWithOnlyMultimodal);
+
+            expect(result.LlmParams?.MultimodalParams).toEqual({
+                MultimodalEnabled: true
+            });
+            expect(result.LlmParams?.RAGEnabled).toBeUndefined();
+            expect(result.LlmParams?.PromptParams).toBeUndefined();
+            expect(result.ModelProviderName).toBe('Bedrock');
+        });
+
+        it('should handle empty LlmParams with MultimodalParams', () => {
+            const paramsWithEmptyLlm = {
+                UseCaseName: 'Empty LLM',
+                UseCaseType: 'Text',
+                LlmParams: {
+                    MultimodalParams: {
+                        MultimodalEnabled: false
+                    }
+                }
+            };
+
+            const result = castToResponse(paramsWithEmptyLlm);
+
+            expect(result.LlmParams?.MultimodalParams).toEqual({
+                MultimodalEnabled: false
+            });
+            expect(result.ModelProviderName).toBe('BedrockAgent'); // Default value
+        });
+
+        it('should handle undefined LlmParams', () => {
+            const paramsWithoutLlm = {
+                UseCaseName: 'No LLM',
+                UseCaseType: 'Text'
+            };
+
+            const result = castToResponse(paramsWithoutLlm);
+
+            expect(result.LlmParams).toBeUndefined();
+            expect(result.ModelProviderName).toBe('BedrockAgent'); // Default value
+        });
+
+        it('should preserve all MultimodalParams properties', () => {
+            // Test with potential future extensions to MultimodalParams
+            const paramsWithExtendedMultimodal = {
+                UseCaseName: 'Extended Multimodal',
+                UseCaseType: 'Multimodal',
+                LlmParams: {
+                    ModelProvider: 'Bedrock',
+                    MultimodalParams: {
+                        MultimodalEnabled: true,
+                        // These would be additional properties if added in the future
+                        MaxFileSize: 10485760,
+                        SupportedFormats: ['image/jpeg', 'image/png']
+                    }
+                }
+            };
+
+            const result = castToResponse(paramsWithExtendedMultimodal);
+
+            expect(result.LlmParams?.MultimodalParams).toEqual({
+                MultimodalEnabled: true,
+                MaxFileSize: 10485760,
+                SupportedFormats: ['image/jpeg', 'image/png']
+            });
+        });
     });
 
     describe('getRetrySettings', () => {

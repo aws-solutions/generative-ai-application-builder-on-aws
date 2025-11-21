@@ -30,7 +30,7 @@ def setup_metrics_environment():
 
 
 def test_get_cloudwatch_metrics_queries():
-    assert len(get_cloudwatch_metrics_queries()) == 12
+    assert len(get_cloudwatch_metrics_queries()) == 30 
 
 
 @mock_aws
