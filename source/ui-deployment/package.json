@@ -1,6 +1,6 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
     "@aws-sdk/util-arn-parser": "^3.893.0",
