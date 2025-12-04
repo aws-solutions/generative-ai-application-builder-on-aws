@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom_boto3_init"
-version = "4.0.0"
+version = "4.0.1"
 authors = [ "Amazon Web Services" ]
 description = "Initialize boto config for AWS Python SDK with custom configuration"
 packages = [
