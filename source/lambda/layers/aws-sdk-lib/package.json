@@ -1,6 +1,6 @@
 {
   "name": "@amzn/aws-sdk-layer",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "AWS Javascript SDK v3 layer",
   "main": "index.js",
   "scripts": {
