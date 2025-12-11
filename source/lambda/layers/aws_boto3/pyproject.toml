@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "boto3-layer"
-version = "4.0.1"
+version = "4.0.2"
 authors = [ "Amazon Web Services" ]
 description = "Layer for AWS Boto3 python SDK"
 packages = [
@@ -17,7 +17,7 @@ license = "Apache-2.0"
 botocore = "1.40.53"
 boto3 = "1.40.53"
 python = "^3.13"
-urllib3="2.5.0"
+urllib3="2.6.1"
 
 [build-system]
 requires = [ "poetry-core>=1.9.0" ]
