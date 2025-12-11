@@ -1,6 +1,6 @@
 {
   "name": "@amzn/use-case-details",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "This lambda supports APIs that provide details about a deployed use case",
   "main": "index.ts",
   "scripts": {
