@@ -545,7 +545,7 @@ describe('When using hook to fetch use case details', () => {
     });
 
     test('it should return use case details', async () => {
-        const { result } = renderHook(() => useUseCaseDetailsQuery(mockUseCaseId), { wrapper });
+        const { result } = renderHook(() => useUseCaseDetailsQuery(mockUseCaseId, 'Text'), { wrapper });
 
         await waitFor(() => {
             expect(result.current.isSuccess).toBe(true);
@@ -566,7 +566,7 @@ describe('When using hook to fetch use case details', () => {
     });
 
     test('it should not fetch when useCaseId is empty', async () => {
-        const { result } = renderHook(() => useUseCaseDetailsQuery(''), { wrapper });
+        const { result } = renderHook(() => useUseCaseDetailsQuery('', 'Text'), { wrapper });
 
         // The query should be disabled
         expect(result.current.isLoading).toBe(false);
@@ -575,7 +575,7 @@ describe('When using hook to fetch use case details', () => {
     });
 
     test('it should respect the enabled option', async () => {
-        const { result } = renderHook(() => useUseCaseDetailsQuery(mockUseCaseId, { enabled: false }), { wrapper });
+        const { result } = renderHook(() => useUseCaseDetailsQuery(mockUseCaseId, 'Text', { enabled: false }), { wrapper });
 
         // The query should be disabled
         expect(result.current.isLoading).toBe(false);
@@ -601,7 +601,7 @@ describe('When using hook to fetch use case details', () => {
             <QueryClientProvider client={errorQueryClient}>{children}</QueryClientProvider>
         );
 
-        const { result } = renderHook(() => useUseCaseDetailsQuery(mockUseCaseId), {
+        const { result } = renderHook(() => useUseCaseDetailsQuery(mockUseCaseId, 'Text'), {
             wrapper: errorWrapper
         });
 
@@ -625,7 +625,7 @@ describe('When using hook to fetch use case details', () => {
         );
 
         // Render the hook
-        renderHook(() => useUseCaseDetailsQuery(mockUseCaseId), { wrapper: customWrapper });
+        renderHook(() => useUseCaseDetailsQuery(mockUseCaseId, 'Text'), { wrapper: customWrapper });
 
         // Wait for the query to be processed
         await waitFor(() => {

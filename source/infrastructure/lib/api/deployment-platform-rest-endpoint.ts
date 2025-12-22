@@ -48,6 +48,11 @@ export interface DeploymentPlatformRestEndpointProps extends BaseRestEndpointPro
     workflowManagementAPILambda: lambda.Function;
 
     /**
+     * The lambda function for platform tenant & user provisioning
+     */
+    tenantManagementAPILambda: lambda.Function;
+
+    /**
      * The custom authorizer to allow admin users to access the use case management API.
      */
     deploymentPlatformAuthorizer: api.RequestAuthorizer;
@@ -81,6 +86,7 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
         this.configureGatewayResponses(this.restApi);
 
         this.createUseCaseManagementApi(props, this.restApi);
+        this.createPlatformSaasApi(props, this.restApi);
         this.createModelInfoApi(props, this.restApi);
         this.addSuppressions();
     }
@@ -145,6 +151,56 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
     }
 
     /**
+     * Creates platform SaaS endpoints:
+     * - Customer portal identity: GET /portal/me
+     * - Platform admin provisioning: CRUD-ish endpoints under /platform/tenants
+     *
+     * These are the Phase 1 primitives for tenancy and RBAC.
+     */
+    private createPlatformSaasApi(props: DeploymentPlatformRestEndpointProps, restApi: api.IRestApi) {
+        const tenantIntegration = new api.LambdaIntegration(props.tenantManagementAPILambda, {
+            passthroughBehavior: api.PassthroughBehavior.NEVER
+        });
+
+        const ctx: DeploymentApiContext = {
+            scope: this,
+            requestValidator: this.requestValidator,
+            authorizer: props.deploymentPlatformAuthorizer,
+            integration: tenantIntegration
+        };
+
+        // /portal/me (customer + admin)
+        const portal = restApi.root.addResource('portal');
+        const me = portal.addResource('me');
+        DeploymentRestApiHelper.configureCors(me, ['GET', 'OPTIONS']);
+        me.addMethod('GET', ctx.integration, DeploymentRestApiHelper.createMethodOptionsWithModels(ctx, 'GetMe'));
+
+        // /platform/tenants (admin)
+        const platform = restApi.root.addResource('platform');
+        const tenants = platform.addResource('tenants');
+        DeploymentRestApiHelper.configureCors(tenants, ['GET', 'POST', 'OPTIONS']);
+        tenants.addMethod('GET', ctx.integration, DeploymentRestApiHelper.createMethodOptionsWithModels(ctx, 'ListTenants'));
+        tenants.addMethod(
+            'POST',
+            ctx.integration,
+            DeploymentRestApiHelper.createMethodOptionsWithModels(ctx, 'CreateTenant')
+        );
+
+        const tenant = tenants.addResource('{tenantId}');
+        const tenantUsers = tenant.addResource('users');
+        DeploymentRestApiHelper.configureCors(tenantUsers, ['POST', 'OPTIONS']);
+        tenantUsers.addMethod(
+            'POST',
+            ctx.integration,
+            DeploymentRestApiHelper.createMethodOptionsWithModels(ctx, 'CreateTenantUser', undefined, undefined, {
+                'method.request.path.tenantId': true
+            })
+        );
+
+        this.createdResources.push(portal, me, platform, tenants, tenant, tenantUsers);
+    }
+
+    /**
      * Creates the base deployments API using helper methods
      * @param deploymentsResource
      * @param props
@@ -174,6 +230,18 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
             integration: useCaseManagementAPILambdaIntegration
         };
 
+        // Voice channel API (admin): POST /deployments/{useCaseId}/channels/voice
+        const channelsResource = deploymentResource.addResource('channels');
+        const voiceResource = channelsResource.addResource('voice');
+        DeploymentRestApiHelper.configureCors(voiceResource, ['POST', 'OPTIONS']);
+        voiceResource.addMethod(
+            'POST',
+            useCaseManagementAPILambdaIntegration,
+            DeploymentRestApiHelper.createMethodOptionsWithModels(baseApiContext, 'UpsertVoiceChannel', undefined, undefined, {
+                'method.request.path.useCaseId': true
+            })
+        );
+
         // Creates CRUD API endpoints: GET/POST /deployments and GET/PATCH/DELETE /deployments/{useCaseId}
         // Generates models for request/response validation and returns created resources
         const crudResources = DeploymentRestApiHelper.addCrudOperations(
@@ -185,7 +253,7 @@ export class DeploymentPlatformRestEndpoint extends BaseRestEndpoint {
             UseCaseDeploymentSchemas.base
         );
 
-        this.createdResources.push(...crudResources);
+        this.createdResources.push(...crudResources, channelsResource, voiceResource);
         return deploymentResource;
     }
 

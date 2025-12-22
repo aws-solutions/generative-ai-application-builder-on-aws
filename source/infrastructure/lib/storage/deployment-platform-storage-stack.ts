@@ -27,6 +27,16 @@ export class DynamoDBDeploymentPlatformStorage extends BaseNestedStack {
      */
     public useCaseConfigTable: dynamodb.Table;
 
+    /**
+     * Voice routing table (phoneNumber -> tenantId/useCaseId), used by Amazon Connect voice adapter.
+     */
+    public voiceRoutingTable: dynamodb.Table;
+
+    /**
+     * Voice conversation sessions table (TenantId + ConversationId), used for KPI/portal views.
+     */
+    public voiceConversationsTable: dynamodb.Table;
+
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
 
@@ -58,6 +68,42 @@ export class DynamoDBDeploymentPlatformStorage extends BaseNestedStack {
             removalPolicy: cdk.RemovalPolicy.DESTROY
         });
 
+        // Voice routing table for Amazon Connect: dialed number -> tenant/use case
+        this.voiceRoutingTable = new dynamodb.Table(this, 'VoiceRoutingTable', {
+            encryption: dynamodb.TableEncryption.AWS_MANAGED,
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            partitionKey: {
+                name: DynamoDBAttributes.VOICE_ROUTING_TABLE_PARTITION_KEY,
+                type: dynamodb.AttributeType.STRING
+            },
+            pointInTimeRecovery: true,
+            removalPolicy: cdk.RemovalPolicy.RETAIN
+        });
+
+        // Voice conversation sessions for KPI rollups / customer portal (tenant scoped)
+        this.voiceConversationsTable = new dynamodb.Table(this, 'VoiceConversationsTable', {
+            encryption: dynamodb.TableEncryption.AWS_MANAGED,
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            partitionKey: {
+                name: DynamoDBAttributes.VOICE_CONVERSATIONS_TABLE_PARTITION_KEY,
+                type: dynamodb.AttributeType.STRING
+            },
+            sortKey: {
+                name: DynamoDBAttributes.VOICE_CONVERSATIONS_TABLE_SORT_KEY,
+                type: dynamodb.AttributeType.STRING
+            },
+            timeToLiveAttribute: DynamoDBAttributes.TIME_TO_LIVE,
+            pointInTimeRecovery: true,
+            removalPolicy: cdk.RemovalPolicy.RETAIN
+        });
+
+        // Query by useCaseId for agent-level KPI lists (cross-tenant admin tooling can use this; portal should filter by TenantId)
+        this.voiceConversationsTable.addGlobalSecondaryIndex({
+            indexName: 'UseCaseIdIndex',
+            partitionKey: { name: 'UseCaseId', type: dynamodb.AttributeType.STRING },
+            sortKey: { name: 'StartedAt', type: dynamodb.AttributeType.STRING }
+        });
+
         // a model defaults table must be created and populated with the deployment platform
         const modelInfoStorage = new DeploymentPlatformModelInfoStorage(this, 'ModelInfoStorage', {
             customResourceLambdaArn: this.customResourceLambdaArn,
@@ -73,6 +119,20 @@ export class DynamoDBDeploymentPlatformStorage extends BaseNestedStack {
         ]);
 
         cfn_nag.addCfnSuppressRules(this.useCaseConfigTable, [
+            {
+                id: 'W74',
+                reason: 'The table is configured with AWS Managed key'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(this.voiceRoutingTable, [
+            {
+                id: 'W74',
+                reason: 'The table is configured with AWS Managed key'
+            }
+        ]);
+
+        cfn_nag.addCfnSuppressRules(this.voiceConversationsTable, [
             {
                 id: 'W74',
                 reason: 'The table is configured with AWS Managed key'

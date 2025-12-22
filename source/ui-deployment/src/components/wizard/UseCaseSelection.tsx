@@ -8,11 +8,14 @@ import {
     AppLayout,
     Header,
     Button,
-    BreadcrumbGroup
+    BreadcrumbGroup,
+    FormField,
+    Select
 } from '@cloudscape-design/components';
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APP_TRADEMARK_NAME, USECASE_SELECTION_ID, USECASE_CONFIG } from '@/utils/constants';
+import { listTenants } from '@/components/customers/tenants';
 
 interface UseCaseSelectionItemProp {
     id: string;
@@ -22,15 +25,41 @@ interface UseCaseSelectionItemProp {
 }
 const UseCaseSelection = () => {
     const [selectedItem, setSelectedItem] = useState(new Array<UseCaseSelectionItemProp>());
+    const [tenantOptions, setTenantOptions] = useState<Array<{ label: string; value: string; description?: string }>>(
+        []
+    );
+    const [selectedTenant, setSelectedTenant] = useState<{ label: string; value: string } | null>(null);
 
     const { dispatch: homeDispatch } = useContext(HomeContext);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        // Load tenants for "deploy on behalf of customer"
+        listTenants()
+            .then((resp: any) => {
+                const items = resp?.items ?? [];
+                setTenantOptions(
+                    items.map((t: any) => ({
+                        label: t.name ?? t.tenantId,
+                        value: t.tenantId,
+                        description: t.slug ? `slug: ${t.slug}` : undefined
+                    }))
+                );
+            })
+            .catch(() => {
+                setTenantOptions([]);
+            });
+    }, []);
 
     const handleNextClick = () => {
         const selectedId = selectedItem[0].id as USECASE_SELECTION_ID;
         const useCaseType = USECASE_CONFIG[selectedId].type;
         const route = USECASE_CONFIG[selectedId].route;
 
+        homeDispatch({
+            field: 'selectedTenantId',
+            value: selectedTenant?.value ?? ''
+        });
         homeDispatch({
             field: 'selectedDeployment',
             value: { UseCaseType: useCaseType }
@@ -69,6 +98,18 @@ const UseCaseSelection = () => {
             content={
                 <SpaceBetween size="l">
                     <Header data-testid="use-case-selection-header">What would you like to build?</Header>
+                    <FormField
+                        label="Customer"
+                        description="Deployments must be created on behalf of a customer tenant."
+                    >
+                        <Select
+                            placeholder="Select a customer"
+                            selectedOption={selectedTenant ?? undefined}
+                            onChange={({ detail }) => setSelectedTenant(detail.selectedOption as any)}
+                            options={tenantOptions}
+                            filteringType="auto"
+                        />
+                    </FormField>
                     <Cards
                         data-testid="usecase-cards"
                         cardDefinition={{
@@ -141,8 +182,10 @@ const UseCaseSelection = () => {
                     />
                     <Button
                         variant="primary"
-                        disabled={selectedItem.length == 0}
-                        disabledReason="Select a use case type to deploy"
+                        disabled={selectedItem.length == 0 || !selectedTenant}
+                        disabledReason={
+                            selectedItem.length == 0 ? 'Select a use case type to deploy' : 'Select a customer'
+                        }
                         onClick={handleNextClick}
                         data-testid="use-case-selection-next-btn"
                     >

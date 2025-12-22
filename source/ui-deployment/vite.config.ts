@@ -6,12 +6,20 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import viteTsconfigPaths from 'vite-tsconfig-paths';
 import * as path from 'path';
+import { resolve } from 'node:path';
 
 export default defineConfig({
     plugins: [react(), viteTsconfigPaths()],
     build: {
         outDir: 'build',
-        chunkSizeWarningLimit: 4000
+        chunkSizeWarningLimit: 4000,
+        // Also build `login.html` so CloudFront can use it as a stable default root object
+        rollupOptions: {
+            input: {
+                index: resolve(__dirname, 'index.html'),
+                login: resolve(__dirname, 'login.html')
+            }
+        }
     },
     resolve: {
         alias: {

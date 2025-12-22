@@ -76,8 +76,16 @@ describe('When fetching use case details using API', () => {
             // Expected to throw
         }
 
-        expect(consoleSpy).toHaveBeenCalledWith(`Error fetching use case details for ID ${mockUseCaseId}:`, mockError);
+        expect(consoleSpy).toHaveBeenCalledWith(
+            `Error fetching use case details for ID ${mockUseCaseId} (type=undefined):`,
+            mockError
+        );
 
         consoleSpy.mockRestore();
+    });
+
+    test('should route AgentBuilder details to /deployments/agents/{useCaseId}', async () => {
+        await fetchUseCaseDetails({ useCaseId: mockUseCaseId, useCaseType: 'AgentBuilder' });
+        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, `/deployments/agents/${mockUseCaseId}`, expect.any(Object));
     });
 });

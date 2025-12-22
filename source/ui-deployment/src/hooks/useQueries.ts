@@ -175,6 +175,7 @@ export const useModelProvidersQuery = (useCaseType?: string) => {
  */
 export const useUseCaseDetailsQuery = (
     useCaseId: string,
+    useCaseType?: string,
     options?: {
         enabled?: boolean;
         refetchInterval?: number | false;
@@ -182,18 +183,20 @@ export const useUseCaseDetailsQuery = (
     }
 ) => {
     return useQuery({
-        queryKey: ['useCaseDetails', useCaseId],
+        queryKey: ['useCaseDetails', useCaseId, useCaseType ?? ''],
         queryFn: async () => {
             if (!useCaseId) {
                 throw new Error('Missing useCaseId');
             }
-            return await fetchUseCaseDetails({ useCaseId });
+            return await fetchUseCaseDetails({ useCaseId, useCaseType });
         },
         enabled: options?.enabled !== false && !!useCaseId,
         refetchInterval: options?.refetchInterval,
         refetchOnWindowFocus: options?.refetchOnWindowFocus,
         retry: 3,
-        staleTime: 5 * 60 * 1000 // 5 minutes
+        // Details can change out-of-band (e.g. voice number assignment). Avoid showing stale details.
+        staleTime: 0,
+        refetchOnMount: 'always'
     });
 };
 

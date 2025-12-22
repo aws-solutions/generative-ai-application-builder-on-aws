@@ -42,6 +42,7 @@ describe('When creating rest endpoints', () => {
                 'MockWorkflowManagementFunction',
                 mockLambdaFuncProps
             ),
+            tenantManagementAPILambda: new lambda.Function(stack, 'MockTenantManagementFunction', mockLambdaFuncProps),
             deploymentPlatformAuthorizer: testAuthorizer
         });
 
@@ -1006,6 +1007,7 @@ describe('When creating rest endpoints with MCP lambda', () => {
             mcpManagementAPILambda: new lambda.Function(stack, 'MockMCPFunction', mockLambdaFuncProps),
             agentManagementAPILambda: new lambda.Function(stack, 'MockAgentFunction2', mockLambdaFuncProps),
             workflowManagementAPILambda: new lambda.Function(stack, 'MockWorkflowFunction2', mockLambdaFuncProps),
+            tenantManagementAPILambda: new lambda.Function(stack, 'MockTenantManagementFunction2', mockLambdaFuncProps),
             deploymentPlatformAuthorizer: testAuthorizer
         });
 
@@ -1158,6 +1160,7 @@ describe('When creating rest endpoints with Agent lambda', () => {
             agentManagementAPILambda: new lambda.Function(stack, 'MockAgentFunction', mockLambdaFuncProps),
             mcpManagementAPILambda: new lambda.Function(stack, 'MockMCPFunction', mockLambdaFuncProps),
             workflowManagementAPILambda: new lambda.Function(stack, 'MockWorkflowFunction3', mockLambdaFuncProps),
+            tenantManagementAPILambda: new lambda.Function(stack, 'MockTenantManagementFunction3', mockLambdaFuncProps),
             deploymentPlatformAuthorizer: testAuthorizer
         });
 
@@ -1233,6 +1236,7 @@ describe('When creating rest endpoints with Workflow lambda', () => {
             mcpManagementAPILambda: new lambda.Function(stack, 'MockMCPFunction', mockLambdaFuncProps),
             agentManagementAPILambda: new lambda.Function(stack, 'MockAgentFunction', mockLambdaFuncProps),
             workflowManagementAPILambda: new lambda.Function(stack, 'MockWorkflowFunction', mockLambdaFuncProps),
+            tenantManagementAPILambda: new lambda.Function(stack, 'MockTenantManagementFunction4', mockLambdaFuncProps),
             deploymentPlatformAuthorizer: testAuthorizer
         });
 

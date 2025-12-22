@@ -230,6 +230,15 @@ export interface WorkflowUseCaseConfiguration extends BaseUseCaseConfiguration {
 export interface GetUseCaseDetailsAdminResponse {
     UseCaseName: string;
     UseCaseType: string;
+    /**
+     * Platform SaaS fields (optional)
+     */
+    TenantId?: string;
+    VoicePhoneNumber?: string;
+    /**
+     * Backward/forward compatibility: some UIs read `status`, some read `Status`.
+     */
+    status?: string;
     UseCaseId: string;
     Description: string;
     CreatedDate: string;
@@ -265,6 +274,20 @@ export interface GetUseCaseDetailsUserResponse {
     UseCaseType: string;
     LlmParams?: LlmParams;
     ModelProviderName?: string;
+    /**
+     * Customer portal safe fields
+     */
+    UseCaseId?: string;
+    status?: string;
+    Status?: string;
+    TenantId?: string;
+    VoicePhoneNumber?: string;
+    cloudFrontWebUrl?: string;
+    /**
+     * AgentBuilder/Workflow safe fields for customers (read-only)
+     */
+    AgentBuilderParams?: AgentBuilderParams;
+    WorkflowParams?: WorkflowParams;
 }
 
 export interface ListUseCasesResponse {

@@ -3,7 +3,7 @@
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { BatchGetCommand, BatchGetCommandOutput, DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { CognitoAccessTokenPayload } from 'aws-jwt-verify/jwt-model';
+import { CognitoIdTokenPayload } from 'aws-jwt-verify/jwt-model';
 import { AuthResponse } from 'aws-lambda';
 import { AWSClientManager } from 'aws-sdk-lib';
 
@@ -35,9 +35,9 @@ export const denyAllPolicy = (): AuthResponse => {
  * @param idToken Decoded JWT Authorization token received in request header.
  * @returns
  */
-export const getPolicyDocument = async (idToken: CognitoAccessTokenPayload): Promise<AuthResponse> => {
+export const getPolicyDocument = async (idToken: CognitoIdTokenPayload): Promise<AuthResponse> => {
     try {
-        const groups = idToken['cognito:groups'];
+        const groups = (idToken as any)['cognito:groups'] as string[] | undefined;
         if (groups) {
             const tableName = process.env.COGNITO_POLICY_TABLE_NAME!;
             const results = await batchQueryDynamoDB(tableName, groups);
@@ -58,7 +58,11 @@ export const getPolicyDocument = async (idToken: CognitoAccessTokenPayload): Pro
                         'Statement': statements
                     },
                     context: {
-                        UserId: idToken.sub
+                        // Authorizer context values must be primitive types (string/number/bool).
+                        UserId: idToken.sub,
+                        TenantId: ((idToken as any)['custom:tenant_id'] as string | undefined) ?? '',
+                        Groups: JSON.stringify(groups ?? []),
+                        Email: ((idToken as any).email as string | undefined) ?? ''
                     }
                 };
             }

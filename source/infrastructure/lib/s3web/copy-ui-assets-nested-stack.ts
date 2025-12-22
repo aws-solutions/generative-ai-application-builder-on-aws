@@ -35,6 +35,14 @@ export abstract class CopyUIAssets extends BaseNestedStack {
     constructor(scope: Construct, id: string, props: cdk.NestedStackProps) {
         super(scope, id, props);
 
+        // Define on this nested stack so the parameter is present in the nested template.
+        // Use a distinct name to avoid potential logical ID collisions in nested stacks.
+        const cloudFrontDistributionId = new cdk.CfnParameter(this, 'WebCloudFrontDistributionId', {
+            type: 'String',
+            description: 'CloudFront Distribution ID for the website hosting this UI (used to invalidate cache on updates).',
+            allowedPattern: '^[A-Z0-9]+$'
+        });
+
         const webRuntimeConfigKey = new cdk.CfnParameter(cdk.Stack.of(this), 'WebConfigKey', {
             type: 'String',
             allowedPattern: '^(\\/[^\\/ ]*)+\\/?$',
@@ -130,6 +138,26 @@ export abstract class CopyUIAssets extends BaseNestedStack {
         customResourceWebsiteBucketPolicy.node.addDependency(this.websiteBucket);
         customResourceWebsiteBucketPolicy.attachToRole(customResourceRole);
 
+        // CloudFront invalidation permission so UI updates are visible immediately (avoid stale cached login.html/index.html).
+        const cloudFrontInvalidationPolicy = new iam.Policy(this, 'CustomResourceCloudFrontInvalidationPolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    actions: ['cloudfront:CreateInvalidation'],
+                    effect: iam.Effect.ALLOW,
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:distribution/${cloudFrontDistributionId.valueAsString}`
+                    ]
+                })
+            ]
+        });
+        cloudFrontInvalidationPolicy.attachToRole(customResourceRole);
+        NagSuppressions.addResourceSuppressions(cloudFrontInvalidationPolicy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason: 'CloudFront invalidation is required so CloudFront serves the newly deployed UI immediately.'
+            }
+        ]);
+
         const ssmParameterPolicy = new iam.Policy(this, 'SSMAccessPolicy', {
             statements: [
                 new iam.PolicyStatement({
@@ -167,6 +195,7 @@ export abstract class CopyUIAssets extends BaseNestedStack {
                 Resource: 'COPY_WEB_UI',
                 DESTINATION_BUCKET_NAME: this.websiteBucket.bucketName,
                 WEBSITE_CONFIG_PARAM_KEY: webRuntimeConfigKey.valueAsString,
+                CLOUDFRONT_DISTRIBUTION_ID: cloudFrontDistributionId.valueAsString,
                 USE_CASE_CONFIG_TABLE_NAME: useCaseConfigTableName.valueAsString,
                 USE_CASE_CONFIG_RECORD_KEY: useCaseConfigRecordKey.valueAsString
             }
@@ -188,7 +217,8 @@ export abstract class CopyUIAssets extends BaseNestedStack {
                 ...resourceProperties.properties,
                 Resource: 'COPY_WEB_UI',
                 DESTINATION_BUCKET_NAME: this.websiteBucket.bucketName,
-                WEBSITE_CONFIG_PARAM_KEY: webRuntimeConfigKey.valueAsString
+                WEBSITE_CONFIG_PARAM_KEY: webRuntimeConfigKey.valueAsString,
+                CLOUDFRONT_DISTRIBUTION_ID: cloudFrontDistributionId.valueAsString
             }
         });
         (copyDasbboardWebUICustomResource.node.defaultChild as cdk.CfnResource).cfnOptions.condition =

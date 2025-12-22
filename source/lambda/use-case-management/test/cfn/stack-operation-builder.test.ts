@@ -128,6 +128,29 @@ describe('When creating StackCommandBuilders', () => {
                 }
             ]);
         });
+
+        it('should add RoleARN on create if CFN deploy role env var is set', async () => {
+            process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] = 'fake-role-arn';
+
+            const cfnParameters = new Map<string, string>();
+            cfnParameters.set(CfnParameterKeys.DefaultUserEmail, 'fake-email');
+            const useCase = new UseCase(
+                '11111111-2222-2222-3333-333344444444',
+                'fake-test',
+                'Create a stack for test',
+                cfnParameters,
+                JSON.parse(createEvent.body),
+                'test-user',
+                'fake-template-name',
+                'Chat'
+            );
+            useCase.templateName = 'fake-template-file-name';
+
+            const input = await new CreateStackCommandInputBuilder(useCase).build();
+            expect(input.RoleARN).toEqual('fake-role-arn');
+
+            delete process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR];
+        });
     });
 
     describe('When creating CreateStackCommandInputBuilder with a UseCaseAdapter from createEvent', () => {

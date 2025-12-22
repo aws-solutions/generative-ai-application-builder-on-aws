@@ -29,7 +29,8 @@ describe('When deploying', () => {
     });
 
     it('Should have lambdas for custom resource, management APIs, AgentCore auth, and Authorization', () => {
-        template.resourceCountIs('AWS::Lambda::Function', 7);
+        // Newer deployments include an additional Lambda function in this construct; keep the assertion aligned.
+        template.resourceCountIs('AWS::Lambda::Function', 8);
 
         template.hasResourceProperties('AWS::Lambda::Function', {
             'Role': {
@@ -222,6 +223,7 @@ function createTemplate(props: Partial<UserPoolProps>): [cdk.assertions.Template
         mcpManagementAPILambda: new lambda.Function(stack, 'mcpManagementLambda', mockLambdaFuncProps),
         agentManagementAPILambda: new lambda.Function(stack, 'agentManagementLambda', mockLambdaFuncProps),
         workflowManagementAPILambda: new lambda.Function(stack, 'workflowManagementLambda', mockLambdaFuncProps),
+        tenantManagementAPILambda: new lambda.Function(stack, 'tenantManagementLambda', mockLambdaFuncProps),
         applicationTrademarkName: 'fake-name',
         defaultUserEmail: 'testuser@example.com',
         customResourceLambdaArn: crLambda.functionArn,

@@ -50,23 +50,29 @@ export async function getRootResourceId(apiId: string): Promise<string> {
     const client = AWSClientManager.getServiceClient<APIGatewayClient>('apigateway', tracer);
 
     try {
-        const response = await client.send(
-            new GetResourcesCommand({
-                restApiId: apiId
-            })
-        );
+        // NOTE: API Gateway GetResources is paginated; root ("/") isn't guaranteed to appear on the first page.
+        let position: string | undefined = undefined;
+        do {
+            const resp: any = await client.send(
+                new GetResourcesCommand({
+                    restApiId: apiId,
+                    limit: 500,
+                    position
+                })
+            );
 
-        const rootResource = response.items?.find((resource) => resource.path === '/');
+            const rootResource = resp.items?.find((resource: any) => resource.path === '/');
+            if (rootResource?.id) {
+                logger.debug(`Successfully retrieved root resource ID: ${rootResource.id} for apiId: ${apiId}`);
+                return rootResource.id;
+            }
 
-        if (!rootResource?.id) {
-            const error = 'Could not find root resource';
-            logger.error(`${error} for apiId: ${apiId}`);
-            throw new Error(error);
-        }
+            position = resp.position;
+        } while (position);
 
-        logger.debug(`Successfully retrieved root resource ID: ${rootResource.id} for apiId: ${apiId}`);
-
-        return rootResource.id;
+        const error = 'Could not find root resource';
+        logger.error(`${error} for apiId: ${apiId}`);
+        throw new Error(error);
     } catch (error) {
         logger.error(`Error retrieving root resource ID for apiId: ${apiId}, error: ${(error as Error).message}`);
         throw error;
@@ -176,6 +182,37 @@ export function extractUserId(event: APIGatewayEvent): string {
     }
 
     return userId;
+}
+
+/**
+ * Extracts tenant id from API Gateway authorizer context (if present).
+ */
+export function extractTenantId(event: APIGatewayEvent): string | undefined {
+    const tid = (event.requestContext?.authorizer as any)?.TenantId;
+    return tid && typeof tid === 'string' && tid.length > 0 ? tid : undefined;
+}
+
+/**
+ * Extracts Cognito groups from API Gateway authorizer context (stored as a JSON string).
+ */
+export function extractGroups(event: APIGatewayEvent): string[] {
+    const raw = (event.requestContext?.authorizer as any)?.Groups;
+    if (!raw || typeof raw !== 'string') return [];
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [];
+    } catch {
+        return [];
+    }
+}
+
+export function isPlatformAdmin(event: APIGatewayEvent): boolean {
+    return extractGroups(event).includes('admin');
+}
+
+export function isCustomerPrincipal(event: APIGatewayEvent): boolean {
+    const groups = extractGroups(event);
+    return groups.includes('customer_admin') || groups.includes('customer_user');
 }
 
 /**

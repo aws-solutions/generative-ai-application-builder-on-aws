@@ -41,6 +41,10 @@ export class AgentUseCaseDeploymentAdapter extends UseCase {
             AgentProviders.BEDROCK,
             UseCaseTypes.AGENT
         );
+
+        // Platform SaaS: capture owning tenant (admin deploys "on behalf of" a customer)
+        this.tenantId =
+            jsonBody?.TenantId ?? jsonBody?.tenantId ?? (event.requestContext.authorizer as any)?.TenantId ?? undefined;
     }
 
     private static createCfnParameters(eventBody: any, useCaseId: string): Map<string, string> {

@@ -80,6 +80,10 @@ export class MCPUseCaseAdapter extends UseCase {
             undefined,
             UseCaseTypes.MCP_SERVER
         );
+
+        // Platform SaaS: capture owning tenant (admin deploys "on behalf of" a customer)
+        this.tenantId =
+            jsonBody?.TenantId ?? jsonBody?.tenantId ?? (event.requestContext.authorizer as any)?.TenantId ?? undefined;
     }
 
     /**

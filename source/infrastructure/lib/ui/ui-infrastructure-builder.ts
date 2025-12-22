@@ -4,6 +4,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { CopyDeploymentUIAssets } from '../s3web/copy-deployment-ui-assets';
+import { CopyPortalUIAssets } from '../s3web/copy-portal-ui-assets';
 import { CopyUIAssets } from '../s3web/copy-ui-assets-nested-stack';
 import { CopyUseCaseUIAssets } from '../s3web/copy-use-case-ui-assets';
 import { UIDistribution } from '../s3web/ui-distribution-nested-stack';
@@ -95,6 +96,10 @@ export class UIInfrastructureBuilder {
 
             case UIAssetFolders.CHAT:
                 this.copyUIAssetsStack = new CopyUseCaseUIAssets(scope, id, props);
+                break;
+
+            case UIAssetFolders.PORTAL:
+                this.copyUIAssetsStack = new CopyPortalUIAssets(scope, id, props);
                 break;
 
             default:

@@ -53,6 +53,7 @@ export class PutItemCommandInputBuilder extends CommandInputBuilder {
             TableName: process.env[USE_CASES_TABLE_NAME_ENV_VAR],
             Item: {
                 UseCaseId: { S: this.useCase.useCaseId },
+                ...(this.useCase.tenantId && { TenantId: { S: this.useCase.tenantId } }),
                 UseCaseType: { S: this.useCase.useCaseType },
                 StackId: { S: this.useCase.stackId },
                 Name: { S: this.useCase.name },

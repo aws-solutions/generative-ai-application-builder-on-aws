@@ -37,6 +37,10 @@ WEBSITE_CONFIG_PARAM_KEY = "WEBSITE_CONFIG_PARAM_KEY"
 WEBSITE_CONFIG_FILE_NAME = "runtimeConfig.json"
 IS_INTERNAL_USER_KEY = "IsInternalUser"
 USE_CASE_CONFIG_KEY = "UseCaseConfig"
+CLOUDFRONT_DISTRIBUTION_ID = "CLOUDFRONT_DISTRIBUTION_ID"
+
+HTML_NO_CACHE = "no-cache, no-store, must-revalidate"
+ASSET_LONG_CACHE = "public, max-age=31536000, immutable"
 
 logger = Logger(utc=True)
 tracer = Tracer()
@@ -149,6 +153,7 @@ def create(
     usecase_table_name,
     usecase_config_key,
     invocation_account_id,
+    cloudfront_distribution_id: Optional[str] = None,
 ):
     """This method implements the operations to be performed when a `create` (or update) event is received by a AWS CloudFormation
     custom resource. As implementation, this method copies the UI artifacts from the source bucket to the website bucket.
@@ -175,6 +180,7 @@ def create(
         logger.info(f"Copying {filename} to {destination_bucket_name}")
         (content_type, _) = mimetypes.guess_type(filename)
         content_type = "binary/octet-stream" if content_type is None else content_type
+        cache_control = HTML_NO_CACHE if filename.endswith(".html") else ASSET_LONG_CACHE
 
         try:
             with zip_archive.open(filename) as file_object:
@@ -183,6 +189,8 @@ def create(
                     Bucket=destination_bucket_name,
                     Key=filename,
                     ContentType=content_type,
+                    CacheControl=cache_control,
+                    ExpectedBucketOwner=invocation_account_id,
                 )
         except botocore.exceptions.ClientError as error:
             logger.error(f"Error occurred when uploading file object, error is {error}")
@@ -200,6 +208,22 @@ def create(
     except botocore.exceptions.ClientError as error:
         logger.error(f"Error occurred when copying web configuration file, error is {error}")
         raise error
+
+    # CloudFront may cache login.html/index.html and JS bundles; invalidate to ensure updates are visible immediately.
+    if cloudfront_distribution_id:
+        try:
+            cf = get_service_client("cloudfront")
+            cf.create_invalidation(
+                DistributionId=cloudfront_distribution_id,
+                InvalidationBatch={
+                    "Paths": {"Quantity": 1, "Items": ["/*"]},
+                    "CallerReference": str(uuid.uuid4()),
+                },
+            )
+            logger.info(f"Created CloudFront invalidation for distribution {cloudfront_distribution_id}")
+        except botocore.exceptions.ClientError as error:
+            logger.error(f"Error occurred when creating CloudFront invalidation, error is {error}")
+            raise error
 
     logger.info(
         "Finished uploading. Bucket %s has %s files"
@@ -236,6 +260,7 @@ def execute(event, context):
         ssm_param_key = event[RESOURCE_PROPERTIES][WEBSITE_CONFIG_PARAM_KEY]
         usecase_table_name = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_TABLE_NAME)
         usecase_config_key = event[RESOURCE_PROPERTIES].get(USE_CASE_CONFIG_RECORD_KEY)
+        cloudfront_distribution_id = event[RESOURCE_PROPERTIES].get(CLOUDFRONT_DISTRIBUTION_ID)
 
         logger.info(f"usecase_table_name: {usecase_table_name}")
         logger.info(f"usecase_config_key: {usecase_config_key}")
@@ -252,6 +277,7 @@ def execute(event, context):
                 usecase_table_name,
                 usecase_config_key,
                 get_invocation_account_id(context),
+                cloudfront_distribution_id,
             )
         elif event["RequestType"] == "Delete":
             delete(s3_resource, destination_bucket_name)

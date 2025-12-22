@@ -11,7 +11,7 @@ import {
     fakeMultiGroupIdToken,
     multiGroupBatchGetItemResponse
 } from './event-test-data';
-import { CognitoAccessTokenPayload } from 'aws-jwt-verify/jwt-model';
+import { CognitoIdTokenPayload } from 'aws-jwt-verify/jwt-model';
 
 describe('Policy Generator test', () => {
     let ddbMockedClient: any;
@@ -61,11 +61,14 @@ describe('Policy Generator test', () => {
                 ]
             },
             context: {
-                UserId: 'fake-sub'
+                UserId: 'fake-sub',
+                TenantId: '',
+                Groups: '["admin"]',
+                Email: 'fakeuser@example.com'
             }
         };
 
-        await expect(getPolicyDocument(<CognitoAccessTokenPayload>fakeIdToken)).resolves.toEqual(expectedPolicy);
+        await expect(getPolicyDocument(<CognitoIdTokenPayload>fakeIdToken)).resolves.toEqual(expectedPolicy);
     });
 
     it('should handle when user is in multiple groups', async () => {
@@ -97,24 +100,27 @@ describe('Policy Generator test', () => {
                 ]
             },
             context: {
-                UserId: 'fake-sub'
+                UserId: 'fake-sub',
+                TenantId: '',
+                Groups: '["admin","group1","group2"]',
+                Email: 'fakeuser@example.com'
             }
         };
 
-        await expect(getPolicyDocument(<CognitoAccessTokenPayload>fakeMultiGroupIdToken)).resolves.toEqual(
+        await expect(getPolicyDocument(<CognitoIdTokenPayload>fakeMultiGroupIdToken)).resolves.toEqual(
             expectedPolicy
         );
     });
 
     it('should return a deny policy if we receive no policies for the gorup', async () => {
         ddbMockedClient.on(BatchGetCommand).resolves({});
-        await expect(getPolicyDocument(<CognitoAccessTokenPayload>fakeMultiGroupIdToken)).resolves.toEqual(
+        await expect(getPolicyDocument(<CognitoIdTokenPayload>fakeMultiGroupIdToken)).resolves.toEqual(
             denyAllPolicy()
         );
     });
 
     it('should return a deny policy if we have no groups in the token', async () => {
-        await expect(getPolicyDocument(<CognitoAccessTokenPayload>fakeIdTokenNoGroups)).resolves.toEqual(
+        await expect(getPolicyDocument(<CognitoIdTokenPayload>fakeIdTokenNoGroups)).resolves.toEqual(
             denyAllPolicy()
         );
     });

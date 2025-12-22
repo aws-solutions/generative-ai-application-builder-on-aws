@@ -63,27 +63,19 @@ export default function UseCaseView() {
     const [, setToolsIndex] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-    const hasUpdatedRef = useRef(false);
-
     const selectedDeployment = useMemo(() => {
         return isSuccess ? mapApiResponseToSelectedDeployment(apiResponse) : null;
     }, [isSuccess, apiResponse]);
 
-    // Update context when data is successfully loaded
+    // Update context whenever fresh details arrive (details can change out-of-band, e.g. voice channel assignment)
     useEffect(() => {
-        if (isSuccess && selectedDeployment && !hasUpdatedRef.current) {
+        if (isSuccess && selectedDeployment) {
             homeDispatch({
                 field: 'selectedDeployment',
                 value: selectedDeployment
             });
-            hasUpdatedRef.current = true;
         }
     }, [isSuccess, selectedDeployment, homeDispatch]);
-
-    // Reset the ref when the ID or type changes
-    useEffect(() => {
-        hasUpdatedRef.current = false;
-    }, [useCaseId, useCaseType]);
 
     // Handle loading state
     if (isLoading) {

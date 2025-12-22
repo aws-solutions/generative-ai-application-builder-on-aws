@@ -9,7 +9,7 @@ import {
 import {
     UseCaseTypes,
     IS_INTERNAL_USER_ENV_VAR,
-    STACK_DEPLOYMENT_SOURCE_USE_CASE,
+    STACK_DEPLOYMENT_SOURCE_AGENTCORE,
     AUTHENTICATION_PROVIDERS
 } from '../../../utils/constants';
 import {
@@ -93,7 +93,7 @@ describe('AgentBuilderUseCaseDeploymentAdapter', () => {
         expect(useCase.cfnParameters!.get('SharedEcrCachePrefix')).toBe('test-ecr-prefix');
         expect(useCase.cfnParameters!.get('UseCaseUUID')).toBe('11111111-2222-2222-3333-333344444444');
         expect(useCase.cfnParameters!.get('FeedbackEnabled')).toBe('Yes');
-        expect(useCase.cfnParameters!.get('StackDeploymentSource')).toEqual(STACK_DEPLOYMENT_SOURCE_USE_CASE);
+        expect(useCase.cfnParameters!.get('StackDeploymentSource')).toEqual(STACK_DEPLOYMENT_SOURCE_AGENTCORE);
         expect(useCase.cfnParameters!.get('UseCaseConfigTableName')).toBe('test-config-table');
         expect(useCase.cfnParameters!.get('ExistingCognitoUserPoolId')).toBe('test-user-pool');
         expect(useCase.cfnParameters!.get('ComponentCognitoUserPoolId')).toBe('test-user-pool');

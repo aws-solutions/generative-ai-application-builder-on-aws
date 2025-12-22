@@ -12,14 +12,18 @@ import { generateToken } from '../../utils/utils';
  *
  * @param {Object} params Use case deployment params to send to the API
  */
-export async function listDeployedUseCases(currentPageIndex, searchFilter) {
+export async function listDeployedUseCases(currentPageIndex, searchFilter, tenantId) {
     try {
         const token = await generateToken();
+        const queryStringParameters = {
+            pageNumber: currentPageIndex,
+            searchFilter: searchFilter
+        };
+        if (tenantId) {
+            queryStringParameters.tenantId = tenantId;
+        }
         const response = await API.get(API_NAME, DEPLOYMENT_PLATFORM_API_ROUTES.LIST_USE_CASES.route, {
-            queryStringParameters: {
-                pageNumber: currentPageIndex,
-                searchFilter: searchFilter
-            },
+            queryStringParameters,
             headers: {
                 Authorization: token
             }
@@ -68,11 +72,34 @@ export async function deleteDeployment(useCaseId, permanentlyDelete) {
 }
 
 /**
+ * Assign an Amazon Connect voice channel (phone number) to a deployment.
+ * POST /deployments/{useCaseId}/channels/voice
+ */
+export async function assignVoiceChannel(useCaseId, phoneNumber) {
+    try {
+        const token = await generateToken();
+        const route = DEPLOYMENT_PLATFORM_API_ROUTES.ASSIGN_VOICE_CHANNEL.route(useCaseId);
+        const response = await API.post(API_NAME, route, {
+            headers: { Authorization: token },
+            body: { phoneNumber }
+        });
+        return response;
+    } catch (error) {
+        console.error(error);
+        throw error;
+    }
+}
+
+/**
  * Given a status, returns the corresponding status indicator type
  * @param {*} status
  * @returns
  */
 export const statusIndicatorTypeSelector = (status) => {
+    if (!status || typeof status !== 'string') {
+        // Unknown/not-yet-fetched status should not show as a failure
+        return CFN_STACK_STATUS_INDICATOR.WARNING;
+    }
     const successStatus = ['CREATE_COMPLETE', 'UPDATE_COMPLETE'];
     const errorStatus = ['CREATE_FAILED', 'UPDATE_FAILED', 'DELETE_FAILED', 'ROLLBACK_COMPLETE'];
     const inProgressStatus = [
@@ -111,5 +138,6 @@ export const statusIndicatorTypeSelector = (status) => {
     if (stoppedStatus.includes(status)) {
         return CFN_STACK_STATUS_INDICATOR.STOPPED;
     }
-    return CFN_STACK_STATUS_INDICATOR.ERROR;
+    // Unknown status: show warning instead of error (prevents red X for unexpected CFN statuses)
+    return CFN_STACK_STATUS_INDICATOR.WARNING;
 };

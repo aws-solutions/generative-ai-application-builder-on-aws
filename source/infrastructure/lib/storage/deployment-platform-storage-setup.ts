@@ -15,7 +15,9 @@ import { BaseStackProps } from '../framework/base-stack';
 import {
     MODEL_INFO_TABLE_NAME_ENV_VAR,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
-    USE_CASES_TABLE_NAME_ENV_VAR
+    USE_CASES_TABLE_NAME_ENV_VAR,
+    VOICE_CONVERSATIONS_TABLE_NAME_ENV_VAR,
+    VOICE_ROUTING_TABLE_NAME_ENV_VAR
 } from '../utils/constants';
 
 export interface DeploymentPlatformStorageProps extends BaseStackProps {
@@ -81,7 +83,8 @@ export class DeploymentPlatformStorageSetup extends Construct {
                     resources: [
                         this.deploymentPlatformStorage.useCasesTable.tableArn,
                         this.deploymentPlatformStorage.modelInfoTable.tableArn,
-                        this.deploymentPlatformStorage.useCaseConfigTable.tableArn
+                        this.deploymentPlatformStorage.useCaseConfigTable.tableArn,
+                        this.deploymentPlatformStorage.voiceRoutingTable.tableArn
                     ]
                 })
             ]
@@ -99,6 +102,10 @@ export class DeploymentPlatformStorageSetup extends Construct {
         deploymentApiLambda.addEnvironment(
             USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.useCaseConfigTable.tableName
+        );
+        deploymentApiLambda.addEnvironment(
+            VOICE_ROUTING_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.voiceRoutingTable.tableName
         );
 
         this.addDynamoDBNagSuppressions(ddbPolicy, 'deploymentAPI');
@@ -164,7 +171,8 @@ export class DeploymentPlatformStorageSetup extends Construct {
     ): void {
         const resources = [
             this.deploymentPlatformStorage.useCasesTable.tableArn,
-            this.deploymentPlatformStorage.useCaseConfigTable.tableArn
+            this.deploymentPlatformStorage.useCaseConfigTable.tableArn,
+            this.deploymentPlatformStorage.voiceRoutingTable.tableArn
         ];
 
         if (includeModelInfoTable) {
@@ -198,6 +206,10 @@ export class DeploymentPlatformStorageSetup extends Construct {
             USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
             this.deploymentPlatformStorage.useCaseConfigTable.tableName
         );
+        managementApiLambda.addEnvironment(
+            VOICE_ROUTING_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.voiceRoutingTable.tableName
+        );
 
         if (includeModelInfoTable) {
             managementApiLambda.addEnvironment(
@@ -207,6 +219,49 @@ export class DeploymentPlatformStorageSetup extends Construct {
         }
 
         this.addDynamoDBNagSuppressions(ddbPolicy, `${type.toLowerCase()}Management`);
+    }
+
+    public configureConnectVoiceAdapterLambda(voiceAdapterLambda: lambda.Function): void {
+        const ddbPolicy = new iam.Policy(this, `ConnectVoiceAdapterDDBPolicy`, {
+            statements: [
+                new iam.PolicyStatement({
+                    actions: ['dynamodb:GetItem', 'dynamodb:Query', 'dynamodb:Scan'],
+                    resources: [this.deploymentPlatformStorage.voiceRoutingTable.tableArn]
+                })
+            ]
+        });
+        ddbPolicy.attachToRole(voiceAdapterLambda.role!);
+
+        voiceAdapterLambda.addEnvironment(
+            VOICE_ROUTING_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.voiceRoutingTable.tableName
+        );
+
+        this.addDynamoDBNagSuppressions(ddbPolicy, `connectVoiceAdapter`);
+    }
+
+    public configureConnectVoiceTurnLambda(voiceTurnLambda: lambda.Function): void {
+        const ddbPolicy = new iam.Policy(this, `ConnectVoiceTurnDDBPolicy`, {
+            statements: [
+                new iam.PolicyStatement({
+                    actions: ['dynamodb:GetItem'],
+                    resources: [this.deploymentPlatformStorage.useCasesTable.tableArn]
+                }),
+                new iam.PolicyStatement({
+                    actions: ['dynamodb:UpdateItem', 'dynamodb:PutItem'],
+                    resources: [this.deploymentPlatformStorage.voiceConversationsTable.tableArn]
+                })
+            ]
+        });
+        ddbPolicy.attachToRole(voiceTurnLambda.role!);
+
+        voiceTurnLambda.addEnvironment(USE_CASES_TABLE_NAME_ENV_VAR, this.deploymentPlatformStorage.useCasesTable.tableName);
+        voiceTurnLambda.addEnvironment(
+            VOICE_CONVERSATIONS_TABLE_NAME_ENV_VAR,
+            this.deploymentPlatformStorage.voiceConversationsTable.tableName
+        );
+
+        this.addDynamoDBNagSuppressions(ddbPolicy, `connectVoiceTurn`);
     }
 
     private addDynamoDBNagSuppressions(policy: iam.Policy, lambdaType: string): void {

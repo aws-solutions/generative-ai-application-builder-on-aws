@@ -63,7 +63,7 @@ export const useWizard = (
     setFormattedToolsContent: { (tools: ToolHelpPanelContent): void }
 ) => {
     const {
-        state: { selectedDeployment, deploymentAction, runtimeConfig }
+        state: { selectedDeployment, deploymentAction, runtimeConfig, selectedTenantId }
     } = useContext(HomeContext);
 
     const shouldFetchDeploymentInfo =
@@ -71,6 +71,7 @@ export const useWizard = (
 
     const { data: deploymentInfo, isLoading: isLoadingDeploymentInfo } = useUseCaseDetailsQuery(
         selectedDeployment.UseCaseId,
+        selectedDeployment.UseCaseType,
         {
             refetchOnWindowFocus: false,
             enabled: shouldFetchDeploymentInfo
@@ -196,7 +197,7 @@ export const useWizard = (
             } else {
                 endpoint = DEPLOYMENT_PLATFORM_API_ROUTES.CREATE_USE_CASE.route(useCase.type);
                 method = DEPLOYMENT_PLATFORM_API_ROUTES.CREATE_USE_CASE.method;
-                requestPayload = createDeployRequestPayload(stepsInfo, runtimeConfig);
+                requestPayload = createDeployRequestPayload(stepsInfo, runtimeConfig, selectedTenantId);
             }
             await createUseCaseRequest(endpoint, requestPayload, method);
         } catch (error) {

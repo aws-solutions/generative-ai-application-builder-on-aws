@@ -1,0 +1,10 @@
+{
+  "AwsRegion": "us-east-1",
+  "UserPoolId": "us-east-1_1xFpaAgQV",
+  "UserPoolClientId": "1t8hrn3aj8t7fim2evhakrb6v3",
+  "CognitoDomain": "2b04f4215badf8b7a4411a58ee4e777dc3dbec37ac5c76af298fcd0d3e2c67d.auth.us-east-1.amazoncognito.com",
+  "CognitoRedirectUrl": "http://localhost:5175/",
+  "RestApiEndpoint": "https://knf9cu12m8.execute-api.us-east-1.amazonaws.com/prod"
+}
+
+

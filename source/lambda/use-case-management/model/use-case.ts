@@ -75,6 +75,11 @@ export class UseCase {
     public apiKey?: string;
 
     /**
+     * Platform SaaS: owning tenant id (for customer isolation). Present when this deployment is assigned to a customer.
+     */
+    public tenantId?: string;
+
+    /**
      * The ID of the stack that was created. This is used for update and delete stacks.
      */
     _stackId: string;

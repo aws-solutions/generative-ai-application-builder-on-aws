@@ -65,6 +65,9 @@
       "@aws-sdk/client-dynamodb": [
         "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-dynamodb"
       ],
+      "@aws-sdk/lib-dynamodb": [
+        "../layers/aws-sdk-lib/node_modules/@aws-sdk/lib-dynamodb"
+      ],
       "@aws-sdk/client-ssm": [
         "../layers/aws-sdk-lib/node_modules/@aws-sdk/client-ssm"
       ],

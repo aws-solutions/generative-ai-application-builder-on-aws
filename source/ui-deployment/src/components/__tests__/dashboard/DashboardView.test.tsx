@@ -76,7 +76,7 @@ describe('Dashboard', () => {
             return {
                 getSignInUserSession: vi.fn().mockImplementation(() => {
                     return {
-                        getAccessToken: vi.fn().mockImplementation(() => {
+                        getIdToken: vi.fn().mockImplementation(() => {
                             return {
                                 getJwtToken: vi.fn().mockImplementation(() => {
                                     return 'fake-token';
@@ -117,9 +117,10 @@ describe('Dashboard', () => {
         });
 
         await waitFor(async () => {
-            expect(mockAPI.get).toHaveBeenCalledTimes(1);
+            // 1) /deployments 2) /platform/tenants (for tenant filter dropdown)
+            expect(mockAPI.get).toHaveBeenCalledTimes(2);
         });
-        expect(mockAPI.get).toHaveBeenCalledWith(API_NAME, '/deployments', {
+        expect(mockAPI.get).toHaveBeenNthCalledWith(1, API_NAME, '/deployments', {
             queryStringParameters: {
                 pageNumber: 1,
                 searchFilter: ''
@@ -145,15 +146,42 @@ describe('Dashboard', () => {
         await waitFor(async () => {
             expect(table?.findRows()).toHaveLength(9);
         });
-        expect(table?.findColumnHeaders()).toHaveLength(8);
+        expect(table?.findColumnHeaders()).toHaveLength(11);
 
         const firstDeployment = mockContext.deploymentsData[0];
         const deploymentRow = 1;
 
-        expect(table?.findBodyCell(deploymentRow, 2)?.getElement().textContent).toEqual(firstDeployment.useCaseUUID);
-        expect(table?.findBodyCell(deploymentRow, 3)?.getElement().textContent).toEqual(firstDeployment.Name);
-        expect(table?.findBodyCell(deploymentRow, 4)?.getElement().textContent).toEqual(firstDeployment.UseCaseType);
-        expect(table?.findBodyCell(deploymentRow, 5)?.getElement()?.textContent).toEqual(
+        const visibleHeaders =
+            table
+                ?.findColumnHeaders()
+                .map((h) => h.getElement().textContent?.trim())
+                // First header is the selection column (empty), omit it so indexes match `findBodyCell`
+                .filter((h) => h && h.length > 0) ?? [];
+
+        const tenantCol = visibleHeaders.indexOf('Customer / Tenant') + 1;
+        const useCaseIdCol = visibleHeaders.indexOf('Use Case ID') + 1;
+        const useCaseTypeCol = visibleHeaders.indexOf('Use Case Type') + 1;
+        const statusCol = visibleHeaders.indexOf('Application Status') + 1;
+        const dateCreatedCol = visibleHeaders.indexOf('Date Created') + 1;
+        const modelProviderCol = visibleHeaders.indexOf('Model Provider') + 1;
+
+        expect(tenantCol).toBeGreaterThan(0);
+        expect(useCaseIdCol).toBeGreaterThan(0);
+        expect(useCaseTypeCol).toBeGreaterThan(0);
+        expect(statusCol).toBeGreaterThan(0);
+        expect(dateCreatedCol).toBeGreaterThan(0);
+        expect(modelProviderCol).toBeGreaterThan(0);
+
+        expect(table?.findBodyCell(deploymentRow, tenantCol)?.getElement().textContent).toEqual(
+            firstDeployment.TenantId ?? ''
+        );
+        expect(table?.findBodyCell(deploymentRow, useCaseIdCol)?.getElement().textContent).toEqual(
+            firstDeployment.useCaseUUID
+        );
+        expect(table?.findBodyCell(deploymentRow, useCaseTypeCol)?.getElement().textContent).toEqual(
+            firstDeployment.UseCaseType
+        );
+        expect(table?.findBodyCell(deploymentRow, statusCol)?.getElement()?.textContent).toEqual(
             firstDeployment.status.toLowerCase().replaceAll('_', ' ')
         );
         const dateString = new Date(firstDeployment.CreatedDate).toLocaleDateString('en-US', {
@@ -164,15 +192,17 @@ describe('Dashboard', () => {
             hour: 'numeric',
             minute: 'numeric'
         });
-        expect(table?.findBodyCell(deploymentRow, 6)?.getElement().textContent).toEqual(dateString);
-        expect(table?.findBodyCell(deploymentRow, 7)?.getElement().textContent).toEqual(firstDeployment.ModelProvider);
+        expect(table?.findBodyCell(deploymentRow, dateCreatedCol)?.getElement().textContent).toEqual(dateString);
+        expect(table?.findBodyCell(deploymentRow, modelProviderCol)?.getElement().textContent).toEqual(
+            firstDeployment.ModelProvider
+        );
 
         let agentDeployment = mockContext.deploymentsData[2];
 
-        expect(table?.findBodyCell(3, 2)?.getElement().textContent).toEqual(agentDeployment.useCaseUUID);
-        expect(table?.findBodyCell(3, 3)?.getElement().textContent).toEqual(agentDeployment.Name);
-        expect(table?.findBodyCell(3, 4)?.getElement().textContent).toEqual(agentDeployment.UseCaseType);
-        expect(table?.findBodyCell(3, 5)?.getElement()?.textContent).toEqual(
+        expect(table?.findBodyCell(3, tenantCol)?.getElement().textContent).toEqual(agentDeployment.TenantId ?? '');
+        expect(table?.findBodyCell(3, useCaseIdCol)?.getElement().textContent).toEqual(agentDeployment.useCaseUUID);
+        expect(table?.findBodyCell(3, useCaseTypeCol)?.getElement().textContent).toEqual(agentDeployment.UseCaseType);
+        expect(table?.findBodyCell(3, statusCol)?.getElement()?.textContent).toEqual(
             agentDeployment.status.toLowerCase().replaceAll('_', ' ')
         );
         const agentDateString = new Date(agentDeployment.CreatedDate).toLocaleDateString('en-US', {
@@ -183,8 +213,8 @@ describe('Dashboard', () => {
             hour: 'numeric',
             minute: 'numeric'
         });
-        expect(table?.findBodyCell(3, 6)?.getElement().textContent).toEqual(agentDateString);
-        expect(table?.findBodyCell(3, 7)?.getElement().textContent).toEqual('N/A');
+        expect(table?.findBodyCell(3, dateCreatedCol)?.getElement().textContent).toEqual(agentDateString);
+        expect(table?.findBodyCell(3, modelProviderCol)?.getElement().textContent).toEqual('N/A');
 
         // row select radio button
         expect(table?.findRowSelectionArea(1)).toBeDefined();
@@ -223,7 +253,7 @@ describe('Dashboard', () => {
             expect(table?.findRows()).toHaveLength(9);
         });
 
-        expect(table?.findColumnHeaders()).toHaveLength(8);
+        expect(table?.findColumnHeaders()).toHaveLength(11);
         table?.findRowSelectionArea(1)?.click();
 
         // find the view details button

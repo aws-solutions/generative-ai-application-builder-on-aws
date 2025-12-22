@@ -183,7 +183,7 @@ export const mockedAuthenticator = () => {
         return {
             getSignInUserSession: vi.fn().mockImplementation(() => {
                 return {
-                    getAccessToken: vi.fn().mockImplementation(() => {
+                    getIdToken: vi.fn().mockImplementation(() => {
                         return {
                             getJwtToken: vi.fn().mockImplementation(() => {
                                 return 'fake-token';

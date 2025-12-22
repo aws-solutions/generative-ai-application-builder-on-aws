@@ -56,6 +56,10 @@ export const commonUseCaseProperties = {
 // Properties specific to deploying a new use case (includes UseCaseName which is required for new deployments)
 export const deployUseCaseProperties = {
     ...commonUseCaseProperties,
+    TenantId: {
+        type: JsonSchemaType.STRING,
+        description: 'Platform SaaS: owning tenant/customer id for this deployment (set by admin when deploying on behalf of a customer).'
+    },
     UseCaseName: {
         type: JsonSchemaType.STRING,
         description: 'Friendly name of the use case to be deployed. For display purposes.'

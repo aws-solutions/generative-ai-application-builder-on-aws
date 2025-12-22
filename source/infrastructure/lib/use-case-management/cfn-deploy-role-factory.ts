@@ -113,6 +113,60 @@ export const createCfnDeployRole = (
     corePolicy.attachToRole(lambdaRole);
     corePolicy.attachToRole(cfnDeployRole);
 
+    // AgentCore stacks don't attach the VPC policy. These additional permissions are required for successful
+    // stack creation but would bloat the "core" policy that is also attached to the Lambda role.
+    // To avoid hitting IAM policy size limits, attach them ONLY to the CloudFormation deploy role.
+
+    // Allow CloudFormation to fetch Lambda code zips (CDK assets) during stack creation.
+    const assetsBucketName = `cdk-${cdk.DefaultStackSynthesizer.DEFAULT_QUALIFIER}-assets-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`;
+    const assetsReadPolicy = new iam.Policy(scope, `${id}AssetsReadPolicy`, {
+        statements: [
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['s3:ListBucket', 's3:GetBucketLocation'],
+                resources: [`arn:${cdk.Aws.PARTITION}:s3:::${assetsBucketName}`]
+            }),
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['s3:GetObject'],
+                resources: [`arn:${cdk.Aws.PARTITION}:s3:::${assetsBucketName}/*`]
+            })
+        ]
+    });
+    assetsReadPolicy.attachToRole(cfnDeployRole);
+    NagSuppressions.addResourceSuppressions(assetsReadPolicy, [
+        {
+            id: 'AwsSolutions-IAM5',
+            reason: 'CloudFormation deploy role must read CDK bootstrap assets (Lambda code zip objects) from the bootstrap assets bucket.',
+            appliesTo: ['Resource::arn:<AWS::Partition>:s3:::cdk-hnb659fds-assets-<AWS::AccountId>-<AWS::Region>/*']
+        }
+    ]);
+
+    // Allow CloudFormation to create log groups needed by some use-case stacks (e.g., WebSocket logging).
+    const cloudWatchLogsPolicy = new iam.Policy(scope, `${id}CloudWatchLogsPolicy`, {
+        statements: [
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                    'logs:CreateLogGroup',
+                    'logs:DescribeLogGroups',
+                    'logs:PutRetentionPolicy',
+                    'logs:TagResource',
+                    'logs:ListTagsForResource'
+                ],
+                resources: [`arn:${cdk.Aws.PARTITION}:logs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:log-group:*`]
+            })
+        ]
+    });
+    cloudWatchLogsPolicy.attachToRole(cfnDeployRole);
+    NagSuppressions.addResourceSuppressions(cloudWatchLogsPolicy, [
+        {
+            id: 'AwsSolutions-IAM5',
+            reason: 'Use-case stacks create CloudWatch LogGroups with dynamic names; the deploy role must be able to create/tag those log groups.',
+            appliesTo: ['Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:*']
+        }
+    ]);
+
     // Conditionally add VPC permissions - attach to both roles (matching original)
     if (includeVpcPermissions) {
         const vpcPolicy = createVpcCreationPolicy(scope, `${id}VpcPolicy`, awsTagKeysCondition);

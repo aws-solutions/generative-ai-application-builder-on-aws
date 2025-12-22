@@ -7,6 +7,8 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { ConstructsFactories } from '@aws-solutions-constructs/aws-constructs-factories';
 import { NagSuppressions } from 'cdk-nag';
 import { Construct, IConstruct } from 'constructs';
@@ -24,6 +26,7 @@ import {
     ARTIFACT_KEY_PREFIX_ENV_VAR,
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+    COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
     INTERNAL_EMAIL_DOMAIN,
     IS_INTERNAL_USER_ENV_VAR,
     LAMBDA_TIMEOUT_MINS,
@@ -38,7 +41,10 @@ import {
     GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR,
     DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR,
     MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR,
-    MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR
+    MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR,
+    TENANTS_TABLE_NAME_ENV_VAR,
+    CUSTOMER_ADMIN_GROUP_NAME,
+    CUSTOMER_USER_GROUP_NAME
 } from '../utils/constants';
 import { ExistingVPCParameters } from '../vpc/exisiting-vpc-params';
 import { CognitoSetup } from '../auth/cognito-setup';
@@ -90,6 +96,11 @@ export class UseCaseManagementParameters {
      * The cloudfront url of the UI application
      */
     cloudFrontUrl: cdk.CfnParameter;
+
+    /**
+     * Optional additional UI URL for customer portal (used for Cognito Hosted UI callback/logout)
+     */
+    portalUrl: cdk.CfnParameter;
 
     /**
      * Whether to deploy the web app or not
@@ -147,6 +158,15 @@ export class UseCaseManagementParameters {
             allowedPattern: '^$|^https:\\/\\/[^\\s]+[\\w]*$',
             default: '',
             constraintDescription: 'If providing a CloudFrontUrl, please provide in a valid format'
+        });
+
+        this.portalUrl = new cdk.CfnParameter(stack, 'PortalUrl', {
+            type: 'String',
+            description:
+                'Optional additional UI URL for customer portal (used for Cognito Hosted UI callback/logout). Example: https://portal.aiagentsworkforce.com/',
+            allowedPattern: '^$|^https:\\/\\/[^\\s]+[\\w\\/]*$',
+            default: '',
+            constraintDescription: 'If providing a PortalUrl, please provide in a valid https:// URL format'
         });
 
         this.deployWebApp = new cdk.CfnParameter(stack, 'DeployUI', {
@@ -212,6 +232,26 @@ export class UseCaseManagement extends BaseNestedStack {
      * The lambda backing workflow management API calls
      */
     public readonly workflowManagementApiLambda: lambda.Function;
+
+    /**
+     * The lambda backing platform tenant/user provisioning API calls
+     */
+    public readonly tenantManagementApiLambda: lambda.Function;
+
+    /**
+     * The lambda invoked by Amazon Connect contact flows (voice adapter)
+     */
+    public readonly connectVoiceAdapterLambda: lambda.Function;
+
+    /**
+     * Lex V2 code hook lambda invoked during voice conversations
+     */
+    public readonly connectVoiceTurnLambda: lambda.Function;
+
+    /**
+     * DynamoDB table for platform tenants/customers
+     */
+    public readonly tenantsTable: dynamodb.Table;
 
     /**
      * condition to check if vpc configuration should be applied to lambda functions
@@ -323,11 +363,31 @@ export class UseCaseManagement extends BaseNestedStack {
             userPoolClientProps: {
                 logoutUrl: this.stackParameters.cloudFrontUrl.valueAsString,
                 callbackUrl: this.stackParameters.cloudFrontUrl.valueAsString,
+                additionalCallbackUrls: [this.stackParameters.portalUrl.valueAsString],
+                additionalLogoutUrls: [this.stackParameters.portalUrl.valueAsString],
                 existingCognitoUserPoolClientId: this.stackParameters.existingCognitoUserPoolClientId.valueAsString
             },
             deployWebApp: this.stackParameters.deployWebApp.valueAsString
         });
         this.cognitoSetup.createAgentCoreResourceServer();
+
+        // Create customer groups (for the separate customer portal) when we manage the user pool
+        // If customers provide their own user pool, they must pre-create these groups.
+        const createCustomerGroupsCondition = this.cognitoSetup.createUserPoolCondition;
+
+        const customerAdminGroup = new cognito.CfnUserPoolGroup(this, 'CustomerAdminGroup', {
+            userPoolId: this.cognitoSetup.getUserPool(this).userPoolId,
+            groupName: CUSTOMER_ADMIN_GROUP_NAME,
+            precedence: 10
+        });
+        customerAdminGroup.cfnOptions.condition = createCustomerGroupsCondition;
+
+        const customerUserGroup = new cognito.CfnUserPoolGroup(this, 'CustomerUserGroup', {
+            userPoolId: this.cognitoSetup.getUserPool(this).userPoolId,
+            groupName: CUSTOMER_USER_GROUP_NAME,
+            precedence: 20
+        });
+        customerUserGroup.cfnOptions.condition = createCustomerGroupsCondition;
 
         //this construct has undergone a refactor from its original definition and many
         //of the resources have new logical IDs. To prevent customers that upgrade existing
@@ -587,6 +647,15 @@ export class UseCaseManagement extends BaseNestedStack {
 
         this.addMCPLambdaPermissions(mcpManagementAPILambdaRole, this.deploymentPlatformBucket);
 
+        // Platform SaaS: tenants table (customers)
+        this.tenantsTable = new dynamodb.Table(this, 'TenantsTable', {
+            billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+            encryption: dynamodb.TableEncryption.AWS_MANAGED,
+            partitionKey: { name: 'tenantId', type: dynamodb.AttributeType.STRING },
+            pointInTimeRecovery: true,
+            removalPolicy: cdk.RemovalPolicy.RETAIN
+        });
+
         this.agentManagementApiLambda = new lambda.Function(this, 'AgentManagementLambda', {
             description: 'Lambda function backing the REST API for agent management',
             code: lambda.Code.fromAsset(
@@ -617,6 +686,9 @@ export class UseCaseManagement extends BaseNestedStack {
                 ).toString(),
                 [GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR]: this.deploymentPlatformBucket.bucketName,
                 [DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR]: cdk.Stack.of(this).stackName
+                // Keep failed stacks around (ROLLBACK_COMPLETE) so we can inspect events during development.
+                // Switch back to DELETE for production if desired.
+                ,CFN_ON_FAILURE: 'ROLLBACK'
             }
         });
 
@@ -697,6 +769,162 @@ export class UseCaseManagement extends BaseNestedStack {
 
         // Add workflow management specific permissions
         this.addWorkflowManagementLambdaPermissions(workflowManagementAPILambdaRole, this.deploymentPlatformBucket);
+
+        // Platform SaaS: tenant & user provisioning API lambda
+        const tenantManagementLambdaRole = createDefaultLambdaRole(
+            this,
+            'TenantManagementLambdaRole',
+            this.deployVPCCondition
+        );
+        this.tenantsTable.grantReadWriteData(tenantManagementLambdaRole);
+
+        tenantManagementLambdaRole.addToPolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                    'cognito-idp:AdminCreateUser',
+                    'cognito-idp:AdminUpdateUserAttributes',
+                    'cognito-idp:AdminAddUserToGroup',
+                    'cognito-idp:AdminGetUser'
+                ],
+                resources: [
+                    `arn:${cdk.Aws.PARTITION}:cognito-idp:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:userpool/${this.cognitoSetup.getUserPool(this).userPoolId}`
+                ]
+            })
+        );
+
+        this.tenantManagementApiLambda = new lambda.Function(this, 'TenantManagementLambda', {
+            description: 'Lambda function backing the REST API for platform tenants and user provisioning',
+            code: lambda.Code.fromAsset(
+                '../lambda/use-case-management',
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME)
+                    .options(this, '../lambda/use-case-management')
+            ),
+            role: tenantManagementLambdaRole,
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'tenants-handler.tenantsHandler',
+            timeout: cdk.Duration.minutes(LAMBDA_TIMEOUT_MINS),
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueue: this.dlq,
+            environment: {
+                [TENANTS_TABLE_NAME_ENV_VAR]: this.tenantsTable.tableName,
+                [USER_POOL_ID_ENV_VAR]: this.cognitoSetup.getUserPool(this).userPoolId,
+                [CLIENT_ID_ENV_VAR]: this.cognitoSetup.getUserPoolClient(this).userPoolClientId
+            }
+        });
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'TenantManagementLambdaLogRetention',
+            this.tenantManagementApiLambda.functionName,
+            this.customResourceLambdaArn
+        );
+
+        // Amazon Connect voice adapter lambda (invoked directly by Connect contact flows)
+        const connectVoiceAdapterRole = createDefaultLambdaRole(this, 'ConnectVoiceAdapterRole', this.deployVPCCondition);
+        this.connectVoiceAdapterLambda = new lambda.Function(this, 'ConnectVoiceAdapterLambda', {
+            description: 'Amazon Connect voice adapter lambda (routes calls to the correct tenant/deployment)',
+            code: lambda.Code.fromAsset(
+                '../lambda/use-case-management',
+                ApplicationAssetBundler.assetBundlerFactory()
+                    .assetOptions(COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME)
+                    .options(this, '../lambda/use-case-management')
+            ),
+            role: connectVoiceAdapterRole,
+            runtime: COMMERCIAL_REGION_LAMBDA_NODE_RUNTIME,
+            handler: 'connect-voice-adapter.handler',
+            timeout: cdk.Duration.seconds(10),
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueue: this.dlq,
+            environment: {
+                [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: USE_CASE_MANAGEMENT_NAMESPACE
+            }
+        });
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'ConnectVoiceAdapterLambdaLogRetention',
+            this.connectVoiceAdapterLambda.functionName,
+            this.customResourceLambdaArn
+        );
+
+        // CDK-NAG suppression for default policy wildcard resources (logs/tracing)
+        NagSuppressions.addResourceSuppressions(
+            connectVoiceAdapterRole.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason:
+                        'Connect voice adapter lambda uses standard Lambda execution permissions (logs/tracing) generated by shared role helper; table access permissions are added by storage setup.'
+                }
+            ]
+        );
+
+        // Lex V2 voice "turn" lambda (invoked by Lex code hook; forwards utterances to AgentCore)
+        const connectVoiceTurnRole = createDefaultLambdaRole(this, 'ConnectVoiceTurnRole', this.deployVPCCondition);
+        this.connectVoiceTurnLambda = new lambda.Function(this, 'ConnectVoiceTurnLambda', {
+            description: 'Lex V2 code hook for voice conversations (Connect -> Lex -> AgentCore)',
+            code: lambda.Code.fromAsset('../lambda/connect-voice-turn'),
+            role: connectVoiceTurnRole,
+            runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
+            handler: 'handler.handler',
+            timeout: cdk.Duration.seconds(20),
+            tracing: lambda.Tracing.ACTIVE,
+            deadLetterQueue: this.dlq,
+            environment: {
+                [POWERTOOLS_METRICS_NAMESPACE_ENV_VAR]: USE_CASE_MANAGEMENT_NAMESPACE
+            }
+        });
+
+        // Permissions required to resolve runtime + invoke AgentCore:
+        // - UseCasesTable access is granted by DeploymentPlatformStorageSetup
+        this.connectVoiceTurnLambda.addToRolePolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['cloudformation:DescribeStacks'],
+                resources: ['*']
+            })
+        );
+        this.connectVoiceTurnLambda.addToRolePolicy(
+            new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: ['bedrock-agentcore:InvokeAgentRuntime', 'bedrock-agentcore:InvokeAgentRuntimeForUser'],
+                resources: [`arn:${cdk.Aws.PARTITION}:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:runtime/*`]
+            })
+        );
+
+        createCustomResourceForLambdaLogRetention(
+            this,
+            'ConnectVoiceTurnLambdaLogRetention',
+            this.connectVoiceTurnLambda.functionName,
+            this.customResourceLambdaArn
+        );
+
+        NagSuppressions.addResourceSuppressions(
+            connectVoiceTurnRole.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason:
+                        'Connect voice turn lambda uses standard Lambda execution permissions (logs/tracing) generated by shared role helper; DynamoDB access is granted by storage setup; CloudFormation/AgentCore resources are wildcarded by design.'
+                }
+            ]
+        );
+
+        // CDK-NAG: suppress wildcard IAM findings for this role's generated default policy.
+        // The default policy comes from shared helper `createDefaultLambdaRole` and includes standard Lambda permissions
+        // (e.g., CloudWatch Logs and X-Ray) that may use wildcard resources.
+        NagSuppressions.addResourceSuppressions(
+            tenantManagementLambdaRole.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
+            [
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason:
+                        'Tenant management lambda uses standard Lambda execution permissions (logs/tracing) generated by shared role helper; business permissions are scoped to the user pool ARN and tenant table.'
+                }
+            ]
+        );
 
         NagSuppressions.addResourceSuppressions(
             this.useCaseManagementApiLambda.role!.node.tryFindChild('DefaultPolicy')!.node.tryFindChild('Resource')!,
@@ -919,6 +1147,15 @@ export class UseCaseManagement extends BaseNestedStack {
                     actions: ['s3:GetObject', 's3:PutObject'],
                     resources: [cdk.Fn.join('', [deploymentBucket.bucketArn, '/agents/*'])] // restrict scope to /agents prefix
                 }),
+                // S3 permissions for reading deployment templates from the asset bucket (used by CloudFormation TemplateURL)
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['s3:GetObject'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:s3:::${this.assetBucket}/*`,
+                        `arn:${cdk.Aws.PARTITION}:s3:::${this.assetBucket}`
+                    ]
+                }),
                 // DynamoDB permissions for use case configuration
                 new iam.PolicyStatement({
                     actions: [
@@ -958,12 +1195,15 @@ export class UseCaseManagement extends BaseNestedStack {
         NagSuppressions.addResourceSuppressions(agentManagementPolicy, [
             {
                 id: 'AwsSolutions-IAM5',
-                reason: 'The IAM role allows the Agent Management Lambda to access API Gateway REST APIs, DynamoDB tables, CloudWatch Logs, and deployment platform S3 bucket objects under the agents/ prefix',
+                reason: 'The IAM role allows the Agent Management Lambda to access API Gateway REST APIs, DynamoDB tables, CloudWatch Logs, deployment platform S3 bucket objects under the agents/ prefix, and read CloudFormation templates from the CDK assets/template bucket',
                 appliesTo: [
                     'Resource::arn:<AWS::Partition>:apigateway:<AWS::Region>::/restapis/*',
                     `Resource::<${cdk.Stack.of(this).getLogicalId(
                         deploymentBucket.node.defaultChild as cdk.CfnResource
                     )}.Arn>/agents/*`,
+                    process.env.TEMPLATE_OUTPUT_BUCKET
+                        ? 'Resource::arn:<AWS::Partition>:s3:::{"Fn::FindInMap":["Template","General","S3Bucket"]}/*'
+                        : 'Resource::arn:<AWS::Partition>:s3:::cdk-hnb659fds-assets-<AWS::AccountId>-<AWS::Region>/*',
                     'Resource::arn:<AWS::Partition>:dynamodb:<AWS::Region>:<AWS::AccountId>:table/*',
                     'Resource::arn:<AWS::Partition>:logs:<AWS::Region>:<AWS::AccountId>:log-group:*',
                     'Action::dynamodb:*TimeToLive'

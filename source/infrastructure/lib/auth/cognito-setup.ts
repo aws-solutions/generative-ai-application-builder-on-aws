@@ -73,9 +73,19 @@ export interface UserPoolClientProps {
     callbackUrl: string;
 
     /**
+     * Optional additional callback URLs (e.g., separate customer portal URL).
+     */
+    additionalCallbackUrls?: string[];
+
+    /**
      * The URL to which the user should be re-directed to on sign-out
      */
     logoutUrl: string;
+
+    /**
+     * Optional additional logout URLs (e.g., separate customer portal URL).
+     */
+    additionalLogoutUrls?: string[];
 
     /**
      * You can either pass the parameter deployWebApp parameter or the condition, not both. If the condition is passed,
@@ -310,6 +320,11 @@ export class CognitoSetup extends Construct {
         const userPool = new cognito.UserPool(this, 'NewUserPool', {
             userPoolName: `${cdk.Aws.STACK_NAME}-UserPool`,
             selfSignUpEnabled: false,
+            // Platform SaaS: we stamp users with a tenant/customer id. This will be present in ID tokens as `custom:tenant_id`.
+            // Note: Cognito does not include custom attributes in access tokens by default.
+            customAttributes: {
+                tenant_id: new cognito.StringAttribute({ mutable: true, minLen: 1, maxLen: 64 })
+            },
             userVerification: {
                 emailSubject: `Verify your email to continue using ${props.applicationTrademarkName}`,
                 emailBody: `Thank you for creating your profile on ${props.applicationTrademarkName}. Your verification code is {####}`,
@@ -529,6 +544,13 @@ export class CognitoSetup extends Construct {
      * @param props
      */
     public createUserPoolClient(props: UserPoolClientProps) {
+        const callbackUrls = [props.callbackUrl, ...(props.additionalCallbackUrls ?? [])].filter(
+            (x) => x !== undefined && x !== null && x !== ''
+        );
+        const logoutUrls = [props.logoutUrl, ...(props.additionalLogoutUrls ?? [])].filter(
+            (x) => x !== undefined && x !== null && x !== ''
+        );
+
         const cfnUserPoolClient = new cognito.CfnUserPoolClient(this, 'CfnAppClient', {
             accessTokenValidity: cdk.Duration.minutes(5).toMinutes(),
             idTokenValidity: cdk.Duration.minutes(5).toMinutes(),
@@ -565,12 +587,12 @@ export class CognitoSetup extends Construct {
                 ],
                 cdk.Aws.NO_VALUE
             ).toString() as unknown as string[],
-            callbackUrLs: [
-                cdk.Fn.conditionIf(this.deployWebAppCondition.logicalId, props.callbackUrl, cdk.Aws.NO_VALUE).toString()
-            ],
-            logoutUrLs: [
-                cdk.Fn.conditionIf(this.deployWebAppCondition.logicalId, props.callbackUrl, cdk.Aws.NO_VALUE).toString()
-            ],
+            callbackUrLs: callbackUrls.map((u) =>
+                cdk.Fn.conditionIf(this.deployWebAppCondition.logicalId, u, cdk.Aws.NO_VALUE).toString()
+            ),
+            logoutUrLs: logoutUrls.map((u) =>
+                cdk.Fn.conditionIf(this.deployWebAppCondition.logicalId, u, cdk.Aws.NO_VALUE).toString()
+            ),
             supportedIdentityProviders: ['COGNITO'],
             tokenValidityUnits: {
                 accessToken: 'minutes',

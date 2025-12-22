@@ -84,7 +84,8 @@ export class DeploymentRestApiHelper {
             authorizationType: api.AuthorizationType.CUSTOM,
             requestValidator: context.requestValidator,
             requestParameters: {
-                'method.request.header.authorization': true,
+                // API Gateway request parameters are case-sensitive; require the standard Authorization header.
+                'method.request.header.Authorization': true,
                 ...additionalParams
             }
         };

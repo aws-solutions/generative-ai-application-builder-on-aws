@@ -51,6 +51,10 @@ export function FullPageHeader({
             value: selectedItems[0]
         });
         homeDispatch({
+            field: 'selectedTenantId',
+            value: selectedItems[0]?.TenantId ?? ''
+        });
+        homeDispatch({
             field: 'deploymentAction',
             value: DEPLOYMENT_ACTIONS.EDIT
         });
@@ -63,6 +67,10 @@ export function FullPageHeader({
             value: selectedItems[0]
         });
         homeDispatch({
+            field: 'selectedTenantId',
+            value: selectedItems[0]?.TenantId ?? ''
+        });
+        homeDispatch({
             field: 'deploymentAction',
             value: DEPLOYMENT_ACTIONS.CLONE
         });
@@ -73,6 +81,10 @@ export function FullPageHeader({
         homeDispatch({
             field: 'selectedDeployment',
             value: {}
+        });
+        homeDispatch({
+            field: 'selectedTenantId',
+            value: ''
         });
         homeDispatch({
             field: 'deploymentAction',

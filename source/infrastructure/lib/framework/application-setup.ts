@@ -247,9 +247,23 @@ export class ApplicationSetup extends Construct {
      *
      * @param props
      */
-    public createWebConfigStorage(props: WebConfigProps, ssmKey: string) {
-        // prettier-ignore
-        this.webConfigResource = new cdk.CustomResource(this.scope, 'WebConfig', {
+    public createWebConfigStorage(props: WebConfigProps, ssmKey: string): cdk.CustomResource {
+        // Preserve existing behavior + reference via webConfigCustomResource getter
+        const resource = this.createWebConfigStorageWithId('WebConfig', props, ssmKey);
+        this.webConfigResource = resource;
+        return resource;
+    }
+
+    /**
+     * Create an additional web config custom resource (e.g., for multiple UIs like admin + customer portal).
+     * Uses a caller-provided construct ID suffix to avoid logical ID collisions.
+     */
+    public createWebConfigStorageWithId(
+        constructId: string,
+        props: WebConfigProps,
+        ssmKey: string
+    ): cdk.CustomResource {
+        const webConfigResource = new cdk.CustomResource(this.scope, constructId, {
             resourceType: 'Custom::WriteWebConfig',
             serviceToken: this.customResourceLambda.functionArn,
             properties: {
@@ -267,7 +281,7 @@ export class ApplicationSetup extends Construct {
             }
         });
 
-        const lambdaSSMPolicy = new iam.Policy(this, 'WriteToSSM', {
+        const lambdaSSMPolicy = new iam.Policy(this, `WriteToSSM-${constructId}`, {
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
@@ -280,9 +294,9 @@ export class ApplicationSetup extends Construct {
         });
 
         lambdaSSMPolicy.attachToRole(this.customResourceLambda.role!);
-        this.webConfigResource.node.tryFindChild('Default')!.node.addDependency(lambdaSSMPolicy);
+        webConfigResource.node.tryFindChild('Default')!.node.addDependency(lambdaSSMPolicy);
 
-        const lambdaCognitoPolicy = new iam.Policy(this, 'GetCognitoUserPoolInfo', {
+        const lambdaCognitoPolicy = new iam.Policy(this, `GetCognitoUserPoolInfo-${constructId}`, {
             statements: [
                 new iam.PolicyStatement({
                     effect: iam.Effect.ALLOW,
@@ -294,10 +308,9 @@ export class ApplicationSetup extends Construct {
             ]
         });
         lambdaCognitoPolicy.attachToRole(this.customResourceLambda.role!);
-        this.webConfigResource.node.tryFindChild('Default')!.node.addDependency(lambdaCognitoPolicy);
+        webConfigResource.node.tryFindChild('Default')!.node.addDependency(lambdaCognitoPolicy);
 
-        // prettier-ignore
-        new cdk.CfnOutput(cdk.Stack.of(this), 'WebConfigKey', { // NOSONAR typescript:S1848. Not valid for CDK
+        new cdk.CfnOutput(cdk.Stack.of(this), `WebConfigKey-${constructId}`, {
             value: ssmKey
         });
 
@@ -310,6 +323,8 @@ export class ApplicationSetup extends Construct {
                 ]
             }
         ]);
+
+        return webConfigResource;
     }
 
     public createCognitoUserGroupPolicy(

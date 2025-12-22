@@ -1,0 +1,133 @@
+name: Deploy UIs
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "source/ui-portal/**"
+      - "source/ui-deployment/**"
+      - ".github/workflows/**"
+
+concurrency:
+  group: deploy-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: DeploymentPlatformStack
+  ROLE_ARN: arn:aws:iam::635434164361:role/AiAgentsWorkforce-GHA-UiDeploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve UI deployment targets from CloudFormation outputs
+        id: outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          DEPLOYMENT_UI_BUCKET="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='DeploymentUIBucketName'].OutputValue | [0]" --output text)"
+          DEPLOYMENT_UI_DIST_ID="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='DeploymentUIDistributionId'].OutputValue | [0]" --output text)"
+          DEPLOYMENT_UI_WEBCONFIG_KEY="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='WebConfigKeyWebConfig'].OutputValue | [0]" --output text)"
+
+          PORTAL_UI_BUCKET="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='PortalUIBucketName'].OutputValue | [0]" --output text)"
+          PORTAL_UI_DIST_ID="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='PortalUIDistributionId'].OutputValue | [0]" --output text)"
+          PORTAL_UI_WEBCONFIG_KEY="$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='WebConfigKeyPortalWebConfig'].OutputValue | [0]" --output text)"
+
+          echo "deployment_ui_bucket=$DEPLOYMENT_UI_BUCKET" >> "$GITHUB_OUTPUT"
+          echo "deployment_ui_dist_id=$DEPLOYMENT_UI_DIST_ID" >> "$GITHUB_OUTPUT"
+          echo "deployment_ui_webconfig_key=$DEPLOYMENT_UI_WEBCONFIG_KEY" >> "$GITHUB_OUTPUT"
+
+          echo "portal_ui_bucket=$PORTAL_UI_BUCKET" >> "$GITHUB_OUTPUT"
+          echo "portal_ui_dist_id=$PORTAL_UI_DIST_ID" >> "$GITHUB_OUTPUT"
+          echo "portal_ui_webconfig_key=$PORTAL_UI_WEBCONFIG_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build ui-portal
+        shell: bash
+        working-directory: source/ui-portal
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build --silent
+
+      - name: Publish ui-portal (S3 + runtimeConfig + invalidation)
+        shell: bash
+        working-directory: source/ui-portal
+        env:
+          BUCKET: ${{ steps.outputs.outputs.portal_ui_bucket }}
+          DIST_ID: ${{ steps.outputs.outputs.portal_ui_dist_id }}
+          WEBCONFIG_KEY: ${{ steps.outputs.outputs.portal_ui_webconfig_key }}
+        run: |
+          set -euo pipefail
+
+          # runtimeConfig.json from SSM (SecureString)
+          aws ssm get-parameter --with-decryption --name "$WEBCONFIG_KEY" --query 'Parameter.Value' --output text > build/runtimeConfig.json
+
+          # Long-cache immutable assets
+          aws s3 sync build/ "s3://$BUCKET/" \
+            --delete \
+            --exclude "*.html" \
+            --exclude "runtimeConfig.json" \
+            --cache-control "public, max-age=31536000, immutable"
+
+          # No-cache entrypoints
+          aws s3 cp build/index.html "s3://$BUCKET/index.html" --content-type "text/html" --cache-control "no-cache, no-store, must-revalidate"
+          aws s3 cp build/login.html "s3://$BUCKET/login.html" --content-type "text/html" --cache-control "no-cache, no-store, must-revalidate"
+          aws s3 cp build/runtimeConfig.json "s3://$BUCKET/runtimeConfig.json" --content-type "application/json" --cache-control "no-cache, no-store, must-revalidate"
+
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*" >/dev/null
+
+      - name: Build ui-deployment
+        shell: bash
+        working-directory: source/ui-deployment
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run build --silent
+
+      - name: Publish ui-deployment (S3 + runtimeConfig + invalidation)
+        shell: bash
+        working-directory: source/ui-deployment
+        env:
+          BUCKET: ${{ steps.outputs.outputs.deployment_ui_bucket }}
+          DIST_ID: ${{ steps.outputs.outputs.deployment_ui_dist_id }}
+          WEBCONFIG_KEY: ${{ steps.outputs.outputs.deployment_ui_webconfig_key }}
+        run: |
+          set -euo pipefail
+
+          aws ssm get-parameter --with-decryption --name "$WEBCONFIG_KEY" --query 'Parameter.Value' --output text > build/runtimeConfig.json
+
+          aws s3 sync build/ "s3://$BUCKET/" \
+            --delete \
+            --exclude "*.html" \
+            --exclude "runtimeConfig.json" \
+            --cache-control "public, max-age=31536000, immutable"
+
+          aws s3 cp build/index.html "s3://$BUCKET/index.html" --content-type "text/html" --cache-control "no-cache, no-store, must-revalidate"
+          aws s3 cp build/login.html "s3://$BUCKET/login.html" --content-type "text/html" --cache-control "no-cache, no-store, must-revalidate"
+          aws s3 cp build/runtimeConfig.json "s3://$BUCKET/runtimeConfig.json" --content-type "application/json" --cache-control "no-cache, no-store, must-revalidate"
+
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*" >/dev/null
+
+

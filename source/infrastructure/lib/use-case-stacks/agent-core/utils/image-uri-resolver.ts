@@ -211,7 +211,11 @@ export function resolveImageTag(gaabVersion: string): string {
  * @returns 'local' if DIST_OUTPUT_BUCKET is not set, 'pipeline' otherwise
  */
 export function determineDeploymentMode(): 'local' | 'pipeline' {
-    return process.env.DIST_OUTPUT_BUCKET ? 'pipeline' : 'local';
+    // In the AWS Solutions CI/CD pipeline, DIST_OUTPUT_BUCKET is set and we use pull-through cache images.
+    // For local development, defaulting to "local" would require you to build & push local ECR images (e.g. gaab-strands-agent:vX.Y.Z-local).
+    // Our deployment platform flow typically doesn't build/push images locally, so default to "pipeline" unless explicitly forced.
+    const forceLocal = process.env.FORCE_LOCAL_ECR_IMAGES === 'true';
+    return forceLocal ? 'local' : 'pipeline';
 }
 
 /**

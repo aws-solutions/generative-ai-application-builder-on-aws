@@ -7,6 +7,7 @@ import {
     GetItemCommand,
     PutItemCommand,
     ScanCommand,
+    ScanCommandOutput,
     UpdateItemCommand
 } from '@aws-sdk/client-dynamodb';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
@@ -24,6 +25,7 @@ import {
 } from './storage-operation-builder';
 import { ScanCaseTableCommandBuilder } from './storage-view-builder';
 import { ModelInfoRecord } from '../model/types';
+import { VOICE_ROUTING_TABLE_NAME_ENV_VAR } from '../utils/constants';
 
 export type ListUseCasesRecords = {
     useCaseRecords: UseCaseRecord[];
@@ -125,6 +127,59 @@ export class StorageManagement {
             logger.error(errMessage);
             throw error;
         }
+    }
+
+    /**
+     * Best-effort backfill: map useCaseId -> phoneNumber from the VoiceRoutingTable.
+     * This is used when UseCasesTable records predate the VoicePhoneNumber persistence change.
+     */
+    @tracer.captureMethod({ captureResponse: false, subSegmentName: '###getVoicePhoneMap' })
+    public async getVoicePhoneNumberMap(useCaseIds: string[]): Promise<Map<string, string>> {
+        const tableName = process.env[VOICE_ROUTING_TABLE_NAME_ENV_VAR];
+        const idSet = new Set(useCaseIds.filter(Boolean));
+        const map = new Map<string, string>();
+        if (!tableName || idSet.size === 0) {
+            return map;
+        }
+
+        try {
+            // DynamoDB Scan is paginated (1MB max per page). Paginate until:
+            // - we've found all requested ids, or
+            // - the table is fully scanned.
+            let lastEvaluatedKey: Record<string, any> | undefined = undefined;
+            do {
+                const resp: ScanCommandOutput = await this.client.send(
+                    new ScanCommand({
+                        TableName: tableName,
+                        ProjectionExpression: '#pn, #ucid',
+                        ExpressionAttributeNames: {
+                            '#pn': 'phoneNumber',
+                            '#ucid': 'useCaseId'
+                        },
+                        ExclusiveStartKey: lastEvaluatedKey
+                    })
+                );
+
+                for (const item of resp.Items ?? []) {
+                    const obj: any = unmarshall(item);
+                    const useCaseId = obj?.useCaseId;
+                    const phoneNumber = obj?.phoneNumber;
+                    if (useCaseId && phoneNumber && idSet.has(useCaseId) && !map.has(useCaseId)) {
+                        map.set(useCaseId, phoneNumber);
+                        if (map.size >= idSet.size) {
+                            // Found everything we needed; stop scanning early.
+                            return map;
+                        }
+                    }
+                }
+
+                lastEvaluatedKey = resp.LastEvaluatedKey;
+            } while (lastEvaluatedKey);
+        } catch (e) {
+            // Best-effort: don't fail list if routing table scan fails
+            logger.warn(`getVoicePhoneNumberMap failed: ${e}`);
+        }
+        return map;
     }
 
     /**

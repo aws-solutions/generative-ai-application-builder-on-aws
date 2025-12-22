@@ -12,7 +12,8 @@ import { matchArnWithValidation } from './utils/match-policy';
  */
 export const jwtVerifier = CognitoJwtVerifier.create({
     userPoolId: process.env.USER_POOL_ID!,
-    tokenUse: 'access',
+    // Platform SaaS needs tenant info which is exposed via Cognito custom attributes in the *ID token*.
+    tokenUse: 'id',
     clientId: process.env.CLIENT_ID!
 });
 

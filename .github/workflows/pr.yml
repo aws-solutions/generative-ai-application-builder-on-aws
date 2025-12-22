@@ -1,0 +1,75 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - "source/ui-portal/**"
+      - "source/ui-deployment/**"
+      - ".github/workflows/**"
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ui-portal:
+    name: ui-portal (build + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: source/ui-portal
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: source/ui-portal/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build --silent
+
+      - name: Test
+        run: npm run test --silent
+
+  ui-deployment:
+    name: ui-deployment (build + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: source/ui-deployment
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: source/ui-deployment/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build --silent
+
+      - name: Test
+        run: npm run test --silent
+
+

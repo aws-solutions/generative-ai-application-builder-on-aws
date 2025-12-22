@@ -799,6 +799,7 @@ export abstract class UseCaseStack extends BaseStack {
             parameters: {
                 CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
                 CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                WebCloudFrontDistributionId: this.uiDistribution.cloudFrontDistribution.distributionId,
                 WebConfigKey: webConfigSsmKey,
                 WebS3BucketArn: this.uiDistribution.websiteBucket.bucketArn,
                 UseCaseConfigRecordKey: this.stackParameters.useCaseConfigRecordKey.valueAsString,

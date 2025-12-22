@@ -31,7 +31,7 @@ describe('TokenVerifier', () => {
     it('should create verifier with correct configuration', () => {
         expect(CognitoJwtVerifier.create).toHaveBeenCalledWith({
             userPoolId: mockUserPoolId,
-            tokenUse: 'access',
+            tokenUse: 'id',
             clientId: mockClientId
         });
     });

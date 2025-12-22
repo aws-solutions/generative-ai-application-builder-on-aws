@@ -24,6 +24,11 @@ import { ChatUseCaseDeploymentAdapter, ChatUseCaseInfoAdapter } from './model/ad
 import { AgentUseCaseDeploymentAdapter } from './model/adapters/agent-use-case-adapter';
 import { Status, UseCaseTypeFromApiEvent } from './utils/constants';
 import { GetUseCaseAdapter } from './model/get-use-case';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { AWSClientManager } from 'aws-sdk-lib';
+import { VOICE_ROUTING_TABLE_NAME_ENV_VAR, USE_CASES_TABLE_NAME_ENV_VAR } from './utils/constants';
+import { isPlatformAdmin } from './utils/utils';
 
 const commands: Map<string, CaseCommand> = new Map<string, CaseCommand>();
 commands.set('create', new CreateUseCaseCommand());
@@ -38,7 +43,8 @@ const routeMap = new Map([
     ['POST:/deployments', 'create'],
     ['GET:/deployments/{useCaseId}', 'get'],
     ['PATCH:/deployments/{useCaseId}', 'update'],
-    ['DELETE:/deployments/{useCaseId}', 'delete']
+    ['DELETE:/deployments/{useCaseId}', 'delete'],
+    ['POST:/deployments/{useCaseId}/channels/voice', 'assignVoice']
 ]);
 
 export const lambdaHandler = async (event: APIGatewayEvent) => {
@@ -47,11 +53,17 @@ export const lambdaHandler = async (event: APIGatewayEvent) => {
     const stackAction = getStackAction(event, routeMap);
     const command = commands.get(stackAction);
 
-    if (!command) {
-        logger.error(`Invalid action: ${stackAction}`);
-        throw new Error(`Invalid action: ${stackAction}`);
-    }
     try {
+        if (stackAction === 'assignVoice') {
+            const response = await assignVoiceChannel(event);
+            return formatResponse(response);
+        }
+
+        if (!command) {
+            logger.error(`Invalid action: ${stackAction}`);
+            throw new Error(`Invalid action: ${stackAction}`);
+        }
+
         const response = await command.execute(await adaptEvent(event, stackAction));
 
         // as create stack and update stack failures don't throw error, but returns a Failure response
@@ -65,6 +77,89 @@ export const lambdaHandler = async (event: APIGatewayEvent) => {
         return handleLambdaError(error, mcpAction, 'Usecase');
     }
 };
+
+const isE164 = (s: string) => /^\+[1-9]\d{6,14}$/.test(s);
+
+async function assignVoiceChannel(event: APIGatewayEvent): Promise<any> {
+    // Admin-only for now (customer portal will use different UX)
+    if (!isPlatformAdmin(event)) {
+        return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'Forbidden' }) };
+    }
+
+    const useCaseId = event.pathParameters?.useCaseId;
+    if (!useCaseId) {
+        return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'useCaseId is required' }) };
+    }
+
+    const body = parseEventBody(event);
+    const phoneNumber = String(body?.phoneNumber ?? '').trim();
+    if (!isE164(phoneNumber)) {
+        return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'phoneNumber must be in E.164 format, e.g. +14155550123' }) };
+    }
+
+    const useCasesTable = process.env[USE_CASES_TABLE_NAME_ENV_VAR]!;
+    const voiceRoutingTable = process.env[VOICE_ROUTING_TABLE_NAME_ENV_VAR]!;
+
+    const ddbDoc = DynamoDBDocumentClient.from(AWSClientManager.getServiceClient<DynamoDBClient>('dynamodb', tracer));
+    const useCase = await ddbDoc.send(
+        new GetCommand({
+            TableName: useCasesTable,
+            Key: { UseCaseId: useCaseId }
+        })
+    );
+    const tenantId = (useCase.Item as any)?.TenantId;
+    if (!tenantId) {
+        return {
+            statusCode: 400,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Deployment has no TenantId. Assign it to a customer before enabling voice.' })
+        };
+    }
+
+    // Prevent accidental reassignment of a phone number
+    const existing = await ddbDoc.send(
+        new GetCommand({
+            TableName: voiceRoutingTable,
+            Key: { phoneNumber }
+        })
+    );
+    if (existing.Item && ((existing.Item as any).useCaseId !== useCaseId || (existing.Item as any).tenantId !== tenantId)) {
+        return {
+            statusCode: 409,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'phoneNumber is already assigned', phoneNumber })
+        };
+    }
+
+    const now = new Date().toISOString();
+    await ddbDoc.send(
+        new PutCommand({
+            TableName: voiceRoutingTable,
+            Item: {
+                phoneNumber,
+                tenantId,
+                useCaseId,
+                updatedAt: now,
+                createdAt: (existing.Item as any)?.createdAt ?? now
+            }
+        })
+    );
+
+    // Also persist on the deployment record so the admin UI can display voice assignment after refresh.
+    await ddbDoc.send(
+        new UpdateCommand({
+            TableName: useCasesTable,
+            Key: { UseCaseId: useCaseId },
+            UpdateExpression: 'SET VoicePhoneNumber = :p, UpdatedDate = :u',
+            ExpressionAttributeValues: {
+                ':p': phoneNumber,
+                ':u': now
+            }
+        })
+    );
+
+    return { ok: true, phoneNumber, tenantId, useCaseId };
+}
 
 export const adaptEvent = async (
     event: APIGatewayEvent,

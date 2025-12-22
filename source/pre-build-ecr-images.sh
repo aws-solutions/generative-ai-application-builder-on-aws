@@ -11,6 +11,14 @@ set -e
 
 echo "=== Pre-building ECR Images ==="
 
+# Allow skipping this step for deployments that don't require local ECR image prebuilds (e.g., Phase 1 infra validation).
+# Usage:
+#   SKIP_ECR_PREBUILD=1 npx cdk deploy ...
+if [ "${SKIP_ECR_PREBUILD}" = "1" ] || [ "${SKIP_ECR_PREBUILD}" = "true" ]; then
+    echo "⏭️  SKIP_ECR_PREBUILD is set; skipping ECR image pre-build."
+    exit 0
+fi
+
 # Function to check prerequisites
 check_prerequisites() {
     local missing_tools=()

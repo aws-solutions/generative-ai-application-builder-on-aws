@@ -1,0 +1,10 @@
+{
+  "AwsRegion": "us-east-1",
+  "UserPoolId": "us-east-1_XXXXXXXXX",
+  "UserPoolClientId": "xxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "CognitoDomain": "your-domain-prefix.auth.us-east-1.amazoncognito.com",
+  "CognitoRedirectUrl": "http://localhost:5175/",
+  "RestApiEndpoint": "https://example.execute-api.us-east-1.amazonaws.com/prod"
+}
+
+

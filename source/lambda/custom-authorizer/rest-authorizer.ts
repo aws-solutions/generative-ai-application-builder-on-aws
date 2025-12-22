@@ -20,7 +20,8 @@ const cognitoClient = AWSClientManager.getServiceClient<CognitoIdentityProviderC
  */
 export const jwtVerifier = CognitoJwtVerifier.create({
     userPoolId: process.env.USER_POOL_ID!,
-    tokenUse: 'access'
+    // Platform SaaS needs tenant info which is exposed via Cognito custom attributes in the *ID token*.
+    tokenUse: 'id'
 });
 
 /**
@@ -38,7 +39,8 @@ export const jwtVerifier = CognitoJwtVerifier.create({
 export const handler = async (event: APIGatewayRequestAuthorizerEvent): Promise<AuthResponse> => {
     try {
         const methodArn = event.methodArn;
-        const encodedToken = event.headers?.Authorization;
+        // API Gateway may normalize header keys to lowercase.
+        const encodedToken = event.headers?.Authorization ?? (event.headers as any)?.authorization;
         if (!encodedToken) {
             throw new Error('Authorization header value is missing');
         }

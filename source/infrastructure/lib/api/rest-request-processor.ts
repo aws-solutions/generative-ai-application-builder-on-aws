@@ -50,6 +50,11 @@ export interface RestRequestProcessorProps extends RequestProcessorProps {
     workflowManagementAPILambda: lambda.Function;
 
     /**
+     * The function to back platform tenant & user provisioning APIs
+     */
+    tenantManagementAPILambda: lambda.Function;
+
+    /**
      * The ARN of the Lambda function to use for custom resource implementation.
      */
     customResourceLambdaArn: string;
@@ -167,6 +172,7 @@ export class RestRequestProcessor extends RequestProcessor {
             mcpManagementAPILambda: props.mcpManagementAPILambda,
             agentManagementAPILambda: props.agentManagementAPILambda,
             workflowManagementAPILambda: props.workflowManagementAPILambda,
+            tenantManagementAPILambda: props.tenantManagementAPILambda,
             deploymentPlatformAuthorizer: this.requestAuthorizer
         });
 
@@ -193,6 +199,35 @@ export class RestRequestProcessor extends RequestProcessor {
             }
         );
 
+        // custom resource to populate policy table with customer policies (restricted endpoints)
+        const customerAllowedArns = [
+            // Customer portal identity
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/portal/me', '*'),
+            // Customer portal read-only deployment access (tenant-scoped server-side)
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments', '*'),
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments/*', '*'),
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments/agents', '*'),
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments/agents/*', '*'),
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments/workflows', '*'),
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments/workflows/*', '*'),
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments/mcp', '*'),
+            this.deploymentRestEndpoint.restApi.arnForExecuteApi('GET', '/deployments/mcp/*', '*')
+        ];
+        const cognitoCustomerGroupPolicyCustomResource = new cdk.CustomResource(
+            this,
+            'CognitoCustomerGroupPolicyTableWriter',
+            {
+                resourceType: 'Custom::CognitoCustomerGroupPolicyTableWriter',
+                serviceToken: props.customResourceLambdaArn,
+                properties: {
+                    Resource: 'CUSTOMER_POLICY',
+                    POLICY_TABLE_NAME: this.cognitoSetup.getCognitoGroupPolicyTable(this).tableName,
+                    GROUP_NAMES: ['customer_admin', 'customer_user'],
+                    ALLOWED_API_ARNS: customerAllowedArns
+                }
+            }
+        );
+
         const customResourceLambdaRole = iam.Role.fromRoleArn(
             this,
             'AdminCognitoPolicyCustomResourceRole',
@@ -214,6 +249,10 @@ export class RestRequestProcessor extends RequestProcessor {
         cognitoAdminGroupPolicyCustomResource.node.addDependency(cognitoAdminGroupPolicy);
         cognitoAdminGroupPolicyCustomResource.node.addDependency(this.cognitoSetup.getCognitoGroupPolicyTable(this));
         cognitoAdminGroupPolicyCustomResource.node.addDependency(this.authorizerLambda);
+
+        cognitoCustomerGroupPolicyCustomResource.node.addDependency(cognitoAdminGroupPolicy);
+        cognitoCustomerGroupPolicyCustomResource.node.addDependency(this.cognitoSetup.getCognitoGroupPolicyTable(this));
+        cognitoCustomerGroupPolicyCustomResource.node.addDependency(this.authorizerLambda);
 
         cfn_nag.addCfnSuppressRules(restAuthorizerRole, [
             {

@@ -3,7 +3,20 @@
 
 import { useRef, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Link, Pagination, StatusIndicator, Table, SpaceBetween } from '@cloudscape-design/components';
+import {
+    Box,
+    Button,
+    Badge,
+    FormField,
+    Input,
+    Link,
+    Modal,
+    Pagination,
+    Select,
+    StatusIndicator,
+    Table,
+    SpaceBetween
+} from '@cloudscape-design/components';
 import { useCollection } from '@cloudscape-design/collection-hooks';
 import { FullPageHeader } from '../commons';
 import { Breadcrumbs, ToolsContent } from './common-components';
@@ -13,32 +26,56 @@ import { useColumnWidths } from '../commons/use-column-widths';
 import { useLocalStorage } from '../commons/use-local-storage';
 import HomeContext from '../../contexts/home.context';
 import { DEFAULT_PREFERENCES, Preferences, parseStackName } from '../commons/table-config';
-import { listDeployedUseCases, statusIndicatorTypeSelector } from './deployments';
+import { assignVoiceChannel, listDeployedUseCases, statusIndicatorTypeSelector } from './deployments';
 import { DeleteDeploymentModal, onDeleteConfirm } from '../commons/delete-modal';
 import { CFN_STACK_STATUS_INDICATOR, ERROR_MESSAGES, USECASE_TYPES } from '../../utils/constants';
 import { dateOptions } from '../../utils/dateUtils';
+import { listTenants } from '../customers/tenants';
 
 function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
     const [selectedItems, setSelectedItems] = useState([]);
     const [deployments, setDeployments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showVoiceModal, setShowVoiceModal] = useState(false);
+    const [voicePhoneNumber, setVoicePhoneNumber] = useState('');
+    const [voiceSaving, setVoiceSaving] = useState(false);
+    const [voiceError, setVoiceError] = useState('');
     const [preferences, setPreferences] = useLocalStorage('Preferences', DEFAULT_PREFERENCES);
 
     const onDeleteInit = () => setShowDeleteModal(true);
     const onDeleteDiscard = () => setShowDeleteModal(false);
+    const onVoiceInit = () => {
+        setVoiceError('');
+        setVoicePhoneNumber('');
+        setShowVoiceModal(true);
+    };
+    const onVoiceDiscard = () => {
+        setVoiceError('');
+        setVoicePhoneNumber('');
+        setVoiceSaving(false);
+        setShowVoiceModal(false);
+    };
 
     const {
         state: { deploymentsData, reloadData, numUseCases, currentPageIndex, searchFilter, submittedSearchFilter },
         dispatch: homeDispatch
     } = useContext(HomeContext);
 
-    const fetchData = async (isReload = false, currentPageIndex = 1, searchQuery = submittedSearchFilter) => {
+    const [tenantOptions, setTenantOptions] = useState([]);
+    const [selectedTenant, setSelectedTenant] = useState(null);
+
+    const fetchData = async (
+        isReload = false,
+        currentPageIndex = 1,
+        searchQuery = submittedSearchFilter,
+        tenantId = selectedTenant?.value
+    ) => {
         try {
             setLoading(true);
 
             if (deploymentsData.length === 0 || reloadData || isReload) {
-                const response = await listDeployedUseCases(currentPageIndex, searchQuery);
+                const response = await listDeployedUseCases(currentPageIndex, searchQuery, tenantId);
                 setDeployments(response.deployments);
                 homeDispatch({
                     field: 'numUseCases',
@@ -82,6 +119,22 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
         fetchData(false, currentPageIndex);
     }, [reloadData]);
 
+    useEffect(() => {
+        // Load tenants for filter dropdown
+        listTenants()
+            .then((resp) => {
+                const items = resp?.items ?? [];
+                setTenantOptions(
+                    items.map((t) => ({
+                        label: t.name ?? t.tenantId,
+                        value: t.tenantId,
+                        description: t.slug ? `slug: ${t.slug}` : undefined
+                    }))
+                );
+            })
+            .catch(() => setTenantOptions([]));
+    }, []);
+
     const { items, collectionProps } = useCollection(deployments, {
         pagination: { pageSize: DEFAULT_PREFERENCES.pageSize },
         selection: {}
@@ -96,7 +149,7 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
             field: 'currentPageIndex',
             value: 1
         });
-        fetchData(true, 1, searchFilter);
+        fetchData(true, 1, searchFilter, selectedTenant?.value);
     };
 
     const handleSearchKeyDown = async (key) => {
@@ -120,7 +173,8 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
             field: 'submittedSearchFilter',
             value: ''
         });
-        fetchData(true, 1, '');
+        setSelectedTenant(null);
+        fetchData(true, 1, '', undefined);
     };
 
     const onSearchFilterChange = (value) => {
@@ -135,7 +189,7 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
             field: 'currentPageIndex',
             value: detail.currentPageIndex
         });
-        fetchData(true, detail.currentPageIndex);
+        fetchData(true, detail.currentPageIndex, submittedSearchFilter, selectedTenant?.value);
     };
 
     const onSelectionChange = ({ detail }) => {
@@ -176,12 +230,36 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
                         setSelectedItems={setSelectedItems}
                         refreshData={fetchData}
                         onDeleteInit={onDeleteInit}
+                        extraActions={
+                            <Button
+                                disabled={
+                                    selectedItems.length !== 1 ||
+                                    !selectedItems[0]?.TenantId ||
+                                    statusIndicatorTypeSelector(selectedItems[0]?.status) !== CFN_STACK_STATUS_INDICATOR.SUCCESS
+                                }
+                                onClick={onVoiceInit}
+                            >
+                                Add Voice Channel
+                            </Button>
+                        }
                     />
                 }
                 loadingText="Loading deployments"
                 empty={<TableNoMatchState onClearFilter={onClearFilter} />}
                 filter={
                     <SpaceBetween direction="horizontal" size="xs">
+                        <Select
+                            placeholder="Filter by customer"
+                            selectedOption={selectedTenant ?? undefined}
+                            onChange={({ detail }) => {
+                                setSelectedTenant(detail.selectedOption);
+                                // Reset to page 1 when changing tenant filter
+                                homeDispatch({ field: 'currentPageIndex', value: 1 });
+                                fetchData(true, 1, submittedSearchFilter, detail.selectedOption?.value);
+                            }}
+                            options={tenantOptions}
+                            filteringType="auto"
+                        />
                         <Input
                             placeholder="Search"
                             type="text"
@@ -213,6 +291,62 @@ function UseCaseTable({ columnDefinitions, saveWidths, loadHelpPanelContent }) {
                 onDelete={onDeleteConfirm}
                 deployment={selectedItems[0]}
             />
+
+            {selectedItems?.[0] && (
+                <Modal
+                    visible={showVoiceModal}
+                    onDismiss={onVoiceDiscard}
+                    header="Add Voice Channel (Amazon Connect)"
+                    closeAriaLabel="Close dialog"
+                    footer={
+                        <Box float="right">
+                            <SpaceBetween direction="horizontal" size="xs">
+                                <Button variant="link" onClick={onVoiceDiscard}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    disabled={voiceSaving || !voicePhoneNumber.trim()}
+                                    onClick={async () => {
+                                        setVoiceSaving(true);
+                                        setVoiceError('');
+                                        try {
+                                            await assignVoiceChannel(selectedItems[0].UseCaseId, voicePhoneNumber.trim());
+                                            // Refresh list so the Voice Phone Number column updates after assignment
+                                            await fetchData();
+                                            onVoiceDiscard();
+                                        } catch (e) {
+                                            setVoiceError(e?.message ?? 'Failed to assign phone number');
+                                            setVoiceSaving(false);
+                                        }
+                                    }}
+                                >
+                                    Save
+                                </Button>
+                            </SpaceBetween>
+                        </Box>
+                    }
+                >
+                    <SpaceBetween size="m">
+                        {voiceError ? (
+                            <Box color="text-status-error" variant="p">
+                                {voiceError}
+                            </Box>
+                        ) : null}
+                        <Box variant="p">
+                            Assign an E.164 phone number (e.g. <b>+14155550123</b>) to route Amazon Connect calls to this
+                            deployment.
+                        </Box>
+                        <FormField label="Phone number (E.164)">
+                            <Input
+                                value={voicePhoneNumber}
+                                onChange={({ detail }) => setVoicePhoneNumber(detail.value)}
+                                placeholder="+14155550123"
+                            />
+                        </FormField>
+                    </SpaceBetween>
+                </Modal>
+            )}
         </div>
     );
 }
@@ -228,6 +362,22 @@ const createCloudfrontUrlLinkComponent = (item) => {
                 {'Open Application'}
             </Link>
         </div>
+    );
+};
+
+const enabledChannelsBadges = (item) => {
+    const channels = [];
+    if (item?.cloudFrontWebUrl) channels.push({ label: 'Web', color: 'blue' });
+    if (item?.VoicePhoneNumber?.trim?.()) channels.push({ label: 'Voice', color: 'green' });
+    if (channels.length === 0) return '-';
+    return (
+        <SpaceBetween direction="horizontal" size="xs">
+            {channels.map((c) => (
+                <Badge key={c.label} color={c.color}>
+                    {c.label}
+                </Badge>
+            ))}
+        </SpaceBetween>
     );
 };
 
@@ -250,6 +400,7 @@ export default function DashboardView() {
 
     const displayStackStatus = (item) => {
         const cleanStatusString = (status) => {
+            if (!status || typeof status !== 'string') return 'unknown';
             return status.replaceAll('_', ' ').toLowerCase();
         };
         return (
@@ -266,6 +417,24 @@ export default function DashboardView() {
             header: 'Use Case Name',
             minWidth: 160,
             isRowHeader: true
+        },
+        {
+            id: 'tenant',
+            header: 'Customer / Tenant',
+            cell: (item) => item?.TenantId ?? '',
+            minWidth: 160
+        },
+        {
+            id: 'channels',
+            header: 'Enabled Channels',
+            cell: (item) => enabledChannelsBadges(item),
+            minWidth: 140
+        },
+        {
+            id: 'voicePhoneNumber',
+            header: 'Voice Number',
+            cell: (item) => item?.VoicePhoneNumber?.trim?.() ? item.VoicePhoneNumber : '-',
+            minWidth: 140
         },
         {
             id: 'stackId',

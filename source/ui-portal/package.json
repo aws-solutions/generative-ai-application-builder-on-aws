@@ -1,0 +1,39 @@
+{
+  "name": "@aiagentsworkforce/ui-portal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run --silent",
+    "lint": "echo \"(lint TBD)\""
+  },
+  "dependencies": {
+    "@aws-amplify/ui-react": "^5.3.3",
+    "@tanstack/react-query": "^5.51.15",
+    "aws-amplify": "^5.3.29",
+    "clsx": "^2.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.25.1",
+    "tailwind-merge": "^2.5.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^24.1.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^5.3.5",
+    "vite-plugin-node-polyfills": "^0.23.0",
+    "vite-tsconfig-paths": "^4.3.2",
+    "vitest": "^1.6.1"
+  }
+}
+
+

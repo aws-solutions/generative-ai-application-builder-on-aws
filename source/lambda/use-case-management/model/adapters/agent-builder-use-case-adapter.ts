@@ -14,7 +14,7 @@ import {
     IS_INTERNAL_USER_ENV_VAR,
     MULTIMODAL_DATA_BUCKET_ENV_VAR,
     SHARED_ECR_CACHE_PREFIX_ENV_VAR,
-    STACK_DEPLOYMENT_SOURCE_USE_CASE,
+    STACK_DEPLOYMENT_SOURCE_AGENTCORE,
     USER_POOL_ID_ENV_VAR,
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR,
     UseCaseTypes
@@ -62,6 +62,10 @@ export class AgentBuilderUseCaseDeploymentAdapter extends UseCase {
             undefined,
             UseCaseTypes.AGENT_BUILDER
         );
+
+        // Platform SaaS: capture owning tenant (admin deploys "on behalf of" a customer)
+        this.tenantId =
+            jsonBody?.TenantId ?? jsonBody?.tenantId ?? (event.requestContext.authorizer as any)?.TenantId ?? undefined;
     }
 
     /**
@@ -194,7 +198,8 @@ export class AgentBuilderUseCaseDeploymentAdapter extends UseCase {
             process.env[COGNITO_POLICY_TABLE_ENV_VAR]!
         );
         cfnParameters.set(CfnParameterKeys.UseCaseUUID, `${useCaseId}`);
-        cfnParameters.set(CfnParameterKeys.StackDeploymentSource, STACK_DEPLOYMENT_SOURCE_USE_CASE);
+        // AgentCore (AgentBuilder) should provision pull-through cache and use public images by default.
+        cfnParameters.set(CfnParameterKeys.StackDeploymentSource, STACK_DEPLOYMENT_SOURCE_AGENTCORE);
 
         AgentBuilderUseCaseDeploymentAdapter.setParameterIfExists(
             cfnParameters,

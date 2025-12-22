@@ -55,6 +55,11 @@ export interface UseCaseManagementProps extends BaseStackProps {
     cloudFrontUrl: string;
 
     /**
+     * Optional additional UI URL for customer portal (used for Cognito Hosted UI callback/logout).
+     */
+    portalUrl?: string;
+
+    /**
      * Whether to deploy the web app or not
      */
     deployWebApp: string;
@@ -125,6 +130,11 @@ export class UseCaseManagementSetup extends Construct {
      * Cognito UserPoolClient for client apps requesting sign-in.
      */
     public readonly userPoolClient: cognito.IUserPoolClient;
+    /**
+     * Lambda backing tenant & user provisioning API
+     */
+    public readonly tenantManagementApiLambda: lambda.Function;
+    public readonly connectVoiceAdapterLambda: lambda.Function;
 
     constructor(scope: Construct, id: string, props: UseCaseManagementProps) {
         super(scope, id);
@@ -141,6 +151,7 @@ export class UseCaseManagementSetup extends Construct {
                 ExistingPrivateSubnetIds: props.privateSubnetIds!,
                 CognitoDomainPrefix: props.cognitoDomainPrefix,
                 CloudFrontUrl: props.cloudFrontUrl,
+                PortalUrl: props.portalUrl ?? '',
                 DeployUI: props.deployWebApp,
                 AccessLoggingBucketArn: props.accessLoggingBucket.bucketArn,
                 ExistingCognitoUserPoolId: props.existingCognitoUserPoolId,
@@ -151,6 +162,8 @@ export class UseCaseManagementSetup extends Construct {
 
         this.userPool = this.useCaseManagement.cognitoSetup.getUserPool(this);
         this.userPoolClient = this.useCaseManagement.cognitoSetup.getUserPoolClient(this);
+        this.tenantManagementApiLambda = this.useCaseManagement.tenantManagementApiLambda;
+        this.connectVoiceAdapterLambda = this.useCaseManagement.connectVoiceAdapterLambda;
 
         // Create deployments REST API related resources with useCaseManagementApiLambda as the backing lambda
         const requestProcessor = new RestRequestProcessor(this, 'RequestProcessor', {
@@ -159,6 +172,7 @@ export class UseCaseManagementSetup extends Construct {
             mcpManagementAPILambda: this.useCaseManagement.mcpManagementApiLambda,
             agentManagementAPILambda: this.useCaseManagement.agentManagementApiLambda,
             workflowManagementAPILambda: this.useCaseManagement.workflowManagementApiLambda,
+            tenantManagementAPILambda: this.useCaseManagement.tenantManagementApiLambda,
             defaultUserEmail: props.defaultUserEmail,
             applicationTrademarkName: props.applicationTrademarkName,
             customResourceLambdaArn: props.customInfra.functionArn,

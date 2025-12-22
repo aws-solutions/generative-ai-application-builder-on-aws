@@ -21,6 +21,8 @@ export interface StackInfo {
  */
 export interface UseCaseRecord {
     UseCaseId: string;
+    TenantId?: string;
+    VoicePhoneNumber?: string;
     UseCaseType: string;
     StackId: string;
     Name: string;
@@ -43,6 +45,7 @@ export class ListUseCasesAdapter {
     event: APIGatewayEvent;
     pageNumber: number;
     searchFilter?: string;
+    tenantId?: string;
 
     constructor(event: APIGatewayEvent) {
         this.event = event;
@@ -63,6 +66,11 @@ export class ListUseCasesAdapter {
         this.searchFilter =
             event.queryStringParameters?.searchFilter !== undefined
                 ? event.queryStringParameters.searchFilter
+                : undefined;
+
+        this.tenantId =
+            event.queryStringParameters?.tenantId !== undefined && event.queryStringParameters.tenantId.length > 0
+                ? event.queryStringParameters.tenantId
                 : undefined;
     }
 }

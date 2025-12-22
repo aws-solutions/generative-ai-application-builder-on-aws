@@ -52,7 +52,8 @@ export interface TransformedDeployment {
 export async function generateToken() {
     try {
         const user = await Auth.currentAuthenticatedUser();
-        const token = user.getSignInUserSession().getAccessToken().getJwtToken();
+        // The platform authorizers validate Cognito *ID tokens* so we can read custom attributes (e.g. `custom:tenant_id`).
+        const token = user.getSignInUserSession().getIdToken().getJwtToken();
         return token;
     } catch (error) {
         console.error('error REST API:', error);
@@ -90,6 +91,8 @@ export const mapApiResponseToSelectedDeployment = (apiResponse: any): Transforme
     // Copy all fields from the API response
     const fields = [
         'UseCaseId',
+        'TenantId',
+        'VoicePhoneNumber',
         'CreatedDate',
         'StackId',
         'UseCaseType',

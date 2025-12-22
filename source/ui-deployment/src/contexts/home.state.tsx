@@ -8,6 +8,7 @@ export interface HomeInitialState {
     selectedDeployment: any;
     deploymentsData: any;
     deploymentAction: string;
+    selectedTenantId?: string;
     runtimeConfig?: any;
     reloadData?: boolean;
     numUseCases: number;
@@ -21,6 +22,7 @@ export const initialState: HomeInitialState = {
     selectedDeployment: {},
     deploymentsData: [],
     deploymentAction: DEPLOYMENT_ACTIONS.CREATE,
+    selectedTenantId: '',
     reloadData: false,
     numUseCases: 0,
     currentPageIndex: 1,

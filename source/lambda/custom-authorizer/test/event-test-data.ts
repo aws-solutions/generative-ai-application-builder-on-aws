@@ -3,7 +3,7 @@
 
 'use strict';
 
-import { CognitoAccessTokenPayload } from 'aws-jwt-verify/jwt-model';
+import { CognitoIdTokenPayload } from 'aws-jwt-verify/jwt-model';
 import { APIGatewayRequestAuthorizerEvent } from 'aws-lambda';
 
 export const mockValidWebsocketRequestEvent: Partial<APIGatewayRequestAuthorizerEvent> = {
@@ -114,52 +114,58 @@ export const multiGroupBatchGetItemResponse = {
     'UnprocessedKeys': {}
 };
 
-export const fakeIdToken: Partial<CognitoAccessTokenPayload> = {
+export const fakeIdToken: Partial<CognitoIdTokenPayload> = {
     sub: 'fake-sub',
     'cognito:groups': ['admin'],
     iss: 'https://cognito-idp.us-east-1.amazonaws.com/user-pool-id',
     'cognito:username': 'fakeuser',
-    client_id: 'fake-client-id',
+    aud: 'fake-client-id',
+    at_hash: 'fake-at-hash',
+    email: 'fakeuser@example.com',
+    email_verified: true,
+    'custom:tenant_id': '',
     origin_jti: 'fake-origin-jti',
     event_id: 'fake-event-id',
-    token_use: 'access',
-    scope: 'aws.cognito.signin.user.fake-sub',
+    token_use: 'id',
     auth_time: 0,
     exp: 3600,
     iat: 0,
-    jti: 'fake-jti',
-    username: 'fake-username'
+    jti: 'fake-jti'
 };
 
-export const fakeMultiGroupIdToken: Partial<CognitoAccessTokenPayload> = {
+export const fakeMultiGroupIdToken: Partial<CognitoIdTokenPayload> = {
     sub: 'fake-sub',
     'cognito:groups': ['admin', 'group1', 'group2'],
     iss: 'https://cognito-idp.us-east-1.amazonaws.com/user-pool-id',
     'cognito:username': 'fakeuser',
-    client_id: 'fake-client-id',
+    aud: 'fake-client-id',
+    at_hash: 'fake-at-hash',
+    email: 'fakeuser@example.com',
+    email_verified: true,
+    'custom:tenant_id': '',
     origin_jti: 'fake-origin-jti',
     event_id: 'fake-event-id',
-    token_use: 'access',
-    scope: 'aws.cognito.signin.user.fake-sub',
+    token_use: 'id',
     auth_time: 0,
     exp: 3600,
     iat: 0,
-    jti: 'fake-jti',
-    username: 'fake-username'
+    jti: 'fake-jti'
 };
 
-export const fakeIdTokenNoGroups: Partial<CognitoAccessTokenPayload> = {
+export const fakeIdTokenNoGroups: Partial<CognitoIdTokenPayload> = {
     sub: 'fake-sub',
     iss: 'https://cognito-idp.us-east-1.amazonaws.com/user-pool-id',
     'cognito:username': 'fakeuser',
-    client_id: 'fake-client-id',
+    aud: 'fake-client-id',
+    at_hash: 'fake-at-hash',
+    email: 'fakeuser@example.com',
+    email_verified: true,
+    'custom:tenant_id': '',
     origin_jti: 'fake-origin-jti',
     event_id: 'fake-event-id',
-    token_use: 'access',
-    scope: 'aws.cognito.signin.user.fake-sub',
+    token_use: 'id',
     auth_time: 0,
     exp: 3600,
     iat: 0,
-    jti: 'fake-jti',
-    username: 'fake-username'
+    jti: 'fake-jti'
 };

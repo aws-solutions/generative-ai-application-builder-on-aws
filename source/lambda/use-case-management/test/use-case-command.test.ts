@@ -1077,7 +1077,9 @@ describe('When testing Use Case Commands', () => {
                 castToAdminType({
                     ...mockStackDetails,
                     ...mockUseCaseConfig.config,
-                    ...mockUseCaseRecord
+                    ...mockUseCaseRecord,
+                    // GetUseCaseCommand best-effort backfills VoicePhoneNumber to empty string when missing.
+                    VoicePhoneNumber: ''
                 })
             );
         });
@@ -1103,7 +1105,9 @@ describe('When testing Use Case Commands', () => {
                 castToBusinessUserType({
                     ...mockStackDetails,
                     ...mockUseCaseConfig.config,
-                    ...mockUseCaseRecord
+                    ...mockUseCaseRecord,
+                    // GetUseCaseCommand best-effort backfills VoicePhoneNumber to empty string when missing.
+                    VoicePhoneNumber: ''
                 })
             );
         });

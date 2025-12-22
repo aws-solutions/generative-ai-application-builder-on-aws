@@ -16,7 +16,14 @@ describe('CopyUseCaseUIAssets', () => {
         template = buildStack();
     });
 
-    it('has four parameters', () => {
+    it('has five parameters', () => {
+        template.hasParameter('WebCloudFrontDistributionId', {
+            Type: 'String',
+            AllowedPattern: '^[A-Z0-9]+$',
+            Description:
+                'CloudFront Distribution ID for the website hosting this UI (used to invalidate cache on updates).'
+        });
+
         template.hasParameter('WebConfigKey', {
             Type: 'String',
             AllowedPattern: '^(\\/[^\\/ ]*)+\\/?$',
@@ -129,6 +136,9 @@ describe('CopyUseCaseUIAssets', () => {
                 },
                 WEBSITE_CONFIG_PARAM_KEY: {
                     Ref: 'WebConfigKey'
+                },
+                CLOUDFRONT_DISTRIBUTION_ID: {
+                    Ref: 'WebCloudFrontDistributionId'
                 }
             },
             UpdateReplacePolicy: 'Delete',
@@ -176,6 +186,9 @@ describe('CopyUseCaseUIAssets', () => {
                 },
                 WEBSITE_CONFIG_PARAM_KEY: {
                     Ref: 'WebConfigKey'
+                },
+                CLOUDFRONT_DISTRIBUTION_ID: {
+                    Ref: 'WebCloudFrontDistributionId'
                 },
                 USE_CASE_CONFIG_TABLE_NAME: {
                     Ref: 'UseCaseConfigTableName'
@@ -595,6 +608,7 @@ function buildStack() {
     const stack = new cdk.Stack(app);
     const uiAssetNestedStack = new CopyUseCaseUIAssets(stack, 'UIAsset', {
         parameters: {
+            WebCloudFrontDistributionId: 'E123EXAMPLE',
             WebConfigKey: '/fakepath/fakekey',
             CustomResourceLambdaArn: 'arn:aws:us-east-1:fakeaccount:function:fakefunction',
             CustomResourceRoleArn: 'arn:aws:us-east-1:fakeaccount:role:fakerolename/fakeid',

@@ -3,18 +3,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as iam from 'aws-cdk-lib/aws-iam';
 
 import { Construct } from 'constructs';
 import { ApplicationSetup } from './framework/application-setup';
 import { BaseStack, BaseStackProps, BaseParameters } from './framework/base-stack';
 import { DashboardType } from './metrics/custom-dashboard';
 import { CopyUIAssets } from './s3web/copy-ui-assets-nested-stack';
+import { CopyPortalUIAssets } from './s3web/copy-portal-ui-assets';
+import { PortalUIDistribution } from './s3web/portal-ui-distribution-nested-stack';
 import { UIDistribution } from './s3web/ui-distribution-nested-stack';
 import { DeploymentPlatformStorageSetup } from './storage/deployment-platform-storage-setup';
 import { UIInfrastructureBuilder } from './ui/ui-infrastructure-builder';
 import { UseCaseManagementSetup } from './use-case-management/setup';
 import { generateSourceCodeMapping } from './utils/common-utils';
+import { NagSuppressions } from 'cdk-nag';
 import {
     INTERNAL_EMAIL_DOMAIN,
     OPTIONAL_EMAIL_REGEX_PATTERN,
@@ -49,11 +56,13 @@ export class DeploymentPlatformStack extends BaseStack {
      * Construct creating the cloudfront distribution assets in a nested stack.
      */
     public readonly uiDistribution: UIDistribution;
+    public readonly portalUiDistribution: PortalUIDistribution;
 
     /**
      * Construct creating the custom resource to copy assets in a nested stack.
      */
     public readonly copyAssetsStack: CopyUIAssets;
+    public readonly portalCopyAssetsStack: CopyUIAssets;
 
     /**
      * Construct managing the deployment of a nested stack with resources related to use case management.
@@ -201,7 +210,106 @@ export class DeploymentPlatformStack extends BaseStack {
             description: `Nested stack that deploys UI components that include an S3 bucket for web assets and a CloudFront distribution - Version ${props.solutionVersion}`
         });
 
+        // ============================
+        // Customer portal UI (ui-portal)
+        // ============================
+        const portalDomainName = 'portal.aiagentsworkforce.com';
+        const portalUrl = `https://${portalDomainName}/`;
+
+        // Hosted zone for aiagentsworkforce.com (public)
+        // NOTE: Using fromHostedZoneAttributes (not fromLookup) so the stack does not require env/account at synth-time.
+        const hostedZone = route53.HostedZone.fromHostedZoneAttributes(this, 'AiAgentsWorkforceHostedZone', {
+            hostedZoneId: 'Z0780439DVN91CA6KD5T',
+            zoneName: 'aiagentsworkforce.com'
+        });
+
+        // CloudFront certificates must be in us-east-1. This stack is deployed in us-east-1 for the platform.
+        // Use acm.Certificate with DNS validation to avoid a custom-resource lambda and keep cdk-nag happy.
+        const portalCertificate = new acm.Certificate(this, 'PortalCertificate', {
+            domainName: portalDomainName,
+            validation: acm.CertificateValidation.fromDns(hostedZone)
+        });
+
+        this.portalUiDistribution = new PortalUIDistribution(this, 'PortalWebApp', {
+            parameters: {
+                CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn,
+                UseCaseUUID: uuid
+            },
+            portalDomainName,
+            portalCertificate,
+            description: `Nested stack that deploys customer portal UI components (S3 + CloudFront + custom domain) - Version ${props.solutionVersion}`
+        });
+
+        // Defensive: explicitly allow the custom resource lambda to write UI assets to both hosting buckets.
+        // This avoids nested-stack policy attachment edge-cases during updates.
+        const customResourceUiWritePolicy = new iam.Policy(this, 'CustomResourceUIWritePolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: [
+                        's3:GetObject',
+                        's3:PutObject',
+                        's3:DeleteObject',
+                        's3:AbortMultipartUpload'
+                    ],
+                    resources: [
+                        `${this.uiDistribution.websiteBucket.bucketArn}/*`,
+                        `${this.portalUiDistribution.websiteBucket.bucketArn}/*`
+                    ]
+                }),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: [
+                        's3:ListBucket',
+                        's3:GetBucketLocation',
+                        's3:ListBucketVersions',
+                        's3:ListBucketMultipartUploads'
+                    ],
+                    resources: [
+                        this.uiDistribution.websiteBucket.bucketArn,
+                        this.portalUiDistribution.websiteBucket.bucketArn
+                    ]
+                })
+            ]
+        });
+        customResourceUiWritePolicy.attachToRole(this.applicationSetup.customResourceLambda.role!);
+        NagSuppressions.addResourceSuppressions(customResourceUiWritePolicy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason:
+                    'Custom resource must upload UI assets (including runtimeConfig.json) and manage deletes/versions in the UI hosting buckets.'
+            }
+        ]);
+
+        // Ensure portal UI stack follows the same DeployUI condition
+        (this.portalUiDistribution.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            uiInfrastructureBuilder.deployWebAppCondition;
+
+        // Route53 records for portal.aiagentsworkforce.com -> CloudFront
+        const portalAliasARecord = new route53.ARecord(this, 'PortalAliasARecord', {
+            zone: hostedZone,
+            recordName: 'portal',
+            target: route53.RecordTarget.fromAlias(
+                new route53Targets.CloudFrontTarget(this.portalUiDistribution.cloudFrontDistribution)
+            )
+        });
+        (portalAliasARecord.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            uiInfrastructureBuilder.deployWebAppCondition;
+
+        const portalAliasAAAARecord = new route53.AaaaRecord(this, 'PortalAliasAAAARecord', {
+            zone: hostedZone,
+            recordName: 'portal',
+            target: route53.RecordTarget.fromAlias(
+                new route53Targets.CloudFrontTarget(this.portalUiDistribution.cloudFrontDistribution)
+            )
+        });
+        (portalAliasAAAARecord.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            uiInfrastructureBuilder.deployWebAppCondition;
+
         const webConfigSsmKey: string = `${WEB_CONFIG_PREFIX}/${cdk.Aws.STACK_NAME}`;
+        const portalWebConfigSsmKey: string = `${WEB_CONFIG_PREFIX}/${cdk.Aws.STACK_NAME}-portal`;
 
         this.deploymentPlatformStorageSetup = new DeploymentPlatformStorageSetup(this, 'DeploymentPlatformStorage', {
             customResourceLambda: this.applicationSetup.customResourceLambda,
@@ -227,6 +335,7 @@ export class DeploymentPlatformStack extends BaseStack {
             privateSubnetIds: this.transpiredPrivateSubnetIds,
             cognitoDomainPrefix: this.stackParameters.cognitoUserPoolClientDomain.valueAsString,
             cloudFrontUrl: uiInfrastructureBuilder.getCloudFrontUrlWithCondition(),
+            portalUrl: portalUrl,
             deployWebApp: this.deployWebApp.valueAsString,
             deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition,
             accessLoggingBucket: this.applicationSetup.accessLoggingBucket,
@@ -258,6 +367,13 @@ export class DeploymentPlatformStack extends BaseStack {
             this.useCaseManagementSetup.useCaseManagement.workflowManagementApiLambda,
             'Workflow',
             true
+        );
+
+        this.deploymentPlatformStorageSetup.configureConnectVoiceAdapterLambda(
+            this.useCaseManagementSetup.useCaseManagement.connectVoiceAdapterLambda
+        );
+        this.deploymentPlatformStorageSetup.configureConnectVoiceTurnLambda(
+            this.useCaseManagementSetup.useCaseManagement.connectVoiceTurnLambda
         );
         this.deploymentPlatformStorageSetup.configureFilesHandlerLambda(
             this.useCaseManagementSetup.multimodalSetup.filesHandlerLambda
@@ -342,10 +458,25 @@ export class DeploymentPlatformStack extends BaseStack {
         );
         this.applicationSetup.webConfigCustomResource.node.addDependency(this.useCaseManagementSetup.useCaseManagement);
 
+        const portalWebConfigCustomResource = this.applicationSetup.createWebConfigStorageWithId(
+            'PortalWebConfig',
+            {
+                restApiEndpoint: this.useCaseManagementSetup.restApi.url,
+                userPoolId: userPoolId,
+                userPoolClientId: userPoolClientId,
+                cognitoRedirectUrl: portalUrl,
+                isInternalUserCondition: isInternalUserCondition,
+                deployWebAppCondition: uiInfrastructureBuilder.deployWebAppCondition
+            },
+            portalWebConfigSsmKey
+        );
+        portalWebConfigCustomResource.node.addDependency(this.useCaseManagementSetup.useCaseManagement);
+
         this.copyAssetsStack = uiInfrastructureBuilder.createUIAssetsCustomResource(this, 'CopyUICustomResource', {
             parameters: {
                 CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
                 CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                WebCloudFrontDistributionId: this.uiDistribution.cloudFrontDistribution.distributionId,
                 WebConfigKey: webConfigSsmKey,
                 WebS3BucketArn: this.uiDistribution.websiteBucket.bucketArn,
                 AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn
@@ -366,10 +497,40 @@ export class DeploymentPlatformStack extends BaseStack {
                 ?.node.tryFindChild('Resource') as cdk.CfnResource
         );
 
+        // Copy customer portal UI assets and write runtimeConfig.json using portal web config key
+        this.portalCopyAssetsStack = new CopyPortalUIAssets(this, 'CopyPortalUICustomResource', {
+            parameters: {
+                CustomResourceRoleArn: this.applicationSetup.customResourceLambda.role!.roleArn,
+                CustomResourceLambdaArn: this.applicationSetup.customResourceLambda.functionArn,
+                WebCloudFrontDistributionId: this.portalUiDistribution.cloudFrontDistribution.distributionId,
+                WebConfigKey: portalWebConfigSsmKey,
+                WebS3BucketArn: this.portalUiDistribution.websiteBucket.bucketArn,
+                AccessLoggingBucketArn: this.applicationSetup.accessLoggingBucket.bucketArn
+            },
+            description: `Custom resource that copies customer portal UI assets to S3 bucket - Version ${props.solutionVersion}`
+        });
+        (this.portalCopyAssetsStack.node.defaultChild as cdk.CfnResource).cfnOptions.condition =
+            uiInfrastructureBuilder.deployWebAppCondition;
+
+        this.portalUiDistribution.node.defaultChild?.node.addDependency(
+            this.applicationSetup.accessLoggingBucket.node
+                .tryFindChild('Policy')
+                ?.node.tryFindChild('Resource') as cdk.CfnResource
+        );
+
+        this.portalCopyAssetsStack.node.defaultChild?.node.addDependency(portalWebConfigCustomResource);
+        this.portalCopyAssetsStack.node.defaultChild?.node.addDependency(
+            this.applicationSetup.accessLoggingBucket.node
+                .tryFindChild('Policy')
+                ?.node.tryFindChild('Resource') as cdk.CfnResource
+        );
+
         if (process.env.DIST_OUTPUT_BUCKET) {
             generateSourceCodeMapping(this, props.solutionName, props.solutionVersion);
             generateSourceCodeMapping(this.uiDistribution, props.solutionName, props.solutionVersion);
             generateSourceCodeMapping(this.copyAssetsStack, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(this.portalUiDistribution, props.solutionName, props.solutionVersion);
+            generateSourceCodeMapping(this.portalCopyAssetsStack, props.solutionName, props.solutionVersion);
             generateSourceCodeMapping(
                 this.deploymentPlatformStorageSetup.deploymentPlatformStorage,
                 props.solutionName,
@@ -381,6 +542,125 @@ export class DeploymentPlatformStack extends BaseStack {
             value: `https://${this.uiDistribution.cloudFrontDistribution.domainName}`
         });
         cloudfrontUrlOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
+
+        const deploymentUiDistributionIdOutput = new cdk.CfnOutput(
+            cdk.Stack.of(this),
+            'DeploymentUIDistributionId',
+            {
+                value: this.uiDistribution.cloudFrontDistribution.distributionId,
+                description: 'CloudFront distribution ID for the admin deployment UI'
+            }
+        );
+        deploymentUiDistributionIdOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
+
+        const deploymentUiBucketNameOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'DeploymentUIBucketName', {
+            value: this.uiDistribution.websiteBucket.bucketName,
+            description: 'S3 bucket name hosting the admin deployment UI assets'
+        });
+        deploymentUiBucketNameOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
+
+        const portalUrlOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'PortalCloudFrontWebUrl', {
+            value: portalUrl,
+            description: 'Customer portal URL'
+        });
+        portalUrlOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
+
+        const portalUiDistributionIdOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'PortalUIDistributionId', {
+            value: this.portalUiDistribution.cloudFrontDistribution.distributionId,
+            description: 'CloudFront distribution ID for the customer portal UI'
+        });
+        portalUiDistributionIdOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
+
+        const portalUiBucketNameOutput = new cdk.CfnOutput(cdk.Stack.of(this), 'PortalUIBucketName', {
+            value: this.portalUiDistribution.websiteBucket.bucketName,
+            description: 'S3 bucket name hosting the customer portal UI assets'
+        });
+        portalUiBucketNameOutput.condition = uiInfrastructureBuilder.deployWebAppCondition;
+
+        // ============================
+        // GitHub Actions OIDC role (UI deploy)
+        // ============================
+        // This role is assumed by GitHub Actions via OIDC (no long-lived AWS keys).
+        // Restrict to this repo + branch.
+        const githubOidcProvider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
+            this,
+            'GitHubOidcProvider',
+            `arn:${cdk.Aws.PARTITION}:iam::${cdk.Aws.ACCOUNT_ID}:oidc-provider/token.actions.githubusercontent.com`
+        );
+
+        const uiDeployRole = new iam.Role(this, 'GitHubActionsUiDeployRole', {
+            roleName: 'AiAgentsWorkforce-GHA-UiDeploy',
+            assumedBy: new iam.WebIdentityPrincipal(githubOidcProvider.openIdConnectProviderArn, {
+                StringEquals: {
+                    'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com'
+                },
+                StringLike: {
+                    'token.actions.githubusercontent.com:sub': [
+                        'repo:simcoder/generative-ai-application-builder:ref:refs/heads/main',
+                        'repo:simcoder/generative-ai-application-builder:ref:refs/heads/master'
+                    ]
+                }
+            }),
+            description: 'GitHub Actions role to deploy ui-portal and ui-deployment assets to S3 + invalidate CloudFront.'
+        });
+
+        const uiDeployPolicy = new iam.Policy(this, 'GitHubActionsUiDeployPolicy', {
+            statements: [
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['cloudformation:DescribeStacks'],
+                    resources: ['*']
+                }),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['ssm:GetParameter'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter/gaab-webconfig/*`
+                    ]
+                }),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: [
+                        's3:ListBucket',
+                        's3:GetBucketLocation',
+                        's3:PutObject',
+                        's3:PutObjectAcl',
+                        's3:DeleteObject',
+                        's3:GetObject',
+                        's3:AbortMultipartUpload',
+                        's3:ListBucketMultipartUploads'
+                    ],
+                    resources: [
+                        this.uiDistribution.websiteBucket.bucketArn,
+                        `${this.uiDistribution.websiteBucket.bucketArn}/*`,
+                        this.portalUiDistribution.websiteBucket.bucketArn,
+                        `${this.portalUiDistribution.websiteBucket.bucketArn}/*`
+                    ]
+                }),
+                new iam.PolicyStatement({
+                    effect: iam.Effect.ALLOW,
+                    actions: ['cloudfront:CreateInvalidation'],
+                    resources: [
+                        `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:distribution/${this.uiDistribution.cloudFrontDistribution.distributionId}`,
+                        `arn:${cdk.Aws.PARTITION}:cloudfront::${cdk.Aws.ACCOUNT_ID}:distribution/${this.portalUiDistribution.cloudFrontDistribution.distributionId}`
+                    ]
+                })
+            ]
+        });
+        uiDeployPolicy.attachToRole(uiDeployRole);
+
+        NagSuppressions.addResourceSuppressions(uiDeployPolicy, [
+            {
+                id: 'AwsSolutions-IAM5',
+                reason:
+                    'UI deploy pipeline needs to read webconfig from SSM prefix, read DeploymentPlatformStack outputs, upload site assets to known buckets, and invalidate known CloudFront distributions.'
+            }
+        ]);
+
+        new cdk.CfnOutput(cdk.Stack.of(this), 'GitHubActionsUiDeployRoleArn', {
+            value: uiDeployRole.roleArn,
+            description: 'Role ARN to assume from GitHub Actions using OIDC for UI deployments'
+        });
 
         new cdk.CfnOutput(cdk.Stack.of(this), 'SharedECRCachePrefix', {
             value: this.sharedEcrPullThroughCache.getRepositoryPrefix(),
@@ -397,6 +677,11 @@ export class DeploymentPlatformStack extends BaseStack {
 
         new cdk.CfnOutput(cdk.Stack.of(this), 'RestEndpointUrl', {
             value: this.useCaseManagementSetup.restApi.url
+        });
+
+        new cdk.CfnOutput(cdk.Stack.of(this), 'ConnectVoiceTurnLambdaArn', {
+            value: this.useCaseManagementSetup.useCaseManagement.connectVoiceTurnLambda.functionArn,
+            description: 'Lex V2 code hook lambda ARN for voice conversations (Connect -> Lex -> AgentCore)'
         });
 
         new cdk.CfnOutput(cdk.Stack.of(this), 'LLMConfigTableName', {

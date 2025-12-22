@@ -57,6 +57,14 @@ export enum LLMStopReasons {
     TOOL_USE = 'ToolUse'
 }
 
+// =========================
+// SaaS / multi-tenant additions (platform layer)
+// =========================
+export const TENANTS_TABLE_NAME_ENV_VAR = 'TENANTS_TABLE_NAME';
+export const PLATFORM_ADMIN_GROUP_NAME = 'admin'; // existing GAAB deployment dashboard admin group
+export const CUSTOMER_ADMIN_GROUP_NAME = 'customer_admin';
+export const CUSTOMER_USER_GROUP_NAME = 'customer_user';
+
 export enum CloudWatchMetrics {
     // API Gateway Metrics
     REST_ENDPOINT_TOTAL_HITS = 'Count',
@@ -228,7 +236,10 @@ export enum DynamoDBAttributes {
     MODEL_INFO_TABLE_SORT_KEY = 'SortKey',
     TIME_TO_LIVE = 'TTL',
     COGNITO_TABLE_PARTITION_KEY = 'group',
-    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME = 'key'
+    USE_CASE_CONFIG_RECORD_KEY_ATTRIBUTE_NAME = 'key',
+    VOICE_ROUTING_TABLE_PARTITION_KEY = 'phoneNumber',
+    VOICE_CONVERSATIONS_TABLE_PARTITION_KEY = 'TenantId',
+    VOICE_CONVERSATIONS_TABLE_SORT_KEY = 'ConversationId'
 }
 
 // LLM related constants
@@ -264,6 +275,8 @@ export const ARTIFACT_KEY_PREFIX_ENV_VAR = 'ARTIFACT_KEY_PREFIX';
 export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
 export const POWERTOOLS_METRICS_NAMESPACE_ENV_VAR = 'POWERTOOLS_METRICS_NAMESPACE';
 export const USE_CASES_TABLE_NAME_ENV_VAR = 'USE_CASES_TABLE_NAME';
+export const VOICE_ROUTING_TABLE_NAME_ENV_VAR = 'VOICE_ROUTING_TABLE_NAME';
+export const VOICE_CONVERSATIONS_TABLE_NAME_ENV_VAR = 'VOICE_CONVERSATIONS_TABLE_NAME';
 export const WEBCONFIG_SSM_KEY_ENV_VAR = 'WEBCONFIG_SSM_KEY';
 export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
 export const USE_CASE_API_KEY_SUFFIX_ENV_VAR = 'API_KEY_SUFFIX';
@@ -300,7 +313,8 @@ export const LOG_RETENTION_PERIOD = logs.RetentionDays.TEN_YEARS;
 
 export enum UIAssetFolders {
     CHAT = 'ui-chat',
-    DEPLOYMENT_PLATFORM = 'ui-deployment'
+    DEPLOYMENT_PLATFORM = 'ui-deployment',
+    PORTAL = 'ui-portal'
 }
 
 // Cloudwatch metrics namespace constants

@@ -12,7 +12,9 @@ export class TokenVerifier {
     ) {
         this.verifier = CognitoJwtVerifier.create({
             userPoolId: this.userPoolId,
-            tokenUse: 'access',
+            // Platform SaaS uses the Cognito ID token across UIs/APIs so we can access
+            // custom attributes like `custom:tenant_id` and groups consistently.
+            tokenUse: 'id',
             clientId: this.clientId
         });
     }

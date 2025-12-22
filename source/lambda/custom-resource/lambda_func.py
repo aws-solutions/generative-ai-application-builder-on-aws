@@ -10,6 +10,7 @@ from cfn_response import send_response
 from custom_config import DEFAULT_APP_NAME
 from operations import (
     admin_policy,
+    customer_policy,
     agentcore_oauth_client,
     agentcore_outbound_permissions,
     send_metrics,
@@ -52,6 +53,7 @@ operations_dictionary = {
     operation_types.UPDATE_BUCKET_POLICY: update_s3_policy.execute,
     operation_types.USE_CASE_POLICY: use_case_policy.execute,
     operation_types.ADMIN_POLICY: admin_policy.execute,
+    operation_types.CUSTOMER_POLICY: customer_policy.execute,
     operation_types.COPY_MODEL_INFO: copy_model_info_to_ddb.execute,
     operation_types.GET_COMPATIBLE_AZS: get_compatible_azs.execute,
     operation_types.GEN_DOMAIN_PREFIX: gen_domain_prefix.execute,

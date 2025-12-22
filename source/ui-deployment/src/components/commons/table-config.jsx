@@ -21,6 +21,9 @@ export const serverSideErrorsStore = new Map();
 
 const CONTENT_DISPLAY_OPTIONS = [
     { id: 'name', label: 'Name', alwaysVisible: true },
+    { id: 'tenant', label: 'Customer / Tenant' },
+    { id: 'channels', label: 'Enabled Channels' },
+    { id: 'voicePhoneNumber', label: 'Voice Phone Number' },
     { id: 'stackId', label: 'Use Case ID' },
     { id: 'useCaseType', label: 'Use Case Type' },
     { id: 'status', label: 'CloudFormation Deployment Status' },
@@ -33,6 +36,9 @@ export const DEFAULT_PREFERENCES = {
     contentDisplay: [
         { id: 'stackId', visible: true },
         { id: 'name', visible: true },
+        { id: 'tenant', visible: true },
+        { id: 'channels', visible: true },
+        { id: 'voicePhoneNumber', visible: true },
         { id: 'useCaseType', visible: true },
         { id: 'status', visible: true },
         { id: 'dateCreated', visible: true },

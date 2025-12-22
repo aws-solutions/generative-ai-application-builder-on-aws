@@ -13,6 +13,7 @@ import { logger, tracer } from '../power-tools-init';
 import {
     ARTIFACT_BUCKET_ENV_VAR,
     ARTIFACT_KEY_PREFIX_ENV_VAR,
+    CFN_ON_FAILURE_ENV_VAR,
     CFN_DEPLOY_ROLE_ARN_ENV_VAR,
     TEMPLATE_FILE_EXTN_ENV_VAR
 } from '../utils/constants';
@@ -65,12 +66,14 @@ export class CreateStackCommandInputBuilder extends CommandInputBuilder {
     public build(): CreateStackCommandInput {
         logger.debug('Building CreateStackCommandInput');
 
-        return {
+        const createCommandInput = {
             StackName: `${this.useCase.name}-${this.useCase.shortUUID}`,
             TemplateURL: getTemplateUrl(this.useCase),
             Parameters: parameters(this.useCase.cfnParameters!),
             Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_AUTO_EXPAND', 'CAPABILITY_NAMED_IAM'],
-            OnFailure: 'DELETE',
+            // For easier debugging in dev, prefer ROLLBACK so the stack and events remain visible.
+            // Can be overridden via env var to DELETE (original behavior) if desired.
+            OnFailure: (process.env[CFN_ON_FAILURE_ENV_VAR] as any) ?? 'ROLLBACK',
             Tags: [
                 {
                     Key: 'createdVia',
@@ -82,6 +85,12 @@ export class CreateStackCommandInputBuilder extends CommandInputBuilder {
                 }
             ]
         } as CreateStackCommandInput;
+
+        // IMPORTANT: CloudFormation needs an execution role to access private TemplateURL objects (e.g., CDK assets bucket).
+        // We pass the deploy role here so CFN can assume it during stack creation.
+        return process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR]
+            ? ({ ...createCommandInput, RoleARN: process.env[CFN_DEPLOY_ROLE_ARN_ENV_VAR] } as CreateStackCommandInput)
+            : createCommandInput;
     }
 }
 

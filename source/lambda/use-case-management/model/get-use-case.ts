@@ -56,6 +56,9 @@ export function castToAdminType(params: CombinedUseCaseParams): GetUseCaseDetail
         Description: params.Description ?? '',
         StackId: params.StackId,
         Status: params.status ?? '',
+        status: params.status ?? '',
+        TenantId: params.TenantId,
+        VoicePhoneNumber: params.VoicePhoneNumber,
         ragEnabled: params.ragEnabled ?? 'false',
         deployUI: params.deployUI as string,
         createNewVpc: params.createNewVpc as string,
@@ -87,10 +90,19 @@ export function castToAdminType(params: CombinedUseCaseParams): GetUseCaseDetail
 
 export function castToBusinessUserType(params: CombinedUseCaseParams): GetUseCaseDetailsUserResponse {
     let useCaseInfo: GetUseCaseDetailsUserResponse = {
+        UseCaseId: params.UseCaseId,
         UseCaseName: params.UseCaseName ?? params.Name,
         UseCaseType: params.UseCaseType,
+        status: params.status ?? '',
+        Status: params.status ?? '',
+        TenantId: params.TenantId,
+        VoicePhoneNumber: params.VoicePhoneNumber,
+        cloudFrontWebUrl: params.cloudFrontWebUrl,
         LlmParams: params.LlmParams,
-        ModelProviderName: params.LlmParams?.ModelProvider ?? 'BedrockAgent'
+        ModelProviderName: params.LlmParams?.ModelProvider ?? 'BedrockAgent',
+        // Allow customer portal to see safe agent configuration details.
+        AgentBuilderParams: params.AgentBuilderParams,
+        WorkflowParams: params.WorkflowParams
     };
 
     if (useCaseInfo.LlmParams) {
@@ -113,6 +125,31 @@ export function castToBusinessUserType(params: CombinedUseCaseParams): GetUseCas
         }
 
         useCaseInfo.LlmParams = Object.keys(cleanedLlmParams).length > 0 ? cleanedLlmParams : undefined;
+    }
+
+    // Customer-safe trimming:
+    // - For non-AgentBuilder/Workflow use cases, omit these config blocks.
+    if (useCaseInfo.UseCaseType !== 'AgentBuilder') {
+        useCaseInfo.AgentBuilderParams = undefined;
+    } else if (useCaseInfo.AgentBuilderParams) {
+        // Only expose safe subset for customers.
+        useCaseInfo.AgentBuilderParams = {
+            SystemPrompt: useCaseInfo.AgentBuilderParams.SystemPrompt,
+            Tools: useCaseInfo.AgentBuilderParams.Tools,
+            MCPServers: useCaseInfo.AgentBuilderParams.MCPServers,
+            MemoryConfig: useCaseInfo.AgentBuilderParams.MemoryConfig
+        };
+    }
+
+    if (useCaseInfo.UseCaseType !== 'Workflow') {
+        useCaseInfo.WorkflowParams = undefined;
+    } else if (useCaseInfo.WorkflowParams) {
+        useCaseInfo.WorkflowParams = {
+            SystemPrompt: useCaseInfo.WorkflowParams.SystemPrompt,
+            OrchestrationPattern: useCaseInfo.WorkflowParams.OrchestrationPattern,
+            AgentsAsToolsParams: useCaseInfo.WorkflowParams.AgentsAsToolsParams,
+            MemoryConfig: useCaseInfo.WorkflowParams.MemoryConfig
+        };
     }
 
     return useCaseInfo;

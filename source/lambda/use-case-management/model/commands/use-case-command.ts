@@ -15,6 +15,7 @@ import { GetUseCaseAdapter, validateAdminToken, castToAdminType, castToBusinessU
 import { UseCaseConfiguration, GetUseCaseDetailsAdminResponse, GetUseCaseDetailsUserResponse } from '../types';
 import { CaseCommand } from './case-command';
 import { UseCaseValidator, ValidatorFactory } from '../validators';
+import { extractTenantId, isPlatformAdmin, isCustomerPrincipal } from '../../utils/utils';
 
 export type DeploymentDetails = {
     useCaseRecord: UseCaseRecord;
@@ -301,6 +302,23 @@ export class ListUseCasesCommand implements CaseCommand {
 
             useCaseRecords = this.filterUseCasesByType(useCaseRecords);
 
+            // Platform SaaS: tenant scoping
+            // - platform admins see everything
+            // - customer users/admins only see deployments assigned to their tenant
+            const event = listUseCasesEvent.event;
+            if (!isPlatformAdmin(event) && isCustomerPrincipal(event)) {
+                const tenantId = extractTenantId(event);
+                if (tenantId) {
+                    useCaseRecords = useCaseRecords.filter((r) => r.TenantId === tenantId);
+                } else {
+                    // Customer without a tenant id should see nothing
+                    useCaseRecords = [];
+                }
+            } else if (isPlatformAdmin(event) && listUseCasesEvent.tenantId) {
+                // Admin can optionally filter the global list by tenant
+                useCaseRecords = useCaseRecords.filter((r) => r.TenantId === listUseCasesEvent.tenantId);
+            }
+
             if (listUseCasesEvent.searchFilter) {
                 useCaseRecords = this.filterUseCases(useCaseRecords, listUseCasesEvent.searchFilter);
             }
@@ -318,6 +336,13 @@ export class ListUseCasesCommand implements CaseCommand {
         }
 
         try {
+            // Best-effort backfill of VoicePhoneNumber for older records (derive from VoiceRoutingTable)
+            const voiceMap = await this.storageMgmt.getVoicePhoneNumberMap(useCaseRecords.map((r) => r.UseCaseId));
+            useCaseRecords = useCaseRecords.map((r) => ({
+                ...r,
+                VoicePhoneNumber: r.VoicePhoneNumber ?? voiceMap.get(r.UseCaseId) ?? ''
+            }));
+
             for (const element of useCaseRecords) {
                 const useCaseRecord = element;
                 const stackDetails = await this.stackMgmt.getStackDetailsFromUseCaseRecord(useCaseRecord);
@@ -430,6 +455,8 @@ export class ListUseCasesCommand implements CaseCommand {
                 formattedData.push({
                     Name: value.useCaseRecord.Name,
                     UseCaseId: value.useCaseRecord.UseCaseId,
+                        TenantId: value.useCaseRecord.TenantId ?? '',
+                    VoicePhoneNumber: value.useCaseRecord.VoicePhoneNumber ?? '',
                     CreatedDate: value.useCaseRecord.CreatedDate,
                     Description: value.useCaseRecord.Description,
                     useCaseUUID: value.useCaseDeploymentDetails.useCaseUUID,
@@ -477,9 +504,33 @@ export class GetUseCaseCommand implements CaseCommand {
         try {
             const useCase = new UseCase(GetUseCaseAdapterEvent.useCaseId, '', '', undefined, {}, '', '', '');
             const useCaseRecord = await this.storageMgmt.getUseCaseRecord(useCase);
+
+            // Platform SaaS: enforce tenant isolation on GET details
+            // - platform admins can view any use case
+            // - customer principals can only view use cases assigned to their tenant
+            const event = GetUseCaseAdapterEvent.event;
+            if (!isPlatformAdmin(event) && isCustomerPrincipal(event)) {
+                const tid = extractTenantId(event);
+                if (!tid || useCaseRecord.TenantId !== tid) {
+                    // Return 404-like behavior to avoid leaking existence of other tenants' resources
+                    throw new Error('Not found');
+                }
+            }
+
+            // Best-effort backfill of VoicePhoneNumber for older records (derive from VoiceRoutingTable)
+            if (!useCaseRecord.VoicePhoneNumber) {
+                const voiceMap = await this.storageMgmt.getVoicePhoneNumberMap([useCaseRecord.UseCaseId]);
+                useCaseRecord.VoicePhoneNumber = voiceMap.get(useCaseRecord.UseCaseId) ?? '';
+            }
+
             const stackDetails = await this.stackMgmt.getStackDetailsFromUseCaseRecord(useCaseRecord);
             const useCaseConfig = await this.useCaseConfigMgmt.getUseCaseConfigFromRecord(useCaseRecord);
-            const combined = { ...useCaseRecord, ...stackDetails, ...useCaseConfig };
+            // NOTE: Keep VoicePhoneNumber from the use case record authoritative.
+            // We've seen cases where consumers rely on VoicePhoneNumber being present when VoiceRoutingTable has the mapping,
+            // but the merged object can accidentally drop optional fields depending on how config objects are shaped.
+            const combined: any = { ...useCaseRecord, ...stackDetails, ...useCaseConfig };
+            combined.VoicePhoneNumber = useCaseRecord.VoicePhoneNumber;
+            combined.TenantId = useCaseRecord.TenantId;
 
             const isAdmin = await validateAdminToken(GetUseCaseAdapterEvent.authToken);
             let useCaseInfo: GetUseCaseDetailsAdminResponse | GetUseCaseDetailsUserResponse;
@@ -487,6 +538,7 @@ export class GetUseCaseCommand implements CaseCommand {
             if (isAdmin) {
                 useCaseInfo = castToAdminType(combined);
             } else {
+                // Customer portal uses customer_* groups; return a customer-safe detail payload.
                 useCaseInfo = castToBusinessUserType(combined);
             }
 

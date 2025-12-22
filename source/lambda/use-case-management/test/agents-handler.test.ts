@@ -447,6 +447,8 @@ describe('When invoking the agents lambda function', () => {
                         {
                             'Name': 'test-agent-builder-2',
                             'UseCaseId': '11111111-fake-id',
+                            'TenantId': '',
+                            'VoicePhoneNumber': '',
                             'CreatedDate': '2024-07-22T20:32:00Z',
                             'Description': 'test agent builder case 2',
                             'useCaseUUID': 'fake-uuid',
@@ -458,6 +460,8 @@ describe('When invoking the agents lambda function', () => {
                         {
                             'Name': 'test-agent-builder-1',
                             'UseCaseId': '11111111-fake-id',
+                            'TenantId': '',
+                            'VoicePhoneNumber': '',
                             'CreatedDate': '2024-07-22T20:31:00Z',
                             'Description': 'test agent builder case 1',
                             'useCaseUUID': 'fake-uuid',
@@ -697,9 +701,13 @@ describe('When invoking the agents lambda function', () => {
             // Verify the API Gateway client was called correctly
             expect(apiGatewayMockedClient.calls()).toHaveLength(1);
             const getResourcesCall = apiGatewayMockedClient.calls()[0];
-            expect(getResourcesCall.args[0].input).toEqual({
-                restApiId: 'api123'
-            });
+            expect(getResourcesCall.args[0].input).toEqual(
+                expect.objectContaining({
+                    restApiId: 'api123',
+                    limit: 500,
+                    position: undefined
+                })
+            );
         });
 
         it('should handle API Gateway errors gracefully', async () => {

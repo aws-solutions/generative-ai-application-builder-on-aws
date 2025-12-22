@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState } from 'react';
-import { Box, ColumnLayout, Link, StatusIndicator, StatusIndicatorProps } from '@cloudscape-design/components';
+import { Badge, Box, ColumnLayout, Link, SpaceBetween, StatusIndicator, StatusIndicatorProps } from '@cloudscape-design/components';
 import { ValueWithLabel } from '../../../utils/ValueWithLabel';
 import { ExternalLinkWarningModal } from '../../commons/external-link-warning-modal';
 import { createCfnLink, parseStackName } from '../../commons/table-config';
@@ -25,6 +25,7 @@ export const GeneralConfig = ({ selectedDeployment, runtimeConfig }: Partial<Bas
     const existingUserPoolClientId = selectedDeployment.AuthenticationParams?.CognitoParams?.ExistingUserPoolClientId;
 
     const isVpcEnabled = selectedDeployment.vpcEnabled ? selectedDeployment.vpcEnabled.toLowerCase() === 'yes' : false;
+    const deploymentStatus = (selectedDeployment as any)?.status ?? (selectedDeployment as any)?.Status ?? 'unknown';
 
     return (
         <ColumnLayout columns={4} variant="text-grid">
@@ -43,15 +44,27 @@ export const GeneralConfig = ({ selectedDeployment, runtimeConfig }: Partial<Bas
                 <ValueWithLabel label={'Use Case ID'}>{selectedDeployment.UseCaseId}</ValueWithLabel>
             )}
 
+            {selectedDeployment.VoicePhoneNumber && (
+                <ValueWithLabel label={'Voice Phone Number'}>{selectedDeployment.VoicePhoneNumber}</ValueWithLabel>
+            )}
+
+            <ValueWithLabel label={'Enabled Channels'}>
+                <SpaceBetween direction="horizontal" size="xs">
+                    {selectedDeployment.cloudFrontWebUrl && <Badge color="blue">Web</Badge>}
+                    {selectedDeployment.VoicePhoneNumber && <Badge color="green">Voice</Badge>}
+                    {!selectedDeployment.cloudFrontWebUrl && !selectedDeployment.VoicePhoneNumber && <Box>-</Box>}
+                </SpaceBetween>
+            </ValueWithLabel>
+
             {selectedDeployment.deployUI && (
                 <ValueWithLabel label={'Deploy UI'}>{selectedDeployment.deployUI}</ValueWithLabel>
             )}
 
             <ValueWithLabel label={'Status'}>
                 <StatusIndicator
-                    type={statusIndicatorTypeSelector(selectedDeployment.status) as StatusIndicatorProps.Type}
+                    type={statusIndicatorTypeSelector(deploymentStatus) as StatusIndicatorProps.Type}
                 >
-                    {selectedDeployment.status}
+                    {deploymentStatus}
                 </StatusIndicator>
             </ValueWithLabel>
 

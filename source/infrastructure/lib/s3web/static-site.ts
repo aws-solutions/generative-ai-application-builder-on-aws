@@ -36,6 +36,11 @@ export interface StaticWebsiteProps {
      * For use case deployments, should be the UseCaseUUID. For the deployment platform, should be generated.
      */
     cloudFrontUUID: string;
+
+    /**
+     * Optional overrides for the CloudFront distribution properties (e.g., custom domain + certificate).
+     */
+    cloudFrontDistributionProps?: Partial<cloudfront.DistributionProps>;
 }
 
 export class StaticWebsite extends Construct {
@@ -92,7 +97,8 @@ export class StaticWebsite extends Construct {
                 ],
                 logFilePrefix: 'cloudfront/',
                 minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2019,
-                defaultRootObject: 'login.html'
+                defaultRootObject: 'login.html',
+                ...(props.cloudFrontDistributionProps ?? {})
             },
             cloudFrontLoggingBucketProps: {
                 encryption: s3.BucketEncryption.S3_MANAGED,

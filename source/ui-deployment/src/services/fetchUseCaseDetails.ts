@@ -7,11 +7,12 @@ import { API_NAME, DEPLOYMENT_PLATFORM_API_ROUTES } from '@/utils/constants';
 
 interface GetUseCaseRouteParams {
     useCaseId?: string;
+    useCaseType?: string;
 }
 
 export const fetchUseCaseDetails = async (params: GetUseCaseRouteParams) => {
     // Early validation with destructuring for cleaner code
-    const { useCaseId } = params;
+    const { useCaseId, useCaseType } = params;
     if (!useCaseId) {
         throw new Error('Missing useCaseId');
     }
@@ -19,7 +20,19 @@ export const fetchUseCaseDetails = async (params: GetUseCaseRouteParams) => {
     try {
         // Generate token and make API call in parallel
         const token = generateToken();
-        const route = DEPLOYMENT_PLATFORM_API_ROUTES.GET_USE_CASE.route(useCaseId);
+        // Route by use case type (AgentBuilder/Workflow/MCP have their own handlers)
+        const route = (() => {
+            switch (useCaseType) {
+                case 'AgentBuilder':
+                    return `/deployments/agents/${useCaseId}`;
+                case 'Workflow':
+                    return `/deployments/workflows/${useCaseId}`;
+                case 'MCPServer':
+                    return `/deployments/mcp/${useCaseId}`;
+                default:
+                    return DEPLOYMENT_PLATFORM_API_ROUTES.GET_USE_CASE.route(useCaseId);
+            }
+        })();
 
         const [authToken, response] = await Promise.all([
             token,
@@ -31,7 +44,7 @@ export const fetchUseCaseDetails = async (params: GetUseCaseRouteParams) => {
         return response;
     } catch (error) {
         // Add more context to the error for better debugging
-        console.error(`Error fetching use case details for ID ${params.useCaseId}:`, error);
+        console.error(`Error fetching use case details for ID ${params.useCaseId} (type=${useCaseType}):`, error);
         throw error;
     }
 };

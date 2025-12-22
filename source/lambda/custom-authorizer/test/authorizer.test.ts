@@ -71,7 +71,10 @@ describe('When the websocket handler receives an authorization event', () => {
                 ]
             },
             context: {
-                UserId: 'fake-sub'
+                UserId: 'fake-sub',
+                TenantId: '',
+                Groups: '["admin"]',
+                Email: 'fakeuser@example.com'
             }
         });
     });
@@ -162,7 +165,10 @@ describe('When the rest handler receives an authorization event', () => {
                 ]
             },
             context: {
-                UserId: 'fake-sub'
+                UserId: 'fake-sub',
+                TenantId: '',
+                Groups: '["admin"]',
+                Email: 'fakeuser@example.com'
             }
         });
     });
@@ -199,7 +205,10 @@ describe('When the rest handler receives an authorization event', () => {
                 ]
             },
             context: {
-                UserId: 'fake-sub'
+                UserId: 'fake-sub',
+                TenantId: '',
+                Groups: '["admin"]',
+                Email: 'fakeuser@example.com'
             }
         });
     });

@@ -22,6 +22,7 @@ import { AgentBuilderUseCaseType } from './components/wizard/interfaces/UseCaseT
 import { WorkflowUseCaseType } from './components/wizard/interfaces/UseCaseTypes/Workflow';
 import UseCaseSelection from './components/wizard/UseCaseSelection';
 import UseCaseView from './components/useCaseDetails/UseCaseView';
+import CustomersView from './components/customers/CustomersView';
 
 function App({ runtimeConfig }) {
     const intiStateWithConfig = insertRuntimeConfig(initialState, runtimeConfig);
@@ -153,6 +154,7 @@ function App({ runtimeConfig }) {
                                 <div className="flex flex-1">
                                     <Routes>
                                         <Route path="/" element={<DashboardView />} />
+                                        <Route path="/customers" element={<CustomersView />} />
                                         <Route path="/create" element={<UseCaseSelection />} />
                                         <Route
                                             path={USECASE_TYPE_ROUTE.TEXT}

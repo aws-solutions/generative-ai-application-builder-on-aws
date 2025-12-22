@@ -18,10 +18,14 @@ export const TEMPLATE_FILE_EXTN_ENV_VAR = 'TEMPLATE_FILE_EXTN';
 export const IS_INTERNAL_USER_ENV_VAR = 'IS_INTERNAL_USER';
 export const USE_CASE_CONFIG_TABLE_NAME_ENV_VAR = 'USE_CASE_CONFIG_TABLE_NAME';
 export const CFN_DEPLOY_ROLE_ARN_ENV_VAR = 'CFN_DEPLOY_ROLE_ARN';
+export const CFN_ON_FAILURE_ENV_VAR = 'CFN_ON_FAILURE';
 export const FILES_METADATA_TABLE_NAME_ENV_VAR = 'MULTIMODAL_METADATA_TABLE_NAME';
 export const MULTIMODAL_DATA_BUCKET_ENV_VAR = 'MULTIMODAL_DATA_BUCKET';
 export const INFERENCE_PROFILE = 'inference-profile';
 export const STACK_DEPLOYMENT_SOURCE_USE_CASE = 'UseCase';
+// AgentCore use cases (AgentBuilder / Workflow) should use StandaloneUseCase so templates provision pull-through cache rules
+// and don't depend on locally-built ECR repositories (e.g., gaab-strands-agent:vX.Y.Z-local).
+export const STACK_DEPLOYMENT_SOURCE_AGENTCORE = 'StandaloneUseCase';
 export const AMAZON_TRACE_ID_HEADER = '_X_AMZN_TRACE_ID';
 
 export const REQUIRED_ENV_VARS = [
@@ -36,6 +40,17 @@ export const REQUIRED_ENV_VARS = [
     USE_CASE_CONFIG_TABLE_NAME_ENV_VAR
 ];
 export const GAAB_DEPLOYMENTS_BUCKET_NAME_ENV_VAR = 'GAAB_DEPLOYMENTS_BUCKET';
+
+// Platform SaaS additions
+export const TENANTS_TABLE_NAME_ENV_VAR = 'TENANTS_TABLE_NAME';
+export const TENANTS_REQUIRED_ENV_VARS = [TENANTS_TABLE_NAME_ENV_VAR, USER_POOL_ID_ENV_VAR, CLIENT_ID_ENV_VAR];
+
+// Voice channel (Amazon Connect)
+export const VOICE_ROUTING_TABLE_NAME_ENV_VAR = 'VOICE_ROUTING_TABLE_NAME';
+
+export const PLATFORM_ADMIN_GROUP_NAME = 'admin';
+export const CUSTOMER_ADMIN_GROUP_NAME = 'customer_admin';
+export const CUSTOMER_USER_GROUP_NAME = 'customer_user';
 
 export const DEPLOYMENT_PLATFORM_STACK_NAME_ENV_VAR = 'DEPLOYMENT_PLATFORM_STACK_NAME';
 export const SHARED_ECR_CACHE_PREFIX_ENV_VAR = 'SHARED_ECR_CACHE_PREFIX';

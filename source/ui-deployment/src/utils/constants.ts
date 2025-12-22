@@ -60,6 +60,10 @@ export enum USECASE_TYPES {
 
 export const DEPLOYMENT_PLATFORM_API_ROUTES = {
     LIST_USE_CASES: { route: '/deployments', method: 'GET' },
+    ASSIGN_VOICE_CHANNEL: {
+        route: (useCaseId: string) => `/deployments/${useCaseId}/channels/voice`,
+        method: 'POST'
+    },
     GET_USE_CASE: {
         route: (useCaseId: string) => {
             return `/deployments/${useCaseId}`;
@@ -119,6 +123,17 @@ export const DEPLOYMENT_PLATFORM_API_ROUTES = {
         route: '/deployments/mcp/upload-schemas',
         method: 'POST'
     }
+};
+
+// Platform (SaaS) admin/customer APIs
+export const PLATFORM_API_ROUTES = {
+    LIST_TENANTS: { route: '/platform/tenants', method: 'GET' },
+    CREATE_TENANT: { route: '/platform/tenants', method: 'POST' },
+    CREATE_TENANT_USER: {
+        route: (tenantId: string) => `/platform/tenants/${tenantId}/users`,
+        method: 'POST'
+    },
+    GET_ME: { route: '/portal/me', method: 'GET' }
 };
 
 export const DEPLOYMENT_STATUS_NOTIFICATION = {

@@ -13,6 +13,7 @@ from operations import operation_types
 from operations.copy_web_ui import (
     DESTINATION_BUCKET_NAME,
     IS_INTERNAL_USER_KEY,
+    CLOUDFRONT_DISTRIBUTION_ID,
     SOURCE_BUCKET_NAME,
     SOURCE_PREFIX,
     USE_CASE_CONFIG_RECORD_KEY,
@@ -36,6 +37,7 @@ def lambda_event(aws_credentials, custom_resource_event):
     custom_resource_event[RESOURCE_PROPERTIES][SOURCE_PREFIX] = "web_ui.zip"
     custom_resource_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME] = "fake_destination_bucket"
     custom_resource_event[RESOURCE_PROPERTIES][WEBSITE_CONFIG_PARAM_KEY] = "fake_config_param_key"
+    custom_resource_event[RESOURCE_PROPERTIES][CLOUDFRONT_DISTRIBUTION_ID] = "E123EXAMPLE"
     custom_resource_event[PHYSICAL_RESOURCE_ID] = "fake_physical_resource_id"
 
     yield custom_resource_event

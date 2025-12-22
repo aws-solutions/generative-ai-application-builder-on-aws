@@ -90,9 +90,10 @@ const addMultimodalToLlmParams = (llmParams, multimodalParams) =>
  * @param {Object} runtimeConfig - Runtime configuration settings
  * @returns {Object} The formatted deployment request payload
  */
-export const createDeployRequestPayload = (stepsInfo, runtimeConfig) => {
+export const createDeployRequestPayload = (stepsInfo, runtimeConfig, selectedTenantId) => {
     const basePayload = {
         ExistingRestApiId: extractRestApiId(runtimeConfig?.RestApiEndpoint) ?? '',
+        ...(selectedTenantId ? { TenantId: selectedTenantId } : {}),
         ...createUseCaseInfoApiParams(stepsInfo.useCase)
     };
 
