@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom-resource"
-version = "4.0.2"
+version = "4.0.3"
 authors = [ "Amazon Web Services" ]
 description = "Perform specific operations triggered by AWS CloudFormation events"
 packages = [
@@ -26,6 +26,7 @@ pytest = "8.3.4"
 pytest-cov = "6.0.0"
 pytest-env = "1.1.5"
 PyYAML = "6.0.2"
+pytest-xdist = "^3.8.0"
 setuptools = "80.8.0"
 pyjwt = "^2.10.1"
 urllib3="2.6.1"

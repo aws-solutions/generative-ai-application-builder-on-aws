@@ -37,7 +37,7 @@ setup_uv() {
 	echo "Installing UV for ECR container tests..."
 	
 	if command -v pip3 &> /dev/null; then
-		pip3 install uv>=0.5.0
+		pip3 install "uv>=0.5.0"
 		
 		# Verify installation
 		if command -v uv &> /dev/null; then
@@ -91,8 +91,13 @@ run_python_lambda_test() {
 	coverage_report_path=$source_dir/test/coverage-reports/$lambda_name.coverage.xml
 	echo "coverage report path set to $coverage_report_path"
 
-	# Use -vv for debugging
-	poetry run pytest -sv -vv --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path"
+	if poetry install --dry-run | grep "pytest-xdist"; then
+		echo "Parallelism supported. Running poetry tests in parallel."
+		poetry run pytest -sv -vv --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path" -n auto
+	else
+		echo "Parallelism not supported. Running poetry tests sequentially."
+		poetry run pytest -sv -vv --cov --cov-report=term-missing --cov-report "xml:$coverage_report_path"
+	fi
 	if [ "$?" = "1" ]; then
 		echo "(source/run-all-tests.sh) ERROR: there is likely output above." 1>&2
 		exit 1
