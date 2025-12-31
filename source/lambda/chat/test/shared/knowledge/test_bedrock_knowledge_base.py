@@ -7,6 +7,7 @@ import os
 import pytest
 from langchain_aws.retrievers.bedrock import RetrievalConfig, VectorSearchConfig
 from langchain_core.documents import Document
+import copy
 
 from shared.knowledge.bedrock_knowledge_base import BedrockKnowledgeBase
 from utils.constants import BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR
@@ -56,37 +57,40 @@ def test_knowledge_base_construction(setup_environment):
 
 
 def test_knowledge_base_construction_no_filter(setup_environment):
-    del knowledge_base_params["BedrockKnowledgeBaseParams"]["RetrievalFilter"]
-    knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
+    param_copy = copy.deepcopy(knowledge_base_params)
+    del param_copy["BedrockKnowledgeBaseParams"]["RetrievalFilter"]
+    knowledge_base = BedrockKnowledgeBase(param_copy)
     assert knowledge_base.knowledge_base_id == "fake-bedrock-knowledge-base-id"
-    assert knowledge_base.number_of_docs == knowledge_base_params["NumberOfDocs"]
-    assert knowledge_base.return_source_documents == knowledge_base_params["ReturnSourceDocs"]
+    assert knowledge_base.number_of_docs == param_copy["NumberOfDocs"]
+    assert knowledge_base.return_source_documents == param_copy["ReturnSourceDocs"]
 
     assert knowledge_base.retriever.knowledge_base_id == "fake-bedrock-knowledge-base-id"
     assert knowledge_base.retriever.retrieval_config == RetrievalConfig(
         **{
             "vectorSearchConfiguration": VectorSearchConfig(
-                **{"numberOfResults": knowledge_base_params["NumberOfDocs"]}
+                **{"numberOfResults": param_copy["NumberOfDocs"]}
             )
         }
     )
-    assert knowledge_base.retriever.return_source_documents == knowledge_base_params["ReturnSourceDocs"]
+    assert knowledge_base.retriever.return_source_documents == param_copy["ReturnSourceDocs"]
 
 
 def test_knowledge_base_construction_override_search(setup_environment):
-    knowledge_base_params["BedrockKnowledgeBaseParams"]["OverrideSearchType"] = "SEMANTIC"
-    knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
+    param_copy = copy.deepcopy(knowledge_base_params)
+    del param_copy["BedrockKnowledgeBaseParams"]["RetrievalFilter"]
+    param_copy["BedrockKnowledgeBaseParams"]["OverrideSearchType"] = "SEMANTIC"
+    knowledge_base = BedrockKnowledgeBase(param_copy)
     assert knowledge_base.knowledge_base_id == "fake-bedrock-knowledge-base-id"
-    assert knowledge_base.min_score_confidence == knowledge_base_params["ScoreThreshold"]
-    assert knowledge_base.number_of_docs == knowledge_base_params["NumberOfDocs"]
-    assert knowledge_base.return_source_documents == knowledge_base_params["ReturnSourceDocs"]
+    assert knowledge_base.min_score_confidence == param_copy["ScoreThreshold"]
+    assert knowledge_base.number_of_docs == param_copy["NumberOfDocs"]
+    assert knowledge_base.return_source_documents == param_copy["ReturnSourceDocs"]
 
     assert knowledge_base.retriever.knowledge_base_id == "fake-bedrock-knowledge-base-id"
     assert knowledge_base.retriever.retrieval_config == RetrievalConfig(
         **{
             "vectorSearchConfiguration": VectorSearchConfig(
                 **{
-                    "numberOfResults": knowledge_base_params["NumberOfDocs"],
+                    "numberOfResults": param_copy["NumberOfDocs"],
                     "overrideSearchType": "SEMANTIC",
                 }
             )
@@ -97,22 +101,24 @@ def test_knowledge_base_construction_override_search(setup_environment):
 
 
 def test_knowledge_base_construction_override_search_nullified(setup_environment):
-    knowledge_base_params["BedrockKnowledgeBaseParams"]["OverrideSearchType"] = None
-    knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
+    param_copy = copy.deepcopy(knowledge_base_params)
+    del param_copy["BedrockKnowledgeBaseParams"]["RetrievalFilter"]
+    param_copy["BedrockKnowledgeBaseParams"]["OverrideSearchType"] = None
+    knowledge_base = BedrockKnowledgeBase(param_copy)
     assert knowledge_base.knowledge_base_id == "fake-bedrock-knowledge-base-id"
-    assert knowledge_base.min_score_confidence == knowledge_base_params["ScoreThreshold"]
-    assert knowledge_base.number_of_docs == knowledge_base_params["NumberOfDocs"]
-    assert knowledge_base.return_source_documents == knowledge_base_params["ReturnSourceDocs"]
+    assert knowledge_base.min_score_confidence == param_copy["ScoreThreshold"]
+    assert knowledge_base.number_of_docs == param_copy["NumberOfDocs"]
+    assert knowledge_base.return_source_documents == param_copy["ReturnSourceDocs"]
 
     assert knowledge_base.retriever.knowledge_base_id == "fake-bedrock-knowledge-base-id"
     assert knowledge_base.retriever.retrieval_config == RetrievalConfig(
         **{
             "vectorSearchConfiguration": VectorSearchConfig(
-                **{"numberOfResults": knowledge_base_params["NumberOfDocs"]}
+                **{"numberOfResults": param_copy["NumberOfDocs"]}
             )
         }
     )
-    assert knowledge_base.retriever.return_source_documents == knowledge_base_params["ReturnSourceDocs"]
+    assert knowledge_base.retriever.return_source_documents == param_copy["ReturnSourceDocs"]
 
 
 def test_source_docs_formatter():

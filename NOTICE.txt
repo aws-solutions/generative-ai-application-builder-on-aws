@@ -953,6 +953,7 @@ diff-sequences under the MIT license.
 dijkstrajs under the MIT license.
 dir-glob under the MIT license.
 dlv under the MIT license.
+docker/library/python under the MIT license.
 doctrine under the Apache-2.0 license.
 docutils under the BSD license.
 dom-accessibility-api under the MIT license.
@@ -1033,6 +1034,7 @@ event-target-shim under the MIT license.
 eventemitter2 under the MIT license.
 events under the MIT license.
 execa under the MIT license.
+execnet under the MIT license.
 executable under the MIT license.
 exit under the MIT license.
 expect under the MIT license.
@@ -1285,7 +1287,7 @@ json-stringify-safe under the ISC license.
 json5 under the MIT license.
 jsonc-parser under the MIT license.
 jsonfile under the MIT license.
-jsonify under the Public Domain license.
+jsonify under the MIT license.
 jsonpatch under the 0BSD license.
 jsonpath-ng under the Apache-2.0 license.
 jsonpath-plus under the MIT license.
@@ -1455,7 +1457,7 @@ normalize-path under the MIT license.
 npm-run-path under the MIT license.
 npmlog under the ISC license.
 nullthrows under the MIT license.
-numpy under the Apache-2.0 license.
+numpy under the BSD-3-Clause license.
 nwsapi under the MIT license.
 ob1 under the MIT license.
 object-assign under the MIT license.
@@ -1549,12 +1551,12 @@ pyasn1 under the BSD-2-Clause license.
 pycparser under the 0BSD license.
 pydantic under the MIT license.
 pydantic-core under the MIT license.
-PyJWT under the MIT license.
-PyJWT under the MIT license.
+pyjwt under the MIT license.
 pytest under the MIT license.
 pytest-asyncio under the Apache-2.0 license.
 pytest-cov under the MIT license.
 pytest-env under the MIT license.
+pytest-xdist under the MIT license.
 python-dateutil under the Dual License license(s).
 pyyaml under the MIT license.
 qrcode under the MIT license.
@@ -1854,7 +1856,7 @@ webidl-conversions under the BSD-2-Clause license.
 webpack under the MIT license.
 webpack-sources under the MIT license.
 weekstart under the MIT license.
-werkzeug under the 0BSD license.
+werkzeug under the BSD-3-Clause license.
 whatwg-encoding under the MIT license.
 whatwg-fetch under the MIT license.
 whatwg-mimetype under the MIT license.
