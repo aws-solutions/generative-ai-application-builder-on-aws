@@ -21,6 +21,7 @@ from utils.constants import (
     USER_ID_EVENT_KEY,
 )
 from utils.enum_types import BedrockModelProviders, LLMProviderTypes
+from unittest.mock import patch
 
 # Testing LLMChatClient using subclass
 BASIC_PROMPT = """{input}"""
@@ -213,16 +214,17 @@ def test_get_event_conversation_id(simple_llm_client):
 
 
 def test_env_not_set(setup_environment, simple_llm_client):
-    os.environ.pop(USE_CASE_CONFIG_TABLE_NAME_ENV_VAR, None)
-    with pytest.raises(ValueError) as error:
-        simple_llm_client.check_env()
-    assert error.value.args[0] == f"Missing required environment variable {USE_CASE_CONFIG_TABLE_NAME_ENV_VAR}."
+    with patch.dict(os.environ, clear=False):
+        os.environ.pop(USE_CASE_CONFIG_TABLE_NAME_ENV_VAR, None)
+        with pytest.raises(ValueError) as error:
+            simple_llm_client.check_env()
+        assert error.value.args[0] == f"Missing required environment variable {USE_CASE_CONFIG_TABLE_NAME_ENV_VAR}."
 
-    os.environ[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = "fake-table"
-    os.environ.pop(USE_CASE_CONFIG_RECORD_KEY_ENV_VAR, None)
-    with pytest.raises(ValueError) as error:
-        simple_llm_client.check_env()
-    assert error.value.args[0] == f"Missing required environment variable {USE_CASE_CONFIG_RECORD_KEY_ENV_VAR}."
+        os.environ[USE_CASE_CONFIG_TABLE_NAME_ENV_VAR] = "fake-table"
+        os.environ.pop(USE_CASE_CONFIG_RECORD_KEY_ENV_VAR, None)
+        with pytest.raises(ValueError) as error:
+            simple_llm_client.check_env()
+        assert error.value.args[0] == f"Missing required environment variable {USE_CASE_CONFIG_RECORD_KEY_ENV_VAR}."
 
 
 def test_env_set(setup_environment, simple_llm_client):
@@ -339,13 +341,14 @@ def test_retrieve_usecase_empty_config(
 
 
 def test_parent_retrieve_llm_config_missing_env(setup_environment, simple_llm_client):
-    os.environ.pop(USE_CASE_CONFIG_RECORD_KEY_ENV_VAR, None)
-    with pytest.raises(ValueError) as error:
-        simple_llm_client.retrieve_use_case_config()
-    assert (
-        error.value.args[0]
-        == f"Missing required environment variable {USE_CASE_CONFIG_TABLE_NAME_ENV_VAR} or {USE_CASE_CONFIG_RECORD_KEY_ENV_VAR}."
-    )
+    with patch.dict(os.environ, clear=False):
+        os.environ.pop(USE_CASE_CONFIG_RECORD_KEY_ENV_VAR, None)
+        with pytest.raises(ValueError) as error:
+            simple_llm_client.retrieve_use_case_config()
+        assert (
+            error.value.args[0]
+            == f"Missing required environment variable {USE_CASE_CONFIG_TABLE_NAME_ENV_VAR} or {USE_CASE_CONFIG_RECORD_KEY_ENV_VAR}."
+        )
 
 
 def test_construct_chat_model_failure(simple_llm_client, chat_event):

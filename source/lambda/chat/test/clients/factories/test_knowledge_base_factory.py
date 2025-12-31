@@ -9,8 +9,11 @@ import pytest
 from clients.factories.knowledge_base_factory import KNOWLEDGE_BASE_MAP, KnowledgeBaseFactory
 from utils.constants import BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR, KENDRA_INDEX_ID_ENV_VAR
 from utils.enum_types import KnowledgeBaseTypes
+from unittest.mock import patch
 
 TEST_PROMPT = """\n\n{history}\n\n{input}"""
+
+os.environ["_X_AMZN_TRACE_ID"] = "Root=1-12345678-123456789abcdef0;Parent=123456789abcdef0;Sampled=1"
 
 
 @pytest.mark.parametrize(
@@ -64,13 +67,14 @@ def test_get_kb_missing_kendra_index(
 ):
     errors_list = []
     config = deepcopy(bedrock_llm_config)
-    os.environ.pop(KENDRA_INDEX_ID_ENV_VAR, None)
-    with pytest.raises(ValueError):
-        response = KnowledgeBaseFactory().get_knowledge_base(config, errors_list, user_context_token)
-        assert response is None
-        assert errors_list == [
-            f"Missing required environment variable {KENDRA_INDEX_ID_ENV_VAR} for Kendra knowledge base."
-        ]
+    with patch.dict(os.environ, clear=False):
+        os.environ.pop(KENDRA_INDEX_ID_ENV_VAR, None)
+        with pytest.raises(ValueError):
+            response = KnowledgeBaseFactory().get_knowledge_base(config, errors_list, user_context_token)
+            assert response is None
+            assert errors_list == [
+                f"Missing required environment variable {KENDRA_INDEX_ID_ENV_VAR} for Kendra knowledge base."
+            ]
 
 
 @pytest.mark.parametrize(
@@ -85,13 +89,14 @@ def test_get_kb_missing_bedrock_knowledge_base_id(
 ):
     errors_list = []
     config = deepcopy(bedrock_llm_config)
-    os.environ.pop(BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR, None)
-    with pytest.raises(ValueError):
-        response = KnowledgeBaseFactory().get_knowledge_base(config, errors_list, user_context_token)
-        assert response is None
-        assert errors_list == [
-            f"Missing required environment variable {BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR} for Kendra knowledge base."
-        ]
+    with patch.dict(os.environ, clear=False):
+        os.environ.pop(BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR, None)
+        with pytest.raises(ValueError):
+            response = KnowledgeBaseFactory().get_knowledge_base(config, errors_list, user_context_token)
+            assert response is None
+            assert errors_list == [
+                f"Missing required environment variable {BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR} for Kendra knowledge base."
+            ]
 
 
 @pytest.mark.parametrize(
