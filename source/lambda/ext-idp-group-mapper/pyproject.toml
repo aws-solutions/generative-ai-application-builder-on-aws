@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ext-idp-group-mapper"
-version = "4.0.3"
+version = "4.0.4"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation to change Cognito user groups to External Identity Provider groups in the JWT token"
 packages = [
@@ -27,7 +27,7 @@ pytest-env = "1.1.5"
 PyYAML = "6.0.2"
 setuptools = "80.8.0"
 requests="2.32.4"
-urllib3="2.6.1"
+urllib3="2.6.3"
 boto3-layer =  { path = "../layers/aws_boto3/", develop = true }
 custom_boto3_init = { path = "../layers/custom_boto3_init", develop = true }
 
