@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.4] - 2026-01-13
+
+### Fixed
+
+- Bug where streaming failures would not properly fallback to non-streaming response delivery.
+
+### Security
+
+- Upgraded urllib3 to `2.6.3` to mitigate [CVE-2026-21441](https://avd.aquasec.com/nvd/cve-2026-21441/)
+- Upgraded react-router to `7.12.0` to mitigate [CVE-2025-59057](https://avd.aquasec.com/nvd/cve-2025-59057), [CVE-2025-68470](https://avd.aquasec.com/nvd/cve-2025-68470), [CVE-2026-21884](https://avd.aquasec.com/nvd/cve-2026-21884), [CVE-2026-22029](https://avd.aquasec.com/nvd/cve-2026-22029) and [CVE-2026-22030](https://avd.aquasec.com/nvd/cve-2026-22030)
+- Upgrade werkzeug to `3.1.5` to mitigate [CVE-2026-21860](https://avd.aquasec.com/nvd/cve-2026-21860)
+
 ## [4.0.3] - 2025-12-31
 
 ### Security

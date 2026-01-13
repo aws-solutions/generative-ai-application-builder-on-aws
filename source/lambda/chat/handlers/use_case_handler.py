@@ -38,6 +38,20 @@ class UseCaseHandler:
     def __init__(self, llm_client_type: LLMChatClient.__class__):
         self.llm_client_type = llm_client_type
 
+    def check_streaming_failed(self, callbacks) -> bool:
+        """
+        Check if streaming failed by examining callbacks for has_streamed attribute.
+
+        :param callbacks: List of callback objects to check
+        :return: True if streaming was attempted but failed, False otherwise
+        """
+        streaming_failed = any(
+            hasattr(callback, "has_streamed") and not callback.has_streamed for callback in callbacks
+        )
+        if streaming_failed:
+            logger.info("Streaming was enabled but failed - using fallback")
+        return streaming_failed
+
     def handle_event(self, event: Dict[str, Any], context: LambdaContext) -> Dict:
         """
         Create a LLMChatClient concrete object type based on the configuration in `event` and
@@ -85,8 +99,13 @@ class UseCaseHandler:
                     conversation_id=conversation_id,
                     message_id=llm_client.builder.message_id,
                 )
-                if not llm_client.builder.is_streaming:
+
+                # Send response via WebSocket if streaming is disabled OR if streaming failed
+                streaming_failed = self.check_streaming_failed(llm_client.builder.callbacks)
+
+                if not llm_client.builder.is_streaming or streaming_failed:
                     socket_handler.post_response_to_connection(ai_response)
+
                 socket_handler.post_token_to_connection(END_CONVERSATION_TOKEN)
                 loop_index = loop_index + 1
 
