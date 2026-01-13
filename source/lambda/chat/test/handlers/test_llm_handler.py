@@ -330,6 +330,62 @@ def test_lambda_timeout_behavior(
                                 "Data": json.dumps(payload),
                             },
                         )
+                else:
+                    # For streaming tests, expect fallback response when streaming fails
+                    apigateway_stubber.add_response(
+                        "post_to_connection",
+                        {},
+                        expected_params={
+                            "ConnectionId": MOCK_CONNECTION_ID,
+                            "Data": json.dumps(
+                                {
+                                    "data": MOCK_AI_RESPONSE,
+                                    CONVERSATION_ID_EVENT_KEY: MOCK_CONVERSATION_ID,
+                                    MESSAGE_ID_EVENT_KEY: MOCK_MESSAGE_ID,
+                                }
+                            ),
+                        },
+                    )
+
+                    # For streaming RAG tests with source docs, expect source document responses
+                    if rag_enabled and return_source_docs:
+                        source_doc_responses = (
+                            kendra_source_doc_responses(MOCK_CONVERSATION_ID, MOCK_MESSAGE_ID)
+                            if knowledge_base_type == KnowledgeBaseTypes.KENDRA.value
+                            else []
+                        )
+                        source_doc_responses += (
+                            bedrock_source_doc_responses(MOCK_CONVERSATION_ID, MOCK_MESSAGE_ID)
+                            if knowledge_base_type == KnowledgeBaseTypes.BEDROCK.value
+                            else []
+                        )
+
+                        for payload in source_doc_responses:
+                            apigateway_stubber.add_response(
+                                "post_to_connection",
+                                {},
+                                expected_params={
+                                    "ConnectionId": MOCK_CONNECTION_ID,
+                                    "Data": json.dumps(payload),
+                                },
+                            )
+
+                    # For streaming RAG tests, expect rephrased query response
+                    if rag_enabled:
+                        apigateway_stubber.add_response(
+                            "post_to_connection",
+                            {},
+                            expected_params={
+                                "ConnectionId": MOCK_CONNECTION_ID,
+                                "Data": json.dumps(
+                                    {
+                                        REPHRASED_QUERY_KEY: MOCK_REPHRASED_QUERY,
+                                        "conversationId": MOCK_CONVERSATION_ID,
+                                        MESSAGE_ID_EVENT_KEY: MOCK_MESSAGE_ID,
+                                    }
+                                ),
+                            },
+                        )
 
                 if not is_streaming and rag_enabled:
                     apigateway_stubber.add_response(

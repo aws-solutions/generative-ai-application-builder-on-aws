@@ -1,6 +1,6 @@
 {
   "name": "@amzn/model-info",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "description": "This lambda supports APIs that provide the capability to deploy GenAI use cases",
   "main": "index.ts",
   "scripts": {
