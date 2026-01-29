@@ -139,13 +139,15 @@ export const DEPLOYMENT_ACTIONS = {
 export enum GATEWAY_TARGET_TYPES {
     LAMBDA = 'lambda',
     OPEN_API = 'openApiSchema',
-    SMITHY = 'smithyModel'
+    SMITHY = 'smithyModel',
+    MCP_SERVER = 'mcpServer'
 }
 
 // Outbound Auth types of Rest API targets of Agentcore Gateway
 export enum GATEWAY_REST_API_OUTBOUND_AUTH_TYPES {
     API_KEY = 'API_KEY',
-    OAUTH = 'OAUTH'
+    OAUTH = 'OAUTH',
+    NO_AUTH = 'NO_AUTH'
 }
 
 export enum API_KEY_LOCATION {
@@ -376,6 +378,13 @@ export const MCP_TARGET_TYPE_OPTIONS = new Map([
             label: 'Smithy',
             description: 'Smithy schema'
         }
+    ],
+    [
+        GATEWAY_TARGET_TYPES.MCP_SERVER,
+        {
+            label: 'MCP Server',
+            description: 'MCP server endpoint'
+        }
     ]
 ]);
 
@@ -394,6 +403,13 @@ export const MCP_AUTH_TYPE_OPTIONS = new Map([
             label: 'API Key',
             description: 'API Key authentication'
         }
+    ],
+    [
+        GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH,
+        {
+            label: 'No authentication',
+            description: 'Connect without authentication'
+        }
     ]
 ]);
 
@@ -402,8 +418,8 @@ export const MCP_CREATION_METHOD_OPTIONS = new Map([
     [
         MCP_SERVER_CREATION_METHOD.GATEWAY,
         {
-            label: 'Create from Lambda or API',
-            description: 'Create MCP server from existing Lambda functions or API specifications'
+            label: 'Create from Lambda, API, or MCP Server',
+            description: 'Create MCP server from existing Lambda functions, API specifications, or MCP server endpoints'
         }
     ],
     [
@@ -456,5 +472,19 @@ export const ARN_RESOURCE_REGEX_MAP: Record<string, RegExp> = {
     lambda: /^function:[^:]+(:[^:]+)?$/
 };
 
+// MCP endpoint validation
+export const MCP_ENDPOINT_PATTERN =
+    /^https:\/\/[a-zA-Z\d]([a-zA-Z\d.-]*[a-zA-Z\d])?(?::[1-9]\d{0,4})?(?:\/[a-zA-Z\d._~:/?#@!$&'()*+,;=%-]*)?$/;
+
 // Active deployment statuses that indicate a use case is ready for use
 export const ACTIVE_DEPLOYMENT_STATUSES = ['CREATE_COMPLETE', 'UPDATE_COMPLETE'] as const;
+
+// Target types that require schema files
+export const TARGETS_WITH_SCHEMA = [
+    GATEWAY_TARGET_TYPES.OPEN_API,
+    GATEWAY_TARGET_TYPES.SMITHY,
+    GATEWAY_TARGET_TYPES.LAMBDA
+];
+
+// Target types that support authentication
+export const TARGETS_WITH_AUTH = [GATEWAY_TARGET_TYPES.OPEN_API, GATEWAY_TARGET_TYPES.MCP_SERVER];

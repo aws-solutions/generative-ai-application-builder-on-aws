@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-01-29
+
+### Added
+
+- MCP Server target configuration support in MCP Server use case.
+
+### Changed
+
+- Upgraded langchain-aws and dependent packages with migration from deprecated modules to langchain_core and langchain_classic.
+- Refactored info panel content for all use case types in view details page.
+
+### Fixed
+
+- Bug where removing already deleted MCP servers from an Agent Builder usecase would cause errors.
+- Issue with workflow review page not displaying system prompt formatting correctly.
+- Bug where failed memory creation would also cause deletion to fail.
+
+### Security
+
+- Upgraded python-multipart to `0.0.22` to mitigate [CVE-2024-53981](https://avd.aquasec.com/nvd/cve-2024-53981/)
+- Upgraded lodash to `4.17.23` to mitigate [CVE-2025-13465](https://avd.aquasec.com/nvd/cve-2025-13465/)
+- Upgraded diff to `4.0.4` and `5.2.2` to mitigate [CVE-2026-24001](https://avd.aquasec.com/nvd/cve-2026-24001/)
+- Upgraded @smithy/config-resolver to `4.4.6` to mitigate [GHSA-6475-r3vj-m8vf](https://github.com/advisories/GHSA-6475-r3vj-m8vf)
+- Upgraded wheel to `0.46.3` to mitigate [GHSA-8rrh-rw8j-w5fx](https://github.com/advisories/GHSA-8rrh-rw8j-w5fx)
+
 ## [4.0.4] - 2026-01-13
 
 ### Fixed

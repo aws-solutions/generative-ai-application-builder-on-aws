@@ -121,11 +121,11 @@ def test_knowledge_base_construction_override_search_nullified(setup_environment
     assert knowledge_base.retriever.return_source_documents == param_copy["ReturnSourceDocs"]
 
 
-def test_source_docs_formatter():
+def test_source_docs_formatter(setup_environment):
     bedrock_kb_results = [
         Document(
             page_content="this is an excerpt from a fake bedrock knowledge base",
-            metadata={"location": {"type": "S3", "s3Location": {"uri": "s3://fakepath1"}}, "score": 0.25},
+            metadata={"location": {"type": "S3", "s3Location": {"uri": "s3://fakepath1/document.pdf"}}, "score": 0.25},
         ),
         Document(
             page_content="this is a second excerpt",
@@ -163,16 +163,27 @@ def test_source_docs_formatter():
                 "score": 0.8,
             },
         ),
+        Document(
+            page_content="this is an eighth excerpt from S3 via Kendra",
+            metadata={
+                "location": {"type": "KENDRA", "kendraDocumentLocation": {"uri": "s3://kendra-bucket/doc.pdf"}},
+                "score": 0.85,
+            },
+        ),
     ]
     knowledge_base = BedrockKnowledgeBase(knowledge_base_params)
     formatted_docs = knowledge_base.source_docs_formatter(bedrock_kb_results)
+    
+    # Get the region from environment for expected URLs
+    region = os.environ.get('AWS_REGION', 'us-east-1')
+    
     assert formatted_docs == [
         {
             "additional_attributes": None,
             "document_title": None,
             "excerpt": "this is an excerpt from a fake bedrock knowledge base",
             "document_id": None,
-            "location": "s3://fakepath1",
+            "location": f"https://s3.console.aws.amazon.com/s3/object/fakepath1?region={region}&prefix=document.pdf",
             "score": 0.25,
         },
         {
@@ -222,6 +233,14 @@ def test_source_docs_formatter():
             "document_id": None,
             "location": "https://kendra.example.com/doc1",
             "score": 0.8,
+        },
+        {
+            "additional_attributes": None,
+            "document_title": None,
+            "excerpt": "this is an eighth excerpt from S3 via Kendra",
+            "document_id": None,
+            "location": f"https://s3.console.aws.amazon.com/s3/object/kendra-bucket?region={region}&prefix=doc.pdf",
+            "score": 0.85,
         },
     ]
 

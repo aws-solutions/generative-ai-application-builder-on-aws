@@ -154,9 +154,10 @@ export interface TargetParams {
     TargetId?: string;
     TargetName: string;
     TargetDescription?: string;
-    TargetType: 'openApiSchema' | 'smithyModel' | 'lambda';
+    TargetType: 'openApiSchema' | 'smithyModel' | 'lambda' | 'mcpServer';
     LambdaArn?: string;
-    SchemaUri: string;
+    McpEndpoint?: string;
+    SchemaUri?: string;
     OutboundAuthParams?: OutboundAuthParams;
 }
 

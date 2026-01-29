@@ -9,7 +9,7 @@ from typing import List, Optional
 from aws_lambda_powertools import Logger, Tracer
 from botocore.exceptions import ClientError
 from helper import get_service_resource
-from langchain.schema import _message_to_dict
+from langchain_core.messages import message_to_dict
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import (
     AIMessage,
@@ -143,7 +143,7 @@ class DynamoDBChatMessageHistory(BaseChatMessageHistory):
         message = self.get_role_prepended_message(message)
 
         messages = messages_to_dict(self.raw_messages)
-        _message = _message_to_dict(message)
+        _message = message_to_dict(message)
         _message["data"]["id"] = self.message_id
         messages.append(_message)
 

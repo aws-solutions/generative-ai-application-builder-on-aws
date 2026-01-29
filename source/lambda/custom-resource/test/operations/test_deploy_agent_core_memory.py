@@ -190,3 +190,17 @@ class TestDeployAgentCoreMemory:
             deploy_agent_core_memory.delete_memory_configuration("test-memory-id")
             
             mock_bedrock_client.delete_memory.assert_called_once_with(memoryId="test-memory-id")
+            
+    def test_delete_memory_configuration_invalid_id(self, mock_bedrock_client):
+        from botocore.exceptions import ClientError
+        
+        mock_bedrock_client.delete_memory.side_effect = ClientError(
+            {"Error": {"Code": "ValidationException", "Message": "Parameter validation failed"}},
+            "delete_memory"
+        )
+        
+        with patch('operations.deploy_agent_core_memory.get_service_client', return_value=mock_bedrock_client):
+            # Should not raise exception
+            deploy_agent_core_memory.delete_memory_configuration("test-memory-id")
+            
+            mock_bedrock_client.delete_memory.assert_called_once_with(memoryId="test-memory-id")

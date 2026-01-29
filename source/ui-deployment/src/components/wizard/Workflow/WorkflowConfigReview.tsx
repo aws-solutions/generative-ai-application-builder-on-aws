@@ -6,6 +6,8 @@ import { ReviewSectionProps } from '../interfaces/Steps';
 import { ORCHESTRATION_PATTERNS } from '@/utils/constants';
 import { getBooleanString } from '../utils';
 import { ExternalLink } from '@/components/commons/external-link';
+import { useComponentId } from '../../commons/use-component-id';
+import { escapedNewLineToLineBreakTag } from '@/utils/displayUtils';
 
 import { ValueWithLabel } from '@/utils/ValueWithLabel';
 
@@ -15,6 +17,7 @@ interface WorkflowConfigReviewProps extends ReviewSectionProps {
 
 export const WorkflowConfigReview = (props: WorkflowConfigReviewProps) => {
     const orchestrationPattern = ORCHESTRATION_PATTERNS.get(props.workflowData.orchestrationPattern);
+    const componentId = useComponentId();
 
     return (
         <SpaceBetween size="xs">
@@ -37,9 +40,11 @@ export const WorkflowConfigReview = (props: WorkflowConfigReviewProps) => {
             >
                 <ColumnLayout columns={1} variant="text-grid" data-testid="review-client-agent-details">
                     <ValueWithLabel label="System prompt">
-                        <Box variant="code" fontSize="body-s">
-                            {props.workflowData.systemPrompt}
-                        </Box>
+                        <Box variant="code">
+                                {props.workflowData.systemPrompt
+                                    ? escapedNewLineToLineBreakTag(props.workflowData.systemPrompt, componentId)
+                                    : 'No system prompt configured'}
+                        </Box>,
                     </ValueWithLabel>
 
                     <ValueWithLabel label="Memory enabled">

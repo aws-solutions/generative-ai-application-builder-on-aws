@@ -4,7 +4,7 @@
 import React from 'react';
 import { Container, Header, SpaceBetween, Button, Box, StatusIndicator } from '@cloudscape-design/components';
 import { TargetConfiguration } from '../interfaces/Steps/MCPServerStep';
-import { GATEWAY_TARGET_TYPES, DEPLOYMENT_ACTIONS } from '@/utils/constants';
+import { GATEWAY_TARGET_TYPES, DEPLOYMENT_ACTIONS, GATEWAY_REST_API_OUTBOUND_AUTH_TYPES } from '@/utils/constants';
 
 // Import the new modular components
 import TargetBasicInfo from './TargetBasicInfo';
@@ -12,6 +12,7 @@ import TargetTypeSelector from './TargetTypeSelector';
 import LambdaTarget from './LambdaTarget';
 import OpenAPITarget from './OpenAPITarget';
 import SmithyTarget from './SmithyTarget';
+import MCPServerTarget from './MCPServerTarget';
 
 // Utility function for upload status indicator
 const renderUploadStatus = (target: TargetConfiguration, successText = 'Uploaded') => {
@@ -79,15 +80,21 @@ export const MCPTargetConfiguration = (props: MCPTargetConfigurationProps) => {
         const clearedErrors = { ...fieldErrors };
         delete clearedErrors.lambdaArn;
         delete clearedErrors.providerArn;
+        delete clearedErrors.mcpEndpoint;
         setFieldErrors(clearedErrors);
 
-        // Clear uploaded schema when target type changes since file types may not be compatible
+        // Clear uploaded schema and reset auth when target type changes to avoid validation errors
         handleTargetChange({
             targetType,
             uploadedSchema: null,
             uploadedSchemaKey: undefined,
             uploadedSchemaFileName: undefined,
-            uploadFailed: false
+            uploadFailed: false,
+            outboundAuth: target.outboundAuth ? {
+                ...target.outboundAuth,
+                authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                providerArn: ''
+            } : undefined
         });
     };
 
@@ -122,6 +129,18 @@ export const MCPTargetConfiguration = (props: MCPTargetConfigurationProps) => {
                         targetIndex={index}
                         onTargetChange={handleTargetChange}
                         schemaError={fieldErrors.schema}
+                    />
+                );
+            case GATEWAY_TARGET_TYPES.MCP_SERVER:
+                return (
+                    <MCPServerTarget
+                        target={target}
+                        targetIndex={index}
+                        onTargetChange={handleTargetChange}
+                        endpointError={fieldErrors.mcpEndpoint}
+                        providerArnError={fieldErrors.providerArn}
+                        setNumFieldsInError={props.setNumFieldsInError}
+                        setHelpPanelContent={props.setHelpPanelContent}
                     />
                 );
             default:
@@ -166,6 +185,7 @@ export const MCPTargetConfiguration = (props: MCPTargetConfigurationProps) => {
                     selectedType={target.targetType}
                     onTypeChange={handleTargetTypeChange}
                     targetIndex={index}
+                    setHelpPanelContent={props.setHelpPanelContent}
                 />
 
                 {renderTargetSpecificComponent()}

@@ -10,6 +10,7 @@ from utils.policy_manager import GatewayPolicyManager
 from utils.lambda_target_creator import LambdaTargetCreator
 from utils.smithy_target_creator import SmithyTargetCreator
 from utils.openapi_target_creator import OpenAPITargetCreator
+from utils.mcp_server_target_creator import MCPServerTargetCreator
 import uuid
 import time
 from operations.shared import retry_with_backoff
@@ -21,6 +22,7 @@ tracer = Tracer()
 MCPGatewayFactory.register_target_creator("lambda", LambdaTargetCreator)
 MCPGatewayFactory.register_target_creator("smithyModel", SmithyTargetCreator)
 MCPGatewayFactory.register_target_creator("openApiSchema", OpenAPITargetCreator)
+MCPGatewayFactory.register_target_creator("mcpServer", MCPServerTargetCreator)
 
 
 class GatewayMCP(AgentcoreMCP):
@@ -38,7 +40,7 @@ class GatewayMCP(AgentcoreMCP):
         gateway_role_arn,
         gateway_name,
         schema_bucket_name,
-        gateway_id = None
+        gateway_id=None,
     ):
         """
         Initialize the Gateway MCP manager.
@@ -128,20 +130,23 @@ class GatewayMCP(AgentcoreMCP):
             target_creator = MCPGatewayFactory.create_target_creator(target, self.schema_bucket_name)
 
             try:
+                credential_configs = target_creator.build_credential_provider_configurations()
+
+                target_params_dict = {
+                    "gatewayIdentifier": self.gateway_id,
+                    "name": target_name,
+                    "clientToken": str(uuid.uuid4()),
+                    **({} if not target.get("TargetDescription") else {"description": target.get("TargetDescription")}),
+                    "targetConfiguration": {"mcp": target_creator.create_target_configuration()},
+                }
+
+                # Only include credentialProviderConfigurations if not empty as it requires at least 1 credential provider if the field is present
+                if credential_configs:
+                    target_params_dict["credentialProviderConfigurations"] = credential_configs
+
                 response = retry_with_backoff(
                     self.agentcore_client.create_gateway_target,
-                    **{
-                        "gatewayIdentifier": self.gateway_id,
-                        "name": target_name,
-                        "clientToken": str(uuid.uuid4()),
-                        **(
-                            {}
-                            if not target.get("TargetDescription")
-                            else {"description": target.get("TargetDescription")}
-                        ),
-                        "targetConfiguration": {"mcp": target_creator.create_target_configuration()},
-                        "credentialProviderConfigurations": target_creator.build_credential_provider_configurations(),
-                    },
+                    **target_params_dict,
                 )
 
                 target_id = response.get("targetId")

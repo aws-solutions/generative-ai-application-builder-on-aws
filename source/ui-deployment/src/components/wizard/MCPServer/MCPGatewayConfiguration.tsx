@@ -34,6 +34,7 @@ export const MCPGatewayConfiguration = (props: MCPGatewayConfigurationProps) => 
             uploadedSchema: null,
             uploadedSchemaKey: undefined,
             lambdaArn: '',
+            mcpEndpoint: '',
             outboundAuth: {
                 authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
                 providerArn: '',

@@ -71,6 +71,10 @@ class GatewayPolicyManager:
                 target_name=target_name,
                 outbound_auth_params=target.get("OutboundAuthParams", {})
             )
+        elif target_type == "mcpServer":
+            outbound_auth_params = target.get("OutboundAuthParams")
+            if outbound_auth_params:
+                self._add_openapi_policy_for_target(target_name=target_name, outbound_auth_params=outbound_auth_params)
 
     def add_lambda_policy(self, target_name: str, lambda_arn: str) -> None:
         """

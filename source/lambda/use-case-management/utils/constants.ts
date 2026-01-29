@@ -267,7 +267,8 @@ export enum McpOperationTypes {
 export enum GATEWAY_TARGET_TYPES {
     LAMBDA = 'lambda',
     OPEN_API = 'openApiSchema',
-    SMITHY = 'smithyModel'
+    SMITHY = 'smithyModel',
+    MCP_SERVER = 'mcpServer'
 }
 
 // Content types for MCP schema uploads - reusable across different constraints
@@ -287,7 +288,7 @@ export const MCP_SCHEMA_UPLOAD_CONSTRAINTS = {
 };
 
 // Schema type specific file extension mappings
-export const SCHEMA_TYPE_FILE_EXTENSIONS = {
+export const SCHEMA_TYPE_FILE_EXTENSIONS: Record<string, string[]> = {
     [GATEWAY_TARGET_TYPES.LAMBDA]: [
         '.json' // Lambda JSON schema files
     ],
@@ -302,6 +303,16 @@ export const SCHEMA_TYPE_FILE_EXTENSIONS = {
     ]
 };
 export const SUPPORTED_MCP_FILE_EXTENSIONS = [...new Set(Object.values(SCHEMA_TYPE_FILE_EXTENSIONS).flat())];
+
+// Target types that require schema files
+export const TARGETS_WITH_SCHEMA = [
+    GATEWAY_TARGET_TYPES.LAMBDA,
+    GATEWAY_TARGET_TYPES.OPEN_API,
+    GATEWAY_TARGET_TYPES.SMITHY
+];
+
+// Target types that support authentication
+export const TARGETS_WITH_AUTH = [GATEWAY_TARGET_TYPES.OPEN_API, GATEWAY_TARGET_TYPES.MCP_SERVER];
 
 // Workflow orchestration patterns
 export enum WORKFLOW_ORCHESTRATION_PATTERNS {
@@ -322,5 +333,8 @@ export const ARN_RESOURCE_REGEX_MAP: Record<string, RegExp> = {
     lambda: /^function:[^:]+(:[^:]+)?$/
 };
 
-export const AGENT_CORE_SYSTEM_PROMPT_MAX_LENGTH = 60000;
+// MCP endpoint URL validation pattern
+export const MCP_ENDPOINT_PATTERN =
+    /^https:\/\/[a-zA-Z\d]([a-zA-Z\d.-]*[a-zA-Z\d])?(?::[1-9]\d{0,4})?(?:\/[a-zA-Z\d._~:/?#@!$&'()*+,;=%-]*)?$/;
 
+export const AGENT_CORE_SYSTEM_PROMPT_MAX_LENGTH = 60000;

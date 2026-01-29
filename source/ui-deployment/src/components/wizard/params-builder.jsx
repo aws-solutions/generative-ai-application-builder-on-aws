@@ -12,7 +12,8 @@ import {
     GATEWAY_REST_API_OUTBOUND_AUTH_TYPES,
     MULTIMODAL_SUPPORTED_USE_CASES,
     PROVISIONED_CONCURRENCY_SUPPORTED_USE_CASES,
-    ORCHESTRATION_PATTERN_TYPES
+    ORCHESTRATION_PATTERN_TYPES,
+    TARGETS_WITH_AUTH
 } from '../../utils/constants';
 import { KNOWLEDGE_BASE_PROVIDERS, MODEL_FAMILY_PROVIDER_OPTIONS, MODEL_PROVIDER_NAME_MAP } from './steps-config';
 import { mapAgentBuilderStepInfoFromDeployment, mapModelStepInfoFromDeployment } from './utils';
@@ -757,9 +758,16 @@ export const createMCPTargetParams = (target) => {
         targetParams.LambdaArn = target.lambdaArn;
     }
 
-    // Add outbound auth for OpenAPI targets
-    if (target.targetType === GATEWAY_TARGET_TYPES.OPEN_API && target.outboundAuth) {
-        targetParams.OutboundAuthParams = createOutboundAuthParams(target.outboundAuth);
+    // Add MCP Server-specific parameters
+    if (target.targetType === GATEWAY_TARGET_TYPES.MCP_SERVER && target.mcpEndpoint) {
+        targetParams.McpEndpoint = target.mcpEndpoint;
+    }
+
+    // Add outbound auth for targets that support authentication
+    if (TARGETS_WITH_AUTH.includes(target.targetType) && target.outboundAuth) {
+        if (target.outboundAuth.authType !== GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH) {
+            targetParams.OutboundAuthParams = createOutboundAuthParams(target.outboundAuth);
+        }
     }
 
     return targetParams;

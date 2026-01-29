@@ -1,6 +1,6 @@
 {
   "name": "@amzn/aws-sdk-layer",
-  "version": "4.0.4",
+  "version": "4.1.0",
   "description": "AWS Javascript SDK v3 layer",
   "main": "index.js",
   "scripts": {
@@ -24,7 +24,7 @@
     "@aws-sdk/types": "^3.875.0",
     "@aws-sdk/util-arn-parser": "^3.873.0",
     "@aws-sdk/util-dynamodb": "^3.875.0",
-    "@smithy/types": "^4.3.2",
+    "@smithy/types": "^4.12.0",
     "@types/aws-lambda": "^8.10.146"
   },
   "author": {

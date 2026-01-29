@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 from aws_lambda_powertools import Logger, Tracer
 from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 from helper import get_service_client
+from utils.constants import MCP_GATEWAY_TARGET_TYPES
 
 logger = Logger()
 tracer = Tracer()
@@ -85,18 +86,31 @@ class MCPConfigManager:
         }
 
     def validate_target_params(self, target: Dict[str, Any], target_index: int) -> None:
-        required_fields = ["TargetName", "TargetType", "SchemaUri"]
+        base_required_fields = ["TargetName", "TargetType"]
 
-        for field in required_fields:
+        for field in base_required_fields:
             if field not in target:
                 raise ValueError(f"Required field '{field}' missing in target {target_index}")
 
         target_type = target.get("TargetType")
-        if target_type not in ["lambda", "openApiSchema", "smithyModel"]:
-            raise ValueError(f"Invalid TargetType: {target_type}. Must be one of: lambda, openapi, smithyModel")
 
-        if target_type == "lambda" and "LambdaArn" not in target:
-            raise ValueError(f"LambdaArn required for lambda target {target_index}")
+        if target_type not in MCP_GATEWAY_TARGET_TYPES:
+            raise ValueError(
+                f"Invalid TargetType: {target_type}. Must be one of: {', '.join(MCP_GATEWAY_TARGET_TYPES)}"
+            )
+
+        # Validate type-specific required fields
+        type_requirements = {
+            "lambda": ["LambdaArn", "SchemaUri"],
+            "openApiSchema": ["SchemaUri"],
+            "smithyModel": ["SchemaUri"],
+            "mcpServer": ["McpEndpoint"],
+        }
+
+        required_fields = type_requirements.get(target_type, [])
+        for field in required_fields:
+            if field not in target:
+                raise ValueError(f"{field} required for {target_type} target {target_index}")
 
     @tracer.capture_method
     def get_mcp_gateway_config(self, config_key: str) -> Dict[str, Any]:

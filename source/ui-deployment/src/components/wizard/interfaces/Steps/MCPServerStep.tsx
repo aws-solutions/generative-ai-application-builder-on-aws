@@ -3,6 +3,7 @@
 
 import { IG_DOCS } from '@/utils/constants';
 import { Box } from '@cloudscape-design/components';
+import { v4 as uuidv4 } from 'uuid';
 
 import { StepContentProps, ToolHelpPanelContent } from '../Steps';
 import { BaseWizardProps, BaseWizardStep } from './BaseWizardStep';
@@ -68,6 +69,8 @@ export interface TargetConfiguration {
     uploadFailed?: boolean;
     // Lambda specific
     lambdaArn?: string;
+    // MCP Server specific
+    mcpEndpoint?: string;
     // OpenAPI specific - outbound auth
     outboundAuth?: {
         authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES;
@@ -95,6 +98,7 @@ export class MCPServerStep extends BaseWizardStep {
                 uploadedSchema: null,
                 uploadedSchemaKey: undefined,
                 lambdaArn: '',
+                mcpEndpoint: '',
                 outboundAuth: {
                     authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
                     providerArn: '',
@@ -155,7 +159,7 @@ export class MCPServerStep extends BaseWizardStep {
                 const apiTargets = gatewayParams.TargetParams || [];
                 this.props.targets = apiTargets.map((apiTarget: any, index: number) => ({
                     // Map API field names to UI field names
-                    id: apiTarget.TargetId,
+                    id: apiTarget.TargetId || uuidv4(),
                     targetName: apiTarget.TargetName || '',
                     targetDescription: apiTarget.TargetDescription || '',
                     targetType: apiTarget.TargetType || GATEWAY_TARGET_TYPES.LAMBDA,
@@ -171,8 +175,11 @@ export class MCPServerStep extends BaseWizardStep {
                     // Lambda-specific fields
                     lambdaArn: apiTarget.LambdaArn || '',
 
+                    // MCP Server-specific fields
+                    mcpEndpoint: apiTarget.McpEndpoint || '',
+
                     // Outbound auth configuration
-                    outboundAuth: this.mapOutboundAuthFromApi(apiTarget.OutboundAuthParams)
+                    outboundAuth: this.mapOutboundAuthFromApi(apiTarget.OutboundAuthParams, apiTarget.TargetType)
                 }));
 
                 // Ensure we have at least one target for the UI
@@ -185,6 +192,7 @@ export class MCPServerStep extends BaseWizardStep {
                             targetType: GATEWAY_TARGET_TYPES.LAMBDA,
                             uploadedSchema: null,
                             lambdaArn: '',
+                            mcpEndpoint: '',
                             outboundAuth: {
                                 authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
                                 providerArn: '',
@@ -247,11 +255,16 @@ export class MCPServerStep extends BaseWizardStep {
     /**
      * Helper method to map API outbound auth structure to UI structure
      */
-    private mapOutboundAuthFromApi(apiOutboundAuth: any): any {
+    private mapOutboundAuthFromApi(apiOutboundAuth: any, targetType?: string): any {
         if (!apiOutboundAuth) {
-            // Return default structure
+            // For MCP Server targets, default to NO_AUTH when no auth params provided
+            // For OpenAPI targets, default to OAuth
+            const defaultAuthType = targetType === GATEWAY_TARGET_TYPES.MCP_SERVER
+                ? GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH
+                : GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH;
+
             return {
-                authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                authType: defaultAuthType,
                 providerArn: '',
                 additionalConfig: {
                     oauthConfig: {
