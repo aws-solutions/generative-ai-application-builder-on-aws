@@ -1247,4 +1247,336 @@ describe('Testing MCP Use Case Validation', () => {
                 }
             });
         });
+
+    describe('Smithy target validation', () => {
+        it('should pass validation with valid Smithy target', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-smithy',
+                TargetType: GATEWAY_TARGET_TYPES.SMITHY,
+                SchemaUri: 'mcp/schemas/smithyModel/12345678-1234-1234-1234-123456789012.smithy',
+                McpEndpoint: ''
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).resolves.not.toThrow();
+        });
+
+        it('should fail validation when SchemaUri is missing', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-smithy',
+                TargetType: GATEWAY_TARGET_TYPES.SMITHY,
+                McpEndpoint: ''
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).rejects.toThrow(
+                'Schema URI is missing for target "test-smithy"'
+            );
+        });
     });
+
+    describe('MCP Server target validation', () => {
+        it('should pass validation with valid MCP Server target', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: 'https://api.example.com/mcp',
+                SchemaUri: '',
+                OutboundAuthParams: {
+                    OutboundAuthProviderArn:
+                        'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test-vault/oauth2credentialprovider/test-provider',
+                    OutboundAuthProviderType: 'OAUTH'
+                }
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).resolves.not.toThrow();
+        });
+
+        it('should pass validation without authentication', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: 'https://api.example.com/mcp',
+                SchemaUri: ''
+                // OutboundAuthParams omitted for NO_AUTH
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).resolves.not.toThrow();
+        });
+
+        it('should pass validation without SchemaUri', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: 'https://api.example.com/mcp',
+                SchemaUri: '',
+                OutboundAuthParams: {
+                    OutboundAuthProviderArn:
+                        'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test-vault/oauth2credentialprovider/test-provider',
+                    OutboundAuthProviderType: 'OAUTH'
+                }
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).resolves.not.toThrow();
+        });
+
+        it('should fail validation when MCP endpoint is missing', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: '',
+                SchemaUri: ''
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).rejects.toThrow(
+                'MCP endpoint URL is missing for target "test-mcp-server"'
+            );
+        });
+
+        it('should fail validation with invalid MCP endpoint URL', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: 'http://api.example.com/mcp',
+                SchemaUri: '',
+                OutboundAuthParams: {
+                    OutboundAuthProviderArn: '',
+                    OutboundAuthProviderType: 'OAUTH'
+                }
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).rejects.toThrow(
+                'Invalid MCP endpoint URL format for target "test-mcp-server". Must be a valid HTTPS URL'
+            );
+        });
+
+        it('should fail validation with localhost MCP endpoint', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: 'https://localhost/mcp',
+                SchemaUri: '',
+                OutboundAuthParams: {
+                    OutboundAuthProviderArn: '',
+                    OutboundAuthProviderType: 'OAUTH'
+                }
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).rejects.toThrow(
+                'MCP endpoint cannot use localhost or loopback addresses'
+            );
+        });
+
+        it('should fail validation with private IP MCP endpoint', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: 'https://192.168.1.1/mcp',
+                SchemaUri: '',
+                OutboundAuthParams: {
+                    OutboundAuthProviderArn: '',
+                    OutboundAuthProviderType: 'OAUTH'
+                }
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).rejects.toThrow(
+                'MCP endpoint cannot use private IP addresses'
+            );
+        });
+
+        it('should fail validation with metadata endpoint', async () => {
+            const targetParams: TargetParams = {
+                TargetName: 'test-mcp-server',
+                TargetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                McpEndpoint: 'https://169.254.169.254/mcp',
+                SchemaUri: '',
+                OutboundAuthParams: {
+                    OutboundAuthProviderArn: '',
+                    OutboundAuthProviderType: 'OAUTH'
+                }
+            };
+
+            const mcpConfig = {
+                MCPParams: {
+                    GatewayParams: {
+                        TargetParams: [targetParams]
+                    }
+                }
+            };
+
+            const useCase = new UseCase(
+                'fake-id',
+                'fake-test',
+                'Create MCP server',
+                cfnParameters,
+                mcpConfig,
+                'test-user',
+                'FakeProviderName',
+                'MCPServer'
+            );
+            await expect(mcpValidator.validateNewUseCase(useCase)).rejects.toThrow(
+                'MCP endpoint cannot use link-local or metadata addresses'
+            );
+        });
+    });
+});

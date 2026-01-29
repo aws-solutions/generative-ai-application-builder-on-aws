@@ -209,7 +209,7 @@ def test_model_params_configuration(
     bedrock_stubber.add_response(
         "converse",
         expected_params={
-            "additionalModelRequestFields": {"modelSpecific": "test"},
+            "additionalModelRequestFields": {"model_specific": "test"},
             "inferenceConfig": {"temperature": 0.0, "topP": 0.2, "maxTokens": 512, "stopSequences": ["Human:"]},
             "messages": [
                 {
@@ -270,7 +270,7 @@ def test_exception_for_failed_model_response(
         service_error_code="InternalServerError",
         service_message="some-error",
         expected_params={
-            "additionalModelRequestFields": {"modelSpecific": "test"},
+            "additionalModelRequestFields": {"model_specific": "test"},
             "inferenceConfig": {"temperature": 0.0, "topP": 0.2, "maxTokens": 512, "stopSequences": ["Human:"]},
             "messages": [
                 {

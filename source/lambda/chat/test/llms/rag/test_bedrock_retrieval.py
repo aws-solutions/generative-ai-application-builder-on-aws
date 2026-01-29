@@ -478,7 +478,7 @@ def test_successful_model_invocation_params(
     bedrock_stubber.add_response(
         "converse",
         expected_params={
-            "additionalModelRequestFields": {"maxTokenCount": 200},
+            "additionalModelRequestFields": {"max_token_count": 200},
             "inferenceConfig": {
                 "temperature": 0.25,
                 "topP": 0.9,

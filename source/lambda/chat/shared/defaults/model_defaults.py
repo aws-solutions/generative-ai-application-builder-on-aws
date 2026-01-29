@@ -38,9 +38,14 @@ class ModelDefaults:
         try:
             ddb_resource = get_service_resource("dynamodb")
             defaults_table = ddb_resource.Table(table_name)
+            # Try model-specific defaults first, then fall back to default
             model_defaults = defaults_table.get_item(
-                Key={"UseCase": self.use_case, "SortKey": self.model_provider + "#" + self.model_name},
-            ).get("Item", {})
+                Key={"UseCase": self.use_case, "SortKey": self.model_provider + "#" + self.model_name}
+            ).get("Item", {}) or defaults_table.get_item(
+                Key={"UseCase": self.use_case, "SortKey": self.model_provider + "#default"}
+            ).get(
+                "Item", {}
+            )
 
             if not model_defaults:
                 logger.error(record_not_found_error, xray_trace_id=os.environ[TRACE_ID_ENV_VAR])

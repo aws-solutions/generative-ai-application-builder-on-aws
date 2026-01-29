@@ -4,6 +4,7 @@
 
 import pytest
 from unittest.mock import Mock
+from botocore.exceptions import ClientError
 from utils.auth_manager import AuthManager
 from utils.data import MCPServerData
 from utils.constants import EntityType
@@ -209,3 +210,57 @@ class TestAuthManager:
         
         with pytest.raises(ValueError, match="Invalid ARN. Type must be gateway or runtime."):
             auth_manager._update_allowed_clients(invalid_server, True)
+
+    def test_remove_permission_resource_not_found(self, auth_manager, runtime_mcp_server):
+        """Test that remove_permission succeeds when resource is not found."""
+        error_response = {
+            'Error': {
+                'Code': 'ResourceNotFoundException',
+                'Message': 'Resource not found'
+            }
+        }
+        auth_manager._get_resource_tags = Mock(side_effect=ClientError(error_response, 'ListTagsForResource'))
+        auth_manager._update_allowed_clients = Mock()
+        
+        # Should not raise an exception
+        auth_manager.remove_permission(runtime_mcp_server)
+        
+        # Should not attempt to update tags or clients
+        auth_manager.bedrock.tag_resource.assert_not_called()
+        auth_manager.bedrock.untag_resource.assert_not_called()
+        auth_manager._update_allowed_clients.assert_not_called()
+
+    def test_remove_permission_not_found_exception(self, auth_manager, runtime_mcp_server):
+        """Test that remove_permission succeeds when NotFoundException is raised."""
+        error_response = {
+            'Error': {
+                'Code': 'NotFoundException',
+                'Message': 'Not found'
+            }
+        }
+        auth_manager._get_resource_tags = Mock(side_effect=ClientError(error_response, 'ListTagsForResource'))
+        auth_manager._update_allowed_clients = Mock()
+        
+        # Should not raise an exception
+        auth_manager.remove_permission(runtime_mcp_server)
+        
+        # Should not attempt to update tags or clients
+        auth_manager.bedrock.tag_resource.assert_not_called()
+        auth_manager.bedrock.untag_resource.assert_not_called()
+        auth_manager._update_allowed_clients.assert_not_called()
+
+    def test_remove_permission_other_client_error(self, auth_manager, runtime_mcp_server):
+        """Test that remove_permission re-raises non-NotFound ClientErrors."""
+        error_response = {
+            'Error': {
+                'Code': 'AccessDeniedException',
+                'Message': 'Access denied'
+            }
+        }
+        auth_manager._get_resource_tags = Mock(side_effect=ClientError(error_response, 'ListTagsForResource'))
+        
+        # Should re-raise the exception
+        with pytest.raises(ClientError) as exc_info:
+            auth_manager.remove_permission(runtime_mcp_server)
+        
+        assert exc_info.value.response['Error']['Code'] == 'AccessDeniedException'

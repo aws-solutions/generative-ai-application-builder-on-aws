@@ -5,6 +5,7 @@
 import os
 from dataclasses import asdict
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse, quote
 
 from aws_lambda_powertools import Logger
 from langchain_core.documents import Document
@@ -82,6 +83,132 @@ class BedrockKnowledgeBase(KnowledgeBase):
         if not os.environ.get(BEDROCK_KNOWLEDGE_BASE_ID_ENV_VAR):
             raise ValueError("Bedrock knowledge base id env variable is not set")
 
+    def _generate_s3_console_url(self, s3_uri: str) -> Optional[str]:
+        """
+        Generates an S3 console URL for an S3 URI.
+        
+        Args:
+            s3_uri (str): S3 URI in format s3://bucket-name/key/path
+            
+        Returns:
+            Optional[str]: S3 console URL or None if generation fails
+        """
+        try:
+            # Parse S3 URI
+            parsed = urlparse(s3_uri)
+            if parsed.scheme != 's3':
+                logger.warning(f"Invalid S3 URI scheme: {s3_uri}")
+                return None
+                
+            bucket = parsed.netloc
+            key = parsed.path.lstrip('/')
+            
+            if not bucket or not key:
+                logger.warning(f"Invalid S3 URI format: {s3_uri}")
+                return None
+            
+            # Get AWS region from environment or use default
+            region = os.environ.get('AWS_REGION', 'us-east-1')
+            
+            # Generate S3 console URL
+            # URL encode the key to handle special characters
+            from urllib.parse import quote
+            encoded_key = quote(key, safe='/')
+            
+            console_url = f"https://s3.console.aws.amazon.com/s3/object/{bucket}?region={region}&prefix={encoded_key}"
+            
+            logger.info(
+                "Generated S3 console URL",
+                extra={
+                    "s3_uri": s3_uri,
+                    "bucket": bucket,
+                    "region": region
+                }
+            )
+            return console_url
+            
+        except Exception as e:
+            logger.error(f"Error generating S3 console URL for {s3_uri}: {str(e)}")
+            return None
+
+    def _extract_location_from_metadata(self, location_metadata: Dict) -> Optional[str]:
+        """
+        Extracts and processes the location from Bedrock metadata.
+        
+        Args:
+            location_metadata (Dict): The location metadata from Bedrock
+            
+        Returns:
+            Optional[str]: Processed location URL or None
+        """
+        location_type = location_metadata.get("type")
+        
+        if location_type == "S3":
+            return self._process_s3_location(location_metadata.get("s3Location", {}))
+        elif location_type == "WEB":
+            return location_metadata.get("webLocation", {}).get("url")
+        elif location_type == "CONFLUENCE":
+            return location_metadata.get("confluenceLocation", {}).get("url")
+        elif location_type == "SALESFORCE":
+            return location_metadata.get("salesforceLocation", {}).get("url")
+        elif location_type == "SHAREPOINT":
+            return location_metadata.get("sharePointLocation", {}).get("url")
+        elif location_type == "KENDRA":
+            return self._process_kendra_location(location_metadata.get("kendraDocumentLocation", {}))
+        else:
+            if location_type:
+                logger.warning(
+                    f"Unsupported Bedrock location type '{location_type}' detected. No location will be returned."
+                )
+            return None
+
+    def _process_s3_location(self, s3_location: Dict) -> Optional[str]:
+        """
+        Processes S3 location by converting URI to console URL.
+        
+        Args:
+            s3_location (Dict): S3 location metadata
+            
+        Returns:
+            Optional[str]: Console URL or original URI as fallback
+        """
+        s3_uri = s3_location.get("uri")
+        if not s3_uri:
+            return None
+            
+        console_url = self._generate_s3_console_url(s3_uri)
+        if console_url:
+            return console_url
+            
+        # Fallback to original S3 URI
+        logger.warning(f"Using S3 URI as fallback: {s3_uri}")
+        return s3_uri
+
+    def _process_kendra_location(self, kendra_location: Dict) -> Optional[str]:
+        """
+        Processes Kendra location, converting S3 URIs to console URLs.
+        
+        Args:
+            kendra_location (Dict): Kendra location metadata
+            
+        Returns:
+            Optional[str]: Console URL for S3 URIs, or original URI
+        """
+        kendra_uri = kendra_location.get("uri")
+        if not kendra_uri:
+            return None
+            
+        # Check if Kendra URI is actually an S3 URI
+        if kendra_uri.startswith("s3://"):
+            console_url = self._generate_s3_console_url(kendra_uri)
+            if console_url:
+                return console_url
+                
+            # Fallback to original URI
+            logger.warning(f"Using Kendra S3 URI as fallback: {kendra_uri}")
+            
+        return kendra_uri
+
     def source_docs_formatter(self, source_documents: List[Document]) -> List[Dict]:
         """
         Formats the source documents in a format to send to the websocket
@@ -92,32 +219,14 @@ class BedrockKnowledgeBase(KnowledgeBase):
         """
         formatted_source_docs = []
         for doc in source_documents:
-            # location is of type https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent-runtime_RetrievalResultLocation.html. More types may be added, but for now only those below are supported.
-            doc_location = None
-            location_type = doc.metadata.get("location", {}).get("type")
+            location_metadata = doc.metadata.get("location", {})
+            doc_location = self._extract_location_from_metadata(location_metadata)
 
-            match location_type:
-                case "S3":
-                    doc_location = doc.metadata.get("location", {}).get("s3Location", {}).get("uri")
-                case "WEB":
-                    doc_location = doc.metadata.get("location", {}).get("webLocation", {}).get("url")
-                case "CONFLUENCE":
-                    doc_location = doc.metadata.get("location", {}).get("confluenceLocation", {}).get("url")
-                case "SALESFORCE":
-                    doc_location = doc.metadata.get("location", {}).get("salesforceLocation", {}).get("url")
-                case "SHAREPOINT":
-                    doc_location = doc.metadata.get("location", {}).get("sharePointLocation", {}).get("url")
-                case "KENDRA":
-                    doc_location = doc.metadata.get("location", {}).get("kendraDocumentLocation", {}).get("uri")
-                case _:
-                    logger.warning(
-                        f"Unsupported Bedrock location type '{location_type}' detected. No location will be returned."
-                    )
-
-            doc = SourceDocument(
+            formatted_doc = SourceDocument(
                 excerpt=doc.page_content,
                 location=doc_location,
                 score=doc.metadata.get("score"),
             )
-            formatted_source_docs.append(asdict(doc))
+            formatted_source_docs.append(asdict(formatted_doc))
+            
         return formatted_source_docs

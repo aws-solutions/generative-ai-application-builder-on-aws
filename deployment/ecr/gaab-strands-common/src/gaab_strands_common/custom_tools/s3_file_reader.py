@@ -59,7 +59,7 @@ class S3FileReaderTool(BaseCustomTool):
         logger.debug(f"Initialized S3FileReaderTool for bucket: {self.bucket_name}")
 
     @tool
-    def s3_file_reader(self, tool_input: ToolUse) -> ToolResult:
+    def s3_file_reader(self, s3_key: str) -> ToolResult:
         """
         Read files from S3 and return content in model-readable format.
 
@@ -69,9 +69,7 @@ class S3FileReaderTool(BaseCustomTool):
         automatically detects file type and formats content appropriately for processing.
 
         Args:
-            tool_input: ToolUse object containing:
-                - s3_key (str, required): S3 object key/path (e.g., 'uploads/document.pdf')
-
+            s3_key (str, required): S3 object key/path (e.g., 'uploads/document.pdf')
 
         Returns:
             ToolResult with status "success" or "error":
@@ -79,18 +77,16 @@ class S3FileReaderTool(BaseCustomTool):
             - Error: Returns descriptive error message for invalid input, unsupported format,
             file not found, or S3 access issues
         """
-        # Initialize variables with defaults
-        tool_use_id = "unknown"
-        s3_key = "unknown"
-
         try:
-            tool_use_id = tool_input["toolUseId"]
-            tool_use_input = tool_input["input"]
-
-            if "s3_key" not in tool_use_input:
+            if not isinstance(s3_key, str):
+                tool_use_id = "s3_file_reader_invalid"
+                return self._create_error_result(tool_use_id, "S3 key must be a string")
+            
+            if not s3_key or not s3_key.strip():
+                tool_use_id = "s3_file_reader_empty"
                 return self._create_error_result(tool_use_id, "S3 key is required")
-
-            s3_key = tool_use_input["s3_key"]
+            
+            tool_use_id = f"s3_file_reader_{hash(s3_key) % 10000}"
 
             # Validate and normalize the S3 key
             validation_result = self._validate_and_normalize_s3_key(s3_key)

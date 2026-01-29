@@ -253,7 +253,7 @@ describe('MCPReview', () => {
         cloudscapeRender(<MCPReview {...mockProps} />);
 
         expect(screen.getByText('Creation Method')).toBeInTheDocument();
-        expect(screen.getByText('Create from Lambda or API')).toBeInTheDocument();
+        expect(screen.getByText('Create from Lambda, API, or MCP Server')).toBeInTheDocument();
     });
 
     test('shows creation method for runtime', () => {
@@ -441,6 +441,129 @@ describe('MCPReview', () => {
         expect(screen.getByText('Yes')).toBeInTheDocument();
     });
 
+    test('shows MCP Server endpoint for MCP Server targets', () => {
+        const mcpServerProps = {
+            ...mockProps,
+            info: {
+                ...mockProps.info,
+                mcpServer: {
+                    ...mockMCPServerData,
+                    targets: [
+                        {
+                            ...mockMCPServerData.targets![0],
+                            targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                            mcpEndpoint: 'https://api.example.com/mcp',
+                            outboundAuth: {
+                                authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                                providerArn:
+                                    'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test-vault/oauth2credentialprovider/test-oauth'
+                            }
+                        }
+                    ]
+                }
+            }
+        };
+
+        cloudscapeRender(<MCPReview {...mcpServerProps} />);
+
+        expect(screen.getByText('MCP Endpoint')).toBeInTheDocument();
+        expect(screen.getByText('https://api.example.com/mcp')).toBeInTheDocument();
+        expect(screen.getByText('MCP Server')).toBeInTheDocument();
+
+        // Should NOT show schema file for MCP Server targets
+        expect(screen.queryByText('Schema File')).not.toBeInTheDocument();
+        expect(screen.queryByText('Uploaded Schema File')).not.toBeInTheDocument();
+    });
+
+    test('shows "Not specified" for missing MCP endpoint', () => {
+        const missingEndpointProps = {
+            ...mockProps,
+            info: {
+                ...mockProps.info,
+                mcpServer: {
+                    ...mockMCPServerData,
+                    targets: [
+                        {
+                            ...mockMCPServerData.targets![0],
+                            targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                            mcpEndpoint: '',
+                            outboundAuth: {
+                                authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH,
+                                providerArn: ''
+                            }
+                        }
+                    ]
+                }
+            }
+        };
+
+        cloudscapeRender(<MCPReview {...missingEndpointProps} />);
+
+        expect(screen.getByText('MCP Endpoint')).toBeInTheDocument();
+        expect(screen.getByText('Not specified')).toBeInTheDocument();
+    });
+
+    test('shows NO_AUTH authentication for MCP Server targets', () => {
+        const noAuthProps = {
+            ...mockProps,
+            info: {
+                ...mockProps.info,
+                mcpServer: {
+                    ...mockMCPServerData,
+                    targets: [
+                        {
+                            ...mockMCPServerData.targets![0],
+                            targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                            mcpEndpoint: 'https://api.example.com/mcp',
+                            outboundAuth: {
+                                authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH,
+                                providerArn: ''
+                            }
+                        }
+                    ]
+                }
+            }
+        };
+
+        cloudscapeRender(<MCPReview {...noAuthProps} />);
+
+        expect(screen.getByText('Authentication Type')).toBeInTheDocument();
+        expect(screen.getByText('No authentication')).toBeInTheDocument();
+        expect(screen.getByText('Authentication Configured')).toBeInTheDocument();
+        expect(screen.getByText('No')).toBeInTheDocument();
+    });
+
+    test('shows OAuth authentication for MCP Server targets', () => {
+        const oauthProps = {
+            ...mockProps,
+            info: {
+                ...mockProps.info,
+                mcpServer: {
+                    ...mockMCPServerData,
+                    targets: [
+                        {
+                            ...mockMCPServerData.targets![0],
+                            targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                            mcpEndpoint: 'https://api.example.com/mcp',
+                            outboundAuth: {
+                                authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                                providerArn:
+                                    'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test-vault/oauth2credentialprovider/test-oauth'
+                            }
+                        }
+                    ]
+                }
+            }
+        };
+
+        cloudscapeRender(<MCPReview {...oauthProps} />);
+
+        expect(screen.getByText('Authentication Type')).toBeInTheDocument();
+        expect(screen.getByText('OAuth')).toBeInTheDocument();
+        expect(screen.getByText('Authentication Configured')).toBeInTheDocument();
+        expect(screen.getByText('Yes')).toBeInTheDocument();
+    });
+
     test('shows API Key authentication', () => {
         const apiKeyProps = {
             ...mockProps,
@@ -549,5 +672,64 @@ describe('MCPReview', () => {
         expect(screen.getByText('Step 2: MCP Server Configuration')).toBeInTheDocument();
         // With empty targets, should still show the section but no target configurations
         expect(screen.getByText('Step 2: MCP Server Configuration')).toBeInTheDocument();
+    });
+
+    describe('authentication configured display', () => {
+        test('shows authentication configured as No for NO_AUTH', () => {
+            const noAuthProps = {
+                ...mockProps,
+                info: {
+                    ...mockProps.info,
+                    mcpServer: {
+                        ...mockMCPServerData,
+                        targets: [
+                            {
+                                ...mockMCPServerData.targets![0],
+                                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                                mcpEndpoint: 'https://api.example.com/mcp',
+                                outboundAuth: {
+                                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH,
+                                    providerArn: ''
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            cloudscapeRender(<MCPReview {...noAuthProps} />);
+
+            expect(screen.getByText('Authentication Configured')).toBeInTheDocument();
+            expect(screen.getByText('No')).toBeInTheDocument();
+        });
+
+        test('shows authentication configured as Yes when provider ARN exists', () => {
+            const oauthWithArnProps = {
+                ...mockProps,
+                info: {
+                    ...mockProps.info,
+                    mcpServer: {
+                        ...mockMCPServerData,
+                        targets: [
+                            {
+                                ...mockMCPServerData.targets![0],
+                                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                                mcpEndpoint: 'https://api.example.com/mcp',
+                                outboundAuth: {
+                                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                                    providerArn:
+                                        'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test/oauth2credentialprovider/test'
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            cloudscapeRender(<MCPReview {...oauthWithArnProps} />);
+
+            expect(screen.getByText('Authentication Configured')).toBeInTheDocument();
+            expect(screen.getByText('Yes')).toBeInTheDocument();
+        });
     });
 });

@@ -28,14 +28,11 @@ describe('MCPServer', () => {
                 lambdaArn: '',
                 outboundAuth: {
                     authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.API_KEY,
-                    apiKey: '',
-                    clientId: '',
-                    clientSecret: ''
+                    providerArn: ''
                 }
             }
         ],
-        inError: false,
-        useCaseType: 'MCPServer'
+        inError: false
     };
 
     const mockProps = {
@@ -182,5 +179,132 @@ describe('MCPServer', () => {
         expect(
             screen.getByText('The creation method cannot be changed when editing an existing MCP server.')
         ).toBeInTheDocument();
+    });
+
+    describe('schema validation', () => {
+        test('validates schema required for OpenAPI targets', () => {
+            const propsWithOpenAPITarget = {
+                ...mockProps,
+                info: {
+                    mcpServer: {
+                        ...mockMCPServerInfo,
+                        targets: [
+                            {
+                                id: '1',
+                                targetName: 'test-target',
+                                targetDescription: 'test description',
+                                targetType: GATEWAY_TARGET_TYPES.OPEN_API,
+                                uploadedSchema: null,
+                                uploadedSchemaKey: '',
+                                lambdaArn: '',
+                                outboundAuth: {
+                                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                                    providerArn:
+                                        'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test/oauth2credentialprovider/test'
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            cloudscapeRender(<MCPServer {...propsWithOpenAPITarget} />);
+
+            expect(mockProps.onChange).toHaveBeenCalledWith({ inError: true });
+        });
+
+        test('skips schema validation for MCP Server targets', () => {
+            const propsWithMCPServerTarget = {
+                ...mockProps,
+                info: {
+                    mcpServer: {
+                        ...mockMCPServerInfo,
+                        targets: [
+                            {
+                                id: '1',
+                                targetName: 'test-mcp-target',
+                                targetDescription: 'test description',
+                                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                                uploadedSchema: null,
+                                uploadedSchemaKey: '',
+                                lambdaArn: '',
+                                mcpEndpoint: 'https://api.example.com/mcp',
+                                outboundAuth: {
+                                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                                    providerArn:
+                                        'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test/oauth2credentialprovider/test'
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            cloudscapeRender(<MCPServer {...propsWithMCPServerTarget} />);
+
+            expect(mockProps.onChange).toHaveBeenCalledWith({ inError: false });
+        });
+    });
+
+    describe('authentication validation', () => {
+        test('validates provider ARN required when not NO_AUTH', () => {
+            const propsWithMissingProviderArn = {
+                ...mockProps,
+                info: {
+                    mcpServer: {
+                        ...mockMCPServerInfo,
+                        targets: [
+                            {
+                                id: '1',
+                                targetName: 'test-target',
+                                targetDescription: 'test description',
+                                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                                uploadedSchema: null,
+                                lambdaArn: '',
+                                mcpEndpoint: 'https://api.example.com/mcp',
+                                outboundAuth: {
+                                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                                    providerArn: ''
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            cloudscapeRender(<MCPServer {...propsWithMissingProviderArn} />);
+
+            expect(mockProps.onChange).toHaveBeenCalledWith({ inError: true });
+        });
+
+        test('skips provider ARN validation when NO_AUTH selected', () => {
+            const propsWithNoAuth = {
+                ...mockProps,
+                info: {
+                    mcpServer: {
+                        ...mockMCPServerInfo,
+                        targets: [
+                            {
+                                id: '1',
+                                targetName: 'test-target',
+                                targetDescription: 'test description',
+                                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                                uploadedSchema: null,
+                                lambdaArn: '',
+                                mcpEndpoint: 'https://api.example.com/mcp',
+                                outboundAuth: {
+                                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH,
+                                    providerArn: ''
+                                }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            cloudscapeRender(<MCPServer {...propsWithNoAuth} />);
+
+            expect(mockProps.onChange).toHaveBeenCalledWith({ inError: false });
+        });
     });
 });

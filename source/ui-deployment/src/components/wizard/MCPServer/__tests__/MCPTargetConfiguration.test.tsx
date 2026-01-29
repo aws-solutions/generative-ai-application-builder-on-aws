@@ -82,6 +82,7 @@ describe('MCPTargetConfiguration', () => {
         expect(radioGroup?.findInputByValue(GATEWAY_TARGET_TYPES.LAMBDA)).toBeTruthy();
         expect(radioGroup?.findInputByValue(GATEWAY_TARGET_TYPES.OPEN_API)).toBeTruthy();
         expect(radioGroup?.findInputByValue(GATEWAY_TARGET_TYPES.SMITHY)).toBeTruthy();
+        expect(radioGroup?.findInputByValue(GATEWAY_TARGET_TYPES.MCP_SERVER)).toBeTruthy();
     });
 
     test('handles target type change', () => {
@@ -95,7 +96,11 @@ describe('MCPTargetConfiguration', () => {
             uploadedSchema: null,
             uploadedSchemaKey: undefined,
             uploadedSchemaFileName: undefined,
-            uploadFailed: false
+            uploadFailed: false,
+            outboundAuth: {
+                authType: 'OAUTH',
+                providerArn: ''
+            }
         });
     });
 
@@ -119,13 +124,17 @@ describe('MCPTargetConfiguration', () => {
         const radioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="target-type-radio-1"]');
         radioGroup?.findInputByValue(GATEWAY_TARGET_TYPES.OPEN_API)?.click();
 
-        // Verify that the schema is cleared when target type changes
+        // Verify that the schema and auth are cleared when target type changes
         expect(mockProps.onUpdateTarget).toHaveBeenCalledWith('1', {
             targetType: GATEWAY_TARGET_TYPES.OPEN_API,
             uploadedSchema: null,
             uploadedSchemaKey: undefined,
             uploadedSchemaFileName: undefined,
-            uploadFailed: false
+            uploadFailed: false,
+            outboundAuth: {
+                authType: 'OAUTH',
+                providerArn: ''
+            }
         });
     });
 
@@ -173,6 +182,69 @@ describe('MCPTargetConfiguration', () => {
         expect(authRadioGroup).toBeDefined();
         expect(authRadioGroup?.findInputByValue(GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH)).toBeTruthy();
         expect(authRadioGroup?.findInputByValue(GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.API_KEY)).toBeTruthy();
+    });
+
+    test('shows MCP endpoint field for MCP Server target type', () => {
+        const mcpServerProps = {
+            ...mockProps,
+            target: {
+                ...mockTarget,
+                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                mcpEndpoint: 'https://example.com/mcp'
+            }
+        };
+
+        const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+        expect(screen.getByTestId('mcp-endpoint-field-1')).toBeInTheDocument();
+
+        const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+        expect(mcpEndpointInput?.getInputValue()).toBe('https://example.com/mcp');
+    });
+
+    test('handles MCP endpoint change', () => {
+        const mcpServerProps = {
+            ...mockProps,
+            target: {
+                ...mockTarget,
+                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                mcpEndpoint: 'https://example.com/mcp'
+            }
+        };
+
+        const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+        const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+        mcpEndpointInput?.setInputValue('https://new-endpoint.com/mcp');
+
+        expect(mockProps.onUpdateTarget).toHaveBeenCalledWith('1', {
+            mcpEndpoint: 'https://new-endpoint.com/mcp'
+        });
+    });
+
+    test('shows authentication section for MCP Server target type with NO_AUTH and OAuth options only', () => {
+        const mcpServerProps = {
+            ...mockProps,
+            target: {
+                ...mockTarget,
+                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                outboundAuth: {
+                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH,
+                    providerArn: ''
+                }
+            }
+        };
+
+        const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+        expect(screen.getByText('Outbound Authentication')).toBeInTheDocument();
+
+        const authRadioGroup = cloudscapeWrapper.findRadioGroup('[data-testid="auth-type-radio-1"]');
+        expect(authRadioGroup).toBeDefined();
+        expect(authRadioGroup?.findInputByValue(GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH)).toBeTruthy();
+        expect(authRadioGroup?.findInputByValue(GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH)).toBeTruthy();
+        // API Key should not be available for MCP Server targets
+        expect(authRadioGroup?.findInputByValue(GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.API_KEY)).toBeFalsy();
     });
 
     test('shows provider ARN field for API key authentication', () => {
@@ -533,5 +605,134 @@ describe('MCPTargetConfiguration', () => {
         // Test that space error appears even with special characters
         nameInput?.setInputValue('target name!@#');
         expect(screen.getByText(/Target name cannot contain spaces/)).toBeInTheDocument();
+    });
+
+    // MCP Endpoint Validation Tests
+    describe('MCP endpoint validation', () => {
+        const mcpServerProps = {
+            ...mockProps,
+            target: {
+                ...mockTarget,
+                targetType: GATEWAY_TARGET_TYPES.MCP_SERVER,
+                mcpEndpoint: '',
+                outboundAuth: {
+                    authType: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH,
+                    providerArn:
+                        'arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/test-vault/oauth2credentialprovider/test-provider'
+                }
+            }
+        };
+
+        test('shows validation error for empty MCP endpoint', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('');
+
+            expect(screen.getByText('Required field.')).toBeInTheDocument();
+        });
+
+        test('accepts valid HTTPS MCP endpoint', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://api.example.com/mcp');
+
+            expect(screen.queryByText(/Invalid MCP endpoint format/)).not.toBeInTheDocument();
+        });
+
+        test('accepts AWS Runtime MCP endpoint with encoded ARN', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const encodedArn =
+                'arn%3Aaws%3Abedrock-agentcore%3Aus-east-1%3A123456789012%3Aruntime%2Ftest-agent-runtime-id%2Fruntime-endpoint%2FDEFAULT';
+            const runtimeUrl = `https://bedrock-agentcore.us-east-1.amazonaws.com/runtimes/${encodedArn}/invocations?qualifier=DEFAULT`;
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue(runtimeUrl);
+
+            expect(screen.queryByText(/Invalid MCP endpoint format/)).not.toBeInTheDocument();
+        });
+
+        test('rejects HTTP (non-HTTPS) endpoint', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('http://api.example.com/mcp');
+
+            expect(screen.getByText('Invalid MCP endpoint format. Must be a valid HTTPS URL.')).toBeInTheDocument();
+        });
+
+        test('rejects JavaScript protocol (XSS protection)', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('javascript:alert("XSS")');
+
+            expect(screen.getByText('Invalid MCP endpoint format. Must be a valid HTTPS URL.')).toBeInTheDocument();
+        });
+
+        test('rejects invalid port (port 0)', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://api.example.com:0/mcp');
+
+            expect(screen.getByText('Invalid MCP endpoint format. Must be a valid HTTPS URL.')).toBeInTheDocument();
+        });
+
+        test('rejects localhost hostname', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://localhost/mcp');
+
+            expect(screen.getByText(/MCP endpoint cannot use localhost or loopback addresses/)).toBeInTheDocument();
+        });
+
+        test('rejects 127.0.0.1 loopback', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://127.0.0.1/mcp');
+
+            expect(screen.getByText(/MCP endpoint cannot use localhost or loopback addresses/)).toBeInTheDocument();
+        });
+
+        test('rejects private IP 10.x.x.x', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://10.0.0.1/mcp');
+
+            expect(screen.getByText(/MCP endpoint cannot use private IP addresses/)).toBeInTheDocument();
+        });
+
+        test('rejects private IP 192.168.x.x', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://192.168.1.1/mcp');
+
+            expect(screen.getByText(/MCP endpoint cannot use private IP addresses/)).toBeInTheDocument();
+        });
+
+        test('rejects cloud metadata endpoint 169.254.169.254', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://169.254.169.254/mcp');
+
+            expect(screen.getByText(/MCP endpoint cannot use link-local or metadata addresses/)).toBeInTheDocument();
+        });
+
+        test('rejects metadata hostname', () => {
+            const { cloudscapeWrapper } = cloudscapeRender(<MCPTargetConfiguration {...mcpServerProps} />);
+
+            const mcpEndpointInput = cloudscapeWrapper.findInput('[data-testid="mcp-endpoint-input-1"]');
+            mcpEndpointInput?.setInputValue('https://metadata.google.internal/mcp');
+
+            expect(screen.getByText(/MCP endpoint cannot use link-local or metadata addresses/)).toBeInTheDocument();
+        });
     });
 });

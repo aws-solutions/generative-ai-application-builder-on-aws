@@ -336,7 +336,9 @@ export class MCPServerStack extends BaseStack {
                 'bedrock-agentcore:CreateWorkloadIdentity',
                 'bedrock-agentcore:GetWorkloadIdentity',
                 'bedrock-agentcore:UpdateWorkloadIdentity',
-                'bedrock-agentcore:DeleteWorkloadIdentity'
+                'bedrock-agentcore:DeleteWorkloadIdentity',
+                'bedrock-agentcore:GetWorkloadAccessToken',
+                'bedrock-agentcore:GetResourceOauth2Token'
             ],
             resources: [
                 `arn:${cdk.Aws.PARTITION}:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:workload-identity-directory/*`
@@ -357,7 +359,11 @@ export class MCPServerStack extends BaseStack {
         // Add credential provider read permissions
         const bedrockAgentCoreCredentialProviderPolicy = new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
-            actions: ['bedrock-agentcore:GetApiKeyCredentialProvider', 'bedrock-agentcore:GetOauth2CredentialProvider'],
+            actions: [
+                'bedrock-agentcore:GetApiKeyCredentialProvider',
+                'bedrock-agentcore:GetOauth2CredentialProvider',
+                'bedrock-agentcore:GetResourceOauth2Token'
+            ],
             resources: [
                 `arn:${cdk.Aws.PARTITION}:bedrock-agentcore:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:token-vault/*`
             ]
@@ -370,11 +376,21 @@ export class MCPServerStack extends BaseStack {
             resources: [this.mcpGatewayRole.roleArn]
         });
 
+        // Add Secrets Manager permission for OAuth client secrets
+        const secretsManagerPolicy = new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ['secretsmanager:GetSecretValue'],
+            resources: [
+                `arn:${cdk.Aws.PARTITION}:secretsmanager:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:secret:bedrock-agentcore-identity!default/oauth2/*`
+            ]
+        });
+
         this.applicationSetup.customResourceRole.addToPolicy(bedrockAgentCoreGatewayPolicy);
         this.applicationSetup.customResourceRole.addToPolicy(bedrockAgentCoreWorkloadIdentityPolicy);
         this.applicationSetup.customResourceRole.addToPolicy(passRolePolicy);
         this.applicationSetup.customResourceRole.addToPolicy(bedrockAgentCoreCredentialProviderPolicy);
         this.applicationSetup.customResourceRole.addToPolicy(iamPutRolePolicyPermission);
+        this.applicationSetup.customResourceRole.addToPolicy(secretsManagerPolicy);
     }
 
     /**
@@ -423,6 +439,13 @@ export class MCPServerStack extends BaseStack {
                     reason: 'The IAM role allows the custom resource lambda to read credential providers from the token vault for MCP gateway authentication',
                     appliesTo: [
                         'Resource::arn:<AWS::Partition>:bedrock-agentcore:<AWS::Region>:<AWS::AccountId>:token-vault/*'
+                    ]
+                },
+                {
+                    id: 'AwsSolutions-IAM5',
+                    reason: 'The IAM role allows the custom resource lambda to access OAuth client secrets for MCP Server target validation during setup',
+                    appliesTo: [
+                        'Resource::arn:<AWS::Partition>:secretsmanager:<AWS::Region>:<AWS::AccountId>:secret:bedrock-agentcore-identity!default/oauth2/*'
                     ]
                 }
             ]

@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-agent"
-version = "4.0.4"
+version = "4.1.0"
 description = "GAAB Strands Agent Runtime for Amazon Bedrock AgentCore"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -14,7 +14,7 @@ classifiers = [
 dependencies = [
     "setuptools>=70.0.0",
     "pip>=25.0",
-    "wheel>=0.42.0",
+    "wheel>=0.46.2",
 
     # AWS SDK
     "boto3>=1.35.0",

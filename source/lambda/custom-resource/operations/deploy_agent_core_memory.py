@@ -7,7 +7,7 @@ from botocore.exceptions import ClientError
 from cfn_response import send_response
 from operations.operation_types import FAILED, RESOURCE_PROPERTIES, SUCCESS
 from operations.shared import retry_with_backoff
-from utils.agent_core_utils import format_error_message, handle_client_error, validate_event_properties, initialize_bedrock_client
+from utils.agent_core_utils import validate_event_properties, initialize_bedrock_client
 from helper import get_service_client
 
 logger = Logger(utc=True)
@@ -284,6 +284,8 @@ def delete_memory_configuration(memory_id: str):
     except ClientError as e:
         if e.response["Error"]["Code"] == "ResourceNotFoundException":
             logger.warning(f"Memory configuration '{memory_id}' not found, may already be deleted")
+        elif e.response["Error"]["Code"] == "ValidationException":
+            logger.warning(f"Memory ID '{memory_id}' appears auto-generated from failed creation. Verify no orphaned memory resources exist.")
         else:
             logger.error(f"Failed to delete memory: {e.response['Error']['Code']} - {e.response['Error']['Message']}")
             raise

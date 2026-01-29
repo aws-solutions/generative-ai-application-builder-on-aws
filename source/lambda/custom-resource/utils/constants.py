@@ -140,3 +140,11 @@ DEFAULT_API_GATEWAY_STAGE = "prod"
 MULTIMODAL_FILES_BUCKET_NAME_ENV_VAR = "MULTIMODAL_DATA_BUCKET"
 MULTIMODAL_FILES_METADATA_TABLE_NAME_ENV_VAR = "MULTIMODAL_METADATA_TABLE_NAME"
 AGENTCORE_RUNTIME_IDLE_TIMEOUT_SECONDS = 3600  # 1hr
+
+# MCP Gateway Target Types
+MCP_GATEWAY_TARGET_TYPES = ["lambda", "openApiSchema", "smithyModel", "mcpServer"]
+
+# MCP endpoint URL pattern
+MCP_ENDPOINT_PATTERN = (
+    r"^https://[a-zA-Z\d]([a-zA-Z\d.-]*[a-zA-Z\d])?(?::[1-9]\d{0,4})?(?:/[a-zA-Z\d._~:/?#@!$&'()*+,;=%-]*)?$"
+)

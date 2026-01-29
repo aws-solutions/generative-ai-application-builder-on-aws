@@ -5,6 +5,7 @@
 import os
 from dataclasses import asdict
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse, quote
 
 from aws_lambda_powertools import Logger
 from cognito_jwt_verifier import CognitoJWTVerifier
@@ -110,6 +111,53 @@ class KendraKnowledgeBase(KnowledgeBase):
 
         self.kendra_index_id = os.environ.get(KENDRA_INDEX_ID_ENV_VAR)
 
+    def _generate_s3_console_url(self, s3_uri: str) -> Optional[str]:
+        """
+        Generates an S3 console URL for an S3 URI.
+        
+        Args:
+            s3_uri (str): S3 URI in format s3://bucket-name/key/path
+            
+        Returns:
+            Optional[str]: S3 console URL or None if generation fails
+        """
+        try:
+            # Parse S3 URI
+            parsed = urlparse(s3_uri)
+            if parsed.scheme != 's3':
+                logger.warning(f"Invalid S3 URI scheme: {s3_uri}")
+                return None
+                
+            bucket = parsed.netloc
+            key = parsed.path.lstrip('/')
+            
+            if not bucket or not key:
+                logger.warning(f"Invalid S3 URI format: {s3_uri}")
+                return None
+            
+            # Get AWS region from environment or use default
+            region = os.environ.get('AWS_REGION', 'us-east-1')
+            
+            # Generate S3 console URL
+            # URL encode the key to handle special characters
+            encoded_key = quote(key, safe='/')
+            
+            console_url = f"https://s3.console.aws.amazon.com/s3/object/{bucket}?region={region}&prefix={encoded_key}"
+            
+            logger.info(
+                "Generated S3 console URL",
+                extra={
+                    "s3_uri": s3_uri,
+                    "bucket": bucket,
+                    "region": region
+                }
+            )
+            return console_url
+            
+        except Exception as e:
+            logger.error(f"Error generating S3 console URL for {s3_uri}: {str(e)}")
+            return None
+
     def source_docs_formatter(self, source_documents: List[Document]) -> List[Dict]:
         """
         Formats the source documents in a format to send to the websocket
@@ -120,9 +168,20 @@ class KendraKnowledgeBase(KnowledgeBase):
         """
         formatted_source_docs = []
         for doc in source_documents:
+            source_location = doc.metadata.get("source")
+            
+            # Convert S3 URIs to console URLs
+            if source_location and source_location.startswith("s3://"):
+                console_url = self._generate_s3_console_url(source_location)
+                if console_url:
+                    source_location = console_url
+                else:
+                    # Keep original S3 URI as fallback
+                    logger.warning(f"Using S3 URI as fallback: {source_location}")
+            
             doc = SourceDocument(
                 excerpt=doc.metadata.get("excerpt"),
-                location=doc.metadata.get("source"),
+                location=source_location,
                 score=doc.metadata.get("score"),
                 document_title=doc.metadata.get("title"),
                 document_id=doc.metadata.get("document_id"),

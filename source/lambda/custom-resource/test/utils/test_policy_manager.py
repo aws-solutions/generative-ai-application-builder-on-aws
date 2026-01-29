@@ -554,3 +554,50 @@ def test_add_openapi_policy_for_target_agentcore_failure(policy_manager):
     
     with pytest.raises(Exception, match="AgentCore error"):
         manager._add_openapi_policy_for_target("test-target", outbound_auth_params)
+
+
+def test_gateway_policy_factory_mcp_server_with_oauth(policy_manager):
+    """Test gateway_policy_factory with MCP Server target with OAuth."""
+    manager, mock_client, mock_agentcore = policy_manager
+    mock_client.get_role_policy.side_effect = mock_client.exceptions.NoSuchEntityException("Policy not found")
+
+    provider_arn = (
+        "arn:aws:bedrock-agentcore:us-east-1:123456789012:token-vault/default/credential-provider/mcp-oauth-provider"
+    )
+    secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:mcp-oauth-secret"
+
+    mock_agentcore.get_oauth2_credential_provider.return_value = {"clientSecretArn": {"secretArn": secret_arn}}
+
+    target = {
+        "TargetName": "my-mcp-target",
+        "McpEndpoint": "https://api.example.com/mcp",
+        "OutboundAuthParams": {"OutboundAuthProviderType": "OAUTH", "OutboundAuthProviderArn": provider_arn},
+    }
+
+    manager.gateway_policy_factory("mcpServer", target)
+
+    # Verify OAuth policy was created (same as OpenAPI)
+    mock_client.put_role_policy.assert_called_once()
+    mock_agentcore.get_oauth2_credential_provider.assert_called_once_with(name="mcp-oauth-provider")
+
+    # Verify policy content
+    call_args = mock_client.put_role_policy.call_args
+    policy_doc = json.loads(call_args[1]["PolicyDocument"])
+    assert policy_doc["Statement"][0]["Action"] == ["bedrock-agentcore:GetResourceOauth2Token"]
+    assert policy_doc["Statement"][1]["Action"] == ["secretsmanager:GetSecretValue"]
+
+
+def test_gateway_policy_factory_mcp_server_without_oauth(policy_manager):
+    """Test gateway_policy_factory with MCP Server target without OAuth (NO_AUTH)."""
+    manager, mock_client, _ = policy_manager
+
+    target = {
+        "TargetName": "my-mcp-target",
+        "McpEndpoint": "https://api.example.com/mcp",
+        # No OutboundAuthParams
+    }
+
+    manager.gateway_policy_factory("mcpServer", target)
+
+    # Verify no policy was created for NO_AUTH
+    mock_client.put_role_policy.assert_not_called()

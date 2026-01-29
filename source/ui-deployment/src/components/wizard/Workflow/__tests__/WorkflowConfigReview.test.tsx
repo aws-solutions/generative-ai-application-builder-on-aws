@@ -11,8 +11,16 @@ vi.mock('../utils', () => ({
     getBooleanString: vi.fn((value: boolean) => (value ? 'Yes' : 'No'))
 }));
 
+vi.mock('@/utils/displayUtils', () => ({
+    escapedNewLineToLineBreakTag: vi.fn((text: string, componentId: string) => (
+        <span data-testid="escaped-text" data-component-id={componentId}>
+            {text}
+        </span>
+    ))
+}));
+
 vi.mock('@/utils/constants', async (importOriginal) => {
-    const actual = await importOriginal();
+    const actual: any = await importOriginal();
     return {
         ...actual,
         ORCHESTRATION_PATTERNS: new Map([
@@ -117,10 +125,10 @@ describe('WorkflowConfigReview', () => {
             );
 
             const labels = screen.getAllByTestId('label');
-            const values = screen.getAllByTestId('value');
-
             expect(labels.some((label) => label.textContent === 'System prompt')).toBe(true);
-            expect(values.some((value) => value.textContent === 'You are a helpful workflow assistant')).toBe(true);
+            
+            const escapedText = screen.getByTestId('escaped-text');
+            expect(escapedText).toHaveTextContent('You are a helpful workflow assistant');
         });
 
         test('displays empty system prompt', () => {
@@ -464,9 +472,9 @@ describe('WorkflowConfigReview', () => {
             const values = screen.getAllByTestId('value');
 
             expect(labels.some((label) => label.textContent === 'System prompt')).toBe(true);
-            expect(values.some((value) => value.textContent === 'You are a comprehensive workflow assistant')).toBe(
-                true
-            );
+            const escapedText = screen.getByTestId('escaped-text');
+            expect(escapedText).toHaveTextContent('You are a comprehensive workflow assistant');
+            
             expect(labels.some((label) => label.textContent === 'Memory enabled')).toBe(true);
             expect(values.some((value) => value.textContent === 'Yes')).toBe(true);
 
@@ -608,8 +616,8 @@ describe('WorkflowConfigReview', () => {
                 <WorkflowConfigReview {...defaultProps} workflowData={workflowData} />
             );
 
-            const values = screen.getAllByTestId('value');
-            expect(values.some((value) => value.textContent === longPrompt)).toBe(true);
+            const escapedText = screen.getByTestId('escaped-text');
+            expect(escapedText).toHaveTextContent(longPrompt);
         });
 
         test('handles system prompt with special characters', () => {
@@ -623,8 +631,8 @@ describe('WorkflowConfigReview', () => {
                 <WorkflowConfigReview {...defaultProps} workflowData={workflowData} />
             );
 
-            const values = screen.getAllByTestId('value');
-            expect(values.some((value) => value.textContent === specialPrompt)).toBe(true);
+            const escapedText = screen.getByTestId('escaped-text');
+            expect(escapedText).toHaveTextContent(specialPrompt);
         });
 
         test('handles agents with very long names and descriptions', () => {

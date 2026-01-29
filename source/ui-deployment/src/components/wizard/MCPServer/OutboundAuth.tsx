@@ -26,14 +26,17 @@ interface OutboundAuthProps {
     outboundAuth: OutboundAuthConfig;
     onAuthChange: (auth: Partial<OutboundAuthConfig>) => void;
     targetIndex: number;
+    excludeAuthTypes?: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES[];
     providerArnError?: string;
     setNumFieldsInError?: (callback: (prev: number) => number) => void;
+    setHelpPanelContent?: (content: any) => void;
 }
 
 export const OutboundAuth = ({
     outboundAuth,
     onAuthChange,
     targetIndex,
+    excludeAuthTypes = [],
     providerArnError,
     setNumFieldsInError
 }: OutboundAuthProps) => {
@@ -46,24 +49,41 @@ export const OutboundAuth = ({
         }
     }, [outboundAuth.authType]);
 
-    const authTypeOptions = Array.from(MCP_AUTH_TYPE_OPTIONS.entries()).map(([value, config]) => ({
-        value,
-        label: config.label,
-        description: config.description
-    }));
+    const authTypeOptions = React.useMemo(
+        () =>
+            Array.from(MCP_AUTH_TYPE_OPTIONS.entries())
+                .filter(([value]) => !excludeAuthTypes.includes(value))
+                .map(([value, config]) => ({
+                    value,
+                    label: config.label,
+                    description: config.description
+                })),
+        [excludeAuthTypes]
+    );
 
-    const validateProviderArn = (providerArn: string) => {
+    const validateProviderArn = (providerArn: string, authType?: GATEWAY_REST_API_OUTBOUND_AUTH_TYPES) => {
         let errors = '';
+        const currentAuthType = authType || outboundAuth.authType;
+
+        // Skip validation for NO_AUTH
+        if (currentAuthType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH) {
+            if (setNumFieldsInError) {
+                updateNumFieldsInError('', currentArnError, setNumFieldsInError);
+            }
+            setCurrentArnError('');
+            return;
+        }
+
         if (providerArn.length === 0) {
             errors += 'Required field. ';
         } else {
             // Use isValidArn with bedrock-agentcore service and construct the regex key
-            const regexKey = `bedrock-agentcore-identity-${outboundAuth.authType}`;
+            const regexKey = `bedrock-agentcore-identity-${currentAuthType}`;
             if (!isValidArnWithRegexKey(providerArn, 'bedrock-agentcore', regexKey)) {
-                if (outboundAuth.authType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH) {
+                if (currentAuthType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH) {
                     errors +=
                         'Invalid OAuth provider ARN format. Expected: arn:partition:bedrock-agentcore:region:account:token-vault/vault-id/oauth2credentialprovider/name';
-                } else if (outboundAuth.authType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.API_KEY) {
+                } else if (currentAuthType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.API_KEY) {
                     errors +=
                         'Invalid API Key provider ARN format. Expected: arn:partition:bedrock-agentcore:region:account:token-vault/vault-id/apikeycredentialprovider/name';
                 } else {
@@ -97,54 +117,59 @@ export const OutboundAuth = ({
             <SpaceBetween size="l">
                 <FormField
                     label="Authentication Type"
-                    description="Select the authentication method for outbound API calls"
+                    description="Select the authentication method for outbound API calls."
                 >
                     <RadioGroup
-                        onChange={({ detail }) =>
-                            onAuthChange({ authType: detail.value as GATEWAY_REST_API_OUTBOUND_AUTH_TYPES })
-                        }
+                        onChange={({ detail }) => {
+                            const newAuthType = detail.value as GATEWAY_REST_API_OUTBOUND_AUTH_TYPES;
+                            onAuthChange({ authType: newAuthType });
+                        }}
                         value={outboundAuth.authType}
                         items={authTypeOptions}
                         data-testid={`auth-type-radio-${targetIndex + 1}`}
                     />
                 </FormField>
 
-                <FormField
-                    label={
-                        <span>
-                            Outbound Auth Provider - <i>required</i>
-                        </span>
-                    }
-                    description="Create the outbound auth (whether API key or OAuth) in Agentcore Identity Console and provide the ARN of it in the input field below."
-                    errorText={currentArnError}
-                    data-testid={`provider-arn-field-${targetIndex + 1}`}
-                >
-                    <Input
-                        value={outboundAuth.providerArn || ''}
-                        onChange={({ detail }) => handleProviderArnChange(detail)}
-                        placeholder={
-                            outboundAuth.authType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH
-                                ? 'arn:aws:bedrock-agentcore:region:account:token-vault/vault-id/oauth2credentialprovider/name'
-                                : outboundAuth.authType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.API_KEY
-                                  ? 'arn:aws:bedrock-agentcore:region:account:token-vault/vault-id/apikeycredentialprovider/name'
-                                  : 'arn:aws:bedrock-agentcore:region:account:token-vault/vault-id/credentialprovider/name'
-                        }
-                        data-testid={`provider-arn-input-${targetIndex + 1}`}
-                    />
-                </FormField>
+                {outboundAuth.authType !== GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH && (
+                    <>
+                        <FormField
+                            label={
+                                <span>
+                                    Outbound Auth Provider - <i>required</i>
+                                </span>
+                            }
+                            description="Create the outbound auth (whether API key or OAuth) in Agentcore Identity Console and provide the ARN of it in the input field below."
+                            errorText={currentArnError}
+                            data-testid={`provider-arn-field-${targetIndex + 1}`}
+                        >
+                            <Input
+                                value={outboundAuth.providerArn || ''}
+                                onChange={({ detail }) => handleProviderArnChange(detail)}
+                                placeholder={
+                                    outboundAuth.authType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.OAUTH
+                                        ? 'arn:aws:bedrock-agentcore:region:account:token-vault/vault-id/oauth2credentialprovider/name'
+                                        : outboundAuth.authType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.API_KEY
+                                            ? 'arn:aws:bedrock-agentcore:region:account:token-vault/vault-id/apikeycredentialprovider/name'
+                                            : 'arn:aws:bedrock-agentcore:region:account:token-vault/vault-id/credentialprovider/name'
+                                }
+                                data-testid={`provider-arn-input-${targetIndex + 1}`}
+                            />
+                        </FormField>
 
-                <ExpandableSection
-                    headerText="Additional configurations - optional"
-                    data-testid={`additional-config-section-${targetIndex + 1}`}
-                >
-                    <AdditionalConfigurations
-                        authType={outboundAuth.authType}
-                        additionalConfig={outboundAuth.additionalConfig}
-                        onConfigChange={handleAdditionalConfigChange}
-                        targetIndex={targetIndex}
-                        setNumFieldsInError={setNumFieldsInError}
-                    />
-                </ExpandableSection>
+                        <ExpandableSection
+                            headerText="Additional configurations - optional"
+                            data-testid={`additional-config-section-${targetIndex + 1}`}
+                        >
+                            <AdditionalConfigurations
+                                authType={outboundAuth.authType}
+                                additionalConfig={outboundAuth.additionalConfig}
+                                onConfigChange={handleAdditionalConfigChange}
+                                targetIndex={targetIndex}
+                                setNumFieldsInError={setNumFieldsInError}
+                            />
+                        </ExpandableSection>
+                    </>
+                )}
             </SpaceBetween>
         </>
     );

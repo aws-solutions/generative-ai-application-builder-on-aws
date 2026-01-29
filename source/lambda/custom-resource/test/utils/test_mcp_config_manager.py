@@ -267,10 +267,10 @@ def test_validate_target_params_missing_required_field():
     target = {
         "TargetName": "test-target",
         "TargetType": "lambda",
-        # Missing SchemaUri
+        # Missing LambdaArn (required for lambda targets)
     }
 
-    with pytest.raises(ValueError, match="Required field 'SchemaUri' missing in target 0"):
+    with pytest.raises(ValueError, match="LambdaArn required for lambda target 0"):
         manager.validate_target_params(target, 0)
 
 
@@ -279,7 +279,9 @@ def test_validate_target_params_invalid_target_type():
     manager = MCPConfigManager(table_name="test-table")
     target = {"TargetName": "test-target", "TargetType": "invalid", "SchemaUri": "test-schema.json"}
 
-    with pytest.raises(ValueError, match="Invalid TargetType: invalid. Must be one of: lambda, openapi, smithyModel"):
+    with pytest.raises(
+        ValueError, match="Invalid TargetType: invalid. Must be one of: lambda, openApiSchema, smithyModel, mcpServer"
+    ):
         manager.validate_target_params(target, 0)
 
 

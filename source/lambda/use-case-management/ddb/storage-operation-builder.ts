@@ -213,9 +213,9 @@ export class GetModelInfoCommandInputBuilder extends CommandInputBuilder {
             ragEnabled = config.LlmParams!.RAGEnabled || false;
         }
 
-        const sortKey = `${modelProvider}#${
-            modelProvider === CHAT_PROVIDERS.BEDROCK ? (modelId ?? INFERENCE_PROFILE) : 'default'
-        }`;
+        // For foundational models, use 'default' instead of specific modelId
+        const bedrockModelIdentifier = modelId ? 'default' : INFERENCE_PROFILE;
+        const sortKey = `${modelProvider}#${modelProvider === CHAT_PROVIDERS.BEDROCK ? bedrockModelIdentifier : 'default'}`;
 
         return {
             TableName: process.env[MODEL_INFO_TABLE_NAME_ENV_VAR],

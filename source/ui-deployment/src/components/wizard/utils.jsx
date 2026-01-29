@@ -341,7 +341,7 @@ export const updateNumFieldsInError = (currErrorMessage, errorState, setNumField
     if (currErrorMessage.length > 0 && errorState.length === 0) {
         setNumFieldsInError((numFieldsInError) => numFieldsInError + 1);
     } else if (currErrorMessage.length === 0 && errorState.length > 0) {
-        setNumFieldsInError((numFieldsInError) => numFieldsInError - 1);
+        setNumFieldsInError((numFieldsInError) => Math.max(0, numFieldsInError - 1));
     }
 };
 

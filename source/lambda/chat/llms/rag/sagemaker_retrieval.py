@@ -9,7 +9,7 @@ from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 from botocore.exceptions import ClientError, EndpointConnectionError
 from helper import get_service_client
-from langchain.chains.combine_documents.base import (
+from langchain_classic.chains.combine_documents.base import (
     DEFAULT_DOCUMENT_PROMPT,
     DEFAULT_DOCUMENT_SEPARATOR,
     _validate_prompt,

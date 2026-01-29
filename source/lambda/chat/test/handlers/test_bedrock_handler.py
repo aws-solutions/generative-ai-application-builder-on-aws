@@ -169,7 +169,7 @@ def test_bedrock_chat_handler(
 ):
     with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
         with patch(
-            "shared.knowledge.kendra_knowledge_base.CustomKendraRetriever.get_relevant_documents"
+            "shared.knowledge.kendra_knowledge_base.CustomKendraRetriever._get_relevant_documents"
         ) as mocked_kendra_docs:
             mocked_kendra_docs.return_value = mocked_kendra_docs
 

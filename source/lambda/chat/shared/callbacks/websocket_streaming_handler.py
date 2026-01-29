@@ -10,7 +10,7 @@ import botocore
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.metrics import MetricUnit
 from helper import get_service_client
-from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+from langchain_classic.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain_core.messages import BaseMessage
 from langchain_core.messages.ai import AIMessageChunk
 
