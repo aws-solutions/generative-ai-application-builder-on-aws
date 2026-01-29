@@ -100,11 +100,10 @@ def test_image_processing_png(tool):
     # Replace tool's S3 client with mocked one
     tool.s3_client = s3
 
-    tool_use = {"toolUseId": "test-png", "input": {"s3_key": filename}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader(filename)
 
     # Verify ToolResult structure
-    assert result["toolUseId"] == "test-png"
+    assert result["toolUseId"].startswith("s3_file_reader_")
     assert result["status"] == "success"
     assert len(result["content"]) == 1
 
@@ -126,8 +125,7 @@ def test_image_processing_jpg_normalization(tool):
 
     tool.s3_client = s3
 
-    tool_use = {"toolUseId": "test-jpg", "input": {"s3_key": filename}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader(filename)
 
     # Verify JPG is normalized to JPEG
     assert result["status"] == "success"
@@ -146,8 +144,7 @@ def test_no_normalization_for_valid_formats(tool):
     test_content = b"fake document content"
     s3.put_object(Bucket="test-bucket", Key=filename, Body=test_content)
 
-    tool_use = {"toolUseId": f"test-csv", "input": {"s3_key": filename}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader(filename)
 
     assert result["status"] == "success"
     assert result["content"][0]["document"]["format"] == "csv"
@@ -165,11 +162,10 @@ def test_document_processing_pdf(tool):
 
     tool.s3_client = s3
 
-    tool_use = {"toolUseId": "test-pdf", "input": {"s3_key": filename}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader(filename)
 
     # Verify ToolResult structure
-    assert result["toolUseId"] == "test-pdf"
+    assert result["toolUseId"].startswith("s3_file_reader_")
     assert result["status"] == "success"
     assert len(result["content"]) == 1
 
@@ -182,27 +178,16 @@ def test_document_processing_pdf(tool):
 
 def test_missing_s3_key(tool):
     """Test error when s3_key is missing from input"""
-    tool_use = {"toolUseId": "test-missing", "input": {}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader("")
 
-    assert result["toolUseId"] == "test-missing"
+    assert result["toolUseId"] == "s3_file_reader_empty"
     assert result["status"] == "error"
     assert "S3 key is required" in result["content"][0]["text"]
 
 
-def test_empty_s3_key(tool):
-    """Test error when s3_key is empty"""
-    tool_use = {"toolUseId": "test-empty", "input": {"s3_key": ""}}
-    result = tool.s3_file_reader(tool_use)
-
-    assert result["status"] == "error"
-    assert "S3 key cannot be empty" in result["content"][0]["text"]
-
-
 def test_s3_uri_rejected(tool):
     """Test that S3 URIs are rejected"""
-    tool_use = {"toolUseId": "test-uri", "input": {"s3_key": "s3://bucket/key.txt"}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader("s3://bucket/key.txt")
 
     assert result["status"] == "error"
     assert "Invalid input" in result["content"][0]["text"]
@@ -220,8 +205,7 @@ def test_unsupported_file_format(tool):
 
     tool.s3_client = s3
 
-    tool_use = {"toolUseId": "test-unsupported", "input": {"s3_key": "program.exe"}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader("program.exe")
 
     assert result["status"] == "error"
     assert "Unsupported file type" in result["content"][0]["text"]
@@ -236,8 +220,7 @@ def test_file_not_found(tool):
 
     tool.s3_client = s3
 
-    tool_use = {"toolUseId": "test-not-found", "input": {"s3_key": "nonexistent.txt"}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader("nonexistent.txt")
 
     assert result["status"] == "error"
     assert "not found" in result["content"][0]["text"]
@@ -253,29 +236,19 @@ def test_aws_access_denied(tool):
         )
 
     with patch.object(tool.s3_client, "get_object", side_effect=mock_get_object):
-        tool_use = {"toolUseId": "test-access", "input": {"s3_key": "restricted.txt"}}
-        result = tool.s3_file_reader(tool_use)
+        result = tool.s3_file_reader("restricted.txt")
 
     assert result["status"] == "error"
     assert result["content"][0]["text"] == "File 'restricted.txt' not found. The file may have been deleted or moved."
 
 
-def test_malformed_tool_use_missing_tool_use_id(tool):
-    """Test handling of malformed ToolUse objects missing toolUseId"""
-    result = tool.s3_file_reader({"input": {"s3_key": "test.txt"}})
-
-    assert result["status"] == "error"
-    assert result["toolUseId"] == "unknown"
-    assert "Unexpected error" in result["content"][0]["text"]
-
-
 def test_malformed_tool_use_missing_input(tool):
-    """Test handling of malformed ToolUse objects missing input"""
-    result = tool.s3_file_reader({"toolUseId": "test-id"})
+    """Test handling of None s3_key parameter"""
+    result = tool.s3_file_reader(None)
 
     assert result["status"] == "error"
-    assert result["toolUseId"] == "test-id"
-    assert "Unexpected error" in result["content"][0]["text"]
+    assert result["toolUseId"] == "s3_file_reader_invalid"
+    assert "S3 key must be a string" in result["content"][0]["text"]
 
 
 @mock_aws
@@ -297,8 +270,7 @@ def test_bedrock_compliance_document_names(tool):
         test_content = b"bedrock compliance test content"
         s3.put_object(Bucket="test-bucket", Key=filename, Body=test_content)
 
-        tool_use = {"toolUseId": f"test-{filename}", "input": {"s3_key": filename}}
-        result = tool.s3_file_reader(tool_use)
+        result = tool.s3_file_reader(filename)
 
         assert result["status"] == "success"
         document_name = result["content"][0]["document"]["name"]
@@ -322,8 +294,7 @@ def test_full_document_s3_key_structure(tool):
     test_content = b"complex path document content"
     s3.put_object(Bucket="test-bucket", Key=complex_key, Body=test_content)
 
-    tool_use = {"toolUseId": "test-complex", "input": {"s3_key": complex_key}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader(complex_key)
 
     assert result["status"] == "success"
     assert result["content"] == [
@@ -352,8 +323,7 @@ def test_full_image_s3_key_structure(tool):
     test_content = b"complex path image content"
     s3.put_object(Bucket="test-bucket", Key=complex_key, Body=test_content)
 
-    tool_use = {"toolUseId": "test-complex", "input": {"s3_key": complex_key}}
-    result = tool.s3_file_reader(tool_use)
+    result = tool.s3_file_reader(complex_key)
 
     assert result["status"] == "success"
     assert result["content"] == [

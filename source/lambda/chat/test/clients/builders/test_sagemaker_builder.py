@@ -8,7 +8,7 @@ from copy import deepcopy
 from unittest.mock import patch
 
 import pytest
-from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+from langchain_classic.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.prompts import ChatPromptTemplate
 

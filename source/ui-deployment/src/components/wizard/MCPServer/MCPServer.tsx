@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { useContext } from 'react';
-import { Box, Container, Header, SpaceBetween, FormField, RadioGroup } from '@cloudscape-design/components';
+import { Box, Container, SpaceBetween, FormField, RadioGroup } from '@cloudscape-design/components';
 import { InfoLink } from '../../commons';
 import { StepContentProps } from '../interfaces/Steps';
 import { MCPServerSettings } from '../interfaces/Steps/MCPServerStep';
@@ -13,7 +13,9 @@ import {
     GATEWAY_REST_API_OUTBOUND_AUTH_TYPES,
     MCP_CREATION_METHOD_OPTIONS,
     API_KEY_LOCATION,
-    DEPLOYMENT_ACTIONS
+    DEPLOYMENT_ACTIONS,
+    TARGETS_WITH_AUTH,
+    TARGETS_WITH_SCHEMA
 } from '@/utils/constants';
 import { mcpServerInfoPanel } from './helpers';
 import HomeContext from '../../../contexts/home.context';
@@ -80,13 +82,29 @@ const MCPServer: React.FC<MCPServerProps> = ({ info, onChange, setHelpPanelConte
                     return false;
                 }
 
-                // Check schema requirements - either file is selected or already uploaded
-                if (!target.uploadedSchema && !target.uploadedSchemaKey) {
+                // Check MCP Server endpoint
+                if (
+                    target.targetType === GATEWAY_TARGET_TYPES.MCP_SERVER &&
+                    (!target.mcpEndpoint || target.mcpEndpoint.trim() === '')
+                ) {
                     return false;
                 }
 
-                // Check OpenAPI auth requirements
-                if (target.targetType === GATEWAY_TARGET_TYPES.OPEN_API && target.outboundAuth) {
+                // Check schema requirements - only for targets that require schema files
+                if (
+                    TARGETS_WITH_SCHEMA.includes(target.targetType) &&
+                    !target.uploadedSchema &&
+                    !target.uploadedSchemaKey
+                ) {
+                    return false;
+                }
+
+                // Check auth requirements for targets that support authentication
+                if (
+                    TARGETS_WITH_AUTH.includes(target.targetType) &&
+                    target.outboundAuth &&
+                    target.outboundAuth.authType !== GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH
+                ) {
                     if (!target.outboundAuth.providerArn || target.outboundAuth.providerArn.trim() === '') {
                         return false;
                     }

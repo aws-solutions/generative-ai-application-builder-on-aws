@@ -10,11 +10,13 @@ from utils.mcp_factory import MCPGatewayFactory
 from utils.lambda_target_creator import LambdaTargetCreator
 from utils.smithy_target_creator import SmithyTargetCreator
 from utils.openapi_target_creator import OpenAPITargetCreator
+from utils.mcp_server_target_creator import MCPServerTargetCreator
 from operations.operation_types import SUCCESS, FAILED
 
 MCPGatewayFactory.register_target_creator("lambda", LambdaTargetCreator)
 MCPGatewayFactory.register_target_creator("smithyModel", SmithyTargetCreator)
 MCPGatewayFactory.register_target_creator("openApiSchema", OpenAPITargetCreator)
+MCPGatewayFactory.register_target_creator("mcpServer", MCPServerTargetCreator)
 
 logger = Logger()
 tracer = Tracer()

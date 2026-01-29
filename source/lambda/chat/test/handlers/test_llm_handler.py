@@ -296,7 +296,7 @@ def test_lambda_timeout_behavior(
 ):
     with patch("clients.bedrock_client.BedrockClient.retrieve_use_case_config") as mocked_retrieve_llm_config:
         with patch(
-            "shared.knowledge.kendra_knowledge_base.CustomKendraRetriever.get_relevant_documents"
+            "shared.knowledge.kendra_knowledge_base.CustomKendraRetriever._get_relevant_documents"
         ) as mocked_kendra_docs:
             with patch("clients.bedrock_client.uuid4", return_value=MOCK_MESSAGE_ID):
                 mocked_kendra_docs.return_value = mocked_kendra_docs

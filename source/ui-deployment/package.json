@@ -1,6 +1,6 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "4.0.4",
+  "version": "4.1.0",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
     "@aws-sdk/util-arn-parser": "^3.893.0",
@@ -12,7 +12,7 @@
     "ace-builds": "^1.35.4",
     "bootstrap": "^5.3.3",
     "jest": "^29.7.0",
-    "lodash": "^4.17.21",
+    "lodash": "4.17.23",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.4",
     "react-dom": "^18.3.1",
@@ -82,7 +82,9 @@
     "fast-xml-parser": "^4.4.1",
     "cookie": "^0.7.2",
     "esbuild": "^0.25.0",
-    "@react-native-community/cli": "^17.0.1"
+    "@react-native-community/cli": "^17.0.1",
+    "@smithy/config-resolver": "^4.4.6",
+    "lodash": "4.17.23"
   },
   "type": "module"
 }

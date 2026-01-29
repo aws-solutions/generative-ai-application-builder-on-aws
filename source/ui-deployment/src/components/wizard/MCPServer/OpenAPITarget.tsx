@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SpaceBetween } from '@cloudscape-design/components';
-import { GATEWAY_TARGET_TYPES } from '@/utils/constants';
+import { GATEWAY_TARGET_TYPES, GATEWAY_REST_API_OUTBOUND_AUTH_TYPES } from '@/utils/constants';
 import { TargetConfiguration } from '../interfaces/Steps/MCPServerStep';
 import SchemaUpload from './SchemaUpload';
 import OutboundAuth from './OutboundAuth';
@@ -52,6 +52,7 @@ export const OpenAPITarget = ({
                     outboundAuth={target.outboundAuth}
                     onAuthChange={handleAuthChange}
                     targetIndex={targetIndex}
+                    excludeAuthTypes={[GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH]}
                     providerArnError={providerArnError}
                     setNumFieldsInError={setNumFieldsInError}
                 />

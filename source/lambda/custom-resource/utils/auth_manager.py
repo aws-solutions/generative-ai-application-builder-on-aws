@@ -5,6 +5,7 @@ import re
 import logging
 from typing import Dict
 
+from botocore.exceptions import ClientError
 from utils.constants import EntityType
 
 from helper import get_service_client
@@ -139,7 +140,17 @@ class AuthManager:
 
     @tracer.capture_method
     def remove_permission(self, mcp_server: MCPServerData):
-        tags = self._get_resource_tags(mcp_server.agentcore_arn)
+        try:
+            tags = self._get_resource_tags(mcp_server.agentcore_arn)
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', '')
+            # If resource doesn't exist, assume it was already deleted and succeed
+            if error_code in ['ResourceNotFoundException', 'NotFoundException']:
+                logger.info(f"MCP server resource not found for ARN {mcp_server.agentcore_arn}. Assuming already deleted.")
+                return
+            # Re-raise other errors
+            raise
+
         client_tag = tags.get(self.client_id, '')
         if client_tag:
             # Update existing client tag

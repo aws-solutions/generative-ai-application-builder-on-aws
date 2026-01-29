@@ -1303,9 +1303,17 @@ klaw-sync under the MIT license.
 kleur under the MIT license.
 langchain under the MIT license.
 langchain-aws under the MIT license.
+langchain-classic under the MIT license.
 langchain-core under the MIT license.
 langchain-text-splitters under the MIT license.
 langsmith under the MIT license.
+langgraph under the MIT license.
+langgraph-checkpoint under the MIT license.
+langgraph-prebuilt under the MIT license.
+langgraph-sdk under the MIT license.
+ormsgpack under the Apache-2.0 license.
+uuid-utils under the MIT license.
+xxhash under the BSD-2-Clause license.
 launch-editor under the MIT license.
 lazy-ass under the MIT license.
 leven under the MIT license.
@@ -1548,7 +1556,7 @@ pump under the MIT license.
 punycode under the MIT license.
 pure-rand under the MIT license.
 pyasn1 under the BSD-2-Clause license.
-pycparser under the 0BSD license.
+pycparser under the BSD-3-Clause license.
 pydantic under the MIT license.
 pydantic-core under the MIT license.
 pyjwt under the MIT license.

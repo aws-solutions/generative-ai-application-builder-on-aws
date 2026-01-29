@@ -9,12 +9,12 @@ from typing import Any, Dict, List, Optional, Union
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
-from langchain.chains.combine_documents.base import (
+from langchain_classic.chains.combine_documents.base import (
     DEFAULT_DOCUMENT_PROMPT,
     DEFAULT_DOCUMENT_SEPARATOR,
     _validate_prompt,
 )
-from langchain.schema.runnable import RunnableConfig
+from langchain_core.runnables import RunnableConfig
 from langchain_core.documents import Document
 from langchain_core.language_models import LLM, LanguageModelLike
 from langchain_core.output_parsers import BaseOutputParser, StrOutputParser

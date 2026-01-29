@@ -353,7 +353,7 @@ export const MCP_GATEWAY_API_KEY_MAX_LENGTH = 65536;
 export const MCP_GATEWAY_OAUTH_CLIENT_ID_MAX_LENGTH = 256;
 export const MCP_GATEWAY_OAUTH_CLIENT_SECRET_MAX_LENGTH = 2048;
 export const MCP_GATEWAY_TARGET_NAME_PATTERN = '([0-9a-zA-Z][-]?){1,100}';
-export const MCP_GATEWAY_TARGET_TYPES = ['openApiSchema', 'smithyModel', 'lambda'];
+export const MCP_GATEWAY_TARGET_TYPES = ['openApiSchema', 'smithyModel', 'lambda', 'mcpServer'];
 export const MCP_ALLOWED_FILE_EXTENSIONS = ['json', 'yaml', 'yml', 'smithy'];
 export const MCP_SCHEMA_FILE_NAME_PATTERN = `^.+\\.(${MCP_ALLOWED_FILE_EXTENSIONS.join('|')})$`;
 export const MCP_GATEWAY_AUTH_TYPES = ['OAUTH', 'API_KEY'];
@@ -375,6 +375,10 @@ export const MCP_RUNTIME_ENV_VARS_MAX_COUNT = 50;
 // MCP Schema key pattern - validates paths like: mcp/schemas/smithy/e9b1801d-2516-40fe-859e-a0c7d81da2f3.smithy
 export const MCP_SCHEMA_KEY_PATTERN =
     '^mcp/schemas/(lambda|openApiSchema|smithyModel)/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\.(json|yaml|yml|smithy)$';
+
+// MCP endpoint URL pattern
+export const MCP_ENDPOINT_PATTERN =
+    "^https://[a-zA-Z\\d]([a-zA-Z\\d.-]*[a-zA-Z\\d])?(?::[1-9]\\d{0,4})?(?:/[a-zA-Z\\d._~:/?#@!$&'()*+,;=%-]*)?$";
 
 // ECR image URI pattern
 export const ECR_URI_PATTERN =

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
+from langchain_classic.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 
 from llms.models.model_provider_inputs import BedrockInputs, ModelProviderInputs, SageMakerInputs
 from shared.knowledge.kendra_knowledge_base import KendraKnowledgeBase

@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Union
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
-from langchain.schema.runnable import RunnableConfig
+from langchain_core.runnables import RunnableConfig
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.language_models import BaseChatModel
 from langchain_core.language_models.llms import LLM

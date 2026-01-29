@@ -9,7 +9,9 @@ import {
     McpOperationTypes,
     MCP_CONTENT_TYPES,
     SUPPORTED_MCP_FILE_EXTENSIONS,
-    OUTBOUND_AUTH_PROVIDER_TYPES
+    OUTBOUND_AUTH_PROVIDER_TYPES,
+    MCP_ENDPOINT_PATTERN,
+    TARGETS_WITH_SCHEMA
 } from '../../utils/constants';
 import RequestValidationError from '../../utils/error';
 import { McpOperation, FileUploadInfo } from '../adapters/mcp-adapter';
@@ -161,6 +163,11 @@ export class SchemaUploadValidator extends McpOperationsValidator {
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateFileExtensionCompatibility' })
     private static async validateFileExtensionCompatibility(file: any, fileIndex: number): Promise<void> {
+        // Skip validation for targets that don't require schema files
+        if (!TARGETS_WITH_SCHEMA.includes(file.schemaType as GATEWAY_TARGET_TYPES)) {
+            return;
+        }
+
         const allowedExtensionsForSchema = SCHEMA_TYPE_FILE_EXTENSIONS[file.schemaType as GATEWAY_TARGET_TYPES];
 
         if (!allowedExtensionsForSchema || !allowedExtensionsForSchema.includes(file.fileExtension)) {
@@ -344,6 +351,10 @@ export class MCPUsecaseValidator extends UseCaseValidator<MCPUseCaseConfiguratio
                 await MCPUsecaseValidator.validateLambdaTarget(target);
             else if (target.TargetType === GATEWAY_TARGET_TYPES.OPEN_API)
                 await MCPUsecaseValidator.validateOpenApiTarget(target);
+            else if (target.TargetType === GATEWAY_TARGET_TYPES.SMITHY)
+                await MCPUsecaseValidator.validateSmithyTarget(target);
+            else if (target.TargetType === GATEWAY_TARGET_TYPES.MCP_SERVER)
+                await MCPUsecaseValidator.validateMcpServerTarget(target);
         }
     }
 
@@ -355,6 +366,8 @@ export class MCPUsecaseValidator extends UseCaseValidator<MCPUseCaseConfiguratio
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateLambdaTarget' })
     private static async validateLambdaTarget(target: TargetParams): Promise<void> {
+        await MCPUsecaseValidator.validateSchemaUri(target.SchemaUri, target.TargetName, GATEWAY_TARGET_TYPES.LAMBDA);
+
         if (typeof target.LambdaArn !== 'string' || target.LambdaArn.trim() === '') {
             throw new RequestValidationError(`Lambda ARN is missing for target "${target.TargetName}"`);
         }
@@ -374,6 +387,8 @@ export class MCPUsecaseValidator extends UseCaseValidator<MCPUseCaseConfiguratio
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateOpenApiTarget' })
     private static async validateOpenApiTarget(target: TargetParams): Promise<void> {
+        await MCPUsecaseValidator.validateSchemaUri(target.SchemaUri, target.TargetName, GATEWAY_TARGET_TYPES.OPEN_API);
+
         if (!target.OutboundAuthParams) {
             throw new RequestValidationError(`Outbound authentication paramters are missing for the open api schema`);
         }
@@ -381,14 +396,93 @@ export class MCPUsecaseValidator extends UseCaseValidator<MCPUseCaseConfiguratio
     }
 
     /**
-     * Validates required target fields and schema URI format
+     * Validates Smithy target parameters
+     *
+     * @param target - The target parameters to validate
+     * @throws RequestValidationError if validation fails
+     */
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateSmithyTarget' })
+    private static async validateSmithyTarget(target: TargetParams): Promise<void> {
+        await MCPUsecaseValidator.validateSchemaUri(target.SchemaUri, target.TargetName, GATEWAY_TARGET_TYPES.SMITHY);
+    }
+
+    /**
+     * Validates MCP Server target parameters
+     *
+     * @param target - The target parameters to validate
+     * @throws RequestValidationError if validation fails
+     */
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateMcpServerTarget' })
+    private static async validateMcpServerTarget(target: TargetParams): Promise<void> {
+        if (!target.McpEndpoint || typeof target.McpEndpoint !== 'string' || target.McpEndpoint.trim() === '') {
+            throw new RequestValidationError(`MCP endpoint URL is missing for target "${target.TargetName}"`);
+        }
+
+        if (!MCP_ENDPOINT_PATTERN.test(target.McpEndpoint)) {
+            throw new RequestValidationError(
+                `Invalid MCP endpoint URL format for target "${target.TargetName}". Must be a valid HTTPS URL`
+            );
+        }
+
+        // SSRF protection: validate the endpoint URL
+        try {
+            const url = new URL(target.McpEndpoint);
+            const hostname = url.hostname.toLowerCase();
+
+            // Block localhost and loopback addresses
+            if (
+                hostname === 'localhost' ||
+                hostname === '127.0.0.1' ||
+                hostname.startsWith('127.') ||
+                hostname === '0.0.0.0' ||
+                hostname === '::1' ||
+                hostname === '::' ||
+                hostname === '[::1]' ||
+                hostname === '[::]'
+            ) {
+                throw new RequestValidationError(
+                    `MCP endpoint cannot use localhost or loopback addresses for target "${target.TargetName}"`
+                );
+            }
+
+            // Block private IP ranges (RFC 1918)
+            if (
+                hostname.startsWith('10.') ||
+                hostname.startsWith('192.168.') ||
+                /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+            ) {
+                throw new RequestValidationError(
+                    `MCP endpoint cannot use private IP addresses for target "${target.TargetName}"`
+                );
+            }
+
+            // Block link-local and cloud metadata endpoints
+            if (hostname.startsWith('169.254.') || hostname === 'metadata' || hostname.includes('metadata.')) {
+                throw new RequestValidationError(
+                    `MCP endpoint cannot use link-local or metadata addresses for target "${target.TargetName}"`
+                );
+            }
+        } catch (error) {
+            if (error instanceof RequestValidationError) {
+                throw error;
+            }
+            // URL parsing failed - already caught by pattern check
+        }
+
+        if (target.OutboundAuthParams) {
+            await MCPUsecaseValidator.validateOutboundAuthParams(target.OutboundAuthParams, target.TargetName);
+        }
+    }
+
+    /**
+     * Validates required target fields
      *
      * @param target - The target parameters to validate
      * @throws RequestValidationError if validation fails
      */
     @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateTargetRequiredFields' })
     private static async validateTargetRequiredFields(target: TargetParams): Promise<void> {
-        const { TargetName: targetName, TargetType: targetType, SchemaUri: schemaUri } = target;
+        const { TargetName: targetName, TargetType: targetType } = target;
 
         // Validate optional TargetId if present
         if (target.TargetId !== undefined) {
@@ -414,8 +508,22 @@ export class MCPUsecaseValidator extends UseCaseValidator<MCPUseCaseConfiguratio
                 `Invalid target type for "${targetName}". Must be one of: ${validTargetTypes.join(', ')}`
             );
         }
+    }
 
-        // SchemaUri is now required for ALL TargetTypes
+    /**
+     * Validates schema URI format and compatibility
+     *
+     * @param schemaUri - The schema URI to validate
+     * @param targetName - The target name for error reporting
+     * @param targetType - The target type for validation
+     * @throws RequestValidationError if validation fails
+     */
+    @tracer.captureMethod({ captureResponse: true, subSegmentName: '###validateSchemaUri' })
+    private static async validateSchemaUri(
+        schemaUri: string | undefined,
+        targetName: string,
+        targetType: string
+    ): Promise<void> {
         if (!schemaUri || typeof schemaUri !== 'string' || schemaUri.trim() === '') {
             throw new RequestValidationError(`Schema URI is missing for target "${targetName}"`);
         }

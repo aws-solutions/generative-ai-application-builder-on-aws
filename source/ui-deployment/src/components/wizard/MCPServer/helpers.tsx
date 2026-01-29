@@ -24,7 +24,7 @@ export const mcpServerInfoPanel = {
                 <SpaceBetween size="s">
                     <Box variant="p">
                         <strong>{MCP_CREATION_METHOD_OPTIONS.get(MCP_SERVER_CREATION_METHOD.GATEWAY)?.label}:</strong>{' '}
-                        Generate an MCP server from existing Lambda functions or API specifications using Amazon Bedrock
+                        Generate an MCP server from existing Lambda functions, API specifications, or MCP server endpoints using Amazon Bedrock
                         AgentCore Gateway. This method automatically converts your APIs into MCP tools.
                     </Box>
                     <Box variant="p">
@@ -67,6 +67,10 @@ export const mcpServerInfoPanel = {
                         <strong>{MCP_TARGET_TYPE_OPTIONS.get(GATEWAY_TARGET_TYPES.SMITHY)?.label}:</strong> Convert
                         services defined by Smithy models into MCP tools. Uses Smithy schema definitions.
                     </Box>
+                    <Box variant="p">
+                        <strong>{MCP_TARGET_TYPE_OPTIONS.get(GATEWAY_TARGET_TYPES.MCP_SERVER)?.label}:</strong> Connect
+                        to an existing MCP server endpoint.
+                    </Box>
                 </SpaceBetween>
             </div>
         ),
@@ -74,10 +78,6 @@ export const mcpServerInfoPanel = {
             {
                 href: IG_DOCS.AGENTCORE_GATEWAY_TARGETS,
                 text: 'Adding targets to your Gateway'
-            },
-            {
-                href: IG_DOCS.AWS_LAMBDA,
-                text: 'AWS Lambda Documentation'
             }
         ]
     },
@@ -124,6 +124,25 @@ export const mcpServerInfoPanel = {
             </div>
         ),
         links: [
+            {
+                href: IG_DOCS.AGENTCORE_GATEWAY_TARGETS,
+                text: 'Adding targets to your Gateway'
+            }
+        ]
+    },
+
+    mcpEndpoint: {
+        title: 'MCP Endpoint',
+        content: (
+            <div>
+                <Box variant="p">Enter the URL of the MCP server endpoint that this target should connect to.</Box>
+            </div>
+        ),
+        links: [
+            {
+                href: 'https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway-target-MCPservers.html',
+                text: 'MCP Server targets documentation'
+            },
             {
                 href: IG_DOCS.AGENTCORE_GATEWAY_TARGETS,
                 text: 'Adding targets to your Gateway'

@@ -79,7 +79,7 @@ def test_knowledge_base_construction(mock_add_user_context_to_attribute_filter, 
 
 
 @patch.object(CustomKendraRetriever, "_add_user_context_to_attribute_filter")
-def test_source_docs_formatter(mock_add_user_context_to_attribute_filter, user_context_token):
+def test_source_docs_formatter(mock_add_user_context_to_attribute_filter, setup_environment, user_context_token):
     kendra_results = [
         Document(
             page_content="this is an excerpt from a fake kendra knowledge base",
@@ -105,9 +105,25 @@ def test_source_docs_formatter(mock_add_user_context_to_attribute_filter, user_c
                 "score": "VERY_HIGH",
             },
         ),
+        Document(
+            page_content="this is an excerpt from S3",
+            metadata={
+                "result_id": "fakeid3",
+                "document_id": "some.doc.3",
+                "source": "s3://my-bucket/documents/report.pdf",
+                "title": "S3 Document",
+                "excerpt": "this is an excerpt from S3",
+                "document_attributes": {"_source_uri": "s3://my-bucket/documents/report.pdf"},
+                "score": "MEDIUM",
+            },
+        ),
     ]
     knowledge_base = KendraKnowledgeBase(knowledge_base_params, user_context_token)
     formatted_docs = knowledge_base.source_docs_formatter(kendra_results)
+    
+    # Get the region from environment for expected URLs
+    region = os.environ.get('AWS_REGION', 'us-east-1')
+    
     assert formatted_docs == [
         {
             "additional_attributes": {
@@ -128,5 +144,15 @@ def test_source_docs_formatter(mock_add_user_context_to_attribute_filter, user_c
             "document_id": "some.doc.2",
             "location": "http://fakeurl2.html",
             "score": "VERY_HIGH",
+        },
+        {
+            "additional_attributes": {
+                "_source_uri": "s3://my-bucket/documents/report.pdf",
+            },
+            "document_title": "S3 Document",
+            "excerpt": "this is an excerpt from S3",
+            "document_id": "some.doc.3",
+            "location": f"https://s3.console.aws.amazon.com/s3/object/my-bucket?region={region}&prefix=documents/report.pdf",
+            "score": "MEDIUM",
         },
     ]

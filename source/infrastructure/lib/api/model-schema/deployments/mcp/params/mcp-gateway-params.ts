@@ -13,6 +13,7 @@ import {
     BEDROCK_AGENTCORE_OAUTH_ARN_PATTERN,
     BEDROCK_AGENTCORE_API_KEY_ARN_PATTERN,
     MCP_SCHEMA_KEY_PATTERN,
+    MCP_ENDPOINT_PATTERN,
     OAUTH_SCOPE_MAX_LENGTH,
     OAUTH_SCOPES_MAX_COUNT,
     OAUTH_CUSTOM_PARAM_KEY_MAX_LENGTH,
@@ -178,6 +179,12 @@ const gatewayTargetSchema: JsonSchema = {
             description: 'ARN of the Lambda function (required for lambda target type)',
             pattern: LAMBDA_ARN_PATTERN
         },
+        McpEndpoint: {
+            type: JsonSchemaType.STRING,
+            description: 'HTTPS endpoint URL for MCP Server (required for mcpServer target type)',
+            pattern: MCP_ENDPOINT_PATTERN,
+            minLength: 1
+        },
         SchemaUri: {
             type: JsonSchemaType.STRING,
             description: 'MCP schema key path for the target configuration',
@@ -186,7 +193,7 @@ const gatewayTargetSchema: JsonSchema = {
         },
         OutboundAuthParams: outboundAuthParamsSchema
     },
-    required: ['TargetName', 'TargetType', 'SchemaUri'],
+    required: ['TargetName', 'TargetType'],
     // Conditional validation based on target type
     oneOf: [
         {
@@ -194,20 +201,28 @@ const gatewayTargetSchema: JsonSchema = {
             properties: {
                 TargetType: { enum: ['lambda'] }
             },
-            required: ['LambdaArn']
+            required: ['LambdaArn', 'SchemaUri']
         },
         {
             // OpenAPI target validation - requires schema and outbound auth
             properties: {
                 TargetType: { enum: ['openApiSchema'] }
             },
-            required: ['OutboundAuthParams']
+            required: ['SchemaUri', 'OutboundAuthParams']
         },
         {
-            // Smithy target validation - only requires schema (already in base required)
+            // Smithy target validation - only requires schema
             properties: {
                 TargetType: { enum: ['smithyModel'] }
-            }
+            },
+            required: ['SchemaUri']
+        },
+        {
+            // MCP Server target validation - requires endpoint, auth is optional
+            properties: {
+                TargetType: { enum: ['mcpServer'] }
+            },
+            required: ['McpEndpoint']
         }
     ],
     additionalProperties: false

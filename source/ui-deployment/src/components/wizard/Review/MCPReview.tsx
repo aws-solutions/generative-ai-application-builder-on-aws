@@ -12,7 +12,9 @@ import {
     GATEWAY_REST_API_OUTBOUND_AUTH_TYPES,
     MCP_CREATION_METHOD_OPTIONS,
     MCP_TARGET_TYPE_OPTIONS,
-    MCP_AUTH_TYPE_OPTIONS
+    MCP_AUTH_TYPE_OPTIONS,
+    TARGETS_WITH_AUTH,
+    TARGETS_WITH_SCHEMA
 } from '@/utils/constants';
 
 // Utility function for upload status indicator
@@ -141,12 +143,22 @@ const MCPServerReview = ({
                             <div>{target.lambdaArn}</div>
                         </div>
                     )}
-                    <div>
-                        <Box variant="awsui-key-label">{isUploaded ? 'Uploaded Schema File' : 'Schema File'}</Box>
-                        <div>{fileName}</div>
-                    </div>
 
-                    {target.targetType === GATEWAY_TARGET_TYPES.OPEN_API && target.outboundAuth && (
+                    {target.targetType === GATEWAY_TARGET_TYPES.MCP_SERVER && (
+                        <div>
+                            <Box variant="awsui-key-label">MCP Endpoint</Box>
+                            <div>{target.mcpEndpoint || 'Not specified'}</div>
+                        </div>
+                    )}
+
+                    {TARGETS_WITH_SCHEMA.includes(target.targetType) && (
+                        <div>
+                            <Box variant="awsui-key-label">{isUploaded ? 'Uploaded Schema File' : 'Schema File'}</Box>
+                            <div>{fileName}</div>
+                        </div>
+                    )}
+
+                    {TARGETS_WITH_AUTH.includes(target.targetType) && target.outboundAuth && (
                         <>
                             <div>
                                 <Box variant="awsui-key-label">Authentication Type</Box>
@@ -155,7 +167,11 @@ const MCPServerReview = ({
                             <div>
                                 <Box variant="awsui-key-label">Authentication Configured</Box>
                                 <div>
-                                    {target.outboundAuth.providerArn ? 'Yes' : 'No'}
+                                    {target.outboundAuth.authType === GATEWAY_REST_API_OUTBOUND_AUTH_TYPES.NO_AUTH
+                                        ? 'No'
+                                        : target.outboundAuth.providerArn
+                                          ? 'Yes'
+                                          : 'No'}
                                 </div>
                             </div>
                         </>

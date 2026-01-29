@@ -66,10 +66,12 @@ class MCPGatewayFactory:
             from utils.lambda_target_creator import LambdaTargetCreator
             from utils.openapi_target_creator import OpenAPITargetCreator
             from utils.smithy_target_creator import SmithyTargetCreator
+            from utils.mcp_server_target_creator import MCPServerTargetCreator
 
             cls.register_target_creator("lambda", LambdaTargetCreator)
             cls.register_target_creator("openApiSchema", OpenAPITargetCreator)
             cls.register_target_creator("smithyModel", SmithyTargetCreator)
+            cls.register_target_creator("mcpServer", MCPServerTargetCreator)
 
     @classmethod
     def create_target_creator(cls, target_config: Dict[str, Any], schema_bucket_name: str) -> MCPTargetCreator:
@@ -100,8 +102,10 @@ def register_default_creators():
     from utils.lambda_target_creator import LambdaTargetCreator
     from utils.openapi_target_creator import OpenAPITargetCreator
     from utils.smithy_target_creator import SmithyTargetCreator
+    from utils.mcp_server_target_creator import MCPServerTargetCreator
 
     # Default creators are registered when needed to avoid circular imports
     MCPGatewayFactory.register_target_creator("lambda", LambdaTargetCreator)
     MCPGatewayFactory.register_target_creator("openApiSchema", OpenAPITargetCreator)
     MCPGatewayFactory.register_target_creator("smithyModel", SmithyTargetCreator)
+    MCPGatewayFactory.register_target_creator("mcpServer", MCPServerTargetCreator)

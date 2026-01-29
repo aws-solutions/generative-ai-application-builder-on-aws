@@ -279,7 +279,7 @@ def test_validate_single_file_deleted_status():
             "fileKey": "test-use-case-id/test-user-id/test-conversation-id/test-message-id",
             "fileName": "deleted-file.txt",
             "status": FileStatus.DELETED,
-            "ttl": int(time.time()) + 3600,
+            "ttl": int(time.time()) + 3610,
         }
     )
 
