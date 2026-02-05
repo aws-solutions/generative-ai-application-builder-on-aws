@@ -1,7 +1,7 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-ui-chat",
   "private": true,
-  "version": "4.1.0",
+  "version": "4.1.1",
   "type": "module",
   "author": {
     "name": "Amazon Web Services",
@@ -82,6 +82,7 @@
   },
   "overrides": {
     "@smithy/config-resolver": "^4.4.6",
-    "lodash": "^4.17.23"
+    "lodash": "^4.17.23",
+    "fast-xml-parser": "^5.3.4"
   }
 }

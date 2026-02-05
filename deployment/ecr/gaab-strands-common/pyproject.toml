@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-common"
-version = "4.1.0"
+version = "4.1.1"
 description = "Shared library for GAAB Strands agents"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -81,14 +81,17 @@ This software includes third party software subject to the following copyrights:
 @aws-sdk/client-translate under the Apache-2.0 license.
 @aws-sdk/config-resolver under the Apache-2.0 license.
 @aws-sdk/core under the Apache-2.0 license.
+@aws-sdk/crc64-nvme under the Apache-2.0 license.
 @aws-sdk/credential-provider-env under the Apache-2.0 license.
 @aws-sdk/credential-provider-http under the Apache-2.0 license.
 @aws-sdk/credential-provider-imds under the Apache-2.0 license.
 @aws-sdk/credential-provider-ini under the Apache-2.0 license.
+@aws-sdk/credential-provider-login under the Apache-2.0 license.
 @aws-sdk/credential-provider-node under the Apache-2.0 license.
 @aws-sdk/credential-provider-process under the Apache-2.0 license.
 @aws-sdk/credential-provider-sso under the Apache-2.0 license.
 @aws-sdk/credential-provider-web-identity under the Apache-2.0 license.
+@aws-sdk/dynamodb-codec under the Apache-2.0 license.
 @aws-sdk/endpoint-cache under the Apache-2.0 license.
 @aws-sdk/eventstream-codec under the Apache-2.0 license.
 @aws-sdk/eventstream-handler-node under the Apache-2.0 license.
