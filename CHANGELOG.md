@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.1] - 2026-02-05
+
+### Security
+
+- Upgraded protobuf to `6.33.5` to mitigate [CVE-2026-0994](https://nvd.nist.gov/vuln/detail/CVE-2026-0994)
+- Upgraded aiohttp to `3.13.3` to mitigate [CVE-2025-69227](https://nvd.nist.gov/vuln/detail/CVE-2025-69227), [CVE-2025-69228](https://nvd.nist.gov/vuln/detail/CVE-2025-69228), and [CVE-2025-69229](https://nvd.nist.gov/vuln/detail/CVE-2025-69229)
+- Upgraded mcp to `1.26.0` to mitigate [CVE-2025-66416](https://nvd.nist.gov/vuln/detail/CVE-2025-66416)
+- Upgraded starlette to `0.52.1` to mitigate [CVE-2025-62727](https://nvd.nist.gov/vuln/detail/CVE-2025-62727)
+- Upgraded aws sdk clients to `3.981.0` to mitigate [CVE-2026-25128](https://nvd.nist.gov/vuln/detail/CVE-2026-25128) in fast-xml-parser
+- Upgraded fast-xml-parser to `5.3.4` to mitigate [CVE-2026-25128](https://nvd.nist.gov/vuln/detail/CVE-2026-25128)
+
 ## [4.1.0] - 2026-01-29
 
 ### Added
