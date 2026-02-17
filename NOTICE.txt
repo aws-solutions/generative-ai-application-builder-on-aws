@@ -726,6 +726,7 @@ ace-builds under the BSD-3-Clause license.
 ace-code under the BSD-3-Clause license.
 acorn under the MIT license.
 acorn-import-attributes under the MIT license.
+acorn-import-phases under the MIT license.
 acorn-jsx under the MIT license.
 acorn-walk under the MIT license.
 agent-base under the MIT license.

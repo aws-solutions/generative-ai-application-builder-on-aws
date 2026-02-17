@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.2] - 2026-02-17
+
+### Security
+
+- Upgraded axios to `1.13.5` to mitigate [CVE-2026-25639](https://nvd.nist.gov/vuln/detail/CVE-2026-25639)
+- Upgraded cryptography to `46.0.5` to mitigate [CVE-2026-26007](https://nvd.nist.gov/vuln/detail/CVE-2026-26007)
+- Upgraded webpack to `5.105.1` to mitigate [CVE-2025-68157](https://nvd.nist.gov/vuln/detail/CVE-2025-68157) and [CVE-2025-68458](https://nvd.nist.gov/vuln/detail/CVE-2025-68458)
+- Upgraded pip to `26.0.1` to mitigate [CVE-2026-1703](https://nvd.nist.gov/vuln/detail/CVE-2026-1703)
+- Upgraded langchain-core to `1.2.11` to mitigate [CVE-2026-26013](https://nvd.nist.gov/vuln/detail/CVE-2026-26013)
+- Upgraded pillow to `12.1.1` to mitigate [CVE-2026-25990](https://nvd.nist.gov/vuln/detail/CVE-2026-25990)
+- Upgraded qs to `6.14.2` to mitigate [CVE-2026-2391](https://nvd.nist.gov/vuln/detail/CVE-2026-2391)
+
 ## [4.1.1] - 2026-02-05
 
 ### Security
