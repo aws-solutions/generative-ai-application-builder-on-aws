@@ -40,6 +40,7 @@ This software includes third party software subject to the following copyrights:
 @aws-cdk/asset-awscli-v1 under the Apache-2.0 license.
 @aws-cdk/asset-kubectl-v20 under the Apache-2.0 license.
 @aws-cdk/asset-node-proxy-agent-v6 under the Apache-2.0 license.
+@aws-cdk/cloud-assembly-api under the Apache-2.0 license.
 @aws-cdk/cloud-assembly-schema under the Apache-2.0 license.
 @aws-cdk/integ-tests-alpha under the Apache-2.0 license.
 @aws-crypto/crc32 under the Apache-2.0 license.

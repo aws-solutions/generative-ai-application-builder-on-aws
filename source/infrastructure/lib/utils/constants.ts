@@ -24,8 +24,6 @@ export const LANGCHAIN_LAMBDA_LAYER_PYTHON_RUNTIME: string = 'langchain_python_3
 export const COMMERCIAL_REGION_LAMBDA_NODE_TS_LAYER_RUNTIME: string = 'node_ts_lambda_22_x_layer';
 export const COMMERCIAL_REGION_LAMBDA_JS_LAYER_RUNTIME: string = 'node_js_lambda_22_x_layer';
 export const GOV_CLOUD_REGION_LAMBDA_PYTHON_RUNTIME: lambda.Runtime = lambda.Runtime.PYTHON_3_11;
-export const COMMERCIAL_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_21;
-export const GOV_CLOUD_REGION_LAMBDA_JAVA_RUNTIME: lambda.Runtime = lambda.Runtime.JAVA_17;
 export const SERVICE_NAME = 'UseCaseManagement';
 
 export enum StackDeploymentSource {

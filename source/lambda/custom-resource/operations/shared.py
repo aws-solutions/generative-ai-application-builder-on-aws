@@ -24,6 +24,7 @@ TRANSIENT_ERROR_CODES = [
     "ImageNotFoundException",
     "RepositoryNotFoundException",
 ]
+IAM_PROPAGATION_ERROR_CODES = ("AccessDeniedException", "ValidationException")
 
 @tracer.capture_method
 def get_zip_archive(s3_resource, source_bucket_name, source_prefix):
@@ -66,7 +67,7 @@ def get_zip_archive(s3_resource, source_bucket_name, source_prefix):
 def _calculate_retry_delay(error_code, attempt, base_delay=None):
     """Calculate delay for retry based on error type and attempt number."""
     retry_delay_base = base_delay if base_delay is not None else RETRY_DELAY_BASE
-    if error_code == "AccessDeniedException":
+    if error_code in IAM_PROPAGATION_ERROR_CODES:
         # Use longer delays for IAM propagation (15, 45, 30, 30, 30 seconds capped at 30)
         return min(30, 5 * (retry_delay_base**attempt))
     # Cap delay at 30 seconds to prevent extremely long waits
@@ -76,9 +77,9 @@ def _calculate_retry_delay(error_code, attempt, base_delay=None):
 def _log_retry_warning(error_code, error_message, attempt, delay, max_retries=None):
     """Log appropriate warning message based on error type."""
     max_retry_count = max_retries if max_retries is not None else MAX_RETRIES
-    if error_code == "AccessDeniedException":
+    if error_code in IAM_PROPAGATION_ERROR_CODES:
         logger.warning(
-            f"IAM AccessDeniedException on attempt {attempt + 1}/{max_retry_count + 1}: {error_message}. "
+            f"IAM {error_code} on attempt {attempt + 1}/{max_retry_count + 1}: {error_message}. "
             f"This is likely due to IAM policy propagation delay. Retrying in {delay} seconds..."
         )
     else:
@@ -91,7 +92,7 @@ def _log_retry_warning(error_code, error_message, attempt, delay, max_retries=No
 def _is_retryable_error(error_code, attempt, max_retries=None):
     """Check if error is retryable based on error code and attempt count."""
     max_retry_count = max_retries if max_retries is not None else MAX_RETRIES
-    return error_code in TRANSIENT_ERROR_CODES and attempt < max_retry_count
+    return (error_code in TRANSIENT_ERROR_CODES or error_code in IAM_PROPAGATION_ERROR_CODES) and attempt < max_retry_count
 
 
 def _handle_client_error(error, attempt, max_retries=None, base_delay=None):

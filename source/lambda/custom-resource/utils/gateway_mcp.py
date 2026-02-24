@@ -144,6 +144,9 @@ class GatewayMCP(AgentcoreMCP):
                 if credential_configs:
                     target_params_dict["credentialProviderConfigurations"] = credential_configs
 
+                # Add IAM policies based on target type
+                self.policy_manager.gateway_policy_factory(target_type, target)
+
                 response = retry_with_backoff(
                     self.agentcore_client.create_gateway_target,
                     **target_params_dict,
@@ -161,9 +164,6 @@ class GatewayMCP(AgentcoreMCP):
                     } 
                 )
                 logger.info(f"Created ${target_name} with id: ${target_id}")
-
-                # Add IAM policies based on target type
-                self.policy_manager.gateway_policy_factory(target_type, target)
 
             except Exception as error:
                 error_msg = f"Failed to create target {target_name}: {str(error)}"

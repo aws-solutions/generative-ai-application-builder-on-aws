@@ -64,13 +64,6 @@ describe('When creating a custom VPC', () => {
                         Resource: {
                             'Fn::GetAtt': [flowLogCapture, 'Arn']
                         }
-                    },
-                    {
-                        Action: 'iam:PassRole',
-                        Effect: 'Allow',
-                        Resource: {
-                            'Fn::GetAtt': [Match.stringLikeRegexp('UseCaseVPCflowLogsIAMRole*'), 'Arn']
-                        }
                     }
                 ],
                 Version: '2012-10-17'

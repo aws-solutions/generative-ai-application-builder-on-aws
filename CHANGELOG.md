@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.3] - 2026-02-24
+
+### Fixed
+
+- Fixed error when deploying MCP Server use case with Lambda targets due to IAM permission propagation ([#238](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/238)).
+
+### Security
+
+- Upgraded ajv to `6.14.0` to mitigate [CVE-2025-69873](https://nvd.nist.gov/vuln/detail/CVE-2025-69873)
+- Upgraded fast-xml-parser to `5.3.6` to mitigate [CVE-2026-26278](https://nvd.nist.gov/vuln/detail/CVE-2026-26278) and [CVE-2026-25896](https://nvd.nist.gov/vuln/detail/CVE-2026-25896)
+- Upgraded minimatch to `3.1.3`/`5.1.7`/`9.0.6` to mitigate [CVE-2026-26996](https://nvd.nist.gov/vuln/detail/CVE-2026-26996)
+- Upgraded werkzeug to `3.1.6` to mitigate [CVE-2026-27199](https://nvd.nist.gov/vuln/detail/CVE-2026-27199)
+- Upgraded aws-cdk-lib to `2.240.0`
+- Upgraded aws-cdk to `2.1106.1`
+
 ## [4.1.2] - 2026-02-17
 
 ### Security

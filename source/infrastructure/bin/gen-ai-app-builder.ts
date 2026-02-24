@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as cdk from 'aws-cdk-lib';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { AwsSolutionsChecks } from 'cdk-nag';
 import * as crypto from 'crypto';
 import { AgentBuilderStack } from '../lib/use-case-stacks/agent-core/agent-builder-stack';
@@ -13,6 +14,7 @@ import { DeploymentPlatformStack } from '../lib/deployment-platform-stack';
 import { BaseStack, BaseStackProps } from '../lib/framework/base-stack';
 import { SageMakerChat } from '../lib/sagemaker-chat-stack';
 import { LambdaAspects } from '../lib/utils/lambda-aspect';
+import { LambdaVersionCDKNagSuppression } from '../lib/utils/lambda-version-cdk-nag-suppression';
 import { LogGroupRetentionCheckAspect } from '../lib/utils/log-group-retention-check-aspect';
 import { WorkflowStack } from '../lib/use-case-stacks/agent-core/workflow-stack';
 
@@ -40,6 +42,17 @@ createStack(DeploymentPlatformStack, getDefaultBaseStackProps(DeploymentPlatform
 // adding cdk-nag checks
 cdk.Aspects.of(app).add(new AwsSolutionsChecks(), { priority: cdk.AspectPriority.READONLY });
 cdk.Aspects.of(app).add(new LogGroupRetentionCheckAspect(), { priority: cdk.AspectPriority.READONLY });
+
+// suppress AwsSolutions-L1 for runtimes where the next version is not yet supported
+const runtimeSuppressions = [
+    lambda.Runtime.NODEJS_22_X,
+    lambda.Runtime.PYTHON_3_13,
+];
+for (const runtime of runtimeSuppressions) {
+    cdk.Aspects.of(app).add(new LambdaVersionCDKNagSuppression(runtime), {
+        priority: cdk.AspectPriority.MUTATING
+    });
+}
 
 app.synth();
 
