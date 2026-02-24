@@ -156,7 +156,7 @@ def test_create_failure(mock_retry, gateway_mcp_factory):
 @patch("utils.gateway_mcp.retry_with_backoff")
 @patch("utils.gateway_mcp.MCPGatewayFactory")
 def test_create_targets_success(mock_factory, mock_retry, gateway_mcp_factory):
-    """Test successful target creation."""
+    """Test successful target creation with policy added before target creation."""
     gateway, _ = gateway_mcp_factory(gateway_id="gateway-123")
 
     # Mock target creator
@@ -172,13 +172,26 @@ def test_create_targets_success(mock_factory, mock_retry, gateway_mcp_factory):
         "status": "ACTIVE",
     }
 
-    # Mock policy manager to avoid IAM calls
-    with patch.object(gateway.policy_manager, 'gateway_policy_factory'):
+    # Track call order to verify policy is added before target creation
+    call_order = []
+    with patch.object(
+        gateway.policy_manager, 'gateway_policy_factory',
+        side_effect=lambda *args, **kwargs: call_order.append('policy')
+    ):
+        mock_retry.side_effect = lambda *args, **kwargs: (
+            call_order.append('create_target'),
+            {
+                "targetId": "target-123",
+                "targetArn": "arn:aws:bedrock:us-east-1:123456789012:target/target-123",
+                "status": "ACTIVE",
+            },
+        )[-1]
         gateway.create_targets()
 
     assert len(gateway.targets) == 1
     assert gateway.targets[0]["targetId"] == "target-123"
     assert gateway.targets[0]["targetName"] == "test-lambda"
+    assert call_order == ['policy', 'create_target']
 
 
 @patch("utils.gateway_mcp.retry_with_backoff")

@@ -304,42 +304,37 @@ describe('When Chat use case is created', () => {
                             'dynamodb:UpdateItem'
                         ],
                         'Effect': 'Allow',
-                        'Resource': [
-                            {
-                                'Fn::Join': [
-                                    '',
-                                    [
-                                        'arn:',
-                                        {
-                                            'Ref': 'AWS::Partition'
-                                        },
-                                        ':dynamodb:',
-                                        {
-                                            'Ref': 'AWS::Region'
-                                        },
-                                        ':',
-                                        {
-                                            'Ref': 'AWS::AccountId'
-                                        },
-                                        ':table/',
-                                        {
-                                            'Fn::If': [
-                                                Match.anyValue(),
-                                                {
-                                                    'Ref': Match.anyValue()
-                                                },
-                                                {
-                                                    'Ref': 'ExistingCognitoGroupPolicyTableName'
-                                                }
-                                            ]
-                                        }
-                                    ]
+                        'Resource': {
+                            'Fn::Join': [
+                                '',
+                                [
+                                    'arn:',
+                                    {
+                                        'Ref': 'AWS::Partition'
+                                    },
+                                    ':dynamodb:',
+                                    {
+                                        'Ref': 'AWS::Region'
+                                    },
+                                    ':',
+                                    {
+                                        'Ref': 'AWS::AccountId'
+                                    },
+                                    ':table/',
+                                    {
+                                        'Fn::If': [
+                                            Match.anyValue(),
+                                            {
+                                                'Ref': Match.anyValue()
+                                            },
+                                            {
+                                                'Ref': 'ExistingCognitoGroupPolicyTableName'
+                                            }
+                                        ]
+                                    }
                                 ]
-                            },
-                            {
-                                'Ref': 'AWS::NoValue'
-                            }
-                        ]
+                            ]
+                        }
                     },
                     {
                         'Action': ['apigateway:PATCH', 'apigateway:POST'],
