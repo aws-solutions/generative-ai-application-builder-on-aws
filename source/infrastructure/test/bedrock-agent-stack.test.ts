@@ -95,24 +95,20 @@ describe('BedrockAgent Stack', () => {
                             'dynamodb:DeleteItem',
                             'dynamodb:DescribeTable',
                             'dynamodb:GetItem',
-                            'dynamodb:GetRecords',
-                            'dynamodb:GetShardIterator',
                             'dynamodb:PutItem',
                             'dynamodb:Query',
                             'dynamodb:Scan',
                             'dynamodb:UpdateItem'
                         ]),
                         Effect: 'Allow',
-                        Resource: Match.arrayWith([
-                            {
-                                'Fn::GetAtt': Match.arrayWith([
-                                    Match.stringLikeRegexp(
-                                        'ChatStorageSetupChatStorageNestedStackChatStorageNestedStackResource.*'
-                                    ),
-                                    Match.stringLikeRegexp('.*ConversationTable.*Arn')
-                                ])
-                            }
-                        ])
+                        Resource: {
+                            'Fn::GetAtt': Match.arrayWith([
+                                Match.stringLikeRegexp(
+                                    'ChatStorageSetupChatStorageNestedStackChatStorageNestedStackResource.*'
+                                ),
+                                Match.stringLikeRegexp('.*ConversationTable.*Arn')
+                            ])
+                        }
                     }
                 ])
             },

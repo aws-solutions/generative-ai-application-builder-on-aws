@@ -99,12 +99,10 @@ describe('When creating the use case storage construct', () => {
         // can read and write use cases table
         template.hasResourceProperties('AWS::IAM::Policy', {
             'PolicyDocument': {
-                'Statement': [
+                'Statement': Match.arrayWith([
                     {
                         'Action': [
                             'dynamodb:BatchGetItem',
-                            'dynamodb:GetRecords',
-                            'dynamodb:GetShardIterator',
                             'dynamodb:Query',
                             'dynamodb:GetItem',
                             'dynamodb:Scan',
@@ -112,16 +110,11 @@ describe('When creating the use case storage construct', () => {
                             'dynamodb:DescribeTable'
                         ],
                         'Effect': 'Allow',
-                        'Resource': [
-                            {
-                                'Fn::GetAtt': [nestedStackCapture.asString(), useCaseTableCapture]
-                            },
-                            {
-                                'Ref': 'AWS::NoValue'
-                            }
-                        ]
+                        'Resource': {
+                            'Fn::GetAtt': [nestedStackCapture.asString(), useCaseTableCapture]
+                        }
                     }
-                ],
+                ]),
                 'Version': '2012-10-17'
             }
         });

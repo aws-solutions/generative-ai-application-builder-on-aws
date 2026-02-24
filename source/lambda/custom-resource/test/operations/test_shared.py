@@ -11,7 +11,7 @@ import botocore
 import pytest
 from botocore.exceptions import ClientError
 from operations.operation_types import RESOURCE_PROPERTIES, SOURCE_BUCKET_NAME, SOURCE_PREFIX
-from operations.shared import MAX_RETRIES, RETRY_DELAY_BASE, TRANSIENT_ERROR_CODES, get_zip_archive, retry_with_backoff
+from operations.shared import MAX_RETRIES, RETRY_DELAY_BASE, TRANSIENT_ERROR_CODES, IAM_PROPAGATION_ERROR_CODES, get_zip_archive, retry_with_backoff
 
 
 def test_get_zip_archive(web_ui_copy_setup):
@@ -89,13 +89,13 @@ def test_retry_non_transient_error_raises_immediately():
     """Test that non-transient errors are raised immediately without retries."""
     mock_func = Mock()
     mock_func.side_effect = ClientError(
-        {"Error": {"Code": "ValidationException", "Message": "Invalid input"}}, "TestOperation"
+        {"Error": {"Code": "ResourceNotFoundException", "Message": "Resource not found"}}, "TestOperation"
     )
 
     with pytest.raises(ClientError) as exc_info:
         retry_with_backoff(mock_func)
 
-    assert exc_info.value.response["Error"]["Code"] == "ValidationException"
+    assert exc_info.value.response["Error"]["Code"] == "ResourceNotFoundException"
     assert mock_func.call_count == 1
 
 
@@ -159,3 +159,21 @@ def test_retry_function_arguments_are_passed_correctly():
     # Verify both calls had the same arguments
     for call in mock_func.call_args_list:
         assert call == (("arg1", "arg2"), {"kwarg1": "value1", "kwarg2": "value2"})
+
+
+def test_retry_iam_propagation_errors_are_retried():
+    """Test that IAM propagation errors (AccessDeniedException, ValidationException) are retried with longer delays."""
+    for error_code in IAM_PROPAGATION_ERROR_CODES:
+        mock_func = Mock()
+        mock_func.side_effect = [
+            ClientError({"Error": {"Code": error_code, "Message": f"{error_code} occurred"}}, "TestOperation"),
+            "success",
+        ]
+
+        with patch("time.sleep") as mock_sleep:
+            result = retry_with_backoff(mock_func)
+
+        assert result == "success"
+        assert mock_func.call_count == 2
+        # Verify longer IAM propagation delay (5 * base^0 = 5 seconds)
+        mock_sleep.assert_called_once_with(min(30, 5 * (RETRY_DELAY_BASE**0)))
