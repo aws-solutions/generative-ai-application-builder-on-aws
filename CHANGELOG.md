@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.4] - 2026-03-03
+
+### Security
+
+- Upgraded rollup to `4.59.0` to mitigate [CVE-2026-27606](https://nvd.nist.gov/vuln/detail/CVE-2026-27606)
+- Upgraded minimatch to `3.1.5`/`5.1.9`/`9.0.9` to mitigate [CVE-2026-27903](https://nvd.nist.gov/vuln/detail/CVE-2026-27903), and [CVE-2026-27904](https://nvd.nist.gov/vuln/detail/CVE-2026-27904)
+- Upgraded fast-xml-parser to `5.4.1` to mitigate [CVE-2026-27942](https://nvd.nist.gov/vuln/detail/CVE-2026-27942)
+- Upgraded serialize-javascript to `7.0.3` to mitigate [GHSA-5c6j-r48x-rmvq](https://github.com/advisories/GHSA-5c6j-r48x-rmvq)
+- Upgraded aws-cdk-lib to `2.241.0`
+
 ## [4.1.3] - 2026-02-24
 
 ### Fixed
