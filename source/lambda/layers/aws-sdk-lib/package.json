@@ -1,6 +1,6 @@
 {
   "name": "@amzn/aws-sdk-layer",
-  "version": "4.1.3",
+  "version": "4.1.4",
   "description": "AWS Javascript SDK v3 layer",
   "main": "index.js",
   "scripts": {
@@ -38,6 +38,6 @@
     "ts-jest": "^29.4.5"
   },
   "overrides": {
-    "fast-xml-parser": "^5.3.6"
+    "fast-xml-parser": "^5.3.8"
   }
 }
