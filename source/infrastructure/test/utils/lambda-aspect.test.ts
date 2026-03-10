@@ -114,7 +114,9 @@ describe('When applying aspect to a Python based lambda function', () => {
         const stack = new cdk.Stack();
 
         new lambda.Function(stack, 'TestFunction', {
-            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/python-lambda'),
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/python-lambda', {
+                exclude: ['.venv']
+            }),
             runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
             handler: 'function.handler'
         });
@@ -195,7 +197,9 @@ describe('When applying the langchain aspect', () => {
         const stack = new cdk.Stack();
 
         const testLambda = new lambda.Function(stack, 'TestFunction', {
-            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/python-lambda'),
+            code: lambda.Code.fromAsset('../infrastructure/test/mock-lambda-func/python-lambda', {
+                exclude: ['.venv']
+            }),
             runtime: COMMERCIAL_REGION_LAMBDA_PYTHON_RUNTIME,
             handler: 'function.handler'
         });
