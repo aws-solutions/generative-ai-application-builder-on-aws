@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom-resource"
-version = "4.1.4"
+version = "4.1.5"
 authors = [ "Amazon Web Services" ]
 description = "Perform specific operations triggered by AWS CloudFormation events"
 packages = [
@@ -19,7 +19,7 @@ python = "^3.13"
 
 [tool.poetry.group.test.dependencies]
 freezegun = "1.5.1"
-joserfc = "1.0.3"
+joserfc = ">=1.6.3"
 mock = "5.1.0"
 moto = "5.0.28"
 pytest = "8.3.4"
