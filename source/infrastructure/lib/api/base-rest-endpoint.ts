@@ -76,27 +76,39 @@ export abstract class BaseRestEndpoint extends Construct {
             'application/json':
                 '{"error":{"message":"$context.error.messageString","errors":"$context.error.validationErrorString"}}'
         };
-        this.configureResponseHeaders(restApi, 'BadRequestDefaultResponse', '400', api.ResponseType.DEFAULT_4XX);
-        this.configureResponseHeaders(
+        const resp1 = this.configureResponseHeaders(restApi, 'BadRequestDefaultResponse', '400', api.ResponseType.DEFAULT_4XX);
+        const resp2 = this.configureResponseHeaders(
             restApi,
             'InternalServerErrorDefaultResponse',
             '400',
             api.ResponseType.DEFAULT_5XX
         );
-        this.configureResponseHeaders(
+        const resp3 = this.configureResponseHeaders(
             restApi,
             'BadRequestBodyResponse',
             '400',
             api.ResponseType.BAD_REQUEST_BODY,
             templates
         );
-        this.configureResponseHeaders(
+        const resp4 = this.configureResponseHeaders(
             restApi,
             'BadRequestParametersResponse',
             '400',
             api.ResponseType.BAD_REQUEST_PARAMETERS,
             templates
         );
+
+        // Chain GatewayResponses sequentially to serialize API Gateway control plane calls
+        // during CloudFormation deployment, avoiding 429 throttling.
+        const responses = [resp1, resp2, resp3, resp4];
+        responses.reduce((prev, curr) => {
+            const prevCfn = prev.node.defaultChild as cdk.CfnResource;
+            const currCfn = curr.node.defaultChild as cdk.CfnResource;
+            if (prevCfn && currCfn) {
+                currCfn.addDependency(prevCfn);
+            }
+            return curr;
+        });
     }
 
     /**
@@ -111,8 +123,8 @@ export abstract class BaseRestEndpoint extends Construct {
         templates?: {
             [key: string]: string;
         }
-    ) {
-        new api.GatewayResponse(this, resourceName, {
+    ): api.GatewayResponse {
+        return new api.GatewayResponse(this, resourceName, {
             restApi: restApi,
             type: httpResponseCodeType,
             statusCode: statusCode,

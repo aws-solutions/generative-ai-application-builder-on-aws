@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install UV for dependency management
 RUN pip install --no-cache-dir --upgrade "pip>=25.3" \
-    && pip install --no-cache-dir "uv>=0.5.0"
+    && pip install --no-cache-dir "uv>=0.10.10"
 
 # Debug: Show build context structure
 RUN echo "=== Build context contents ===" && ls -la . 2>/dev/null || true

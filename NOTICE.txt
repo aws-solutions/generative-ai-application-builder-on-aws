@@ -309,6 +309,7 @@ This software includes third party software subject to the following copyrights:
 @babel/types under the MIT license.
 @balena/dockerignore under the Apache-2.0 license.
 @bcoe/v8-coverage under the MIT license.
+@borewit/text-codec under the MIT license.
 @bundled-es-modules/cookie under the ISC license.
 @bundled-es-modules/statuses under the ISC license.
 @bundled-es-modules/tough-cookie under the ISC license.
@@ -624,6 +625,7 @@ This software includes third party software subject to the following copyrights:
 @testing-library/react under the MIT license.
 @testing-library/user-event under MIT license.
 @testing-library/user-event under the MIT license.
+@tokenizer/inflate under the MIT license.
 @tokenizer/token under the MIT license.
 @tsconfig/node10 under the MIT license.
 @tsconfig/node12 under the MIT license.
@@ -1819,6 +1821,7 @@ typing-inspection under the MIT license.
 ufo under the MIT license.
 uglify-js under the BSD-2-Clause license.
 ulid under the MIT license.
+uint8array-extras under the MIT license.
 unbox-primitive under the MIT license.
 uncontrollable under the MIT license.
 undici-types under the MIT license.

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.6] - 2026-03-17
+
+### Changed
+
+- Hardcoded container images in build scripts, removed from solution-manifest.yaml
+
+### Fixed
+
+- Serialized API Gateway resource creation to prevent 429 throttling during deployment
+
+### Security
+
+- Upgraded `black` to `26.3.1` to mitigate [CVE-2026-32274](https://nvd.nist.gov/vuln/detail/CVE-2026-32274)
+- Upgraded `orjson` to `3.11.7` to mitigate [CVE-2025-67221](https://nvd.nist.gov/vuln/detail/CVE-2025-67221)
+- Upgraded `pyjwt` to `2.12.1` to mitigate [CVE-2026-32597](https://nvd.nist.gov/vuln/detail/CVE-2026-32597)
+- Upgraded `langgraph` to `1.0.10` to mitigate [CVE-2026-28277](https://avd.aquasec.com/nvd/2026/cve-2026-28277)
+- Upgraded `flatted` to `3.4.1` to mitigate [CVE-2026-32141](https://avd.aquasec.com/nvd/2026/cve-2026-32141)
+- Upgraded `file-type` to `21.3.2` to mitigate [GHSA-5v7r-x4mn-hvf7](https://github.com/advisories/GHSA-5v7r-x4mn-hvf7)
+- Upgraded `uv` to `0.10.10` in ECR Dockerfiles to mitigate [CVE-2026-31812](https://nvd.nist.gov/vuln/detail/CVE-2026-31812)
+- Upgraded `requests` to `2.32.4` to mitigate [GHSA-9hjg-9r4m-mvj7](https://github.com/advisories/GHSA-9hjg-9r4m-mvj7)
+
 ## [4.1.5] - 2026-03-10
 
 ### Security
