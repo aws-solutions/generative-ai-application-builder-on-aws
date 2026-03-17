@@ -118,26 +118,11 @@ get_s3_object_age_days() {
     fi
 }
 
-# Function to get container images from solution manifest
-get_container_images() {
-    # Check if yq is available for YAML parsing
-    if ! command -v yq >/dev/null 2>&1; then
-        echo "❌ Error: yq is not installed or not in PATH"
-        echo "Please install yq to parse the solution manifest file:"
-        echo "  - macOS: brew install yq"
-        echo "  - Ubuntu/Debian: sudo apt install yq"
-        echo "  - Other: https://github.com/mikefarah/yq#install"
-        exit 1
-    fi
-    
-    # Use yq to parse YAML
-    if [ ! -f "../solution-manifest.yaml" ]; then
-        echo "❌ Error: solution-manifest.yaml not found"
-        exit 1
-    fi
-    
-    yq eval '.container_images[]' ../solution-manifest.yaml 2>/dev/null
-}
+# Container images to process
+CONTAINER_IMAGES=(
+    "gaab-strands-agent"
+    "gaab-strands-workflow-agent"
+)
 
 # Global configuration
 root_folder=infrastructure/cdk.out
@@ -538,18 +523,9 @@ stage_ecr_images() {
     echo "Target region: $region"
     echo "Target account: $account_id"
     
-    # Get container images from solution manifest
-    local container_images
-    container_images=$(get_container_images)
-    
-    if [ -z "$container_images" ]; then
-        echo "❌ No container images found in solution manifest"
-        return 1
-    fi
-    
     echo ""
     echo "Container images to process:"
-    echo "$container_images" | while read -r image; do
+    for image in "${CONTAINER_IMAGES[@]}"; do
         echo "  - $image"
     done
     
@@ -557,26 +533,24 @@ stage_ecr_images() {
     local staged_images=()
     
     # Process each container image
-    echo "$container_images" | while read -r image_name; do
-        if [ -n "$image_name" ]; then
-            echo ""
-            echo "--- Processing Image: $image_name ---"
-            
-            local ecr_dir="../deployment/ecr/$image_name"
-            if [ -d "$ecr_dir" ]; then
-                if build_ecr_image "$image_name"; then
-                    if push_ecr_image "$image_name" "$version_tag" "$region" "$account_id"; then
-                        staged_images+=("$account_id.dkr.ecr.$region.amazonaws.com/$image_name:$version_tag")
-                    else
-                        success=false
-                    fi
+    for image_name in "${CONTAINER_IMAGES[@]}"; do
+        echo ""
+        echo "--- Processing Image: $image_name ---"
+        
+        local ecr_dir="../deployment/ecr/$image_name"
+        if [ -d "$ecr_dir" ]; then
+            if build_ecr_image "$image_name"; then
+                if push_ecr_image "$image_name" "$version_tag" "$region" "$account_id"; then
+                    staged_images+=("$account_id.dkr.ecr.$region.amazonaws.com/$image_name:$version_tag")
                 else
                     success=false
                 fi
             else
-                echo "⚠️  ECR directory not found: $ecr_dir"
-                echo "Skipping $image_name image staging"
+                success=false
             fi
+        else
+            echo "⚠️  ECR directory not found: $ecr_dir"
+            echo "Skipping $image_name image staging"
         fi
     done
     
@@ -586,8 +560,8 @@ stage_ecr_images() {
         echo "✅ ECR image staging completed successfully"
         echo ""
         echo "Staged Image URIs:"
-        echo "$container_images" | while read -r image_name; do
-            if [ -n "$image_name" ] && [ -d "../deployment/ecr/$image_name" ]; then
+        for image_name in "${CONTAINER_IMAGES[@]}"; do
+            if [ -d "../deployment/ecr/$image_name" ]; then
                 echo "  $image_name: $account_id.dkr.ecr.$region.amazonaws.com/$image_name:$version_tag"
             fi
         done

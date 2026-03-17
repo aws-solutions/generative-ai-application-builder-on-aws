@@ -24,10 +24,6 @@ check_prerequisites() {
         missing_tools+=("aws")
     fi
     
-    if ! command -v yq >/dev/null 2>&1; then
-        missing_tools+=("yq")
-    fi
-    
     if [ ${#missing_tools[@]} -gt 0 ]; then
         echo "❌ Missing required tools:"
         for tool in "${missing_tools[@]}"; do
@@ -38,11 +34,10 @@ check_prerequisites() {
         echo "Installation instructions:"
         echo "  - Docker: https://docs.docker.com/get-docker/"
         echo "  - AWS CLI: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
-        echo "  - yq: brew install yq (macOS) or https://github.com/mikefarah/yq#install"
         exit 1
     fi
     
-    echo "✅ All required tools are available (docker, aws, yq)"
+    echo "✅ All required tools are available (docker, aws)"
 }
 
 # Function to check AWS credentials
@@ -142,7 +137,6 @@ if [ -z "$DIST_OUTPUT_BUCKET" ]; then
     # Define paths relative to script location (source/)
     project_root="$(dirname "$script_dir")"  # One level up from source/
     cdk_json_path="$script_dir/infrastructure/cdk.json"  # source/infrastructure/cdk.json
-    solution_manifest_path="$project_root/solution-manifest.yaml"  # project_root/solution-manifest.yaml
     deployment_dir="$project_root/deployment"  # project_root/deployment
     
     # Get version from environment or cdk.json
@@ -314,101 +308,16 @@ if [ -z "$DIST_OUTPUT_BUCKET" ]; then
         return 0
     }
     
-    # Function to get container images from solution manifest
-    get_container_images() {
-        # Check if yq is available for YAML parsing
-        if ! command -v yq >/dev/null 2>&1; then
-            echo "❌ Error: yq is not installed or not in PATH"
-            echo ""
-            echo "yq is required to parse the solution-manifest.yaml file."
-            echo "Please install yq using one of the following methods:"
-            echo ""
-            echo "  macOS (Homebrew):"
-            echo "    brew install yq"
-            echo ""
-            echo "  macOS (MacPorts):"
-            echo "    sudo port install yq"
-            echo ""
-            echo "  Ubuntu/Debian:"
-            echo "    sudo apt install yq"
-            echo ""
-            echo "  CentOS/RHEL/Fedora:"
-            echo "    sudo yum install yq"
-            echo ""
-            echo "  Manual installation:"
-            echo "    https://github.com/mikefarah/yq#install"
-            echo ""
-            echo "After installation, please run this script again."
-            exit 1
-        fi
-        
-        # Use script-relative path to solution manifest
-        local manifest_path="$solution_manifest_path"
-        if [ ! -f "$manifest_path" ]; then
-            echo "❌ Error: solution-manifest.yaml not found at $manifest_path"
-            echo "Script directory: $script_dir"
-            echo "Project root: $project_root"
-            echo "Please ensure the solution-manifest.yaml file exists at the project root"
-            exit 1
-        fi
-        if [ ! -f "$manifest_path" ]; then
-            echo "❌ Error: solution-manifest.yaml not found at $manifest_path"
-            echo "Current directory: $(pwd)"
-            echo "Expected location: $(realpath $manifest_path 2>/dev/null || echo $manifest_path)"
-            echo "Please ensure the solution-manifest.yaml file exists at the project root"
-            exit 1
-        fi
-        
-
-        
-        # Use yq to parse YAML and extract container images with timeout
-        local images
-        local yq_exit_code
-        
-        # Add timeout to prevent hanging
-        if command -v timeout >/dev/null 2>&1; then
-            images=$(timeout 10 yq eval '.container_images[]' "$manifest_path" 2>&1)
-            yq_exit_code=$?
-        else
-            images=$(yq eval '.container_images[]' "$manifest_path" 2>&1)
-            yq_exit_code=$?
-        fi
-        
-
-        
-        if [ $yq_exit_code -ne 0 ]; then
-            echo "❌ Error: Failed to parse solution-manifest.yaml with yq"
-            echo "yq command: yq eval '.container_images[]' $manifest_path"
-            echo "yq output: $images"
-            echo "Please check that the file is valid YAML and contains a 'container_images' section"
-            
-            # Show the relevant section of the YAML file for debugging
-            echo ""
-            echo "Relevant section of solution-manifest.yaml:"
-            grep -A 5 -B 2 "container_images" "$manifest_path" || echo "container_images section not found"
-            exit 1
-        fi
-        
-
-        echo "$images"
-    }
-    
-    # Get container images from solution manifest
-    echo "Parsing container images from solution-manifest.yaml..."
-    container_images=$(get_container_images)
-    
-    if [ -z "$container_images" ]; then
-        echo "❌ No container images found in solution manifest"
-        echo "Expected to find container_images section in solution-manifest.yaml"
-        exit 1
-    fi
+    # Container images to build
+    CONTAINER_IMAGES=(
+        "gaab-strands-agent"
+        "gaab-strands-workflow-agent"
+    )
     
     echo ""
-    echo "Container images to build (from solution-manifest.yaml):"
-    echo "$container_images" | while read -r image; do
-        if [ -n "$image" ]; then
-            echo "  - $image"
-        fi
+    echo "Container images to build:"
+    for image in "${CONTAINER_IMAGES[@]}"; do
+        echo "  - $image"
     done
     
     # Build and push each container image
@@ -419,38 +328,29 @@ if [ -z "$DIST_OUTPUT_BUCKET" ]; then
     built_images=()
     skipped_images=()
     
-    while IFS= read -r image_name; do
-        if [ -n "$image_name" ]; then
-            echo ""
-            echo "Processing $image_name image..."
-            
-            # Use script-relative path to deployment directory
-            image_dir="$deployment_dir/ecr/$image_name"
-            
-            # Check if image directory exists
-            if [ ! -d "$image_dir" ]; then
-                echo "⚠️  Image directory not found: $image_dir - skipping $image_name"
-                skipped_images+=("$image_name")
-                continue
-            fi
-            
-            # Check if image directory exists
-            if [ ! -d "$image_dir" ]; then
-                echo "⚠️  Image directory not found: $image_dir - skipping $image_name"
-                skipped_images+=("$image_name")
-                continue
-            fi
-            
-            # Build the image locally
-            if build_ecr_image_local "$image_dir" "$image_name"; then
-                built_images+=("$image_name")
-                echo "✅ Successfully processed $image_name"
-            else
-                echo "❌ Failed to process $image_name"
-                overall_success=false
-            fi
+    for image_name in "${CONTAINER_IMAGES[@]}"; do
+        echo ""
+        echo "Processing $image_name image..."
+        
+        # Use script-relative path to deployment directory
+        image_dir="$deployment_dir/ecr/$image_name"
+        
+        # Check if image directory exists
+        if [ ! -d "$image_dir" ]; then
+            echo "⚠️  Image directory not found: $image_dir - skipping $image_name"
+            skipped_images+=("$image_name")
+            continue
         fi
-    done <<< "$container_images"
+        
+        # Build the image locally
+        if build_ecr_image_local "$image_dir" "$image_name"; then
+            built_images+=("$image_name")
+            echo "✅ Successfully processed $image_name"
+        else
+            echo "❌ Failed to process $image_name"
+            overall_success=false
+        fi
+    done
     
     # Summary
     echo ""

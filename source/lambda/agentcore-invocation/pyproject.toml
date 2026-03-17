@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "agent-invocation"
-version = "4.1.5"
+version = "4.1.6"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation for agent invocation feature"
 packages = [

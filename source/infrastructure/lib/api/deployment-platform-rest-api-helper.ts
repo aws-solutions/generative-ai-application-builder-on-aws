@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as api from 'aws-cdk-lib/aws-apigateway';
+import * as cdk from 'aws-cdk-lib';
 import { JsonSchema } from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
 
@@ -241,6 +242,25 @@ export class DeploymentRestApiHelper {
             );
         }
 
+        // Chain models sequentially within this CRUD group to serialize API Gateway
+        // control plane calls during CloudFormation deployment. Models are leaf CfnResources
+        // with no children, so addDependency here won't cause transitive dependency fan-out.
+        const createdModels: api.Model[] = [
+            models.createRequestModel,
+            models.createResponseModel,
+            models.updateRequestModel,
+            models.updateResponseModel
+        ].filter((m): m is api.Model => m !== undefined);
+
+        createdModels.reduce((prev, curr) => {
+            const prevCfn = prev.node.defaultChild as cdk.CfnResource;
+            const currCfn = curr.node.defaultChild as cdk.CfnResource;
+            if (prevCfn && currCfn) {
+                currCfn.addDependency(prevCfn);
+            }
+            return curr;
+        });
+
         return models;
     }
 
@@ -274,7 +294,7 @@ export class DeploymentRestApiHelper {
             'method.request.querystring.pageNumber': true,
             'method.request.querystring.searchFilter': false
         };
-        collectionResource.addMethod(
+        const getCollectionMethod = collectionResource.addMethod(
             'GET',
             context.integration,
             DeploymentRestApiHelper.createMethodOptions(context, `Get${operationPrefix}s`, getParams)
@@ -298,9 +318,9 @@ export class DeploymentRestApiHelper {
                 }
             ];
         }
-        collectionResource.addMethod('POST', context.integration, createMethodOptions);
+        const postCollectionMethod = collectionResource.addMethod('POST', context.integration, createMethodOptions);
         // GET /collection/{id} - Get specific item
-        itemResource.addMethod(
+        const getItemMethod = itemResource.addMethod(
             'GET',
             context.integration,
             DeploymentRestApiHelper.createMethodOptions(context, `Get${operationPrefix}`)
@@ -313,15 +333,27 @@ export class DeploymentRestApiHelper {
             models?.updateRequestModel,
             models?.updateResponseModel
         );
-        itemResource.addMethod('PATCH', context.integration, updateMethodOptions);
+        const patchItemMethod = itemResource.addMethod('PATCH', context.integration, updateMethodOptions);
         // DELETE /collection/{id}
         const deleteParams = { 'method.request.querystring.permanent': false };
 
-        itemResource.addMethod(
+        const deleteItemMethod = itemResource.addMethod(
             'DELETE',
             context.integration,
             DeploymentRestApiHelper.createMethodOptions(context, `Delete${operationPrefix}`, deleteParams)
         );
+
+        // Chain methods sequentially within this CRUD group to serialize API Gateway
+        // control plane calls during CloudFormation deployment.
+        const methods = [getCollectionMethod, postCollectionMethod, getItemMethod, patchItemMethod, deleteItemMethod];
+        methods.reduce((prev, curr) => {
+            const prevCfn = prev.node.defaultChild as cdk.CfnResource;
+            const currCfn = curr.node.defaultChild as cdk.CfnResource;
+            if (prevCfn && currCfn) {
+                currCfn.addDependency(prevCfn);
+            }
+            return curr;
+        });
 
         return [collectionResource, itemResource];
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import * as FileType from 'file-type';
+import { detectFileType } from './file-type-detector';
 import { logger, tracer } from '../power-tools-init';
 import { customAwsConfig } from 'aws-node-user-agent-config';
 import { FileValidationResult } from '../models/types';
@@ -59,7 +59,7 @@ export class FileValidator {
             );
 
             // Detect actual file type using magic numbers
-            const detectedType = await FileType.fromBuffer(magicNumberBuffer);
+            const detectedType = await detectFileType(magicNumberBuffer);
 
             // Handle files that don't have magic numbers
             if (!detectedType) {

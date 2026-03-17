@@ -3,9 +3,9 @@
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
-import * as FileType from 'file-type';
 import type { FileTypeResult } from 'file-type';
 import { FileValidator } from '../../utils/file-validator';
+import { detectFileType } from '../../utils/file-type-detector';
 import { logger as mockLogger, tracer as mockTracer } from '../../power-tools-init';
 import { MAGIC_NUMBER_BUFFER_SIZE, ALL_SUPPORTED_FILE_TYPES } from '../../utils/constants';
 import { extractFileExtension, extractContentTypeFromFileName } from '../../utils/utils';
@@ -51,12 +51,12 @@ jest.mock('../../utils/utils', () => ({
     })
 }));
 
-jest.mock('file-type', () => ({
-    fromBuffer: jest.fn()
+jest.mock('../../utils/file-type-detector', () => ({
+    detectFileType: jest.fn()
 }));
 
 const s3Mock = mockClient(S3Client);
-const mockFromBuffer = FileType.fromBuffer as jest.MockedFunction<typeof FileType.fromBuffer>;
+const mockDetectFileType = detectFileType as jest.MockedFunction<typeof detectFileType>;
 const mockExtractFileExtension = extractFileExtension as jest.MockedFunction<typeof extractFileExtension>;
 const mockExtractContentTypeFromFileName = extractContentTypeFromFileName as jest.MockedFunction<typeof extractContentTypeFromFileName>;
 
@@ -92,7 +92,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
@@ -121,7 +121,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/file.png');
 
@@ -142,7 +142,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/document.pdf');
 
@@ -163,7 +163,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/image.jpeg');
 
@@ -184,7 +184,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/Reinvent 2025.doc');
 
@@ -205,7 +205,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/spreadsheet.xls');
 
@@ -234,7 +234,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(undefined);
+            mockDetectFileType.mockResolvedValue(undefined);
 
             const result = await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
@@ -255,7 +255,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/fake.jpg');
 
@@ -278,7 +278,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/fake.jpg');
 
@@ -300,7 +300,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/file.jpg');
 
@@ -321,7 +321,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/file_no_extension');
 
@@ -389,7 +389,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockRejectedValue(new Error('FileType parsing error'));
+            mockDetectFileType.mockRejectedValue(new Error('FileType parsing error'));
 
             const result = await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
@@ -430,7 +430,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
@@ -458,12 +458,12 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
             expect(result.isValid).toBe(true);
-            expect(mockFromBuffer).toHaveBeenCalledWith(Buffer.concat([chunk1, chunk2]));
+            expect(mockDetectFileType).toHaveBeenCalledWith(Buffer.concat([chunk1, chunk2]));
         });
     });
 
@@ -481,7 +481,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
@@ -504,7 +504,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
@@ -534,7 +534,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             await fileValidator.validateFile(mockBucketName, mockObjectKey);
 
@@ -563,7 +563,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(undefined);
+            mockDetectFileType.mockResolvedValue(undefined);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/document.txt');
 
@@ -585,7 +585,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(undefined);
+            mockDetectFileType.mockResolvedValue(undefined);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/readme.md');
 
@@ -607,7 +607,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(undefined);
+            mockDetectFileType.mockResolvedValue(undefined);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/fake.jpg');
 
@@ -630,7 +630,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/document.doc');
 
@@ -651,7 +651,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/spreadsheet.xls');
 
@@ -672,7 +672,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/document.doc');
 
@@ -695,7 +695,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/image.png');
 
@@ -716,7 +716,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, 'test/image.png');
 
@@ -740,7 +740,7 @@ describe('FileValidator', () => {
                     }
                 } as any
             });
-            mockFromBuffer.mockResolvedValue(mockDetectedType);
+            mockDetectFileType.mockResolvedValue(mockDetectedType);
 
             const result = await fileValidator.validateFile(mockBucketName, complexObjectKey);
 
