@@ -97,7 +97,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "boto3-layer"
-version = "4.1.6"
+version = "4.1.7"
 description = "Layer for AWS Boto3 python SDK"
 optional = false
 python-versions = "^3.13"
@@ -559,7 +559,7 @@ test-randomorder = ["pytest-randomly"]
 
 [[package]]
 name = "custom-boto3-init"
-version = "4.1.6"
+version = "4.1.7"
 description = "Initialize boto config for AWS Python SDK with custom configuration"
 optional = false
 python-versions = "^3.13"
@@ -963,7 +963,7 @@ uuid-utils = ">=0.12.0,<1.0"
 
 [[package]]
 name = "langchain-layer"
-version = "4.1.6"
+version = "4.1.7"
 description = "Layer for LangChain libraries"
 optional = false
 python-versions = "^3.13"
@@ -977,9 +977,9 @@ langchain = "^1.2.3"
 langchain-aws = "^1.2.0"
 langchain-classic = "^1.0.1"
 langchain-core = "^1.2.6"
-langgraph = ">=1.0.10"
+langgraph = "^1.0.10"
 numpy = "2.2.2"
-orjson = ">=3.11.6"
+orjson = "^3.11.6"
 pydantic = "2.11.0"
 requests = "2.32.4"
 urllib3 = "2.6.3"
