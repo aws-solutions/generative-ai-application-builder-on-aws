@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.7] - 2026-03-19
+
+### Security
+
+- Upgraded `uv` to `0.10.11` to mitigate [GHSA-6gx3-4362-rf54](https://test.osv.dev/vulnerability/GHSA-6gx3-4362-rf54)
+- Upgraded `black` to `26.3.1` to mitigate [CVE-2026-32274](https://nvd.nist.gov/vuln/detail/CVE-2026-32274)
+- Upgraded `fast-xml-parser` to `5.5.6` to mitigate [CVE-2026-26278](https://nvd.nist.gov/vuln/detail/CVE-2026-26278)
+
 ## [4.1.6] - 2026-03-17
 
 ### Changed
