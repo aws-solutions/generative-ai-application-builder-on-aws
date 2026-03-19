@@ -1522,6 +1522,7 @@ patch-package under the MIT license.
 path-case under the MIT license.
 path-exists under the MIT license.
 path-is-absolute under the MIT license.
+path-expression-matcher under the MIT license.
 path-key under the MIT license.
 path-parse under the MIT license.
 path-scurry under the BlueOak-1.0.0 license.

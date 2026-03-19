@@ -637,7 +637,7 @@ wheels = [
 
 [[package]]
 name = "gaab-strands-agent"
-version = "4.1.6"
+version = "4.1.7"
 source = { editable = "." }
 dependencies = [
     { name = "aws-opentelemetry-distro" },
@@ -715,7 +715,7 @@ dev = [
 
 [[package]]
 name = "gaab-strands-common"
-version = "4.1.6"
+version = "4.1.7"
 source = { editable = "../gaab-strands-common" }
 dependencies = [
     { name = "bedrock-agentcore" },
