@@ -350,7 +350,7 @@ wheels = [
 
 [[package]]
 name = "gaab-strands-common"
-version = "4.1.7"
+version = "4.1.8"
 source = { editable = "." }
 dependencies = [
     { name = "bedrock-agentcore" },

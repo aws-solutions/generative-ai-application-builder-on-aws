@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.8] - 2026-03-25
+
+### Security
+
+- Upgraded `flatted` to `3.4.2` to mitigate [CVE-2026-33228](https://nvd.nist.gov/vuln/detail/CVE-2026-33228)
+- Upgraded `fast-xml-parser` to `5.5.9` to mitigate [GHSA-jp2q-39xq-3w4g](https://github.com/advisories/GHSA-jp2q-39xq-3w4g)
+
 ## [4.1.7] - 2026-03-19
 
 ### Security
