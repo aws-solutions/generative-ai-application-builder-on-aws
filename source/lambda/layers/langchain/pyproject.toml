@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "langchain-layer"
-version = "4.1.8"
+version = "4.1.9"
 authors = [ "Amazon Web Services" ]
 description = "Layer for LangChain libraries"
 packages = [
@@ -17,10 +17,10 @@ license = "Apache-2.0"
 python = "^3.13"
 numpy = "2.2.2"
 langchain = "^1.2.3"
-langchain-core = "^1.2.6"
+langchain-core = "^1.2.22"
 langchain-aws = "^1.2.0"
 pydantic = "2.11.0"
-requests="2.32.4"
+requests="2.33.0"
 urllib3="2.6.3"
 orjson="^3.11.6"
 langchain-classic = "^1.0.1"

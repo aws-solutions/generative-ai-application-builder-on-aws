@@ -4,8 +4,8 @@
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { mockClient } from 'aws-sdk-client-mock';
 import type { FileTypeResult } from 'file-type';
+import { fileTypeFromBuffer } from 'file-type';
 import { FileValidator } from '../../utils/file-validator';
-import { detectFileType } from '../../utils/file-type-detector';
 import { logger as mockLogger, tracer as mockTracer } from '../../power-tools-init';
 import { MAGIC_NUMBER_BUFFER_SIZE, ALL_SUPPORTED_FILE_TYPES } from '../../utils/constants';
 import { extractFileExtension, extractContentTypeFromFileName } from '../../utils/utils';
@@ -51,12 +51,12 @@ jest.mock('../../utils/utils', () => ({
     })
 }));
 
-jest.mock('../../utils/file-type-detector', () => ({
-    detectFileType: jest.fn()
+jest.mock('file-type', () => ({
+    fileTypeFromBuffer: jest.fn()
 }));
 
 const s3Mock = mockClient(S3Client);
-const mockDetectFileType = detectFileType as jest.MockedFunction<typeof detectFileType>;
+const mockDetectFileType = fileTypeFromBuffer as jest.MockedFunction<typeof fileTypeFromBuffer>;
 const mockExtractFileExtension = extractFileExtension as jest.MockedFunction<typeof extractFileExtension>;
 const mockExtractContentTypeFromFileName = extractContentTypeFromFileName as jest.MockedFunction<typeof extractContentTypeFromFileName>;
 

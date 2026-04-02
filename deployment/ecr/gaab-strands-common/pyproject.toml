@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-common"
-version = "4.1.8"
+version = "4.1.9"
 description = "Shared library for GAAB Strands agents"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -31,5 +31,8 @@ dev-dependencies = [
     "moto>=5.1.0",
 ]
 override-dependencies = [
-    "pyjwt>=2.12.0"
+    "pyjwt>=2.12.0",
+    "requests>=2.33.0",
+    "cryptography>=46.0.6",
+    "pygments>=2.20.0"
 ]

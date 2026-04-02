@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.9] - 2026-04-02
+
+### Fixed
+
+- Fixed `file-type` ESM-only compatibility in files-metadata-management Lambda by bundling with `esbuild`
+
+### Security
+
+- Upgraded `handlebars` to `4.7.9` to mitigate [CVE-2026-33937](https://nvd.nist.gov/vuln/detail/CVE-2026-33937), [CVE-2026-33938](https://nvd.nist.gov/vuln/detail/CVE-2026-33938), [CVE-2026-33939](https://nvd.nist.gov/vuln/detail/CVE-2026-33939), [CVE-2026-33940](https://nvd.nist.gov/vuln/detail/CVE-2026-33940), [CVE-2026-33941](https://nvd.nist.gov/vuln/detail/CVE-2026-33941), [CVE-2026-33916](https://nvd.nist.gov/vuln/detail/CVE-2026-33916), [GHSA-7rx3-28cr-v5wh](https://github.com/advisories/GHSA-7rx3-28cr-v5wh), [GHSA-442j-39wm-28r2](https://github.com/advisories/GHSA-442j-39wm-28r2)
+- Upgraded `picomatch` to `>=2.3.2` to mitigate [CVE-2026-33671](https://nvd.nist.gov/vuln/detail/CVE-2026-33671), [CVE-2026-33672](https://nvd.nist.gov/vuln/detail/CVE-2026-33672)
+- Upgraded `path-to-regexp` to `>=8.4.0` to mitigate [CVE-2026-4926](https://nvd.nist.gov/vuln/detail/CVE-2026-4926), [CVE-2026-4923](https://nvd.nist.gov/vuln/detail/CVE-2026-4923)
+- Upgraded `node-forge` to `>=1.4.0` to mitigate [CVE-2026-33891](https://nvd.nist.gov/vuln/detail/CVE-2026-33891), [CVE-2026-33894](https://nvd.nist.gov/vuln/detail/CVE-2026-33894), [CVE-2026-33895](https://nvd.nist.gov/vuln/detail/CVE-2026-33895), [CVE-2026-33896](https://nvd.nist.gov/vuln/detail/CVE-2026-33896)
+- Upgraded `brace-expansion` to `>=1.1.13`/`>=5.0.5` (via `aws-cdk-lib` `>=2.247.0`) to mitigate [CVE-2026-33750](https://nvd.nist.gov/vuln/detail/CVE-2026-33750)
+- Upgraded `lodash` to `>=4.18.1` to mitigate [CVE-2025-13465](https://github.com/lodash/lodash/security/advisories/GHSA-xxjr-mmjv-4gpg), [GHSA-35jh-r3h4-6jhm](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)
+- Upgraded `yaml` to `>=1.10.3` to mitigate [CVE-2026-33532](https://nvd.nist.gov/vuln/detail/CVE-2026-33532)
+- Upgraded `serialize-javascript` to `>=7.0.5` to mitigate [CVE-2026-34043](https://nvd.nist.gov/vuln/detail/CVE-2026-34043)
+- Upgraded `langchain-core` to `>=1.2.22` to mitigate [CVE-2026-34070](https://nvd.nist.gov/vuln/detail/CVE-2026-34070)
+- Upgraded `requests` to `>=2.33.0` to mitigate [CVE-2026-25645](https://nvd.nist.gov/vuln/detail/CVE-2026-25645)
+- Upgraded `cryptography` to `>=46.0.6` to mitigate [CVE-2026-34073](https://nvd.nist.gov/vuln/detail/CVE-2026-34073)
+- Upgraded `Pygments` to `>=2.20.0` to mitigate [GHSA-58pv-8j8x-9vj2](https://github.com/advisories/GHSA-58pv-8j8x-9vj2)
+
+### Changed
+
+- Upgraded `aws-cdk-lib` to `>=2.247.0` and `aws-cdk`/`cdk` CLI to `>=2.1115.1`
+
 ## [4.1.8] - 2026-03-25
 
 ### Security
@@ -37,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `pyjwt` to `2.12.1` to mitigate [CVE-2026-32597](https://nvd.nist.gov/vuln/detail/CVE-2026-32597)
 - Upgraded `langgraph` to `1.0.10` to mitigate [CVE-2026-28277](https://avd.aquasec.com/nvd/2026/cve-2026-28277)
 - Upgraded `flatted` to `3.4.1` to mitigate [CVE-2026-32141](https://avd.aquasec.com/nvd/2026/cve-2026-32141)
-- Upgraded `file-type` to `21.3.2` to mitigate [GHSA-5v7r-x4mn-hvf7](https://github.com/advisories/GHSA-5v7r-x4mn-hvf7)
+- Upgraded `file-type` to `21.3.2` to mitigate [GHSA-5v7r-6r5c-r473](https://github.com/advisories/GHSA-5v7r-6r5c-r473)
 - Upgraded `uv` to `0.10.10` in ECR Dockerfiles to mitigate [CVE-2026-31812](https://nvd.nist.gov/vuln/detail/CVE-2026-31812)
 - Upgraded `requests` to `2.32.4` to mitigate [GHSA-9hjg-9r4m-mvj7](https://github.com/advisories/GHSA-9hjg-9r4m-mvj7)
 

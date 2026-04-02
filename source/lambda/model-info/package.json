@@ -1,6 +1,6 @@
 {
   "name": "@amzn/model-info",
-  "version": "4.1.8",
+  "version": "4.1.9",
   "description": "This lambda supports APIs that provide the capability to deploy GenAI use cases",
   "main": "index.ts",
   "scripts": {
@@ -29,7 +29,7 @@
     "aws-sdk-client-mock-jest": "^4.0.1",
     "eslint": "^9.9.0",
     "jest": "^29.7.0",
-    "lodash": "^4.17.21",
+    "lodash": "^4.18.1",
     "prettier": "^3.6.2",
     "ts-jest": "^29.2.4",
     "ts-node": "^10.9.2",
