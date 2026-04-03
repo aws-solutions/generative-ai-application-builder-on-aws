@@ -110,9 +110,11 @@ describe('When creating the use case storage construct', () => {
                             'dynamodb:DescribeTable'
                         ],
                         'Effect': 'Allow',
-                        'Resource': {
-                            'Fn::GetAtt': [nestedStackCapture.asString(), useCaseTableCapture]
-                        }
+                        'Resource': Match.arrayWith([
+                            {
+                                'Fn::GetAtt': [nestedStackCapture.asString(), useCaseTableCapture]
+                            }
+                        ])
                     }
                 ]),
                 'Version': '2012-10-17'

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 module.exports = {
+    moduleNameMapper: {
+        '^file-type$': '<rootDir>/__mocks__/file-type.js'
+    },
     modulePaths: [
         '<rootDir>/../layers/',
         '<rootDir>/../layers/aws-sdk-lib/node_modules/',

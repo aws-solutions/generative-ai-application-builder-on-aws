@@ -357,6 +357,7 @@ This software includes third party software subject to the following copyrights:
 @esbuild/netbsd-x64 under the MIT license.
 @esbuild/openbsd-arm64 under the MIT license.
 @esbuild/openbsd-x64 under the MIT license.
+@esbuild/openharmony-arm64 under the MIT license.
 @esbuild/sunos-x64 under the MIT license.
 @esbuild/win32-arm64 under the MIT license.
 @esbuild/win32-ia32 under the MIT license.

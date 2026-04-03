@@ -1,6 +1,6 @@
 {
   "name": "@amzn/aws-node-user-agent-config",
-  "version": "4.1.8",
+  "version": "4.1.9",
   "description": "AWS Nodejs SDK Config initialization layer",
   "main": "index.js",
   "scripts": {
@@ -31,6 +31,6 @@
     "@aws-lambda-powertools/tracer": "^2.11.0",
     "@middy/core": "^4.7.0",
     "@types/lodash": "^4.17.13",
-    "lodash": "^4.17.21"
+    "lodash": "^4.18.1"
   }
 }

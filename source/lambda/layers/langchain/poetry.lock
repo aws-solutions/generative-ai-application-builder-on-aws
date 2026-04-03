@@ -493,14 +493,14 @@ xai = ["langchain-xai"]
 
 [[package]]
 name = "langchain-core"
-version = "1.2.11"
+version = "1.2.23"
 description = "Building applications with LLMs through composability"
 optional = false
 python-versions = "<4.0.0,>=3.10.0"
 groups = ["main"]
 files = [
-    {file = "langchain_core-1.2.11-py3-none-any.whl", hash = "sha256:ae11ceb8dda60d0b9d09e763116e592f1683327c17be5b715f350fd29aee65d3"},
-    {file = "langchain_core-1.2.11.tar.gz", hash = "sha256:f164bb36602dd74a3a50c1334fca75309ad5ed95767acdfdbb9fa95ce28a1e01"},
+    {file = "langchain_core-1.2.23-py3-none-any.whl", hash = "sha256:70866dfc5275b7840ce272ff70f0ff216c8666ab25dc1b41964a4ef58c02a3ff"},
+    {file = "langchain_core-1.2.23.tar.gz", hash = "sha256:fdec64f90cfea25317e88d9803c44684af1f4e30dec4e58320dd7393bb0f0785"},
 ]
 
 [package.dependencies]
@@ -1080,25 +1080,26 @@ files = [
 
 [[package]]
 name = "requests"
-version = "2.32.4"
+version = "2.33.0"
 description = "Python HTTP for Humans."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "requests-2.32.4-py3-none-any.whl", hash = "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c"},
-    {file = "requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"},
+    {file = "requests-2.33.0-py3-none-any.whl", hash = "sha256:3324635456fa185245e24865e810cecec7b4caf933d7eb133dcde67d48cee69b"},
+    {file = "requests-2.33.0.tar.gz", hash = "sha256:c7ebc5e8b0f21837386ad0e1c8fe8b829fa5f544d8df3b2253bff14ef29d7652"},
 ]
 
 [package.dependencies]
-certifi = ">=2017.4.17"
+certifi = ">=2023.5.7"
 charset_normalizer = ">=2,<4"
 idna = ">=2.5,<4"
-urllib3 = ">=1.21.1,<3"
+urllib3 = ">=1.26,<3"
 
 [package.extras]
 socks = ["PySocks (>=1.5.6,!=1.5.7)"]
-use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
+test = ["PySocks (>=1.5.6,!=1.5.7)", "pytest (>=3)", "pytest-cov", "pytest-httpbin (==2.1.0)", "pytest-mock", "pytest-xdist"]
+use-chardet-on-py3 = ["chardet (>=3.0.2,<8)"]
 
 [[package]]
 name = "requests-toolbelt"
@@ -1594,4 +1595,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "b5c3203566fcf94cc148f09c9338f8ec48df89c6fe75e019d263eb8967d5d34b"
+content-hash = "91d96d295b50e58db18f184788726110419a00fc261cd9ad2fecb32e1f506b80"
