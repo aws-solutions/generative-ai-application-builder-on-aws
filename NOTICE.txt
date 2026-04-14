@@ -1493,6 +1493,7 @@ object.fromentries under the MIT license.
 object.groupby under the MIT license.
 object.values under the MIT license.
 obliterator under the MIT license.
+obug under the MIT license.
 on-finished under the MIT license.
 on-headers under the MIT license.
 once under the ISC license.
