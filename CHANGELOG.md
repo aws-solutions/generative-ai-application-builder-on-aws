@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.10] - 2026-04-13
+
+### Security
+
+- Upgraded `cryptography` to `46.0.7` to mitigate [CVE-2026-39892](https://avd.aquasec.com/nvd/cve-2026-39892)
+- Upgraded `vite` to `6.4.2` to mitigate [CVE-2026-39363](https://avd.aquasec.com/nvd/cve-2026-39363) and [CVE-2026-39365](https://avd.aquasec.com/nvd/cve-2026-39365)
+- Upgraded `vitest` to `4.0.10` and `vitest`/`coverage-v8` CLI to `4.0.10`
+- Upgraded `langchain-core` to `1.2.28` to mitigate [GHSA-926x-3r5x-gfhw](https://github.com/advisories/GHSA-926x-3r5x-gfhw)
+- Upgraded `axios` to `1.15.0` to mitigate [CVE-2025-62718](https://avd.aquasec.com/nvd/cve-2025-62718)
+
 ## [4.1.9] - 2026-04-02
 
 ### Fixed
