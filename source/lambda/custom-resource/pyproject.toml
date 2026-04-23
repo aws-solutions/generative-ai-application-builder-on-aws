@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom-resource"
-version = "4.1.10"
+version = "4.1.11"
 authors = [ "Amazon Web Services" ]
 description = "Perform specific operations triggered by AWS CloudFormation events"
 packages = [
@@ -23,7 +23,7 @@ joserfc = ">=1.6.3"
 mock = "5.1.0"
 moto = "5.0.28"
 requests = "2.33.0"
-pytest = "8.3.4"
+pytest = "9.0.3"
 pytest-cov = "6.0.0"
 pytest-env = "1.1.5"
 PyYAML = "6.0.2"

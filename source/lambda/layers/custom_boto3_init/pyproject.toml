@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "custom_boto3_init"
-version = "4.1.10"
+version = "4.1.11"
 authors = [ "Amazon Web Services" ]
 description = "Initialize boto config for AWS Python SDK with custom configuration"
 packages = [
@@ -23,7 +23,7 @@ cryptography = { version = "^46.0.7", markers = "sys_platform == 'linux' and pla
 
 [tool.poetry.group.test.dependencies]
 coverage = "7.6.4"
-pytest = "8.3.4"
+pytest = "9.0.3"
 pytest-cov = "6.0.0"
 mock = "5.1.0"
 urllib3="2.6.3"

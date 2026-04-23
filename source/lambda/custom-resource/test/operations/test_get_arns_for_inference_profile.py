@@ -28,24 +28,24 @@ def mock_bedrock_client(ddb_client):
         yield mock_client
 
 
-@mock_aws
 @pytest.fixture
 def insert_llm_config(setup_use_case_config):
-    lambda_event, ddb = setup_use_case_config
+    with mock_aws():
+        lambda_event, ddb = setup_use_case_config
 
-    expected_identifier = "test-profile-identifier"
-    table_name = lambda_event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_TABLE_NAME]
-    record_key = lambda_event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_RECORD_KEY]
+        expected_identifier = "test-profile-identifier"
+        table_name = lambda_event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_TABLE_NAME]
+        record_key = lambda_event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_RECORD_KEY]
 
-    python_obj_to_be_inserted = {
-        LLM_CONFIG_RECORD_FIELD_NAME: record_key,
-        "config": {"LlmParams": {"BedrockLlmParams": {"InferenceProfileId": expected_identifier}}},
-    }
-    serializer = TypeSerializer()
+        python_obj_to_be_inserted = {
+            LLM_CONFIG_RECORD_FIELD_NAME: record_key,
+            "config": {"LlmParams": {"BedrockLlmParams": {"InferenceProfileId": expected_identifier}}},
+        }
+        serializer = TypeSerializer()
 
-    # serialize python_obj_to_inserted as dynamodb object using TypeSerializer
-    ddb.put_item(TableName=table_name, Item={k: serializer.serialize(v) for k, v in python_obj_to_be_inserted.items()})
-    yield lambda_event, ddb
+        # serialize python_obj_to_inserted as dynamodb object using TypeSerializer
+        ddb.put_item(TableName=table_name, Item={k: serializer.serialize(v) for k, v in python_obj_to_be_inserted.items()})
+        yield lambda_event, ddb
 
 
 def test_verify_env_setup_success(lambda_event):
