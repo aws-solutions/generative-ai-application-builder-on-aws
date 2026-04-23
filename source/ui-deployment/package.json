@@ -1,6 +1,6 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "4.1.10",
+  "version": "4.1.11",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
     "@aws-sdk/util-arn-parser": "^3.893.0",
@@ -32,8 +32,8 @@
     "file-loader": "^6.2.0",
     "identity-obj-proxy": "^3.0.0",
     "jsdom": "^24.1.1",
-    "prettier": "^3.6.2",
     "patch-package": "^8.0.1",
+    "prettier": "^3.6.2",
     "react-test-renderer": "^18.3.1",
     "vite": "^6.4.2",
     "vite-tsconfig-paths": "^4.3.2",
@@ -86,7 +86,8 @@
     "@smithy/config-resolver": "^4.4.6",
     "lodash": "4.18.1",
     "serialize-javascript": "^7.0.3",
-    "axios": "1.15.0"
+    "axios": "1.15.0",
+    "follow-redirects": "^1.16.0"
   },
   "type": "module"
 }

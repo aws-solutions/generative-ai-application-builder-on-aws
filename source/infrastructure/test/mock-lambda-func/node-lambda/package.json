@@ -1,6 +1,6 @@
 {
   "name": "@amzn/node-lambda",
-  "version": "4.1.10",
+  "version": "4.1.11",
   "description": "A mock lambda implementation for CDK infrastructure unit",
   "main": "index.js",
   "scripts": {

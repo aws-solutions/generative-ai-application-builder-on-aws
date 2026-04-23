@@ -321,14 +321,16 @@ export function addAddtionalRoutes(
         if (lambdaOrAlias instanceof lambda.Alias) {
             new lambda.EventSourceMapping(construct, `${routeKey}EventSourceMapping`, {
                 target: lambdaOrAlias,
-                eventSourceArn: queue.queueArn
+                eventSourceArn: queue.queueArn,
+                batchSize: 1
             });
             queue.grantConsumeMessages(lambdaOrAlias);
         } else {
             new SqsToLambda(construct, `${routeKey}SqsToLambda`, {
                 existingQueueObj: queue,
                 deployDeadLetterQueue: false,
-                existingLambdaObj: lambdaOrAlias
+                existingLambdaObj: lambdaOrAlias,
+                sqsEventSourceProps: { batchSize: 1 }
             });
         }
     }

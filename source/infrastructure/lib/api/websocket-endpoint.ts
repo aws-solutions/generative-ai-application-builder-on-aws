@@ -121,7 +121,8 @@ export class WebSocketEndpoint extends Construct {
         if (lambdaOrAlias instanceof lambda.Alias) {
             new lambda.EventSourceMapping(this, `${firstRouteKey}EventSourceMapping`, {
                 target: lambdaOrAlias,
-                eventSourceArn: apiGatewayV2WebSocketToSqs.sqsQueue.queueArn
+                eventSourceArn: apiGatewayV2WebSocketToSqs.sqsQueue.queueArn,
+                batchSize: 1
             });
             apiGatewayV2WebSocketToSqs.sqsQueue.grantConsumeMessages(lambdaOrAlias);
         } else {
@@ -129,7 +130,8 @@ export class WebSocketEndpoint extends Construct {
             new SqsToLambda(this, `${firstRouteKey}SqsToLambda`, { //NOSONAR - cdk instance creation does not require assignment
                 existingQueueObj: apiGatewayV2WebSocketToSqs.sqsQueue,
                 deployDeadLetterQueue: false,
-                existingLambdaObj: lambdaOrAlias
+                existingLambdaObj: lambdaOrAlias,
+                sqsEventSourceProps: { batchSize: 1 }
             });
         }
 

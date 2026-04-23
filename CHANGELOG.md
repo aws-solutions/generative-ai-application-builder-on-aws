@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.11] - 2026-04-23
+
+### Fixed
+
+- Fixed WebSocket silent message failures under concurrent load causing `GoneException` ([#257](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/257)).
+
+### Security
+
+- Upgraded `pytest` to `9.0.3` to mitigate [CVE-2025-71176](https://nvd.nist.gov/vuln/detail/CVE-2025-71176)
+- Upgraded `aiohttp` to `3.13.5` to mitigate [CVE-2026-22815](https://nvd.nist.gov/vuln/detail/CVE-2026-22815), [CVE-2026-34513](https://nvd.nist.gov/vuln/detail/CVE-2026-34513), [CVE-2026-34514](https://nvd.nist.gov/vuln/detail/CVE-2026-34514), [CVE-2026-34515](https://nvd.nist.gov/vuln/detail/CVE-2026-34515), [CVE-2026-34516](https://nvd.nist.gov/vuln/detail/CVE-2026-34516), [CVE-2026-34517](https://nvd.nist.gov/vuln/detail/CVE-2026-34517)
+- Upgraded `pillow` to `12.2.0` to mitigate [CVE-2026-40192](https://nvd.nist.gov/vuln/detail/CVE-2026-40192)
+- Upgraded `python-multipart` to `0.0.26` to mitigate [CVE-2026-40347](https://nvd.nist.gov/vuln/detail/CVE-2026-40347)
+- Upgraded `langsmith` to `0.7.33` to mitigate [GHSA-rr7j-v2q5-chgv](https://github.com/advisories/GHSA-rr7j-v2q5-chgv)
+- Upgraded `langchain-text-splitters` to `1.1.2` to mitigate [GHSA-fv5p-p927-qmxr](https://github.com/advisories/GHSA-fv5p-p927-qmxr)
+- Upgraded `follow-redirects` to `1.16.0` to mitigate [GHSA-r4q5-vmmm-2653](https://github.com/advisories/GHSA-r4q5-vmmm-2653)
+
 ## [4.1.10] - 2026-04-13
 
 ### Security

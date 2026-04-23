@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-common"
-version = "4.1.10"
+version = "4.1.11"
 description = "Shared library for GAAB Strands agents"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -23,7 +23,7 @@ packages = ["src/gaab_strands_common"]
 
 [tool.uv]
 dev-dependencies = [
-    "pytest>=8.0.0",
+    "pytest>=9.0.3",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.0",
     "black>=26.3.1",

@@ -26,22 +26,22 @@ def lambda_event(aws_credentials, custom_resource_event):
     yield custom_resource_event
 
 
-@mock_aws
 @pytest.fixture
 def setup_use_case_config(ddb_client, lambda_event):
-    table_name = lambda_event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_TABLE_NAME]
-    ddb_client.create_table(
-        TableName=table_name,
-        KeySchema=[
-            {"AttributeName": LLM_CONFIG_RECORD_FIELD_NAME, "KeyType": "HASH"},
-        ],
-        AttributeDefinitions=[
-            {"AttributeName": LLM_CONFIG_RECORD_FIELD_NAME, "AttributeType": "S"},
-        ],
-        BillingMode="PAY_PER_REQUEST",
-        SSESpecification={
-            "Enabled": True,
-        },
-    )
+    with mock_aws():
+        table_name = lambda_event[RESOURCE_PROPERTIES][USE_CASE_CONFIG_TABLE_NAME]
+        ddb_client.create_table(
+            TableName=table_name,
+            KeySchema=[
+                {"AttributeName": LLM_CONFIG_RECORD_FIELD_NAME, "KeyType": "HASH"},
+            ],
+            AttributeDefinitions=[
+                {"AttributeName": LLM_CONFIG_RECORD_FIELD_NAME, "AttributeType": "S"},
+            ],
+            BillingMode="PAY_PER_REQUEST",
+            SSESpecification={
+                "Enabled": True,
+            },
+        )
 
-    yield lambda_event, ddb_client
+        yield lambda_event, ddb_client
