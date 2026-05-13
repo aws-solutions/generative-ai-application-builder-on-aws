@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 from aws_lambda_powertools import Logger
+from botocore.exceptions import ClientError
 from helper import get_service_client
 from utils.constants import (
     CONVERSATION_ID_KEY,
@@ -13,6 +14,7 @@ from utils.constants import (
     TRACE_ID_ENV_VAR,
     WEBSOCKET_CALLBACK_URL_ENV_VAR,
 )
+from utils.websocket_gone_exception import WebSocketGoneException, is_gone_exception
 
 logger = Logger(utc=True)
 
@@ -65,6 +67,8 @@ class WebSocketHandler:
         try:
             self._post_to_connection(response, message_id=message_id)
             self._post_to_connection(END_CONVERSATION_TOKEN, message_id=message_id)
+        except WebSocketGoneException:
+            raise
         except Exception as ex:
             logger.error(
                 f"Error sending complete response to connection {self._connection_id}: {ex}",
@@ -84,6 +88,8 @@ class WebSocketHandler:
         """
         try:
             self._post_to_connection(chunk, message_id=message_id)
+        except WebSocketGoneException:
+            raise
         except Exception as ex:
             logger.error(
                 f"Error sending streaming chunk to connection {self._connection_id}: {ex}",
@@ -102,6 +108,8 @@ class WebSocketHandler:
         """
         try:
             self._post_to_connection(END_CONVERSATION_TOKEN, message_id=message_id)
+        except WebSocketGoneException:
+            raise
         except Exception as ex:
             logger.error(
                 f"Error sending end streaming token to connection {self._connection_id}: {ex}",
@@ -116,7 +124,7 @@ class WebSocketHandler:
             error (Exception): The error object to process and mask before sending
 
         Raises:
-            Exception: If there is an error sending the error message
+            Exception: If there is a non-GoneException error sending the error message.
         """
         try:
             # Log the full error
@@ -127,6 +135,8 @@ class WebSocketHandler:
 
             self._post_to_connection(masked_error_message, is_error=True)
             self._post_to_connection(END_CONVERSATION_TOKEN)
+        except WebSocketGoneException:
+            logger.warning(f"WebSocket connection {self._connection_id} is gone. Suppressing in send_error_message.", xray_trace_id=self._trace_id)
         except Exception as ex:
             logger.error(
                 f"Error sending error message to connection {self._connection_id}: {ex}",
@@ -143,7 +153,8 @@ class WebSocketHandler:
             message_id (str, optional): The message ID to include in the response. Defaults to None.
 
         Raises:
-            Exception: If there is an error posting the message
+            WebSocketGoneException: If the connection is permanently gone (HTTP 410)
+            Exception: If there is another error posting the message
         """
         try:
             if is_error:
@@ -152,6 +163,11 @@ class WebSocketHandler:
                 formatted_response = self._format_response(data=message, messageId=message_id)
 
             self._client.post_to_connection(ConnectionId=self._connection_id, Data=formatted_response)
+        except ClientError as e:
+            if is_gone_exception(e):
+                raise WebSocketGoneException(self._connection_id, original_error=e) from e
+            logger.error(f"Error posting message to connection {self._connection_id}: {e}", exc_info=True, xray_trace_id=self._trace_id)
+            raise e
         except Exception as ex:
             logger.error(
                 f"Error posting message to connection {self._connection_id}: {ex}",

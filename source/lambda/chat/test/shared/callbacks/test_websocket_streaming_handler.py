@@ -8,7 +8,9 @@ from unittest.mock import Mock, patch, call
 
 import pytest
 from aws_lambda_powertools.metrics import MetricUnit
+from botocore.exceptions import ClientError
 from langchain_core.messages.ai import AIMessageChunk
+from shared.callbacks.websocket_gone_exception import WebSocketGoneException
 from shared.callbacks.websocket_streaming_handler import WebsocketStreamingCallbackHandler
 from utils.constants import (
     CONTEXT_KEY,
@@ -238,3 +240,45 @@ def test_update_cw_dashboard_without_metadata(websocket_handler):
 
         mock_metrics.add_metric.assert_not_called()
         mock_metrics.add_dimension.assert_not_called()
+
+
+def test_connection_gone_flag_set_on_gone_exception(websocket_handler):
+    websocket_handler._client.post_to_connection.side_effect = ClientError(
+        error_response={"Error": {"Code": "GoneException", "Message": "Gone"}},
+        operation_name="PostToConnection",
+    )
+
+    with pytest.raises(WebSocketGoneException):
+        websocket_handler.post_token_to_connection("test payload")
+
+    assert websocket_handler._connection_gone is True
+
+
+def test_subsequent_calls_return_immediately_after_gone(websocket_handler):
+    websocket_handler._connection_gone = True
+
+    # Should return immediately without calling post_to_connection
+    websocket_handler.post_token_to_connection("test payload")
+
+    websocket_handler._client.post_to_connection.assert_not_called()
+
+
+def test_connection_gone_flag_prevents_further_api_calls(websocket_handler):
+    websocket_handler._client.post_to_connection.side_effect = ClientError(
+        error_response={"Error": {"Code": "GoneException", "Message": "Gone"}},
+        operation_name="PostToConnection",
+    )
+
+    # First call raises
+    with pytest.raises(WebSocketGoneException):
+        websocket_handler.post_token_to_connection("first payload")
+
+    # Reset mock to track subsequent calls
+    websocket_handler._client.post_to_connection.reset_mock()
+
+    # Subsequent calls should return immediately
+    websocket_handler.post_token_to_connection("second payload")
+    websocket_handler.post_token_to_connection("third payload")
+
+    # No further API calls should have been made
+    websocket_handler._client.post_to_connection.assert_not_called()

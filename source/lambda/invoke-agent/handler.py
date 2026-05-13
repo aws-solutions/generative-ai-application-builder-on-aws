@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import os
 from typing import Any, Dict
 
 from aws_lambda_powertools import Logger, Tracer
@@ -14,9 +15,11 @@ from utils.constants import (
     CONVERSATION_ID_KEY,
     INPUT_TEXT_KEY,
     LAMBDA_REMAINING_TIME_THRESHOLD_MS,
+    TRACE_ID_ENV_VAR,
     USER_ID_KEY,
     CloudWatchNamespaces,
 )
+from utils.websocket_gone_exception import WebSocketGoneException
 
 logger = Logger(utc=True)
 tracer = Tracer()
@@ -57,21 +60,34 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict:
 
             processed_records += 1
             index += 1  # Move to the next record only if successful
+        except WebSocketGoneException:
+            logger.error(
+                f"WebSocket connection {connection_id} is gone. Returning success to SQS.",
+                xray_trace_id=os.getenv(TRACE_ID_ENV_VAR),
+            )
+            index = skip_records_for_connection(records, index, connection_id)
         except Exception as ex:
             # Create a WebSocket handler for sending the error
             websocket_handler = WebSocketHandler(connection_id=connection_id, conversation_id=conversation_id)
             websocket_handler.send_error_message(ex)
 
-            # Add current and subsequent records with the same connection_id to failures
-            while (
-                index < len(records)
-                and records[index]["messageAttributes"]["connectionId"]["stringValue"] == connection_id
-            ):
-                batch_item_failures.add(records[index]["messageId"])
-                index += 1
+            start_index = index
+            index = skip_records_for_connection(records, index, connection_id)
+            for i in range(start_index, index):
+                batch_item_failures.add(records[i]["messageId"])
 
     sqs_batch_response["batchItemFailures"] = [{"itemIdentifier": message_id} for message_id in batch_item_failures]
     logger.debug(
         f"Processed {processed_records} out of {total_records} records. SQS Batch Response: {json.dumps(sqs_batch_response)}"
     )
     return sqs_batch_response
+
+
+def skip_records_for_connection(records, index, connection_id):
+    # Skip remaining SQS records that belong to the same WebSocket connection
+    while (
+        index < len(records)
+        and records[index]["messageAttributes"]["connectionId"]["stringValue"] == connection_id
+    ):
+        index += 1
+    return index

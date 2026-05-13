@@ -9,11 +9,13 @@ from uuid import UUID
 import botocore
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.metrics import MetricUnit
+from botocore.exceptions import ClientError
 from helper import get_service_client
 from langchain_classic.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from langchain_core.messages import BaseMessage
 from langchain_core.messages.ai import AIMessageChunk
 
+from shared.callbacks.websocket_gone_exception import WebSocketGoneException, is_gone_exception
 from utils.constants import (
     CONTEXT_KEY,
     CONVERSATION_ID_EVENT_KEY,
@@ -88,6 +90,7 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
         self.has_streamed_references = False
         self.streamed_rephrase_query = False
         self.return_source_docs = return_source_docs
+        self._connection_gone = False
         super().__init__()
 
     @property
@@ -159,12 +162,21 @@ class WebsocketStreamingCallbackHandler(AsyncIteratorCallbackHandler):
             payload (str): payload to send to the client.
 
         Raises:
-            Exception: if there is an error posting the payload to the connection
+            WebSocketGoneException: If the connection is permanently gone (HTTP 410)
+            Exception: if there is another error posting the payload to the connection
         """
+        if self._connection_gone:
+            return
         try:
             self.client.post_to_connection(
                 ConnectionId=self.connection_id, Data=self.format_response(payload, payload_key)
             )
+        except ClientError as e:
+            if is_gone_exception(e):
+                self._connection_gone = True
+                raise WebSocketGoneException(self.connection_id, original_error=e) from e
+            logger.error(f"Error sending token to connection {self.connection_id}: {e}", xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            raise e
         except Exception as ex:
             logger.error(
                 f"Error sending token to connection {self.connection_id}: {ex}",

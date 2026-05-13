@@ -425,6 +425,7 @@ This software includes third party software subject to the following copyrights:
 @middy/core under the MIT license.
 @mswjs/interceptors under the MIT license.
 @nicolo-ribaudo/semver-v6 under the ISC license.
+@nodable/entities under the MIT license.
 @nodelib/fs.scandir under the MIT license.
 @nodelib/fs.stat under the MIT license.
 @nodelib/fs.walk under the MIT license.
@@ -1321,6 +1322,7 @@ langchain under the MIT license.
 langchain-aws under the MIT license.
 langchain-classic under the MIT license.
 langchain-core under the MIT license.
+langchain-protocol under the MIT license.
 langchain-text-splitters under the MIT license.
 langsmith under the MIT license.
 langgraph under the MIT license.

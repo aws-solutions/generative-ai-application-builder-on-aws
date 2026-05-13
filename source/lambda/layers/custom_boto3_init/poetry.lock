@@ -67,7 +67,7 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "boto3-layer"
-version = "4.1.11"
+version = "4.1.12"
 description = "Layer for AWS Boto3 python SDK"
 optional = false
 python-versions = "^3.13"
@@ -78,7 +78,7 @@ develop = true
 [package.dependencies]
 boto3 = "^1.42.24"
 botocore = "^1.42.24"
-urllib3 = "2.6.3"
+urllib3 = ">=2.7.0"
 
 [package.source]
 type = "directory"
@@ -578,14 +578,14 @@ files = [
 
 [[package]]
 name = "urllib3"
-version = "2.6.3"
+version = "2.7.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main", "test"]
 files = [
-    {file = "urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"},
-    {file = "urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"},
+    {file = "urllib3-2.7.0-py3-none-any.whl", hash = "sha256:9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"},
+    {file = "urllib3-2.7.0.tar.gz", hash = "sha256:231e0ec3b63ceb14667c67be60f2f2c40a518cb38b03af60abc813da26505f4c"},
 ]
 
 [package.extras]
@@ -688,4 +688,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "63d241bbc2c8bd826371f621a57bbad03bcd7b7650dad7c2e2ef9260cacdd0ae"
+content-hash = "55de29ec687202799b028cd2a44024c711556c314cac62a26f4316a58d269e08"
