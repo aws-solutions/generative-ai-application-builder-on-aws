@@ -60,7 +60,7 @@ export const InferenceProfileIdInput = (props: InferenceProfileIdInputProps) => 
                 <span>
                     ID of the inference profile you want to use. See the list of available inference profiles in the{' '}
                     <a
-                        href="https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html"
+                        href="https://docs.aws.amazon.com/bedrock/latest/userguide/model-cards.html"
                         target="_blank"
                         rel="noopener noreferrer"
                     >

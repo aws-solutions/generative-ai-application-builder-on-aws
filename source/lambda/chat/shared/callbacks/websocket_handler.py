@@ -7,11 +7,13 @@ from typing import Dict, List
 
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.metrics import MetricUnit
+from botocore.exceptions import ClientError
 from helper import get_service_client
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs.chat_generation import ChatGeneration
 from langchain_core.outputs.llm_result import LLMResult
 
+from shared.callbacks.websocket_gone_exception import WebSocketGoneException, is_gone_exception
 from utils.constants import (
     CONVERSATION_ID_EVENT_KEY,
     MESSAGE_ID_EVENT_KEY,
@@ -85,12 +87,18 @@ class WebsocketHandler(BaseCallbackHandler):
             payload (str): Token to send to the client.
 
         Raises:
-            Exception: if there is an error posting the payload to the connection
+            WebSocketGoneException: If the connection is permanently gone (HTTP 410)
+            Exception: if there is another error posting the payload to the connection
         """
         try:
             self.client.post_to_connection(
                 ConnectionId=self.connection_id, Data=self.format_response(payload, payload_key)
             )
+        except ClientError as e:
+            if is_gone_exception(e):
+                raise WebSocketGoneException(self.connection_id, original_error=e) from e
+            logger.error(f"Error sending token to connection {self.connection_id}: {e}", xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            raise e
         except Exception as ex:
             logger.error(
                 f"Error sending token to connection {self.connection_id}: {ex}",

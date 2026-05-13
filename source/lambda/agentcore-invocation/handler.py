@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.typing import LambdaContext
+from botocore.exceptions import ClientError
 from utils import (
     AgentCoreClient,
     AgentCoreClientError,
@@ -16,9 +17,11 @@ from utils import (
     AgentCoreInvocationError,
     EventProcessor,
     WebsocketErrorHandler,
+    WebSocketGoneException,
     get_keep_alive_manager,
     get_metrics_client,
     get_service_client,
+    is_gone_exception,
 )
 from utils.constants import (
     CONNECTION_ID_KEY,
@@ -44,6 +47,16 @@ WEBSOCKET_CALLBACK_URL = os.environ.get(WEBSOCKET_CALLBACK_URL_ENV_VAR)
 XRAY_ROOT_PREFIX = "Root="
 
 _agentcore_client = None
+
+
+def skip_records_for_connection(records, index, connection_id):
+    """Skip remaining SQS records that belong to the same WebSocket connection."""
+    while (
+        index < len(records)
+        and records[index]["messageAttributes"]["connectionId"]["stringValue"] == connection_id
+    ):
+        index += 1
+    return index
 
 
 def extract_root_trace_id(trace_id: str) -> str:
@@ -136,18 +149,22 @@ def lambda_handler(event: Dict[str, Any], context: LambdaContext) -> Dict:
 
             processed_records += 1
             index += 1  # Move to the next record only if successful
+        except WebSocketGoneException:
+            logger.error(
+                f"WebSocket connection {connection_id} is gone. Returning success to SQS.",
+                xray_trace_id=os.getenv(TRACE_ID_ENV_VAR),
+            )
+            index = skip_records_for_connection(records, index, connection_id)
         except Exception as ex:
             tracer_id = os.getenv(TRACE_ID_ENV_VAR)
             logger.error(f"An exception occurred in the processing of AgentCore request: {ex}", xray_trace_id=tracer_id)
 
             send_error_message(connection_id, conversation_id, message_id)
 
-            while (
-                index < len(records)
-                and records[index]["messageAttributes"]["connectionId"]["stringValue"] == connection_id
-            ):
-                batch_item_failures.add(records[index]["messageId"])
-                index += 1
+            start_index = index
+            index = skip_records_for_connection(records, index, connection_id)
+            for i in range(start_index, index):
+                batch_item_failures.add(records[i]["messageId"])
 
     sqs_batch_response["batchItemFailures"] = [{"itemIdentifier": message_id} for message_id in batch_item_failures]
     logger.debug(
@@ -357,6 +374,8 @@ def invoke_agent_core(
         tracer_id = os.getenv(TRACE_ID_ENV_VAR)
         logger.error(f"AgentCore client error: {str(client_error)}", xray_trace_id=tracer_id)
         raise
+    except WebSocketGoneException:
+        raise
     except Exception as e:
         tracer_id = os.getenv(TRACE_ID_ENV_VAR)
         logger.error(f"Unexpected error during AgentCore invocation: {str(e)}", xray_trace_id=tracer_id)
@@ -382,7 +401,11 @@ def send_websocket_message(connection_id: str, conversation_id: str, message: st
         formatted_response = format_response(conversation_id, message_id, data=message)
 
         client.post_to_connection(ConnectionId=connection_id, Data=formatted_response)
-
+    except ClientError as e:
+        if is_gone_exception(e):
+            raise WebSocketGoneException(connection_id, original_error=e) from e
+        logger.error(f"Error sending WebSocket message to {connection_id}: {e}", xray_trace_id=os.environ.get(TRACE_ID_ENV_VAR))
+        raise
     except Exception as e:
         logger.error(
             f"Error sending WebSocket message to {connection_id}: {str(e)}",
@@ -469,6 +492,11 @@ def send_tool_usage(connection_id: str, conversation_id: str, tool_usage: Dict[s
             f"toolName={tool_usage.get('toolName')}, status={tool_usage.get('status')}"
         )
 
+    except ClientError as e:
+        if is_gone_exception(e):
+            raise WebSocketGoneException(connection_id, original_error=e) from e
+        logger.error(f"[SEND_TOOL_USAGE] Error sending tool usage to {connection_id}: {e}", xray_trace_id=os.environ.get(TRACE_ID_ENV_VAR))
+        logger.warning("[SEND_TOOL_USAGE] Continuing conversation despite tool usage send error")
     except Exception as e:
         logger.error(
             f"[SEND_TOOL_USAGE] Error sending tool usage to {connection_id}: {str(e)}",

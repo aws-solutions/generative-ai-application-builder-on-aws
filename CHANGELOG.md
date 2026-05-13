@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.12] - 2026-05-12
+
+### Fixed
+
+- Handle `GoneException` to prevent retry cascades on closed WebSocket connections
+
+### Security
+
+- Upgraded `python-dotenv` to `1.2.2` to mitigate [CVE-2026-28684](https://nvd.nist.gov/vuln/detail/CVE-2026-28684)
+- Upgraded `python-multipart` to `0.0.27` to mitigate [CVE-2026-40347](https://nvd.nist.gov/vuln/detail/CVE-2026-40347)
+- Upgraded `axios` to `^1.15.2` to mitigate [CVE-2026-42033](https://nvd.nist.gov/vuln/detail/CVE-2026-42033), [CVE-2026-42035](https://nvd.nist.gov/vuln/detail/CVE-2026-42035), [CVE-2026-42043](https://nvd.nist.gov/vuln/detail/CVE-2026-42043) and [CVE-2026-42264](https://nvd.nist.gov/vuln/detail/CVE-2026-42264)
+- Upgraded `@babel/plugin-transform-modules-systemjs` to `7.29.4` to mitigate [CVE-2026-44728](https://nvd.nist.gov/vuln/detail/CVE-2026-44728)
+- Upgraded `pip` to `26.1.1` to mitigate [CVE-2026-6357](https://nvd.nist.gov/vuln/detail/CVE-2026-6357)
+- Upgraded `urllib3` to `2.7.0` to mitigate [GHSA-mf9v-mfxr-j63j](https://github.com/advisories/GHSA-mf9v-mfxr-j63j)
+- Upgraded `fast-uri` to `3.1.2` to mitigate [CVE-2026-6321](https://nvd.nist.gov/vuln/detail/CVE-2026-6321) and [CVE-2026-6322](https://nvd.nist.gov/vuln/detail/CVE-2026-6322)
+- Upgraded `fast-xml-builder` to `1.1.9` to mitigate [GHSA-5wm8-gmm8-39j9](https://github.com/advisories/GHSA-5wm8-gmm8-39j9)
+- Upgraded `langchain-core` to `1.3.3` to mitigate [GHSA-pjwx-r37v-7724](https://github.com/advisories/GHSA-pjwx-r37v-7724)
+
 ## [4.1.11] - 2026-04-23
 
 ### Fixed

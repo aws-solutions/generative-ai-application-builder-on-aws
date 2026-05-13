@@ -12,6 +12,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 
 from clients.llm_chat_client import LLMChatClient
 from shared.callbacks.websocket_error_handler import WebsocketErrorHandler
+from shared.callbacks.websocket_gone_exception import WebSocketGoneException
 from shared.callbacks.websocket_handler import WebsocketHandler
 from utils.constants import (
     DEFAULT_RAG_ENABLED_MODE,
@@ -37,6 +38,30 @@ class UseCaseHandler:
 
     def __init__(self, llm_client_type: LLMChatClient.__class__):
         self.llm_client_type = llm_client_type
+
+    @staticmethod
+    def skip_records_for_connection(records, index, total_records, connection_id):
+        """
+        Skip remaining SQS records that belong to the same WebSocket connection.
+
+        Used after a WebSocketGoneException to advance past records that would
+        fail for the same disconnected client.
+
+        Args:
+            records: List of SQS records from the event
+            index: Current index in the records list
+            total_records: Total number of records
+            connection_id: The connection ID to skip records for
+
+        Returns:
+            int: The updated index past all records for this connection
+        """
+        while (
+            index < total_records
+            and records[index]["messageAttributes"]["connectionId"]["stringValue"] == connection_id
+        ):
+            index += 1
+        return index
 
     def check_streaming_failed(self, callbacks) -> bool:
         """
@@ -116,6 +141,12 @@ class UseCaseHandler:
                     )
                     batch_item_failures.append({"itemIdentifier": event["Records"][loop_index]["messageId"]})
                     loop_index = loop_index + 1
+            except WebSocketGoneException:
+                logger.error(
+                    f"WebSocket connection {connection_id} is gone. Returning success to SQS.",
+                    xray_trace_id=os.getenv(TRACE_ID_ENV_VAR),
+                )
+                loop_index = self.skip_records_for_connection(event["Records"], loop_index, total_records, connection_id)
             except Exception as ex:
                 tracer_id = os.getenv(TRACE_ID_ENV_VAR)
                 chat_error = f"Chat service failed to respond. Please contact your administrator for support and quote the following trace id: {tracer_id}"
@@ -125,18 +156,10 @@ class UseCaseHandler:
                 )
                 error_handler.post_token_to_connection(chat_error)
 
-                # append error records with the same connection id
-                # fmt:off
-                while (
-                    loop_index < total_records
-                    and event["Records"][loop_index]["messageAttributes"]["connectionId"]["stringValue"] == connection_id
-                ):
-                # fmt:on
-                    logger.debug(
-                        f"Record with {loop_index} has the same connectionId, hence to maintain FIFO sequence, pushing them back to the queue"
-                    )
-                    batch_item_failures.append({"itemIdentifier": event["Records"][loop_index]["messageId"]})
-                    loop_index = loop_index + 1
+                start_index = loop_index
+                loop_index = self.skip_records_for_connection(event["Records"], loop_index, total_records, connection_id)
+                for i in range(start_index, loop_index):
+                    batch_item_failures.append({"itemIdentifier": event["Records"][i]["messageId"]})
 
         sqs_batch_response["batchItemFailures"] = batch_item_failures
         return sqs_batch_response

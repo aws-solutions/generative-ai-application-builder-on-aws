@@ -6,8 +6,10 @@ import os
 from typing import Optional
 
 from aws_lambda_powertools import Logger
+from botocore.exceptions import ClientError
 from helper import get_service_client
 
+from shared.callbacks.websocket_gone_exception import is_gone_exception
 from utils.constants import (
     CONVERSATION_ID_EVENT_KEY,
     END_CONVERSATION_TOKEN,
@@ -78,7 +80,8 @@ class WebsocketErrorHandler:
             payload (str): Token to send to the client.
 
         Raises:
-            Exception: if there is an error posting the payload to the connection
+            Exception: if there is a non-GoneException error posting the payload to the connection.
+                       GoneException is suppressed (connection is already dead, sending error is pointless).
         """
         try:
             self.client.post_to_connection(
@@ -87,6 +90,12 @@ class WebsocketErrorHandler:
             self.client.post_to_connection(
                 ConnectionId=self.connection_id, Data=self.format_response(data=END_CONVERSATION_TOKEN)
             )
+        except ClientError as e:
+            if is_gone_exception(e):
+                logger.warning(f"WebSocket connection {self.connection_id} is gone. Suppressing in error handler.")
+                return
+            logger.error(f"Error sending token to connection {self.connection_id}: {e}", xray_trace_id=os.environ[TRACE_ID_ENV_VAR])
+            raise e
         except Exception as ex:
             logger.error(
                 f"Error sending token to connection {self.connection_id}: {ex}",
