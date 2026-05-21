@@ -74,6 +74,31 @@ def test_post_token_to_connection_error(websocket_handler):
     assert str(exc.value) == "Connection error"
 
 
+def test_post_token_to_connection_gone_exception(websocket_handler):
+    from botocore.exceptions import ClientError
+    from shared.callbacks.websocket_gone_exception import WebSocketGoneException
+
+    websocket_handler.client.post_to_connection.side_effect = ClientError(
+        error_response={"Error": {"Code": "GoneException", "Message": "Gone"}},
+        operation_name="PostToConnection",
+    )
+
+    with pytest.raises(WebSocketGoneException):
+        websocket_handler.post_token_to_connection("test")
+
+
+def test_post_token_to_connection_client_error_non_gone(websocket_handler):
+    from botocore.exceptions import ClientError
+
+    websocket_handler.client.post_to_connection.side_effect = ClientError(
+        error_response={"Error": {"Code": "InternalServerError", "Message": "Server error"}},
+        operation_name="PostToConnection",
+    )
+
+    with pytest.raises(ClientError):
+        websocket_handler.post_token_to_connection("test")
+
+
 @pytest.mark.parametrize(
     "doc",
     [

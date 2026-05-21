@@ -78,3 +78,6 @@ mise.toml
 # These are copied during build process and should not be tracked
 deployment/ecr/gaab-strands-agent/gaab-strands-common/
 deployment/ecr/gaab-strands-workflow-agent/gaab-strands-common/
+
+# fix summary
+FIX_SUMMARY.md
