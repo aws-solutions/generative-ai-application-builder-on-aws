@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gaab-v2-migration"
-version = "4.1.12"
+version = "4.1.13"
 authors = [ "Amazon Web Services" ]
 description = "Migration script to convert v1.X use cases to v2.X"
 packages = [
@@ -22,6 +22,7 @@ boto3 = "1.37.22"
 moto = "5.0.28"
 cryptography = ">=46.0.7"
 pytest = "9.0.3"
+idna = ">=3.15"
 pytest-cov = "6.0.0"
 pytest-env = "1.1.5"
 requests="2.33.0"

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.13] - 2026-05-20
+
+### Security
+
+- Upgraded `ws` to `8.20.1` to mitigate [CVE-2026-45736](https://nvd.nist.gov/vuln/detail/CVE-2026-45736)
+- Upgraded `idna` to `3.15` to mitigate [CVE-2024-3651](https://github.com/advisories/GHSA-jjg7-2v4v-x38h)
+- Upgraded `langsmith` to `0.8.5` to mitigate [CVE-2026-45134](https://github.com/advisories/GHSA-3644-q5cj-c5c7)
+- Upgraded `langchain-classic` to `1.0.7` to mitigate [CVE-2026-45134](https://github.com/advisories/GHSA-3644-q5cj-c5c7)
+- Upgraded `aws-cdk-lib` to `2.256.1` to mitigate [CVE-2026-6321](https://nvd.nist.gov/vuln/detail/CVE-2026-6321) and [CVE-2026-6322](https://nvd.nist.gov/vuln/detail/CVE-2026-6322) (bundled `fast-uri`)
+- Upgraded `pytest` to `9.0.3` in `v2_migration/requirements.txt` to mitigate [CVE-2025-71176](https://nvd.nist.gov/vuln/detail/CVE-2025-71176)
+
 ## [4.1.12] - 2026-05-12
 
 ### Fixed
