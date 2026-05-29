@@ -1,6 +1,6 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-ui-deployment",
-  "version": "4.1.13",
+  "version": "4.1.14",
   "dependencies": {
     "@aws-amplify/ui-react": "^5.3.3",
     "@aws-sdk/util-arn-parser": "^3.893.0",
@@ -88,7 +88,8 @@
     "serialize-javascript": "^7.0.3",
     "axios": "^1.15.2",
     "follow-redirects": "^1.16.0",
-    "ws": "^8.20.1"
+    "ws": "^8.20.1",
+    "js-cookie": "^3.0.7"
   },
   "type": "module"
 }

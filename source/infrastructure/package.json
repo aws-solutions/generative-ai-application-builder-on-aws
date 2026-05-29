@@ -1,13 +1,13 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-infrastructure",
-  "version": "4.1.13",
+  "version": "4.1.14",
   "bin": {
     "infrastructure": "bin/gen-ai-app-builder.js"
   },
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "jest --coverage --silent --verbose",
+    "test": "jest --coverage --silent --verbose --maxWorkers=10",
     "test-debug": "jest --coverage --runInBand",
     "unit-test": "jest --coverage --silent --verbose --runInBand --testPathIgnorePatterns=integration",
     "integ-test": "jest --coverage --silent --verbose --runInBand -- integration",

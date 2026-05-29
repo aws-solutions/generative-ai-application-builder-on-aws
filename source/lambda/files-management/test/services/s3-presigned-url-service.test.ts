@@ -13,14 +13,12 @@ import { AWSClientManager } from 'aws-sdk-lib';
 jest.mock('@aws-sdk/client-s3');
 jest.mock('@aws-sdk/s3-request-presigner');
 jest.mock('@aws-sdk/s3-presigned-post');
-jest.mock('uuid', () => ({
-    v4: jest.fn(() => 'mock-uuid-123')
-}));
 jest.mock('../../power-tools-init', () => ({
     logger: {
         debug: jest.fn(),
         error: jest.fn(),
-        info: jest.fn()
+        info: jest.fn(),
+        warn: jest.fn()
     },
     tracer: {
         captureMethod: () => (target: any, propertyKey: string, descriptor: PropertyDescriptor) => descriptor,
@@ -33,7 +31,7 @@ jest.mock('../../utils/utils', () => ({
     ...jest.requireActual('../../utils/utils'),
     generateUUID: jest.fn(() => 'mock-uuid-123'),
     retryWithBackoff: jest.fn((operation) => operation()),
-    getRetrySettings: jest.fn(() => ({ maxRetries: 3, baseDelay: 100 }))
+    getRetrySettings: jest.fn(() => ({ maxRetries: 3, backOffRate: 2, initialDelayMs: 1000 }))
 }));
 
 const mockS3Client = {
