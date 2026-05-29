@@ -8,6 +8,27 @@ import nodeFetch, { Request, Response } from 'node-fetch';
 
 process.env.TZ = 'UTC'; // fix environment timezone for tests to UTC
 
+// Provide localStorage mock for test environments where jsdom doesn't expose it as a function
+if (!globalThis.localStorage || typeof globalThis.localStorage.getItem !== 'function') {
+    const store: Record<string, string> = {};
+    globalThis.localStorage = {
+        getItem: (key: string) => store[key] ?? null,
+        setItem: (key: string, value: string) => {
+            store[key] = value;
+        },
+        removeItem: (key: string) => {
+            delete store[key];
+        },
+        clear: () => {
+            Object.keys(store).forEach((key) => delete store[key]);
+        },
+        get length() {
+            return Object.keys(store).length;
+        },
+        key: (index: number) => Object.keys(store)[index] ?? null
+    };
+}
+
 // avoid a problem of RTK Query in vitest, see https://github.com/reduxjs/redux-toolkit/issues/3254
 Object.assign(global, { fetch: nodeFetch, Request, Response });
 

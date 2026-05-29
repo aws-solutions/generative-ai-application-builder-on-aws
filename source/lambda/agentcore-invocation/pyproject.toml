@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "agent-invocation"
-version = "4.1.13"
+version = "4.1.14"
 authors = [ "Amazon Web Services" ]
 description = "Lambda implementation for agent invocation feature"
 packages = [
@@ -37,6 +37,13 @@ custom_boto3_init = { path = "../layers/custom_boto3_init", develop = true }
 
 [tool.black]
 line-length = 120
+
+[tool.pytest.ini_options]
+env = [
+    "USE_CASE_UUID=test-uuid-1234-5678",
+    "AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/test-runtime",
+    "AWS_DEFAULT_REGION=us-east-1",
+]
 
 [tool.isort]
 multi_line_output = 3

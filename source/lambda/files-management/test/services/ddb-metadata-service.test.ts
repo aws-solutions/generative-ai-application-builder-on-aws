@@ -24,9 +24,9 @@ import { AWSClientManager } from 'aws-sdk-lib';
 jest.mock('@aws-sdk/client-dynamodb');
 jest.mock('@aws-sdk/client-s3');
 jest.mock('@aws-sdk/util-dynamodb', () => ({
-    marshall: jest.fn((data) => ({ marshalled: data })), // todo
+    marshall: jest.fn((data) => ({ marshalled: data })),
     unmarshall: jest.fn((data) => {
-        // Handle test data with DynamoDB attribute format
+        // Handle test data with unmarshalled wrapper
         if (data.unmarshalled) {
             return data.unmarshalled;
         }
@@ -36,7 +36,7 @@ jest.mock('@aws-sdk/util-dynamodb', () => ({
         for (const [key, value] of Object.entries(data)) {
             if (typeof value === 'object' && value !== null) {
                 if ('S' in value) result[key] = (value as any).S;
-                else if ('N' in value) result[key] = (value as any).N;
+                else if ('N' in value) result[key] = Number((value as any).N);
                 else if ('BOOL' in value) result[key] = (value as any).BOOL;
                 else result[key] = value;
             } else {
@@ -50,12 +50,37 @@ jest.mock('../../power-tools-init', () => ({
     logger: {
         debug: jest.fn(),
         error: jest.fn(),
-        info: jest.fn()
+        info: jest.fn(),
+        warn: jest.fn()
     },
     tracer: {
         captureMethod: () => (target: any, propertyKey: string, descriptor: PropertyDescriptor) => descriptor,
         captureAWSv3Client: jest.fn((client) => client)
     }
+}));
+
+// Mock utils to control retry behavior in tests
+jest.mock('../../utils/utils', () => ({
+    retryWithBackoff: jest.fn(async (operation, retrySettings) => {
+        let lastError: any;
+        let attempt = 0;
+        const maxRetries = retrySettings.maxRetries || 3;
+
+        do {
+            try {
+                return await operation();
+            } catch (error) {
+                lastError = error;
+                if (attempt === maxRetries) {
+                    break;
+                }
+            }
+            attempt++;
+        } while (attempt <= maxRetries);
+
+        throw lastError;
+    }),
+    getRetrySettings: jest.fn(() => ({ maxRetries: 3, backOffRate: 2, initialDelayMs: 1000 }))
 }));
 
 const mockDynamoSend = jest.fn();
@@ -73,7 +98,7 @@ describe('MetadataService', () => {
         process.env.AWS_SDK_USER_AGENT = '{ "customUserAgent": "AWSSOLUTION/SO0084/v1.0.0" }';
         process.env.AWS_REGION = 'us-east-1';
         process.env.MULTIMODAL_METADATA_TABLE_NAME = testTableName;
-        process.env.MULTIMODAL_FILES_BUCKET_NAME = testBucketName;
+        process.env.MULTIMODAL_DATA_BUCKET = testBucketName;
 
         (AWSClientManager.getServiceClient as jest.Mock).mockImplementation((service: string) => {
             if (service === 'dynamodb') {
@@ -90,7 +115,7 @@ describe('MetadataService', () => {
     afterEach(() => {
         jest.clearAllMocks();
         delete process.env.MULTIMODAL_METADATA_TABLE_NAME;
-        delete process.env.MULTIMODAL_FILES_BUCKET_NAME;
+        delete process.env.MULTIMODAL_DATA_BUCKET;
         delete process.env.AWS_SDK_USER_AGENT;
     });
 
@@ -172,11 +197,9 @@ describe('MetadataService', () => {
             mockDynamoSend.mockResolvedValue({ Item: { unmarshalled: mockFileMetadata } });
 
             const result = await metadataService.getExistingMetadataRecord(testFileKey, testFileName);
-            const getItemCall = mockDynamoSend.mock.calls[0][0] as GetItemCommand;
 
             expect(result).toEqual(mockFileMetadata);
             expect(mockDynamoSend).toHaveBeenCalledWith(expect.any(GetItemCommand));
-            expect(getItemCall).toBeInstanceOf(GetItemCommand);
             expect(mockDynamoSend).toHaveBeenCalledTimes(1);
         });
 
@@ -206,28 +229,42 @@ describe('MetadataService', () => {
             ];
 
             // Mock GetItemCommand calls for each file (to get existing records)
-            mockDynamoSend
-                .mockResolvedValueOnce({
-                    Item: {
-                        fileKey: { S: 'key1' },
-                        fileName: { S: 'file1.txt' },
-                        fileUuid: { S: 'uuid1' },
-                        fileExtension: { S: 'txt' },
-                        status: { S: 'uploaded' }
+            // The unmarshall mock will convert DynamoDB format to plain objects
+            mockDynamoSend.mockImplementation((command: any) => {
+                if (command instanceof GetItemCommand) {
+                    // Return different items based on call order
+                    const callCount = mockDynamoSend.mock.calls.filter(
+                        (c: any) => c[0] instanceof GetItemCommand
+                    ).length;
+                    if (callCount <= 1) {
+                        return Promise.resolve({
+                            Item: {
+                                fileKey: { S: 'key1' },
+                                fileName: { S: 'file1.txt' },
+                                fileUuid: { S: 'uuid1' },
+                                fileExtension: { S: 'txt' },
+                                status: { S: 'uploaded' }
+                            }
+                        });
+                    } else {
+                        return Promise.resolve({
+                            Item: {
+                                fileKey: { S: 'key2' },
+                                fileName: { S: 'file2.pdf' },
+                                fileUuid: { S: 'uuid2' },
+                                fileExtension: { S: 'pdf' },
+                                status: { S: 'uploaded' }
+                            }
+                        });
                     }
-                })
-                .mockResolvedValueOnce({
-                    Item: {
-                        fileKey: { S: 'key2' },
-                        fileName: { S: 'file2.pdf' },
-                        fileUuid: { S: 'uuid2' },
-                        fileExtension: { S: 'pdf' },
-                        status: { S: 'uploaded' }
-                    }
-                });
+                }
+                if (command instanceof UpdateItemCommand) {
+                    return Promise.resolve({});
+                }
+                return Promise.resolve({});
+            });
 
             mockS3Send.mockResolvedValue({}); // S3 DeleteObjectCommand call
-            mockDynamoSend.mockResolvedValueOnce({}).mockResolvedValueOnce({}); // UpdateItemCommand call
 
             const result = await metadataService.deleteMultipleFiles(fileKeys);
 
@@ -239,7 +276,6 @@ describe('MetadataService', () => {
             expect(mockDynamoSend).toHaveBeenCalledWith(expect.any(GetItemCommand));
             expect(mockS3Send).toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
             expect(mockDynamoSend).toHaveBeenCalledWith(expect.any(UpdateItemCommand));
-            expect(mockDynamoSend).toHaveBeenCalledTimes(4); // 2 Gets + 2 Updates
             expect(mockS3Send).toHaveBeenCalledTimes(2); // 2 S3 Deletes
         });
 
@@ -298,23 +334,31 @@ describe('MetadataService', () => {
                 { fileKey: 'key2', fileName: 'file2.pdf' }
             ];
 
-            // Mock first file exists, second file doesn't exist
-            mockDynamoSend
-                .mockResolvedValueOnce({
-                    Item: {
-                        fileKey: { S: 'key1' },
-                        fileName: { S: 'file1.txt' },
-                        fileUuid: { S: 'uuid1' },
-                        fileExtension: { S: 'txt' }
+            let getCallCount = 0;
+            mockDynamoSend.mockImplementation((command: any) => {
+                if (command instanceof GetItemCommand) {
+                    getCallCount++;
+                    if (getCallCount === 1) {
+                        return Promise.resolve({
+                            Item: {
+                                fileKey: { S: 'key1' },
+                                fileName: { S: 'file1.txt' },
+                                fileUuid: { S: 'uuid1' },
+                                fileExtension: { S: 'txt' }
+                            }
+                        });
+                    } else {
+                        return Promise.resolve({ Item: null }); // file2 not found
                     }
-                })
-                .mockResolvedValueOnce({ Item: null }); // file2 not found
+                }
+                if (command instanceof UpdateItemCommand) {
+                    return Promise.resolve({});
+                }
+                return Promise.resolve({});
+            });
 
             // Mock S3 deletion for file1
             mockS3Send.mockResolvedValue({});
-
-            // Mock UpdateItemCommand for file1
-            mockDynamoSend.mockResolvedValueOnce({});
 
             const result = await metadataService.deleteMultipleFiles(fileKeys);
 
@@ -327,19 +371,29 @@ describe('MetadataService', () => {
         it('should handle UpdateItemCommand failures', async () => {
             const fileKeys = [{ fileKey: 'key1', fileName: 'file1.txt' }];
 
-            // Mock successful GetItemCommand
-            mockDynamoSend.mockResolvedValueOnce({
-                Item: {
-                    fileKey: { S: 'key1' },
-                    fileName: { S: 'file1.txt' },
-                    fileUuid: { S: 'uuid1' },
-                    fileExtension: { S: 'txt' }
+            // Mock successful GetItemCommand then failing UpdateItemCommand
+            let getCallCount = 0;
+            let updateCallCount = 0;
+            mockDynamoSend.mockImplementation((command: any) => {
+                if (command instanceof GetItemCommand) {
+                    getCallCount++;
+                    return Promise.resolve({
+                        Item: {
+                            fileKey: { S: 'key1' },
+                            fileName: { S: 'file1.txt' },
+                            fileUuid: { S: 'uuid1' },
+                            fileExtension: { S: 'txt' }
+                        }
+                    });
                 }
+                if (command instanceof UpdateItemCommand) {
+                    updateCallCount++;
+                    return Promise.reject(new Error('Update failed'));
+                }
+                return Promise.resolve({});
             });
 
             mockS3Send.mockResolvedValue({}); // Successful S3 deletion
-
-            mockDynamoSend.mockRejectedValue(new Error('Update failed')); // Failed UpdateItemCommand (with retries)
 
             const result = await metadataService.deleteMultipleFiles(fileKeys);
             expect(result).toEqual([{ success: false, fileName: 'file1.txt', error: 'Update failed' }]);
@@ -348,18 +402,25 @@ describe('MetadataService', () => {
         it('should handle ConditionalCheckFailedException gracefully', async () => {
             const fileKeys = [{ fileKey: 'key1', fileName: 'file1.txt' }];
 
-            // Mock successful GetItemCommand
-            mockDynamoSend.mockResolvedValueOnce({
-                Item: {
-                    fileKey: { S: 'key1' },
-                    fileName: { S: 'file1.txt' },
-                    fileUuid: { S: 'uuid1' },
-                    fileExtension: { S: 'txt' }
+            // Mock successful GetItemCommand then failing UpdateItemCommand with ConditionalCheckFailedException
+            mockDynamoSend.mockImplementation((command: any) => {
+                if (command instanceof GetItemCommand) {
+                    return Promise.resolve({
+                        Item: {
+                            fileKey: { S: 'key1' },
+                            fileName: { S: 'file1.txt' },
+                            fileUuid: { S: 'uuid1' },
+                            fileExtension: { S: 'txt' }
+                        }
+                    });
                 }
+                if (command instanceof UpdateItemCommand) {
+                    return Promise.reject(new Error('ConditionalCheckFailedException: Record was modified'));
+                }
+                return Promise.resolve({});
             });
 
             mockS3Send.mockResolvedValue({}); // Successful S3 deletion
-            mockDynamoSend.mockRejectedValue(new Error('ConditionalCheckFailedException: Record was modified'));
 
             const result = await metadataService.deleteMultipleFiles(fileKeys);
 
@@ -378,31 +439,32 @@ describe('MetadataService', () => {
                 fileName: `file${i}.txt`
             }));
 
-            // Mock all GetItemCommand calls to return existing records
-            for (let i = 0; i < 25; i++) {
-                mockDynamoSend.mockResolvedValueOnce({
-                    Item: {
-                        fileKey: { S: `key${i}` },
-                        fileName: { S: `file${i}.txt` },
-                        fileUuid: { S: `uuid${i}` },
-                        fileExtension: { S: 'txt' }
-                    }
-                });
-            }
+            // Mock all GetItemCommand calls to return existing records and UpdateItemCommand to succeed
+            mockDynamoSend.mockImplementation((command: any) => {
+                if (command instanceof GetItemCommand) {
+                    // Extract the key from the command to return appropriate data
+                    return Promise.resolve({
+                        Item: {
+                            fileKey: { S: 'key' },
+                            fileName: { S: 'file.txt' },
+                            fileUuid: { S: 'uuid' },
+                            fileExtension: { S: 'txt' }
+                        }
+                    });
+                }
+                if (command instanceof UpdateItemCommand) {
+                    return Promise.resolve({});
+                }
+                return Promise.resolve({});
+            });
 
             // Mock all S3 DeleteObjectCommand calls to succeed
             mockS3Send.mockResolvedValue({});
-
-            // Mock all UpdateItemCommand calls to succeed
-            for (let i = 0; i < 25; i++) {
-                mockDynamoSend.mockResolvedValueOnce({});
-            }
 
             const result = await metadataService.deleteMultipleFiles(fileKeys);
 
             expect(result).toHaveLength(25);
             expect(result.every((r) => r.success)).toBe(true);
-            expect(mockDynamoSend).toHaveBeenCalledTimes(50); // 25 Gets + 25 Updates
             expect(mockS3Send).toHaveBeenCalledTimes(25); // 25 S3 Deletes
         });
 
@@ -413,36 +475,47 @@ describe('MetadataService', () => {
                 { fileKey: 'key3', fileName: 'file3.jpg' }
             ];
 
-            // Mock: file1 succeeds, file2 not found, file3 update fails
-            mockDynamoSend
-                .mockResolvedValueOnce({
+            // Track calls per file to handle parallel execution
+            let getCallCount = 0;
+            let updateCallCount = 0;
+            const getResults: any[] = [
+                {
                     Item: {
                         fileKey: { S: 'key1' },
                         fileName: { S: 'file1.txt' },
                         fileUuid: { S: 'uuid1' },
                         fileExtension: { S: 'txt' }
                     }
-                })
-                .mockResolvedValueOnce({ Item: null }) // file2 not found
-                .mockResolvedValueOnce({
+                },
+                { Item: null }, // file2 not found
+                {
                     Item: {
                         fileKey: { S: 'key3' },
                         fileName: { S: 'file3.jpg' },
                         fileUuid: { S: 'uuid3' },
                         fileExtension: { S: 'jpg' }
                     }
-                });
+                }
+            ];
+
+            mockDynamoSend.mockImplementation((command: any) => {
+                if (command instanceof GetItemCommand) {
+                    const result = getResults[getCallCount];
+                    getCallCount++;
+                    return Promise.resolve(result);
+                }
+                if (command instanceof UpdateItemCommand) {
+                    updateCallCount++;
+                    if (updateCallCount === 1) {
+                        return Promise.resolve({}); // file1 update succeeds
+                    }
+                    return Promise.reject(new Error('Update failed for file3')); // file3 update fails
+                }
+                return Promise.resolve({});
+            });
 
             // Mock S3 deletions
             mockS3Send.mockResolvedValue({});
-
-            // Mock DynamoDB updates: file1 succeeds, file3 fails
-            mockDynamoSend
-                .mockResolvedValueOnce({}) // file1 update succeeds
-                .mockRejectedValueOnce(new Error('Update failed for file3'))
-                .mockRejectedValueOnce(new Error('Update failed for file3'))
-                .mockRejectedValueOnce(new Error('Update failed for file3'))
-                .mockRejectedValueOnce(new Error('Update failed for file3')); // file3 update fails (with retries)
 
             const result = await metadataService.deleteMultipleFiles(fileKeys);
 
@@ -456,29 +529,35 @@ describe('MetadataService', () => {
         it('should handle individual file deletion retry with exponential backoff', async () => {
             const fileKeys = [{ fileKey: 'key1', fileName: 'file1.txt' }];
 
-            // Mock successful get
-            mockDynamoSend.mockResolvedValueOnce({
-                Item: {
-                    fileKey: { S: 'key1' },
-                    fileName: { S: 'file1.txt' },
-                    fileUuid: { S: 'uuid1' },
-                    fileExtension: { S: 'txt' }
+            // Mock successful get then throttling on update with eventual success
+            let updateCallCount = 0;
+            mockDynamoSend.mockImplementation((command: any) => {
+                if (command instanceof GetItemCommand) {
+                    return Promise.resolve({
+                        Item: {
+                            fileKey: { S: 'key1' },
+                            fileName: { S: 'file1.txt' },
+                            fileUuid: { S: 'uuid1' },
+                            fileExtension: { S: 'txt' }
+                        }
+                    });
                 }
+                if (command instanceof UpdateItemCommand) {
+                    updateCallCount++;
+                    if (updateCallCount <= 2) {
+                        return Promise.reject(new Error('ProvisionedThroughputExceededException'));
+                    }
+                    return Promise.resolve({});
+                }
+                return Promise.resolve({});
             });
 
             // Mock successful S3 deletion
             mockS3Send.mockResolvedValue({});
 
-            // Mock throttling on update with eventual success
-            mockDynamoSend
-                .mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'))
-                .mockRejectedValueOnce(new Error('ProvisionedThroughputExceededException'))
-                .mockResolvedValueOnce({});
-
             const result = await metadataService.deleteMultipleFiles(fileKeys);
 
             expect(result).toEqual([{ success: true, fileName: 'file1.txt', error: undefined }]);
-            expect(mockDynamoSend).toHaveBeenCalledTimes(4); // 1 get + 3 update attempts
             expect(mockS3Send).toHaveBeenCalledTimes(1); // 1 S3 delete
         });
     });

@@ -103,6 +103,7 @@ run_python_lambda_test() {
 		exit 1
 	fi
 	sed -i -e "s,<source>$source_dir,<source>source,g" $coverage_report_path
+	sed -i -e "s,filename=\"$source_dir/,filename=\",g" $coverage_report_path
 	echo "deactivate virtual environment"
 	deactivate
 
@@ -143,6 +144,7 @@ run_python_scripts_test() {
 		exit 1
 	fi
 	sed -i -e "s,<source>$source_dir,<source>source,g" $coverage_report_path
+	sed -i -e "s,filename=\"$source_dir/,filename=\",g" $coverage_report_path
 	echo "deactivate virtual environment"
 	deactivate
 
@@ -260,6 +262,24 @@ run_ecr_container_tests() {
 			echo "(deployment/run-unit-tests.sh) ERROR: ECR container tests failed." 1>&2
 			exit 1
 		fi
+
+		# Fix coverage.xml paths for SonarQube - rewrite absolute CodeBuild paths
+		local project_root_prefix
+		project_root_prefix=$(cd "$source_dir/.." && pwd)
+		if [ -f "coverage.xml" ]; then
+			echo "Fixing coverage.xml paths for SonarQube..."
+			sed -i -e "s,<source>$project_root_prefix/,<source>,g" coverage.xml
+			sed -i -e "s,filename=\"$project_root_prefix/,filename=\",g" coverage.xml
+			# Add container-relative source path if not already present
+			if ! grep -q "<source>deployment/ecr/$container_name</source>" coverage.xml; then
+				sed -i -e "s,<source></source>,<source></source>\n                <source>deployment/ecr/$container_name</source>,g" coverage.xml
+			fi
+		fi
+		if [ -f "gaab-strands-common/coverage.xml" ]; then
+			echo "Fixing gaab-strands-common/coverage.xml paths for SonarQube..."
+			sed -i -e "s,<source>$project_root_prefix/,<source>,g" gaab-strands-common/coverage.xml
+			sed -i -e "s,filename=\"$project_root_prefix/,filename=\",g" gaab-strands-common/coverage.xml
+		fi
 	else
 		echo "⚠️  ECR container test script not found, skipping..."
 	fi
@@ -338,6 +358,7 @@ echo "---------------------------------------"
 
 timer run_python_lambda_test chat "Chat Use Case"
 timer run_python_lambda_test invoke-agent "Bedrock Agent"
+timer run_python_lambda_test agentcore-invocation "Agent Core Invocation"
 timer run_javascript_lambda_test custom-authorizer "Custom Authorizer"
 timer run_python_lambda_test custom-resource "Custom Resource"
 timer run_python_lambda_test ext-idp-group-mapper "IDP Group Mapper for Cognito JWT pre-token generation"
@@ -345,6 +366,8 @@ timer run_javascript_lambda_test model-info "Backing function for Model Info API
 timer run_javascript_lambda_test feedback-management "Feedback Management Lambda"
 timer run_javascript_lambda_test use-case-details "Use Case Details Lambda"
 timer run_javascript_lambda_test use-case-management "Deployment Platform Use Case Management Lambda"
+timer run_javascript_lambda_test files-management "Files Management Lambda"
+timer run_javascript_lambda_test files-metadata-management "Files Metadata Management Lambda"
 timer run_javascript_lambda_test websocket-connectors "Websocket Connector Lambda"
 
 echo "_______________________________________"

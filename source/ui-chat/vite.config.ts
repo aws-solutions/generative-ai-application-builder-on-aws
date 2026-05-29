@@ -25,6 +25,7 @@ const config: VitestUserConfig & UserConfig = {
             provider: 'v8',
             enabled: true,
             reportsDirectory: resolve(__dirname, './coverage'),
+            reporter: ['lcov', 'text'],
             exclude: [
                 '**/build/**',
                 'src/App.tsx',

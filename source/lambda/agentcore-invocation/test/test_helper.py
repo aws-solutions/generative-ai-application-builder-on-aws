@@ -149,7 +149,7 @@ class TestGetMetricsClient:
         assert client is mock_metrics_instance
         mock_metrics_class.assert_called_once_with(
             namespace=CloudWatchNamespaces.AGENTCORE_INVOCATION.value,
-            service="GAABUseCase-None",  # Since USE_CASE_UUID_ENV_VAR is not set
+            service="GAABUseCase-test",  # USE_CASE_UUID is set to 'test-uuid-1234-5678', split('-')[0] = 'test'
         )
 
     @patch("utils.helper.Metrics")
