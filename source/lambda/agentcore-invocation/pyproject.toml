@@ -1,39 +1,49 @@
-[tool.poetry]
+[project]
 name = "agent-invocation"
-version = "4.1.14"
-authors = [ "Amazon Web Services" ]
+version = "4.1.15"
 description = "Lambda implementation for agent invocation feature"
-packages = [
-    { include = "*.py" },
-    { include = "./**/*.py" },
-    { include = "./**/**/*.py" }
-]
+requires-python = ">=3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Amazon Web Services" }]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
 ]
-license = "Apache-2.0"
 
-[tool.poetry.dependencies]
-python = "^3.13"
-aws-lambda-powertools = "3.19.0"
-aws-xray-sdk = "2.14.0"
-boto3 = "^1.35.0"
-botocore = "^1.35.0"
+dependencies = [
+    "aws-lambda-powertools==3.19.0",
+    "aws-xray-sdk==2.14.0",
+    "boto3>=1.35.0,<2.0.0",
+    "botocore>=1.35.0,<2.0.0",
+]
 
-[tool.poetry.group.test.dependencies]
-freezegun = "1.5.1"
-mock = "5.1.0"
-moto = "5.0.28"
-pytest = "9.0.3"
-pytest-cov = "6.0.0"
-pytest-env = "1.1.5"
-PyYAML = "6.0.2"
-setuptools = "80.8.0"
-requests = "2.33.0"
-urllib3 = "^2.7.0"
-boto3-layer = { path = "../layers/aws_boto3/", develop = true }
-custom_boto3_init = { path = "../layers/custom_boto3_init", develop = true }
+[tool.uv]
+dev-dependencies = [
+    "freezegun==1.5.1",
+    "mock==5.1.0",
+    "moto==5.0.28",
+    "pytest>=9.0.3",
+    "pytest-cov>=6.0.0",
+    "pytest-env==1.1.5",
+    "pytest-xdist>=3.5.0",
+    "PyYAML==6.0.2",
+    "setuptools==80.8.0",
+    "requests==2.33.0",
+    "urllib3>=2.7.0,<2.8.0",
+    "boto3-layer",
+    "custom-boto3-init",
+]
+
+[tool.uv.sources]
+boto3-layer = { path = "../layers/aws_boto3/", editable = true }
+custom-boto3-init = { path = "../layers/custom_boto3_init/", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
 
 [tool.black]
 line-length = 120
@@ -51,7 +61,3 @@ include_trailing_comma = true
 force_grid_wrap = 0
 line_length = 120
 profile = "black"
-
-[build-system]
-requires = [ "poetry-core>=1.0.8" ]
-build-backend = "poetry.core.masonry.api"

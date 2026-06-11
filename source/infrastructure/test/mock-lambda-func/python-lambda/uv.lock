@@ -1,0 +1,8 @@
+version = 1
+revision = 3
+requires-python = ">=3.13"
+
+[[package]]
+name = "mock-lambda-function"
+version = "4.1.15"
+source = { editable = "." }

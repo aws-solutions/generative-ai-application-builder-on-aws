@@ -5,7 +5,6 @@
 import copy
 import json
 import os
-from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
@@ -24,9 +23,26 @@ from operations.operation_types import PHYSICAL_RESOURCE_ID, RESOURCE, RESOURCE_
 
 SAMPLE_JSON_VALUE = {"Key1": "FakeValue1", "Key2": {"Key3": "FakeValue3"}}
 
-# fmt: off
-os.system(f"cd {Path(__file__).absolute().parents[4]}/ui && npm install && npm run build && cd -")  # nosec - fixture to fake node builds
-# fmt:on
+
+def _create_dummy_web_ui_zip(tmp_path, zip_name):
+    """Create a zip archive with self-contained dummy files for testing.
+
+    These dummy files stand in for real UI build output. The tests verify zip
+    download/extraction/S3 copy logic — they don't validate UI content.
+    """
+    dummy_files = {
+        "index.html": "<!DOCTYPE html><html><head><title>Test</title></head><body><div id='root'></div></body></html>",
+        "static/js/main.js": "console.log('dummy main.js bundle');",
+        "static/css/style.css": "body { margin: 0; font-family: sans-serif; }",
+        "asset-manifest.json": '{"files": {"main.js": "/static/js/main.js", "main.css": "/static/css/style.css"}}',
+    }
+
+    zip_path = tmp_path / zip_name
+    with ZipFile(str(zip_path), "w", ZIP_DEFLATED) as archive:
+        for file_path, content in dummy_files.items():
+            archive.writestr(file_path, content)
+
+    return zip_path
 
 
 @pytest.fixture
@@ -43,28 +59,22 @@ def lambda_event(aws_credentials, custom_resource_event):
 
 @pytest.fixture
 def web_ui_copy_setup(tmp_path, s3, ssm, ddb, lambda_event):
-    local_dir = Path(__file__).absolute().parents[4] / "ui-deployment" / "build"
     destination_bucket_name = lambda_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME]
     source_bucket_name = lambda_event[RESOURCE_PROPERTIES][SOURCE_BUCKET_NAME]
     source_prefix = lambda_event[RESOURCE_PROPERTIES][SOURCE_PREFIX]
 
     s3.create_bucket(Bucket=source_bucket_name)
 
-    with ZipFile(str(tmp_path / source_prefix), "w", ZIP_DEFLATED) as assert_archive:
-        for folder_name, subfolders, filnames in os.walk(local_dir):
-            for filename in filnames:
-                file_path = os.path.join(folder_name, filename)
-                assert_archive.write(file_path, os.path.relpath(file_path, local_dir))
-        assert_archive.close()
+    zip_path = _create_dummy_web_ui_zip(tmp_path, source_prefix)
 
     s3.meta.client.upload_file(
-        str(tmp_path / source_prefix),
+        str(zip_path),
         source_bucket_name,
         f"{source_prefix}",
     )
 
     s3.create_bucket(Bucket=destination_bucket_name)
-    os.remove(str(tmp_path / source_prefix))
+    os.remove(str(zip_path))
 
     test_json_param = json.dumps(SAMPLE_JSON_VALUE)
     ssm.put_parameter(
@@ -81,28 +91,22 @@ def web_ui_copy_setup(tmp_path, s3, ssm, ddb, lambda_event):
 def web_ui_copy_setup_with_config(
     tmp_path, s3, ssm, ddb, lambda_event, is_internal_user_ssm, is_internal_user_ddb, prompt_editing_enabled
 ):
-    local_dir = Path(__file__).absolute().parents[4] / "ui-chat" / "build"
     destination_bucket_name = lambda_event[RESOURCE_PROPERTIES][DESTINATION_BUCKET_NAME]
     source_bucket_name = lambda_event[RESOURCE_PROPERTIES][SOURCE_BUCKET_NAME]
     source_prefix = lambda_event[RESOURCE_PROPERTIES][SOURCE_PREFIX]
 
     s3.create_bucket(Bucket=source_bucket_name)
 
-    with ZipFile(str(tmp_path / source_prefix), "w", ZIP_DEFLATED) as assert_archive:
-        for folder_name, subfolders, filnames in os.walk(local_dir):
-            for filename in filnames:
-                file_path = os.path.join(folder_name, filename)
-                assert_archive.write(file_path, os.path.relpath(file_path, local_dir))
-        assert_archive.close()
+    zip_path = _create_dummy_web_ui_zip(tmp_path, source_prefix)
 
     s3.meta.client.upload_file(
-        str(tmp_path / source_prefix),
+        str(zip_path),
         source_bucket_name,
         f"{source_prefix}",
     )
 
     s3.create_bucket(Bucket=destination_bucket_name)
-    os.remove(str(tmp_path / source_prefix))
+    os.remove(str(zip_path))
 
     ssm_value = copy.deepcopy(SAMPLE_JSON_VALUE)
     ssm_value[IS_INTERNAL_USER_KEY] = "true" if is_internal_user_ssm else "false"

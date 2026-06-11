@@ -7,6 +7,10 @@ import react from '@vitejs/plugin-react';
 import viteTsconfigPaths from 'vite-tsconfig-paths';
 import * as path from 'path';
 
+// Respect WORKERS_PER_SUITE env var to limit vitest fork parallelism in CI.
+// When many suites run concurrently, each spawning max forks causes OOM.
+const workersPerSuite = process.env.WORKERS_PER_SUITE ? Number.parseInt(process.env.WORKERS_PER_SUITE, 10) : 0;
+
 export default defineConfig({
     plugins: [react(), viteTsconfigPaths()],
     build: {
@@ -40,7 +44,16 @@ export default defineConfig({
                 'src/index.jsx'
             ]
         },
-        exclude: ['**/node_modules/**', '**/build/**', '**/.{git,tmp}/**']
+        exclude: ['**/node_modules/**', '**/build/**', '**/.{git,tmp}/**'],
+        // Limit forked worker processes when WORKERS_PER_SUITE is set (CI parallel mode)
+        ...(workersPerSuite > 0 && {
+            pool: 'forks',
+            poolOptions: {
+                forks: {
+                    maxForks: workersPerSuite
+                }
+            }
+        })
     },
     server: {
         port: 5177

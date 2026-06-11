@@ -29,7 +29,7 @@ export class PythonLayerDockerBuild extends PythonDockerBuild {
      * @returns
      */
     protected build(moduleName: string, outputDir: string): string[] {
-        return ['poetry build', 'poetry install --only main'];
+        return ['uv build', 'uv sync --no-dev --frozen'];
     }
 
     /**
@@ -42,13 +42,12 @@ export class PythonLayerDockerBuild extends PythonDockerBuild {
     protected postBuild(moduleName: string, outputDir: string): string[] {
         const commandList: string[] = [];
         if (process.env.SKIP_PRE_BUILD?.toLowerCase() === 'true') {
-            commandList.push('python3 -m pip install poetry --upgrade');
+            commandList.push('python3 -m pip install uv --upgrade');
         }
 
-        commandList.push('python3 -m pip install poetry-plugin-export --upgrade')
-        commandList.push(`poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`);
-        commandList.push(`poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}/python/`);
-        commandList.push(`poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`)
+        commandList.push(`uv export --no-hashes --no-dev --frozen --output-file ${outputDir}/requirements.txt`);
+        commandList.push(`uv pip install -r ${outputDir}/requirements.txt --target ${outputDir}/python/`);
+        commandList.push(`uv pip install --no-deps --target ${outputDir}/python/ dist/*.whl`)
         return commandList;
     }
 }
@@ -66,10 +65,10 @@ export class PythonLayerLocalBuild extends PythonLocalBuild {
     protected postBuild(moduleName: string, outputDir: string): string[] {
         return [
             `cd ${moduleName}`,
-            `python3 -m pip install poetry poetry-plugin-export --upgrade`,
-            `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
-            `poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}/python/`,
-            `poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`
+            `python3 -m pip install uv --upgrade`,
+            `uv export --no-hashes --no-dev --frozen --output-file ${outputDir}/requirements.txt`,
+            `uv pip install -r ${outputDir}/requirements.txt --target ${outputDir}/python/`,
+            `uv pip install --no-deps --target ${outputDir}/python/ dist/*.whl`
         ];
     }
 }

@@ -119,3 +119,16 @@ def reset_metric_set():
     metrics_global.is_cold_start = True  # ensure each test has cold start
     metrics.clear_default_dimensions()  # remove persisted default dimensions, if any
     yield
+
+
+@pytest.fixture(autouse=True)
+def no_sleep(monkeypatch):
+    """Disable time.sleep in all tests to avoid waiting on retry backoff loops.
+
+    Why: retry_with_backoff() in operations/shared.py retries AccessDeniedException and
+    ValidationException (IAM propagation errors) with exponential backoff totaling ~110s of
+    real sleep per call. Tests that trigger these errors (e.g., test_deploy_agent_core error
+    tests) were each taking 185s — 4 of them made this suite the 13-minute bottleneck in CI.
+    With this fixture, those tests complete in <1s while still exercising the full retry logic.
+    """
+    monkeypatch.setattr("time.sleep", lambda _: None)

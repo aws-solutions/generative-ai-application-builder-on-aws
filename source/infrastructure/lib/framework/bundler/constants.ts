@@ -36,7 +36,7 @@ export const LOCAL_BUILD_VAR = 'local';
 export const DOCKER_BUILD_VAR = 'docker';
 
 // additional arguments for pip options
-export const PYTHON_PIP_BUILD_PLATFORM: string = 'manylinux2014_x86_64';
+export const PYTHON_PIP_BUILD_PLATFORM: string = 'x86_64-manylinux2014';
 export const PYTHON_PIP_WHEEL_IMPLEMENTATION: string = 'cp';
 export const PYTHON_VERSION: string = LANGCHAIN_LAMBDA_PYTHON_RUNTIME.name.replace('python', '');
 

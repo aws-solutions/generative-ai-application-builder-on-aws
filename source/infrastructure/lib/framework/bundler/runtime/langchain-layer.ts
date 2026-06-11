@@ -71,15 +71,14 @@ export class LangChainLayerDockerBuild extends PythonLayerDockerBuild {
         const commandList: string[] = [];
 
         if (process.env.SKIP_PRE_BUILD?.toLowerCase() === 'true') {
-            commandList.push('python3 -m pip install poetry --upgrade');
+            commandList.push('python3 -m pip install uv --upgrade');
         }
-        commandList.push('python3 -m pip install poetry-plugin-export --upgrade');
-        commandList.push(`poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`);
+        commandList.push(`uv export --no-hashes --no-dev --frozen --output-file ${outputDir}/requirements.txt`);
         commandList.push(
-           `poetry run pip install -r ${outputDir}/requirements.txt --python-version ${this.evaluatedPipOptions.pythonVersion} --platform ${this.evaluatedPipOptions.platform} --implementation ${this.evaluatedPipOptions.implementation} --only-binary=${this.evaluatedPipOptions.onlyBinary} -t ${outputDir}/python/`
+           `uv pip install -r ${outputDir}/requirements.txt --python-version ${this.evaluatedPipOptions.pythonVersion} --python-platform ${this.evaluatedPipOptions.platform} --only-binary=${this.evaluatedPipOptions.onlyBinary} --target ${outputDir}/python/`
         );
         commandList.push(
-            `poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`
+            `uv pip install --no-deps --target ${outputDir}/python/ dist/*.whl`
         );
         return commandList;
     }
@@ -99,10 +98,10 @@ export class LangChainLayerLocalBuild extends PythonLayerLocalBuild {
     protected postBuild(moduleName: string, outputDir: string): string[] {
         return [
             `cd ${moduleName}`,
-            `python3 -m pip install poetry poetry-plugin-export --upgrade`,
-            `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
-            `poetry run pip install -r ${outputDir}/requirements.txt --python-version ${this.evaluatedPipOptions.pythonVersion} --platform ${this.evaluatedPipOptions.platform} --implementation ${this.evaluatedPipOptions.implementation} --only-binary=${this.evaluatedPipOptions.onlyBinary} -t ${outputDir}/python/`,
-            `poetry run pip install --no-deps -t ${outputDir}/python/ dist/*.whl`
+            `python3 -m pip install uv --upgrade`,
+            `uv export --no-hashes --no-dev --frozen --output-file ${outputDir}/requirements.txt`,
+            `uv pip install -r ${outputDir}/requirements.txt --python-version ${this.evaluatedPipOptions.pythonVersion} --python-platform ${this.evaluatedPipOptions.platform} --only-binary=${this.evaluatedPipOptions.onlyBinary} --target ${outputDir}/python/`,
+            `uv pip install --no-deps --target ${outputDir}/python/ dist/*.whl`
         ];
     }
 }

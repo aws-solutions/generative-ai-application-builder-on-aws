@@ -37,13 +37,13 @@ describe('When bundling JS lambda functions', () => {
             JSON.stringify([
                 'bash',
                 '-c',
-                `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install poetry && poetry install && poetry run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path
+                `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install uv && uv sync --frozen && uv run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path
                     .dirname(__dirname)
                     .split('/')
                     .slice(0, -3)
                     .join(
                         '/'
-                    )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt --python-version 3.13 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t /asset-output/ && poetry run pip install --no-deps -t /asset-output/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt`
+                    )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install uv --upgrade && python3 -m pip install uv --upgrade && uv build && uv sync --no-dev --frozen && uv export --no-hashes --no-dev --frozen --output-file /asset-output/requirements.txt && uv pip install -r /asset-output/requirements.txt --python-version 3.13 --python-platform x86_64-manylinux2014 --only-binary=:all: --target /asset-output/ && uv pip install --no-deps --target /asset-output/ dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt`
             ])
         );
     });
@@ -56,9 +56,9 @@ describe('When bundling JS lambda functions', () => {
                 'echo "Executing unit tests"',
                 'python3 -m venv .venv-test',
                 'source .venv-test/bin/activate',
-                'pip install poetry',
-                'poetry install',
-                'poetry run pytest --cov --cov-report=term-missing',
+                'pip install uv',
+                'uv sync --frozen',
+                'uv run pytest --cov --cov-report=term-missing',
                 'deactivate',
                 'echo local bundling fake-module',
                 'cd fake-module',
@@ -68,14 +68,14 @@ describe('When bundling JS lambda functions', () => {
                 'rm -fr .coverage',
                 'python3 -m venv .venv',
                 '. .venv/bin/activate',
-                'python3 -m pip install poetry --upgrade',
-                'poetry build',
-                'poetry install --only main',
+                'python3 -m pip install uv --upgrade',
+                'uv build',
+                'uv sync --no-dev --frozen',
                 'cd fake-module',
-                'python3 -m pip install poetry poetry-plugin-export --upgrade',
-                'poetry export -f requirements.txt --output fake-output-dir/requirements.txt --without-hashes',
-                'poetry run pip install -r fake-output-dir/requirements.txt --python-version 3.13 --platform manylinux2014_x86_64 --implementation cp --only-binary=:all: -t fake-output-dir/',
-                'poetry run pip install --no-deps -t fake-output-dir/ dist/*.whl',
+                'python3 -m pip install uv --upgrade',
+                'uv export --no-hashes --no-dev --frozen --output-file fake-output-dir/requirements.txt',
+                'uv pip install -r fake-output-dir/requirements.txt --python-version 3.13 --python-platform x86_64-manylinux2014 --only-binary=:all: --target fake-output-dir/',
+                'uv pip install --no-deps --target fake-output-dir/ dist/*.whl',
                 'deactivate',
                 'find fake-output-dir | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$|dist$|.venv*$)" | xargs rm -rf',
                 'rm -fr fake-output-dir/requirements.txt'
