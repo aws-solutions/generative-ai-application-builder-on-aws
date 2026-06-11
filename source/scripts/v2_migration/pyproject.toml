@@ -1,32 +1,29 @@
-[tool.poetry]
+[project]
 name = "gaab-v2-migration"
-version = "4.1.14"
-authors = [ "Amazon Web Services" ]
+version = "4.1.15"
 description = "Migration script to convert v1.X use cases to v2.X"
-packages = [
-    { include = "*.py" },
-    { include = "./**/*.py" },
-    { include = "./**/**/*.py" }
-]
+requires-python = ">=3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Amazon Web Services" }]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: Apache-2.0",
+    "License :: OSI Approved :: Apache Software License",
 ]
-license = "Apache-2.0"
 
-[tool.poetry.dependencies]
-python = "^3.13"
-boto3 = "1.37.22"
+dependencies = [
+    "boto3==1.37.22",
+]
 
-[tool.poetry.group.test.dependencies]
-moto = "5.0.28"
-cryptography = ">=46.0.7"
-pytest = "9.0.3"
-idna = ">=3.15"
-pytest-cov = "6.0.0"
-pytest-env = "1.1.5"
-requests="2.33.0"
-urllib3="^2.7.0"
+[tool.uv]
+dev-dependencies = [
+    "moto==5.0.28",
+    "cryptography>=46.0.7",
+    "pytest==9.0.3",
+    "pytest-cov==6.0.0",
+    "pytest-env==1.1.5",
+    "requests==2.33.0",
+    "urllib3>=2.7.0,<2.8.0",
+]
 
 [tool.black]
 line-length = 120
@@ -39,5 +36,8 @@ line_length = 120
 profile = "black"
 
 [build-system]
-requires = [ "poetry-core>=1.0.8" ]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

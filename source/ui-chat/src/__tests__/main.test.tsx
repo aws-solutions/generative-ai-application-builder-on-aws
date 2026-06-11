@@ -72,7 +72,7 @@ describe('main.tsx', () => {
             expect(setRuntimeConfigSpy).toHaveBeenCalledWith(mockRuntimeConfig);
             expect(ReactDOM.createRoot).toHaveBeenCalled();
         });
-    });
+    }, 60000);
 
     it('handles fetch errors gracefully', async () => {
         // Mock console.log
@@ -92,5 +92,5 @@ describe('main.tsx', () => {
             expect(Amplify.configure).toHaveBeenCalled();
             expect(setupStoreSpy).toHaveBeenCalled();
         });
-    });
+    }, 60000);
 });

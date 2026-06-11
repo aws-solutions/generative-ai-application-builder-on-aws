@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.15] - 2026-06-10
+
+### Security
+
+- Upgraded `react-router-dom` to `^7.15.0` (resolves to 7.17.0) to mitigate [CVE-2026-33245](https://nvd.nist.gov/vuln/detail/CVE-2026-33245), [CVE-2026-34077](https://nvd.nist.gov/vuln/detail/CVE-2026-34077), [CVE-2026-42211](https://nvd.nist.gov/vuln/detail/CVE-2026-42211), [CVE-2026-42342](https://nvd.nist.gov/vuln/detail/CVE-2026-42342), [CVE-2026-33244](https://nvd.nist.gov/vuln/detail/CVE-2026-33244), and [CVE-2026-40181](https://nvd.nist.gov/vuln/detail/CVE-2026-40181)
+- Upgraded `shell-quote` to `1.8.4` to mitigate [CVE-2026-9277](https://nvd.nist.gov/vuln/detail/CVE-2026-9277)
+- Upgraded `aws-cdk-lib` to `2.258.1` to mitigate [CVE-2026-45149](https://nvd.nist.gov/vuln/detail/CVE-2026-45149) (bundled `brace-expansion`)
+- Upgraded `aws-cdk` and `cdk` CLI to `2.1126.0` for cloud assembly schema v54 compatibility
+- Upgraded `aiohttp` to `3.14.1` to mitigate [CVE-2026-34993](https://nvd.nist.gov/vuln/detail/CVE-2026-34993) and [CVE-2026-47265](https://nvd.nist.gov/vuln/detail/CVE-2026-47265)
+- Upgraded `starlette` to `1.2.1` to mitigate [CVE-2026-48710](https://nvd.nist.gov/vuln/detail/CVE-2026-48710)
+- Upgraded `pyjwt` to `2.13.0` to mitigate [CVE-2026-48525](https://nvd.nist.gov/vuln/detail/CVE-2026-48525) and [CVE-2026-48524](https://nvd.nist.gov/vuln/detail/CVE-2026-48524)
+- Upgraded `pip` to `26.1.2` to mitigate [CVE-2026-8643](https://nvd.nist.gov/vuln/detail/CVE-2026-8643)
+- Upgraded `urllib3` to `2.7.0` to mitigate [CVE-2026-44431](https://nvd.nist.gov/vuln/detail/CVE-2026-44431) and [CVE-2026-44432](https://nvd.nist.gov/vuln/detail/CVE-2026-44432)
+
 ## [4.1.14] - 2026-05-28
 
 ### Security

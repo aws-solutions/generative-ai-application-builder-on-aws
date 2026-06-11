@@ -97,7 +97,7 @@ export class PythonDockerBuild extends DockerBuildTemplate {
             'rm -fr dist',
             'rm -fr .coverage',
             'rm -fr coverage',
-            'python3 -m pip install poetry --upgrade'
+            'python3 -m pip install uv --upgrade'
         ];
     }
 
@@ -109,7 +109,7 @@ export class PythonDockerBuild extends DockerBuildTemplate {
      * @returns
      */
     protected build(moduleName: string, outputDir: string): string[] {
-        return ['python3 -m pip install poetry --upgrade', 'poetry build', 'poetry install --only main'];
+        return ['python3 -m pip install uv --upgrade', 'uv build', 'uv sync --no-dev --frozen'];
     }
 
     /**
@@ -133,15 +133,14 @@ export class PythonDockerBuild extends DockerBuildTemplate {
     protected postBuild(moduleName: string, outputDir: string): string[] {
         const commandList: string[] = [];
         if (process.env.SKIP_PRE_BUILD?.toLowerCase() === 'true') {
-            commandList.push('python3 -m pip install poetry --upgrade');
+            commandList.push('python3 -m pip install uv --upgrade');
         }
         commandList.push(
             ...[
                 `cp -au /asset-input/* ${outputDir}/`,
-                `python3 -m pip install poetry-plugin-export --upgrade`,
-                `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
-                `poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}`,
-                `poetry run pip install --no-deps -t ${outputDir} dist/*.whl`
+                `uv export --no-hashes --no-dev --frozen --output-file ${outputDir}/requirements.txt`,
+                `uv pip install -r ${outputDir}/requirements.txt --target ${outputDir}`,
+                `uv pip install --no-deps --target ${outputDir} dist/*.whl`
             ]
         );
         return commandList;
@@ -178,7 +177,7 @@ export class PythonLocalBuild extends LocalBuildTemplate {
             'rm -fr .coverage',
             'python3 -m venv .venv',
             '. .venv/bin/activate',
-            'python3 -m pip install poetry --upgrade'
+            'python3 -m pip install uv --upgrade'
         ];
     }
 
@@ -190,7 +189,7 @@ export class PythonLocalBuild extends LocalBuildTemplate {
      * @returns
      */
     protected build(moduleName: string, outputDir: string): string[] {
-        return ['poetry build', 'poetry install --only main'];
+        return ['uv build', 'uv sync --no-dev --frozen'];
     }
 
     /**
@@ -204,10 +203,10 @@ export class PythonLocalBuild extends LocalBuildTemplate {
     protected postBuild(moduleName: string, outputDir: string): string[] {
         return [
             `cd ${moduleName}`,
-            `python3 -m pip install poetry poetry-plugin-export --upgrade`,
-            `poetry export -f requirements.txt --output ${outputDir}/requirements.txt --without-hashes`,
-            `poetry run pip install -r ${outputDir}/requirements.txt -t ${outputDir}`,
-            `poetry run pip install --no-deps -t ${outputDir} dist/*.whl`
+            `python3 -m pip install uv --upgrade`,
+            `uv export --no-hashes --no-dev --frozen --output-file ${outputDir}/requirements.txt`,
+            `uv pip install -r ${outputDir}/requirements.txt --target ${outputDir}`,
+            `uv pip install --no-deps --target ${outputDir} dist/*.whl`
         ];
     }
 
@@ -243,9 +242,9 @@ export function getUnitTestSteps(): string[] {
         'echo "Executing unit tests"',
         'python3 -m venv .venv-test',
         'source .venv-test/bin/activate',
-        'pip install poetry',
-        'poetry install',
-        'poetry run pytest --cov --cov-report=term-missing',
+        'pip install uv',
+        'uv sync --frozen',
+        'uv run pytest --cov --cov-report=term-missing',
         'deactivate'
     ];
 }

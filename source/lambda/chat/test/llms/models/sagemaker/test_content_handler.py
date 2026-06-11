@@ -6,6 +6,7 @@ import json
 from io import BytesIO
 from unittest import mock
 
+import jsonpath_ng as jp
 import pytest
 
 from llms.models.sagemaker.content_handler import SageMakerContentHandler
@@ -247,9 +248,10 @@ def test_transform_output_raises_for_incorrect_path(output, output_jsonpath):
         with mock.patch("llms.models.sagemaker.content_handler.metrics.add_metric") as mock_metrics:
             content_handler.transform_output(output)
 
+    parsed_path_str = str(jp.parse(output_jsonpath))
     assert (
         error.value.args[0]
-        == f"There were no matches for the specified for the output JSONPath {output_jsonpath} in the LLM output received: {repr(response_json)}"
+        == f"There were no matches for the specified for the output JSONPath {parsed_path_str} in the LLM output received: {repr(response_json)}"
     )
     mock_metrics.assert_called_once()
 
@@ -261,6 +263,8 @@ def test_transform_output_matches_raises_keyerror():
 
     content_handler = SageMakerContentHandler(input_schema=input_schema, output_path_expression=output_path_expression)
 
+    parsed_path_str = str(content_handler.output_path_expression)
+
     # Mock the find method to raise KeyError
     with mock.patch.object(content_handler.output_path_expression, "find", side_effect=KeyError("Key not found")):
         with mock.patch("llms.models.sagemaker.content_handler.metrics.add_metric") as mock_metrics:
@@ -268,10 +272,9 @@ def test_transform_output_matches_raises_keyerror():
             with pytest.raises(JsonPathExtractionError) as error:
                 content_handler.transform_output(response_bytes)
 
-        print(f"error={error.value.args[0]}")
         assert (
             error.value.args[0]
-            == f"The output JSONPath specified: $.nonexistent.path for extracting LLM response text doesn't exist in the LLM output received: {repr(response_json)}\nError: 'Key not found'"
+            == f"The output JSONPath specified: {parsed_path_str} for extracting LLM response text doesn't exist in the LLM output received: {repr(response_json)}\nError: 'Key not found'"
         )
     mock_metrics.assert_called_once()
 
@@ -282,6 +285,8 @@ def test_transform_output_general_exception():
     response_bytes = BytesIO(json.dumps(response_json).encode("utf-8"))
     content_handler = SageMakerContentHandler(input_schema=input_schema, output_path_expression=output_path_expression)
 
+    parsed_path_str = str(content_handler.output_path_expression)
+
     # Mock the find method to raise a general Exception
     with mock.patch.object(content_handler.output_path_expression, "find", side_effect=Exception("General error")):
         with mock.patch("llms.models.sagemaker.content_handler.metrics.add_metric") as mock_metrics:
@@ -290,6 +295,6 @@ def test_transform_output_general_exception():
 
             assert (
                 error.value.args[0]
-                == f"There was an error parsing the output using the provided JSONPath: {output_path_expression}. Received LLM Output: {repr(response_json)}\nError: General error"
+                == f"There was an error parsing the output using the provided JSONPath: {parsed_path_str}. Received LLM Output: {repr(response_json)}\nError: General error"
             )
             mock_metrics.assert_called_once()

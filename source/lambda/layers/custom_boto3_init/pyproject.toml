@@ -1,33 +1,42 @@
-[tool.poetry]
-name = "custom_boto3_init"
-version = "4.1.14"
-authors = [ "Amazon Web Services" ]
+[project]
+name = "custom-boto3-init"
+version = "4.1.15"
 description = "Initialize boto config for AWS Python SDK with custom configuration"
-packages = [
-    { include = "*.py" },
-    { include = "*.toml" },
-    { include = "*.lock" }
-]
+requires-python = ">=3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Amazon Web Services" }]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: Apache-2.0",
+    "License :: OSI Approved :: Apache Software License",
 ]
-license = "Apache-2.0"
 
-[tool.poetry.dependencies]
-aws-lambda-powertools = "3.19.0"
-aws-xray-sdk = "2.14.0"
-python = "^3.13"
-pyjwt = ">=2.12.0"
-cryptography = { version = "^46.0.7", markers = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
+dependencies = [
+    "aws-lambda-powertools==3.19.0",
+    "aws-xray-sdk==2.14.0",
+    "pyjwt>=2.12.0",
+    "cryptography>=46.0.7,<47.0.0; sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
 
-[tool.poetry.group.test.dependencies]
-coverage = "7.6.4"
-pytest = "9.0.3"
-pytest-cov = "6.0.0"
-mock = "5.1.0"
-urllib3="^2.7.0"
-boto3-layer =  { path = "../aws_boto3/", develop = true }
+[tool.uv]
+dev-dependencies = [
+    "coverage>=7.6.4",
+    "pytest>=9.0.3",
+    "pytest-cov>=6.0.0",
+    "pytest-xdist>=3.5.0",
+    "mock>=5.1.0",
+    "urllib3>=2.7.0,<2.8.0",
+    "boto3-layer",
+]
+
+[tool.uv.sources]
+boto3-layer = { path = "../aws_boto3/", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
 
 [tool.black]
 line-length = 120
@@ -38,7 +47,3 @@ include_trailing_comma = true
 force_grid_wrap = 0
 line_length = 120
 profile = "black"
-
-[build-system]
-requires = [ "poetry-core>=1.9.0" ]
-build-backend = "poetry.core.masonry.api"

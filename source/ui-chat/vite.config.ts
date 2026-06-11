@@ -6,6 +6,10 @@ import { UserConfig as VitestUserConfig } from 'vitest/node';
 import react from '@vitejs/plugin-react-swc';
 import { resolve } from 'path';
 
+// Respect WORKERS_PER_SUITE env var to limit vitest fork parallelism in CI.
+// When many suites run concurrently, each spawning max forks causes OOM.
+const workersPerSuite = process.env.WORKERS_PER_SUITE ? Number.parseInt(process.env.WORKERS_PER_SUITE, 10) : 0;
+
 const config: VitestUserConfig & UserConfig = {
     test: {
         globals: true, // makes describe, it, expect available without import
@@ -41,7 +45,16 @@ const config: VitestUserConfig & UserConfig = {
             ]
         },
         maxConcurrency: 1, // set to 1 to run tests serially, one file at a time
-        testTimeout: 25000 // 25s test timeout unless specified otherwise in the test suite
+        testTimeout: 25000, // 25s test timeout unless specified otherwise in the test suite
+        // Limit forked worker processes when WORKERS_PER_SUITE is set (CI parallel mode)
+        ...(workersPerSuite > 0 && {
+            pool: 'forks',
+            poolOptions: {
+                forks: {
+                    maxForks: workersPerSuite
+                }
+            }
+        })
     },
     plugins: [react()],
     resolve: {

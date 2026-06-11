@@ -1,24 +1,24 @@
-[tool.poetry]
+[project]
 name = "boto3-layer"
-version = "4.1.14"
-authors = [ "Amazon Web Services" ]
+version = "4.1.15"
 description = "Layer for AWS Boto3 python SDK"
-packages = [
-    { include = "*.toml" },
-    { include = "*.lock" },
-]
+requires-python = ">=3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Amazon Web Services" }]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: Apache-2.0",
+    "License :: OSI Approved :: Apache Software License",
 ]
-license = "Apache-2.0"
 
-[tool.poetry.dependencies]
-botocore = "^1.42.24"
-boto3 = "^1.42.24"
-python = "^3.13"
-urllib3=">=2.7.0"
+dependencies = [
+    "botocore>=1.42.24,<2.0.0",
+    "boto3>=1.42.24,<2.0.0",
+    "urllib3>=2.7.0,<2.8.0",
+]
 
 [build-system]
-requires = [ "poetry-core>=1.9.0" ]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

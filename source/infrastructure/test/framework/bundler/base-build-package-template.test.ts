@@ -67,13 +67,13 @@ describe("When a bundling stage's environment variables are set", () => {
                 JSON.stringify([
                     'bash',
                     '-c',
-                    `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install poetry && poetry install && poetry run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path
+                    `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install uv && uv sync --frozen && uv run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path
                         .dirname(__dirname)
                         .split('/')
                         .slice(0, -2)
                         .join(
                             '/'
-                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl`
+                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install uv --upgrade && python3 -m pip install uv --upgrade && uv build && uv sync --no-dev --frozen && cp -au /asset-input/* /asset-output/ && uv export --no-hashes --no-dev --frozen --output-file /asset-output/requirements.txt && uv pip install -r /asset-output/requirements.txt --target /asset-output && uv pip install --no-deps --target /asset-output dist/*.whl`
                 ])
             );
         });
@@ -143,7 +143,7 @@ describe("When a bundling stage's environment variables are set", () => {
                 JSON.stringify([
                     'bash',
                     '-c',
-                    'python3 -m pip install poetry --upgrade && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl'
+                    'python3 -m pip install uv --upgrade && cp -au /asset-input/* /asset-output/ && uv export --no-hashes --no-dev --frozen --output-file /asset-output/requirements.txt && uv pip install -r /asset-output/requirements.txt --target /asset-output && uv pip install --no-deps --target /asset-output dist/*.whl'
                 ])
             );
         });
@@ -173,13 +173,13 @@ describe("When a bundling stage's environment variables are set", () => {
                 JSON.stringify([
                     'bash',
                     '-c',
-                    `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install poetry && poetry install && poetry run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path
+                    `echo "Executing unit tests" && python3 -m venv .venv-test && source .venv-test/bin/activate && pip install uv && uv sync --frozen && uv run pytest --cov --cov-report=term-missing && deactivate && echo "local bundling failed for ${path
                         .dirname(__dirname)
                         .split('/')
                         .slice(0, -2)
                         .join(
                             '/'
-                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt`
+                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install uv --upgrade && python3 -m pip install uv --upgrade && uv build && uv sync --no-dev --frozen && cp -au /asset-input/* /asset-output/ && uv export --no-hashes --no-dev --frozen --output-file /asset-output/requirements.txt && uv pip install -r /asset-output/requirements.txt --target /asset-output && uv pip install --no-deps --target /asset-output dist/*.whl && find /asset-output | grep -E "(/__pycache__$|.pyc$|.pyo$|.coverage$)" | xargs rm -rf && rm -fr /asset-output/requirements.txt`
                 ])
             );
         });
@@ -268,7 +268,7 @@ describe("When a bundling stage's cdk.json variables are set", () => {
                         .slice(0, -2)
                         .join(
                             '/'
-                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install poetry --upgrade && python3 -m pip install poetry --upgrade && poetry build && poetry install --only main && cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl`
+                        )}/${fakeModule} and hence building with Docker image" && rm -fr .venv* && rm -fr dist && rm -fr .coverage && rm -fr coverage && python3 -m pip install uv --upgrade && python3 -m pip install uv --upgrade && uv build && uv sync --no-dev --frozen && cp -au /asset-input/* /asset-output/ && uv export --no-hashes --no-dev --frozen --output-file /asset-output/requirements.txt && uv pip install -r /asset-output/requirements.txt --target /asset-output && uv pip install --no-deps --target /asset-output dist/*.whl`
                 ])
             );
         });
@@ -306,7 +306,7 @@ describe("When a bundling stage's cdk.json variables are set", () => {
                 JSON.stringify([
                     'bash',
                     '-c',
-                    'cp -au /asset-input/* /asset-output/ && python3 -m pip install poetry-plugin-export --upgrade && poetry export -f requirements.txt --output /asset-output/requirements.txt --without-hashes && poetry run pip install -r /asset-output/requirements.txt -t /asset-output && poetry run pip install --no-deps -t /asset-output dist/*.whl'
+                    'cp -au /asset-input/* /asset-output/ && uv export --no-hashes --no-dev --frozen --output-file /asset-output/requirements.txt && uv pip install -r /asset-output/requirements.txt --target /asset-output && uv pip install --no-deps --target /asset-output dist/*.whl'
                 ])
             );
         });
