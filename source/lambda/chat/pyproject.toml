@@ -1,6 +1,6 @@
 [project]
 name = "llm-chat-lambda"
-version = "4.1.15"
+version = "4.1.16"
 description = "Lambda implementation for chat feature"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }

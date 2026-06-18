@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.16] - 2026-06-17
+
+### Security
+
+- Upgraded `form-data` to `3.0.5` and `4.0.6` to mitigate [CVE-2026-12143](https://nvd.nist.gov/vuln/detail/CVE-2026-12143)
+- Upgraded `ws` to `8.21.0` to mitigate [CVE-2026-48779](https://nvd.nist.gov/vuln/detail/CVE-2026-48779)
+- Upgraded `vite` to `6.4.3` to mitigate [CVE-2026-53571](https://nvd.nist.gov/vuln/detail/CVE-2026-53571)
+- Upgraded `cryptography` to `49.0.0` to mitigate [GHSA-537c-gmf6-5ccf](https://github.com/advisories/GHSA-537c-gmf6-5ccf)
+- Upgraded `starlette` to `1.3.1` to mitigate [GHSA-82w8-qh3p-5jfq](https://github.com/advisories/GHSA-82w8-qh3p-5jfq)
+- Upgraded `python-multipart` to `0.0.32` to mitigate [GHSA-5rvq-cxj2-64vf](https://github.com/advisories/GHSA-5rvq-cxj2-64vf)
+- Upgraded `esbuild` to `0.28.1` to mitigate [GHSA-gv7w-rqvm-qjhr](https://github.com/advisories/GHSA-gv7w-rqvm-qjhr)
+
 ## [4.1.15] - 2026-06-10
 
 ### Security
