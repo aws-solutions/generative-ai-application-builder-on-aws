@@ -103,7 +103,8 @@ const config: VitestUserConfig & UserConfig = {
     exclude: ['**/node_modules/**', '**/build/**', '**/.{git,tmp}/**'],
     build: {
         outDir: 'build',
-        chunkSizeWarningLimit: 4000
+        chunkSizeWarningLimit: 4000,
+        target: 'es2022'
     },
     define: {
         __ENV_CHECK__: JSON.stringify(process.env)

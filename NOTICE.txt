@@ -390,6 +390,9 @@ This software includes third party software subject to the following copyrights:
 @inquirer/core under the MIT license.
 @inquirer/figures under the MIT license.
 @inquirer/type under the MIT license.
+@internationalized/date under the Apache-2.0 license.
+@internationalized/number under the Apache-2.0 license.
+@internationalized/string under the Apache-2.0 license.
 @isaacs/cliui under the ISC license.
 @isaacs/ttlcache under the ISC license.
 @istanbuljs/load-nyc-config under the ISC license.
@@ -422,6 +425,7 @@ This software includes third party software subject to the following copyrights:
 @jsep-plugin/assignment under the MIT license.
 @jsep-plugin/regex under the MIT license.
 @juggle/resize-observer under the Apache-2.0 license.
+@material/material-color-utilities under the Apache-2.0 license.
 @middy/core under the MIT license.
 @mswjs/interceptors under the MIT license.
 @nicolo-ribaudo/semver-v6 under the ISC license.
@@ -500,17 +504,20 @@ This software includes third party software subject to the following copyrights:
 @react-native/codegen under the MIT license.
 @react-native/community-cli-plugin under the MIT license.
 @react-native/debugger-frontend under the BSD-3-Clause license.
+@react-native/debugger-shell under the MIT license.
 @react-native/dev-middleware under the MIT license.
 @react-native/gradle-plugin under the MIT license.
 @react-native/js-polyfills under the MIT license.
 @react-native/metro-babel-transformer under the MIT license.
 @react-native/normalize-colors under the MIT license.
 @react-native/virtualized-lists under the MIT license.
+@react-types/shared under the Apache-2.0 license.
 @reduxjs/toolkit under MIT license.
 @reduxjs/toolkit under the MIT license.
 @remix-run/router under the MIT license.
 @restart/hooks under the MIT license.
 @restart/ui under the MIT license.
+@rolldown/pluginutils under the MIT license.
 @rollup/rollup-android-arm-eabi under the MIT license.
 @rollup/rollup-android-arm64 under the MIT license.
 @rollup/rollup-darwin-arm64 under the MIT license.
@@ -760,6 +767,7 @@ ansi-styles under the MIT license.
 any-promise under the MIT license.
 anyio under the MIT license.
 anymatch under the ISC license.
+anynum under the MIT license.
 appdirsjs under the MIT license.
 aproba under the ISC license.
 arch under the MIT license.
@@ -813,6 +821,7 @@ babel-plugin-jest-hoist under the MIT license.
 babel-plugin-polyfill-corejs2 under the MIT license.
 babel-plugin-polyfill-corejs3 under the MIT license.
 babel-plugin-polyfill-regenerator under the MIT license.
+babel-plugin-syntax-hermes-parser under the MIT license.
 babel-plugin-transform-flow-enums under the MIT license.
 babel-preset-current-node-syntax under the MIT license.
 babel-preset-jest under the MIT license.
@@ -1071,6 +1080,7 @@ fast-xml-parser under the MIT license.
 fastparse under the MIT license.
 fastq under the ISC license.
 fault under the MIT license.
+fb-dotslash under the MIT license.
 fb-watchman under the Apache-2.0 license.
 fd-slicer under the MIT license.
 fdir under the MIT license.
@@ -1151,6 +1161,7 @@ hast-util-whitespace under the MIT license.
 hastscript under the MIT license.
 header-case under the MIT license.
 headers-polyfill under the MIT license.
+hermes-compiler under the MIT license.
 hermes-estree under the MIT license.
 hermes-parser under the MIT license.
 highlight.js under the BSD-3-Clause license.
@@ -1445,7 +1456,7 @@ mimic-fn under the MIT license.
 min-indent under the MIT license.
 minimatch under the ISC license.
 minimist under the MIT license.
-minipass under the ISC license.
+minipass under the BlueOak-1.0.0 license.
 mkdirp under the MIT license.
 mlly under the MIT license.
 mnemonist under the MIT license.
@@ -1599,6 +1610,7 @@ randombytes under the MIT license.
 range-parser under the MIT license.
 raw-body under the MIT license.
 react under the MIT license.
+react-aria under the Apache-2.0 license.
 react-bootstrap under the MIT license.
 react-devtools-core under the MIT license.
 react-dom under the MIT license.
@@ -1623,6 +1635,7 @@ react-router-dom under MIT license.
 react-router-dom under the MIT license.
 react-shallow-renderer under the MIT license.
 react-style-singleton under the MIT license.
+react-stately under the Apache-2.0 license.
 react-syntax-highlighter under the MIT license.
 react-test-renderer under the MIT license.
 react-transition-group under the BSD-3-Clause license.
@@ -1908,6 +1921,7 @@ wrapt under the BSD-2-Clause license.
 write-file-atomic under the ISC license.
 ws under the MIT license.
 xml-name-validator under the Apache-2.0 license.
+xml-naming under the MIT license.
 xml2js under the MIT license.
 xmlbuilder under the MIT license.
 xmlchars under the MIT license.

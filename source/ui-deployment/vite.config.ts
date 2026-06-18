@@ -15,7 +15,8 @@ export default defineConfig({
     plugins: [react(), viteTsconfigPaths()],
     build: {
         outDir: 'build',
-        chunkSizeWarningLimit: 4000
+        chunkSizeWarningLimit: 4000,
+        target: 'es2022'
     },
     resolve: {
         alias: {
