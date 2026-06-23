@@ -1,6 +1,6 @@
 {
   "name": "@amzn/model-info",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "This lambda supports APIs that provide the capability to deploy GenAI use cases",
   "main": "index.ts",
   "scripts": {
@@ -34,5 +34,9 @@
     "ts-jest": "^29.2.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
   }
 }

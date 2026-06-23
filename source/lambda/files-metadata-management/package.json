@@ -1,6 +1,6 @@
 {
   "name": "@amzn/files-metadata",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "This lambda supports APIs that provide export functionality for use cases",
   "main": "index.ts",
   "scripts": {
@@ -40,5 +40,9 @@
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
   }
 }

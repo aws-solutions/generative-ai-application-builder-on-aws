@@ -1,6 +1,6 @@
 {
   "name": "@amzn/use-case-management",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "This lambda supports APIs that provide the capability to deploy GenAI use cases",
   "main": "index.ts",
   "scripts": {
@@ -38,5 +38,9 @@
   },
   "dependencies": {
     "aws-jwt-verify": "^5.0.0"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
   }
 }
