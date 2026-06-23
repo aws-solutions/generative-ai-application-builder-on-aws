@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-common"
-version = "4.1.16"
+version = "4.1.17"
 description = "Shared library for GAAB Strands agents"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -35,7 +35,7 @@ override-dependencies = [
     "requests>=2.33.0",
     "cryptography>=48.0.1",
     "pygments>=2.20.0",
-    "idna>=3.15",
+    "idna>=3.18",
     "starlette>=1.3.1",
     "aiohttp>=3.14.0",
     "pip>=26.1.2"

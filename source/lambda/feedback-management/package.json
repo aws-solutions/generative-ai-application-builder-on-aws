@@ -1,6 +1,6 @@
 {
   "name": "@amzn/feedback-management",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "This lambda supports backs the API to process chat response feedbacks",
   "main": "index.ts",
   "scripts": {
@@ -42,5 +42,9 @@
     "jsonpath-plus": "^10.3.0",
     "node-cache": "^5.1.2",
     "uuid": "^11.1.1"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
   }
 }

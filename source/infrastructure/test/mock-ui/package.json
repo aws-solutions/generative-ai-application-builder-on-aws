@@ -1,6 +1,6 @@
 {
   "name": "@amzn/mock-react-app",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "Mock Reactjs app used for unit testing constructs",
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
@@ -20,6 +20,7 @@
     "clean": "rm -rf node_modules"
   },
   "overrides": {
+    "@babel/core": "^7.29.7",
     "nth-check": "^2.0.1",
     "postcss": "^8.4.31",
     "esbuild": "^0.28.1"

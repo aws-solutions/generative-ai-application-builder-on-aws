@@ -1,6 +1,6 @@
 {
   "name": "@amzn/mock-typescript-lambda",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "A mock lambda implementation for CDK infrastructure unit",
   "main": "index.ts",
   "scripts": {
@@ -26,5 +26,9 @@
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
+  }
 }

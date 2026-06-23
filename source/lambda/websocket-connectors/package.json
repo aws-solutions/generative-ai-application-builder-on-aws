@@ -1,6 +1,6 @@
 {
   "name": "@amzn/websocket-connectors",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "This lambda function is used to handle connect and disconnect requests",
   "main": "connect-handler.js",
   "scripts": {
@@ -31,5 +31,9 @@
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
   }
 }

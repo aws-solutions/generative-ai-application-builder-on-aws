@@ -1,6 +1,6 @@
 {
   "name": "@amzn/custom-authorizer",
-  "version": "4.1.16",
+  "version": "4.1.17",
   "description": "This lambda function is used as a custom REQUEST authorizer for APIs",
   "main": "rest-handler.ts",
   "scripts": {
@@ -36,5 +36,9 @@
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.7",
+    "js-yaml": "^4.2.0"
   }
 }

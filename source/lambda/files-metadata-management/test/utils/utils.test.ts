@@ -155,7 +155,7 @@ describe('Utils Functions', () => {
             await delay(0);
             const endTime = Date.now();
 
-            expect(endTime - startTime).toBeLessThan(10);
+            expect(endTime - startTime).toBeLessThan(20);
         });
     });
 

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.17] - 2026-06-23
+
+### Security
+
+- Upgraded `langchain-core` to `1.4.8` to mitigate [CVE-2026-44843](https://nvd.nist.gov/vuln/detail/CVE-2026-44843)
+- Upgraded `langchain-classic` to `1.0.8` to mitigate [CVE-2026-45134](https://nvd.nist.gov/vuln/detail/CVE-2026-45134)
+- Upgraded `pyjwt` to `2.13.0` to mitigate [CVE-2026-48522](https://nvd.nist.gov/vuln/detail/CVE-2026-48522), [CVE-2026-48523](https://nvd.nist.gov/vuln/detail/CVE-2026-48523), [CVE-2026-48524](https://nvd.nist.gov/vuln/detail/CVE-2026-48524), [CVE-2026-48525](https://nvd.nist.gov/vuln/detail/CVE-2026-48525), and [CVE-2026-48526](https://nvd.nist.gov/vuln/detail/CVE-2026-48526)
+- Upgraded `js-yaml` to `4.2.0` to mitigate [CVE-2026-53550](https://nvd.nist.gov/vuln/detail/CVE-2026-53550)
+- Upgraded `@babel/core` to `7.29.7` to mitigate [CVE-2026-49356](https://nvd.nist.gov/vuln/detail/CVE-2026-49356)
+- Upgraded `langchain` to `1.3.10` to mitigate [GHSA-gr75-jv2w-4656](https://github.com/langchain-ai/langchain/security/advisories/GHSA-gr75-jv2w-4656)
+- Upgraded `idna` to `3.18` to mitigate [CVE-2026-45409](https://nvd.nist.gov/vuln/detail/CVE-2026-45409)
+
 ## [4.1.16] - 2026-06-17
 
 ### Security
