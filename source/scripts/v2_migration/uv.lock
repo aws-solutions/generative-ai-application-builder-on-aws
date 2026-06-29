@@ -271,7 +271,7 @@ wheels = [
 
 [[package]]
 name = "gaab-v2-migration"
-version = "4.1.17"
+version = "4.1.18"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
