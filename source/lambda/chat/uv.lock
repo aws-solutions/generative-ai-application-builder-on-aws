@@ -65,7 +65,7 @@ wheels = [
 
 [[package]]
 name = "boto3-layer"
-version = "4.1.18"
+version = "4.1.19"
 source = { editable = "../layers/aws_boto3" }
 dependencies = [
     { name = "boto3" },
@@ -335,7 +335,7 @@ wheels = [
 
 [[package]]
 name = "custom-boto3-init"
-version = "4.1.18"
+version = "4.1.19"
 source = { editable = "../layers/custom_boto3_init" }
 dependencies = [
     { name = "aws-lambda-powertools" },
@@ -593,7 +593,7 @@ wheels = [
 
 [[package]]
 name = "langchain-layer"
-version = "4.1.18"
+version = "4.1.19"
 source = { editable = "../layers/langchain" }
 dependencies = [
     { name = "greenlet" },
@@ -736,7 +736,7 @@ wheels = [
 
 [[package]]
 name = "llm-chat-lambda"
-version = "4.1.18"
+version = "4.1.19"
 source = { editable = "." }
 dependencies = [
     { name = "jsonpath-ng" },

@@ -293,7 +293,7 @@ wheels = [
 
 [[package]]
 name = "langchain-layer"
-version = "4.1.18"
+version = "4.1.19"
 source = { editable = "." }
 dependencies = [
     { name = "greenlet" },

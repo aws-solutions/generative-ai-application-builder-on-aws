@@ -1,6 +1,6 @@
 [project]
 name = "boto3-layer"
-version = "4.1.18"
+version = "4.1.19"
 description = "Layer for AWS Boto3 python SDK"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
