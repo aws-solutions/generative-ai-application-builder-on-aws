@@ -1,6 +1,6 @@
 [project]
 name = "gaab-v2-migration"
-version = "4.1.19"
+version = "4.1.20"
 description = "Migration script to convert v1.X use cases to v2.X"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }

@@ -44,7 +44,7 @@ wheels = [
 
 [[package]]
 name = "boto3-layer"
-version = "4.1.19"
+version = "4.1.20"
 source = { editable = "../layers/aws_boto3" }
 dependencies = [
     { name = "boto3" },
@@ -314,7 +314,7 @@ wheels = [
 
 [[package]]
 name = "custom-boto3-init"
-version = "4.1.19"
+version = "4.1.20"
 source = { editable = "../layers/custom_boto3_init" }
 dependencies = [
     { name = "aws-lambda-powertools" },
@@ -344,7 +344,7 @@ dev = [
 
 [[package]]
 name = "custom-resource"
-version = "4.1.19"
+version = "4.1.20"
 source = { editable = "." }
 
 [package.dev-dependencies]

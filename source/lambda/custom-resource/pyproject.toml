@@ -1,6 +1,6 @@
 [project]
 name = "custom-resource"
-version = "4.1.19"
+version = "4.1.20"
 description = "Perform specific operations triggered by AWS CloudFormation events"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
