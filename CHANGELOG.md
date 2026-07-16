@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.20] - 2026-07-16
+
+### Security
+
+- Upgraded `soupsieve` to `2.8.4` to mitigate [GHSA-2wc2-fm75-p42x](https://github.com/advisories/GHSA-2wc2-fm75-p42x) and [GHSA-836r-79rf-4m37](https://github.com/advisories/GHSA-836r-79rf-4m37)
+- Upgraded `pillow` to `12.3.0` to mitigate [CVE-2026-55379](https://nvd.nist.gov/vuln/detail/CVE-2026-55379)
+- Upgraded `click` to `8.4.2` to mitigate [CVE-2026-7246](https://nvd.nist.gov/vuln/detail/CVE-2026-7246)
+
 ## [4.1.19] - 2026-07-06
 
 ### Security
