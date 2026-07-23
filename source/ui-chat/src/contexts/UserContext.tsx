@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
-import { getCurrentUser, fetchUserAttributes } from '@aws-amplify/auth';
-import { type AuthUser } from '@aws-amplify/auth';
+import { getCurrentUser, fetchUserAttributes, type AuthUser } from 'aws-amplify/auth';
 import { useUserState } from '../hooks/use-user-state';
 import { useAuthEventHandler } from '../hooks/use-auth-event-handler';
 import { useDispatch, useSelector } from 'react-redux';

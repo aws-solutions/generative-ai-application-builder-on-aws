@@ -44,7 +44,7 @@ wheels = [
 
 [[package]]
 name = "boto3-layer"
-version = "4.1.20"
+version = "4.1.21"
 source = { editable = "../layers/aws_boto3" }
 dependencies = [
     { name = "boto3" },
@@ -314,7 +314,7 @@ wheels = [
 
 [[package]]
 name = "custom-boto3-init"
-version = "4.1.20"
+version = "4.1.21"
 source = { editable = "../layers/custom_boto3_init" }
 dependencies = [
     { name = "aws-lambda-powertools" },
@@ -344,7 +344,7 @@ dev = [
 
 [[package]]
 name = "custom-resource"
-version = "4.1.20"
+version = "4.1.21"
 source = { editable = "." }
 
 [package.dev-dependencies]
@@ -383,7 +383,7 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "pyyaml", specifier = "==6.0.2" },
     { name = "requests", specifier = "==2.33.0" },
-    { name = "setuptools", specifier = "==80.8.0" },
+    { name = "setuptools", specifier = "==83.0.0" },
     { name = "urllib3", specifier = ">=2.7.0,<2.8.0" },
 ]
 
@@ -712,11 +712,11 @@ wheels = [
 
 [[package]]
 name = "setuptools"
-version = "80.8.0"
+version = "83.0.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8d/d2/ec1acaaff45caed5c2dedb33b67055ba9d4e96b091094df90762e60135fe/setuptools-80.8.0.tar.gz", hash = "sha256:49f7af965996f26d43c8ae34539c8d99c5042fbff34302ea151eaa9c207cd257", size = 1319720, upload-time = "2025-05-20T14:02:53.503Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/26/f5d29e25ffdb535afef2d35cdb55b325298f96debd670da4c325e08d70f4/setuptools-83.0.0.tar.gz", hash = "sha256:025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef", size = 1154254, upload-time = "2026-07-04T15:31:22.699Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/58/29/93c53c098d301132196c3238c312825324740851d77a8500a2462c0fd888/setuptools-80.8.0-py3-none-any.whl", hash = "sha256:95a60484590d24103af13b686121328cc2736bee85de8936383111e421b9edc0", size = 1201470, upload-time = "2025-05-20T14:02:51.348Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl", hash = "sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3", size = 1008090, upload-time = "2026-07-04T15:31:20.885Z" },
 ]
 
 [[package]]

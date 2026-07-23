@@ -1,6 +1,6 @@
 [project]
 name = "ext-idp-group-mapper"
-version = "4.1.20"
+version = "4.1.21"
 description = "Lambda implementation to change Cognito user groups to External Identity Provider groups in the JWT token"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
@@ -21,7 +21,7 @@ dev-dependencies = [
     "pytest-env==1.1.5",
     "pytest-xdist>=3.5.0",
     "PyYAML==6.0.2",
-    "setuptools==80.8.0",
+    "setuptools==83.0.0",
     "requests==2.33.0",
     "urllib3>=2.7.0,<2.8.0",
     "boto3-layer",

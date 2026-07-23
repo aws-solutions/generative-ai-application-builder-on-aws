@@ -4,21 +4,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
 
-import { fetchAuthSession, Hub } from '@aws-amplify/core';
-import { signOut, signInWithRedirect } from '@aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
+import { fetchAuthSession, signOut, signInWithRedirect } from 'aws-amplify/auth';
 import { useAuthEventHandler } from '../../hooks/use-auth-event-handler';
 import { testStoreFactory } from '../utils/test-redux-store-factory';
 import { BASE_RUNTIME_CONFIG } from '../utils/test-configs';
 
 // Mock the AWS Amplify modules
-vi.mock('@aws-amplify/core', () => ({
-    fetchAuthSession: vi.fn(),
+vi.mock('aws-amplify/utils', () => ({
     Hub: {
         listen: vi.fn().mockReturnValue(() => {}) // Mock the listener cleanup function
     }
 }));
 
-vi.mock('@aws-amplify/auth', () => ({
+vi.mock('aws-amplify/auth', () => ({
+    fetchAuthSession: vi.fn(),
     signOut: vi.fn(),
     signInWithRedirect: vi.fn()
 }));
