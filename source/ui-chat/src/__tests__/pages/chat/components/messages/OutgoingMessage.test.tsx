@@ -39,7 +39,7 @@ vi.mock('react-redux', () => ({
     useSelector: vi.fn(() => ({}))
 }));
 
-vi.mock('@aws-amplify/auth', () => ({
+vi.mock('aws-amplify/auth', () => ({
     getCurrentUser: vi.fn(() => Promise.resolve({ userId: 'test-user', username: 'testuser' })),
     fetchUserAttributes: vi.fn(() => Promise.resolve({ name: 'Test User', email: 'test@example.com' }))
 }));

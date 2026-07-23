@@ -13,7 +13,7 @@ import { ToolsContextProvider } from '../../contexts/ToolsContext.tsx';
 import { solutionApi } from '../../store/solutionApi.ts';
 import { ReactNode } from 'react';
 import { UserContext } from '../../contexts/UserContext.tsx';
-import { AuthUser } from '@aws-amplify/auth';
+import { type AuthUser } from 'aws-amplify/auth';
 
 /*
  * Render a page within the context of a Router, redux store and NotificationContext.

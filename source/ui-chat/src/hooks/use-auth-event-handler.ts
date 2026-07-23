@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useCallback, useEffect } from 'react';
-import { fetchAuthSession, Hub } from '@aws-amplify/core';
-import { signOut, signInWithRedirect } from '@aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
+import { fetchAuthSession, signOut, signInWithRedirect } from 'aws-amplify/auth';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 

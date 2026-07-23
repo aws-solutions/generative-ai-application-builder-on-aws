@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.21] - 2026-07-22
+
+### Security
+
+- Upgraded `setuptools` to `83.0.0` to mitigate [CVE-2026-59890](https://nvd.nist.gov/vuln/detail/CVE-2026-59890)
+- Upgraded `mcp` to `1.28.1` to mitigate [CVE-2026-52870](https://nvd.nist.gov/vuln/detail/CVE-2026-52870), [CVE-2026-59950](https://nvd.nist.gov/vuln/detail/CVE-2026-59950), and [CVE-2026-52869](https://nvd.nist.gov/vuln/detail/CVE-2026-52869)
+- Upgraded `axios` to `1.18.1` to mitigate [GHSA-42h9-826w-cgv3](https://github.com/advisories/GHSA-42h9-826w-cgv3), [GHSA-7q8q-rj6j-mhjq](https://github.com/advisories/GHSA-7q8q-rj6j-mhjq), [GHSA-f4gw-2p7v-4548](https://github.com/advisories/GHSA-f4gw-2p7v-4548), [GHSA-gcfj-64vw-6mp9](https://github.com/advisories/GHSA-gcfj-64vw-6mp9), [GHSA-hcpx-6fm6-wx23](https://github.com/advisories/GHSA-hcpx-6fm6-wx23), [GHSA-jqh4-m9w3-8hp9](https://github.com/advisories/GHSA-jqh4-m9w3-8hp9), [GHSA-mmx7-hfxf-jppx](https://github.com/advisories/GHSA-mmx7-hfxf-jppx), [GHSA-mwf2-3pr3-8698](https://github.com/advisories/GHSA-mwf2-3pr3-8698), [GHSA-pmv8-rq9r-6j72](https://github.com/advisories/GHSA-pmv8-rq9r-6j72), and [GHSA-xj6q-8x83-jv6g](https://github.com/advisories/GHSA-xj6q-8x83-jv6g)
+- Upgraded `js-yaml` to `4.3.0` to mitigate [CVE-2026-59869](https://nvd.nist.gov/vuln/detail/CVE-2026-59869)
+- Upgraded `shell-quote` to `1.10.0` to mitigate [CVE-2026-13311](https://nvd.nist.gov/vuln/detail/CVE-2026-13311)
+- Upgraded `uuid` to `11.1.1` to mitigate [CVE-2026-41907](https://nvd.nist.gov/vuln/detail/CVE-2026-41907)
+- Upgraded `aws-cdk-lib` to `2.261.0` to mitigate [CVE-2026-13760](https://nvd.nist.gov/vuln/detail/CVE-2026-13760)
+- Upgraded `fast-uri` to `3.1.4` to mitigate [CVE-2026-13676](https://nvd.nist.gov/vuln/detail/CVE-2026-13676) and [CVE-2026-16221](https://nvd.nist.gov/vuln/detail/CVE-2026-16221)
+- Upgraded `immutable` to `5.1.9` to mitigate [CVE-2026-59879](https://nvd.nist.gov/vuln/detail/CVE-2026-59879) and [CVE-2026-59880](https://nvd.nist.gov/vuln/detail/CVE-2026-59880)
+- Upgraded `brace-expansion` (1.1.13, 1.1.15 → 1.1.16; 2.0.3, 2.1.1 → 2.1.2, no fix available for 5.0.6) to partially mitigate [CVE-2026-13149](https://nvd.nist.gov/vuln/detail/CVE-2026-13149)
+
 ## [4.1.20] - 2026-07-16
 
 ### Security

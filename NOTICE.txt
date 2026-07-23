@@ -531,9 +531,9 @@ This software includes third party software subject to the following copyrights:
 @rollup/rollup-linux-loong64-gnu under the MIT license.
 @rollup/rollup-linux-loong64-musl under the MIT license.
 @rollup/rollup-linux-loongarch64-gnu under the MIT license.
+@rollup/rollup-linux-powerpc64le-gnu under the MIT license.
 @rollup/rollup-linux-ppc64-gnu under the MIT license.
 @rollup/rollup-linux-ppc64-musl under the MIT license.
-@rollup/rollup-linux-powerpc64le-gnu under the MIT license.
 @rollup/rollup-linux-riscv64-gnu under the MIT license.
 @rollup/rollup-linux-riscv64-musl under the MIT license.
 @rollup/rollup-linux-s390x-gnu under the MIT license.
@@ -1202,6 +1202,7 @@ inline-style-parser under the MIT license.
 internal-slot under the MIT license.
 intl-messageformat under the BSD-3-Clause license.
 invariant under the MIT license.
+invoke-agent under the MIT license.
 is-absolute-url under the MIT license.
 is-alphabetical under the MIT license.
 is-alphanumerical under the MIT license.
@@ -1245,6 +1246,7 @@ is-symbol under the MIT license.
 is-typed-array under the MIT license.
 is-typedarray under the MIT license.
 is-unicode-supported under the MIT license.
+is-unsafe under the MIT license.
 is-weakmap under the MIT license.
 is-weakref under the MIT license.
 is-weakset under the MIT license.
@@ -1335,14 +1337,11 @@ langchain-classic under the MIT license.
 langchain-core under the MIT license.
 langchain-protocol under the MIT license.
 langchain-text-splitters under the MIT license.
-langsmith under the MIT license.
 langgraph under the MIT license.
 langgraph-checkpoint under the MIT license.
 langgraph-prebuilt under the MIT license.
 langgraph-sdk under the MIT license.
-ormsgpack under the Apache-2.0 license.
-uuid-utils under the MIT license.
-xxhash under the BSD-2-Clause license.
+langsmith under the MIT license.
 launch-editor under the MIT license.
 lazy-ass under the MIT license.
 leven under the MIT license.
@@ -1515,6 +1514,7 @@ open under the MIT license.
 optionator under the MIT license.
 ora under the MIT license.
 orjson under the Apache-2.0 license.
+ormsgpack under the Apache-2.0 license.
 ospath under the MIT license.
 outvariant under the MIT license.
 own-keys under the MIT license.
@@ -1536,8 +1536,8 @@ pascal-case under the MIT license.
 patch-package under the MIT license.
 path-case under the MIT license.
 path-exists under the MIT license.
-path-is-absolute under the MIT license.
 path-expression-matcher under the MIT license.
+path-is-absolute under the MIT license.
 path-key under the MIT license.
 path-parse under the MIT license.
 path-scurry under the BlueOak-1.0.0 license.
@@ -1590,8 +1590,8 @@ pyasn1 under the BSD-2-Clause license.
 pycparser under the BSD-3-Clause license.
 pydantic under the MIT license.
 pydantic-core under the MIT license.
-pyjwt under the MIT license.
 pygments under the BSD-2-Clause license.
+pyjwt under the MIT license.
 pytest under the MIT license.
 pytest-asyncio under the Apache-2.0 license.
 pytest-cov under the MIT license.
@@ -1634,8 +1634,8 @@ react-router under the MIT license.
 react-router-dom under MIT license.
 react-router-dom under the MIT license.
 react-shallow-renderer under the MIT license.
-react-style-singleton under the MIT license.
 react-stately under the Apache-2.0 license.
+react-style-singleton under the MIT license.
 react-syntax-highlighter under the MIT license.
 react-test-renderer under the MIT license.
 react-transition-group under the BSD-3-Clause license.
@@ -1757,12 +1757,12 @@ std-env under the MIT license.
 strands-agents under the Apache-2.0 License.
 strands-agents-tools under the Apache-2.0 License.
 strict-event-emitter under the MIT license.
+string_decoder under the MIT license.
 string-length under the MIT license.
 string-width under the MIT license.
 string.prototype.trim under the MIT license.
 string.prototype.trimend under the MIT license.
 string.prototype.trimstart under the MIT license.
-string_decoder under the MIT license.
 stringify-entities under the MIT license.
 strip-ansi under the MIT license.
 strip-bom under the MIT license.
@@ -1839,8 +1839,8 @@ typing-extensions under the PSF-2.0 license.
 typing-inspection under the MIT license.
 ufo under the MIT license.
 uglify-js under the BSD-2-Clause license.
-ulid under the MIT license.
 uint8array-extras under the MIT license.
+ulid under the MIT license.
 unbox-primitive under the MIT license.
 uncontrollable under the MIT license.
 undici-types under the MIT license.
@@ -1875,6 +1875,7 @@ util under the MIT license.
 util-deprecate under the MIT license.
 utils-merge under the MIT license.
 uuid under the MIT license.
+uuid-utils under the MIT license.
 v8-compile-cache-lib under the MIT license.
 v8-to-istanbul under the ISC license.
 vary under the MIT license.
@@ -1928,6 +1929,7 @@ xmlchars under the MIT license.
 xmltodict under the MIT license.
 xstate under the MIT license.
 xtend under the MIT license.
+xxhash under the BSD-2-Clause license.
 y18n under the ISC license.
 yallist under the ISC license.
 yaml under the ISC license.
@@ -1943,8 +1945,6 @@ zen-observable-ts under the MIT license.
 zen-push under the MIT license.
 zstandard under the BSD-3-Clause license.
 zwitch under the MIT license.
-
-
 
 ********************
 OPEN SOURCE LICENSES

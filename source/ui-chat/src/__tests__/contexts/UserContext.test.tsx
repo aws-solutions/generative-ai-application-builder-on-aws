@@ -5,12 +5,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { UserProvider, useUser } from '../../contexts/UserContext';
 import { createTestWrapper } from '../utils/test-utils';
-import { getCurrentUser, fetchUserAttributes } from '@aws-amplify/auth';
+import { getCurrentUser, fetchUserAttributes } from 'aws-amplify/auth';
 import { testStoreFactory } from '../utils/test-redux-store-factory';
 import { Provider } from 'react-redux';
 
 // Mock the auth functions
-vi.mock('@aws-amplify/auth', () => ({
+vi.mock('aws-amplify/auth', () => ({
     getCurrentUser: vi.fn(),
     fetchUserAttributes: vi.fn()
 }));

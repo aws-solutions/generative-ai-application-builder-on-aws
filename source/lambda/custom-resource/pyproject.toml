@@ -1,6 +1,6 @@
 [project]
 name = "custom-resource"
-version = "4.1.20"
+version = "4.1.21"
 description = "Perform specific operations triggered by AWS CloudFormation events"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
@@ -24,7 +24,7 @@ dev-dependencies = [
     "pytest-env==1.1.5",
     "PyYAML==6.0.2",
     "pytest-xdist>=3.8.0",
-    "setuptools==80.8.0",
+    "setuptools==83.0.0",
     "pyjwt>=2.12.0",
     "urllib3>=2.7.0,<2.8.0",
     "boto3-layer",

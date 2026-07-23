@@ -1,6 +1,6 @@
 [project]
 name = "llm-chat-lambda"
-version = "4.1.20"
+version = "4.1.21"
 description = "Lambda implementation for chat feature"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
@@ -23,7 +23,7 @@ dev-dependencies = [
     "pytest-cov>=6.0.0",
     "pytest-env==1.1.5",
     "PyYAML==6.0.2",
-    "setuptools==80.8.0",
+    "setuptools==83.0.0",
     "requests==2.33.0",
     "urllib3>=2.7.0,<2.8.0",
     "pytest-xdist>=3.8.0",
