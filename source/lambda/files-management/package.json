@@ -1,6 +1,6 @@
 {
   "name": "@amzn/files-handler",
-  "version": "4.1.21",
+  "version": "4.1.22",
   "description": "This lambda supports APIs that provide export functionality for use cases",
   "main": "index.ts",
   "scripts": {

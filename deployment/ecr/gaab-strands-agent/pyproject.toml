@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-agent"
-version = "4.1.21"
+version = "4.1.22"
 description = "GAAB Strands Agent Runtime for Amazon Bedrock AgentCore"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -24,7 +24,7 @@ dependencies = [
     "strands-agents-tools>=0.2.9",
 
     # bedrock-agentcore
-    "bedrock-agentcore>=0.1.5",
+    "bedrock-agentcore>=1.19.0",
 
     # OpenTelemetry for observability
     "aws-opentelemetry-distro>=0.12.1",

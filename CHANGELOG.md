@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.22] - 2026-08-04
+
+### Security
+
+- Upgraded `bedrock-agentcore` to `1.19.0` to mitigate [CVE-2026-16796](https://nvd.nist.gov/vuln/detail/CVE-2026-16796)
+- Upgraded `react-router` to `7.18.2` to mitigate [CVE-2026-53666](https://nvd.nist.gov/vuln/detail/CVE-2026-53666), [CVE-2026-53667](https://nvd.nist.gov/vuln/detail/CVE-2026-53667), [CVE-2026-53669](https://nvd.nist.gov/vuln/detail/CVE-2026-53669), [CVE-2026-55685](https://nvd.nist.gov/vuln/detail/CVE-2026-55685), and [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)
+- Upgraded `postcss` to `8.5.25` to mitigate [GHSA-r28c-9q8g-f849](https://github.com/advisories/GHSA-r28c-9q8g-f849)
+
+### Changed
+
+- Upgraded `strands-agents` to `1.50.2` to resolve import conflict introduced by `bedrock-agentcore` upgrade
+
+
 ## [4.1.21] - 2026-07-22
 
 ### Security
