@@ -176,6 +176,7 @@ This software includes third party software subject to the following copyrights:
 @aws-solutions-constructs/aws-wafwebacl-apigateway under the Apache-2.0 license.
 @aws-solutions-constructs/core under the Apache-2.0 license.
 @aws-solutions-constructs/resources under the Apache-2.0 license.
+@aws/cloudformation-validate under the Apache-2.0 license.
 @aws/lambda-invoke-store under the Apache-2.0 license.
 @babel/code-frame under the MIT license.
 @babel/compat-data under the MIT license.

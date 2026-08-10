@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.23] - 2026-08-10
+
+### Security
+
+- Upgraded `brace-expansion` to `1.1.18` (1.x line) and `2.1.4` (2.x line) to mitigate [CVE-2026-14257](https://nvd.nist.gov/vuln/detail/CVE-2026-14257)
+- Upgraded `fast-uri` to `3.1.5` to mitigate [CVE-2026-18446](https://nvd.nist.gov/vuln/detail/CVE-2026-18446)
+- Upgraded `js-yaml` to `4.3.1` to mitigate [GHSA-5p4m-2wfm-xmqj](https://github.com/advisories/GHSA-5p4m-2wfm-xmqj)
+- Upgraded `aiohttp` to `3.14.3` to mitigate [CVE-2026-69244](https://nvd.nist.gov/vuln/detail/CVE-2026-69244)
+- Upgraded `cryptography` to `50.0.0` to mitigate [CVE-2026-69247](https://nvd.nist.gov/vuln/detail/CVE-2026-69247)
+- Upgraded `aws-cdk-lib` to `2.263.0`, bumping its bundled `brace-expansion` to `5.0.8`, to mitigate [CVE-2026-14257](https://nvd.nist.gov/vuln/detail/CVE-2026-14257) and [CVE-2026-13149](https://nvd.nist.gov/vuln/detail/CVE-2026-13149)
+- Upgraded `nanoid` to `3.3.18` to mitigate [CVE-2026-67213](https://nvd.nist.gov/vuln/detail/CVE-2026-67213) / [GHSA-2v37-7h3g-55p8](https://github.com/advisories/GHSA-2v37-7h3g-55p8)
+
+### Fixed
+
+- Fixed `cdk synth` failing on a clean local install due to an unpinned `typescript` version in the `aws-sdk-lib` and `aws-node-user-agent-config` Lambda layers, and a missing build step for `aws-sdk-lib` in `pre-build-lambda-layers.sh`. See [#269](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/269) for details.
+
 ## [4.1.22] - 2026-08-04
 
 ### Security
@@ -16,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgraded `strands-agents` to `1.50.2` to resolve import conflict introduced by `bedrock-agentcore` upgrade
-
 
 ## [4.1.21] - 2026-07-22
 
