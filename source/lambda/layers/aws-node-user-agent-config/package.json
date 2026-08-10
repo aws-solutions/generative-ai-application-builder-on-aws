@@ -1,6 +1,6 @@
 {
   "name": "@amzn/aws-node-user-agent-config",
-  "version": "4.1.22",
+  "version": "4.1.23",
   "description": "AWS Nodejs SDK Config initialization layer",
   "main": "index.js",
   "scripts": {
@@ -18,7 +18,8 @@
     "jest": "^29.7.0",
     "prettier": "^3.6.2",
     "ts-jest": "^29.2.5",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
   },
   "author": {
     "name": "Amazon Web Services",

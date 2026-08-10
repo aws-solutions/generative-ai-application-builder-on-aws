@@ -19,15 +19,16 @@ build_sdk_lib_layer() {
     sdk_lib=$1
 
     echo "-----------------------------------------"
-    echo "Current directory is: ${PWD}". Running install
+    echo "Current directory is: ${PWD}". Running install and build
     echo "-----------------------------------------"    
 
     cd $sdk_lib
     npm install
+    npm run build
 
     cd $execution_dir
     echo "-----------------------------------------"
-    echo "complete install $sdk_lib"
+    echo "complete build $sdk_lib"
     echo "-----------------------------------------"    
 }
 
