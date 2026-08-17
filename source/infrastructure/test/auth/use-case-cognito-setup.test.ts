@@ -269,6 +269,10 @@ describe('When creating as a standalone stack', () => {
                 {
                     Name: 'email',
                     Value: notificationSubscriptionEmailCapture
+                },
+                {
+                    name: 'email_verified',
+                    value: 'true'
                 }
             ],
             Username: 'fake-user'

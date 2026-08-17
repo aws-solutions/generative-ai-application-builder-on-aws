@@ -231,6 +231,10 @@ describe('When cognito resources are created', () => {
                 {
                     Name: 'email',
                     Value: notificationSubscriptionEmailCapture
+                },
+                {
+                    name: 'email_verified',
+                    value: 'true'
                 }
             ],
             Username: 'fake-user'
