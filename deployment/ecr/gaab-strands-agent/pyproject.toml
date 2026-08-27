@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-agent"
-version = "4.1.23"
+version = "4.1.24"
 description = "GAAB Strands Agent Runtime for Amazon Bedrock AgentCore"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -82,7 +82,7 @@ override-dependencies = [
     "idna>=3.18",
     "starlette>=1.3.1",
     "aiohttp>=3.14.0",
-    "pip>=26.1.2"
+    "pip>=26.2.1"
 ]
 
 [tool.black]

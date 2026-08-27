@@ -27,7 +27,10 @@ export class TypescriptDockerBuild extends JavascriptDockerBuild {
      * @param outputDir
      */
     protected build(moduleName: string, outputDir: string): string[] {
-        return ['npm install', 'npm run build', 'rm -fr ./node_modules', 'npm ci --omit=dev'];
+        // `npm ci --omit=dev` does not create the node_modules directory when a lambda has no runtime
+        // dependencies (e.g. all runtime deps are provided by a shared layer). The trailing `mkdir -p`
+        // guarantees node_modules exists so the postBuild copy step does not fail.
+        return ['npm install', 'npm run build', 'rm -fr ./node_modules', 'npm ci --omit=dev', 'mkdir -p node_modules'];
     }
 
     /**
@@ -58,7 +61,11 @@ export class TypescriptLocalBuild extends JavascriptLocalBuild {
      * @returns
      */
     protected build(moduleName: string, outputDir: string): string[] {
-        return ['npm install', 'npm run build', 'rm -fr ./node_modules', 'npm ci --omit=dev'];
+        // `npm ci --omit=dev` does not create the node_modules directory when a lambda has no runtime
+        // dependencies (e.g. all runtime deps are provided by a shared layer). The trailing `mkdir -p`
+        // guarantees node_modules exists so the postBuild copy step does not fail.
+        // The local preBuild step `cd`s into moduleName, so these commands run inside the module dir.
+        return ['npm install', 'npm run build', 'rm -fr ./node_modules', 'npm ci --omit=dev', 'mkdir -p node_modules'];
     }
 
     /**
