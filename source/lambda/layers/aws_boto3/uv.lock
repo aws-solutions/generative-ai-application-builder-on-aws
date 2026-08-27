@@ -18,7 +18,7 @@ wheels = [
 
 [[package]]
 name = "boto3-layer"
-version = "4.1.23"
+version = "4.1.24"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },

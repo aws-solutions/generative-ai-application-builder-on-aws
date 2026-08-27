@@ -53,6 +53,7 @@ describe('When bundling JS lambda functions', () => {
                 'npm run build',
                 'rm -fr ./node_modules',
                 'npm ci --omit=dev',
+                'mkdir -p node_modules',
                 'mkdir -p fake-output-dir/nodejs',
                 'cp -R fake-module/node_modules fake-output-dir/nodejs/',
                 'mkdir -p fake-output-dir/nodejs/node_modules/fake-module',

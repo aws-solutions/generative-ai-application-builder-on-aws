@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.24] - 2026-08-28
+
+### Security
+
+- Upgraded `pip` to `26.2.1` to mitigate [CVE-2026-13346](https://nvd.nist.gov/vuln/detail/CVE-2026-13346)
+- Upgraded `aws-cdk-lib` to `2.266.0`, bumping its bundled `brace-expansion` to `5.0.9`, to mitigate [CVE-2026-69152](https://nvd.nist.gov/vuln/detail/CVE-2026-69152)
+
 ## [4.1.23] - 2026-08-10
 
 ### Security
