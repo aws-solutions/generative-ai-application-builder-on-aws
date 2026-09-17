@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.25] - 2026-09-16
+
+### Security
+
+- Upgraded `js-yaml` (4.3.1 → 4.3.2) to mitigate [CVE-2026-84375](https://nvd.nist.gov/vuln/detail/CVE-2026-84375)
+- Upgraded `fast-uri` (3.1.5 → 3.1.7) to mitigate [CVE-2026-75899](https://nvd.nist.gov/vuln/detail/CVE-2026-75899)
+- Upgraded `browserslist` (4.28.4, 4.28.1, 4.28.2 → 4.28.9) to mitigate [CVE-2026-73088](https://nvd.nist.gov/vuln/detail/CVE-2026-73088) and [CVE-2026-73089](https://nvd.nist.gov/vuln/detail/CVE-2026-73089)
+- Upgraded `baseline-browser-mapping` (2.10.38, 2.9.19, 2.10.35 → 2.11.22) to mitigate [CVE-2026-45819](https://nvd.nist.gov/vuln/detail/CVE-2026-45819)
+- Upgraded `@humanfs/node` (0.16.6, 0.16.7 → 0.16.8) to mitigate [GHSA-p498-v437-472g](https://github.com/advisories/GHSA-p498-v437-472g)
+- Upgraded `fflate` (0.7.3 → 0.7.5) to mitigate [CVE-2026-45820](https://nvd.nist.gov/vuln/detail/CVE-2026-45820)
+- Upgraded `vitest` and `@vitest/mocker` (4.1.4, 4.1.8 → 4.1.11) to mitigate [CVE-2026-84373](https://nvd.nist.gov/vuln/detail/CVE-2026-84373)
+
 ## [4.1.24] - 2026-08-28
 
 ### Security
