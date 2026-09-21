@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-agent"
-version = "4.1.24"
+version = "4.1.25"
 description = "GAAB Strands Agent Runtime for Amazon Bedrock AgentCore"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,6 +25,9 @@ dependencies = [
 
     # bedrock-agentcore
     "bedrock-agentcore>=1.19.0",
+
+    # Pin mcp to the 1.x line: 2.x removed the `streamablehttp_client` API used in mcp_tools_loader.py
+    "mcp>=1.23.0,<2.0.0",
 
     # OpenTelemetry for observability
     "aws-opentelemetry-distro>=0.12.1",
@@ -82,7 +85,8 @@ override-dependencies = [
     "idna>=3.18",
     "starlette>=1.3.1",
     "aiohttp>=3.14.0",
-    "pip>=26.2.1"
+    "pip>=26.2.1",
+    "mcp>=1.23.0,<2.0.0"
 ]
 
 [tool.black]
