@@ -1,6 +1,6 @@
 [project]
 name = "llm-chat-lambda"
-version = "4.1.25"
+version = "4.1.26"
 description = "Lambda implementation for chat feature"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
@@ -30,6 +30,9 @@ dev-dependencies = [
     "boto3-layer",
     "custom-boto3-init",
     "langchain-layer",
+]
+override-dependencies = [
+    "anyio>=4.15.1",
 ]
 
 [tool.uv.sources]

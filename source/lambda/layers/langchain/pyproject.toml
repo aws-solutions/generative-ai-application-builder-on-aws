@@ -1,6 +1,6 @@
 [project]
 name = "langchain-layer"
-version = "4.1.25"
+version = "4.1.26"
 description = "Layer for LangChain libraries"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
@@ -23,6 +23,11 @@ dependencies = [
     "langgraph>=1.0.10,<2.0.0",
     "greenlet<3.3.0",
     "uuid-utils<0.13.0",
+]
+
+[tool.uv]
+override-dependencies = [
+    "anyio>=4.15.1",
 ]
 
 [build-system]

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.26] - 2026-09-25
+
+### Security
+
+- Upgraded `anyio` (4.11.0, 4.13.0 → 4.15.1) to mitigate [CVE-2026-63374](https://nvd.nist.gov/vuln/detail/CVE-2026-63374) and [CVE-2026-64847](https://nvd.nist.gov/vuln/detail/CVE-2026-64847)
+- Upgraded `soupsieve` (2.8.4 → 2.9.2) to mitigate [CVE-2026-85999](https://nvd.nist.gov/vuln/detail/CVE-2026-85999) and [CVE-2026-86000](https://nvd.nist.gov/vuln/detail/CVE-2026-86000)
+
 ## [4.1.25] - 2026-09-16
 
 ### Security

@@ -1,6 +1,6 @@
 {
   "name": "@amzn/files-metadata",
-  "version": "4.1.25",
+  "version": "4.1.26",
   "description": "This lambda supports APIs that provide export functionality for use cases",
   "main": "index.ts",
   "scripts": {
