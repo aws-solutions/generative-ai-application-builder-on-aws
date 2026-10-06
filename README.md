@@ -1,9 +1,15 @@
 | **[✨ Generative AI Application Builder on AWS](https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/)** | **[🚧 Feature request](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/new?assignees=&labels=enhancement&template=feature_request.md&title=)** | **[🐛 Bug Report](https://github.com/aws-solutions/generative-ai-application-builder-on-aws/issues/new?assignees=&labels=bug&template=bug_report.md&title=)** | **[📖 Implementation Guide](https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/solution-overview.html)** |
 
-> **_NOTE:_**
-
--   If you want to use the solution without any custom changes, navigate to [Solution Landing Page](https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/) and click the "Launch in the AWS Console" in the Deployment options for a 1-click deployment into your AWS Console.
--   If you are upgrading from v1.4.x to the current version, please follow the steps in this [section](https://docs.aws.amazon.com/solutions/latest/generative-ai-application-builder-on-aws/update-the-solution.html) of the implementation guide.
+> [!IMPORTANT]
+> **Retirement notice:** Generative AI Application Builder on AWS will be retired on **February 28, 2027**.
+>
+> Since the launch of this solution, AWS has significantly expanded its native generative AI capabilities. You can now build and scale generative AI applications using Bedrock Knowledge Bases, Bedrock Prompt Management, and other built-in service features via Amazon Bedrock and Amazon Bedrock AgentCore. More information is available in the [Amazon Bedrock documentation](https://docs.aws.amazon.com/bedrock/).
+>
+> On February 28, 2027, AWS support for Generative AI Application Builder on AWS will end, and this GitHub repository will be archived. You will no longer be able to deploy Generative AI Application Builder on AWS via the CloudFormation template within the AWS Console after this date.
+>
+> Existing deployments will continue to run. If you have deployed the solution by cloning this GitHub repository, you may continue to use it. If underlying service APIs change after solution support ends, deployments may fail, or it may not be possible to stop or start them.
+>
+> If you have any questions or concerns, please reach out to [AWS Support](https://aws.amazon.com/support).
 
 The [Generative AI Application Builder on AWS](https://aws.amazon.com/solutions/implementations/generative-ai-application-builder-on-aws/) solution (GAAB) provides a web-based management dashboard to deploy customizable Generative AI (Gen AI) use cases. This Deployment dashboard allows customers to deploy, experiment with, and compare different combinations of Large Language Model (LLM) use cases. Once customers have successfully configured and optimized their use case, they can take their deployment into production and integrate it within their applications.
 
