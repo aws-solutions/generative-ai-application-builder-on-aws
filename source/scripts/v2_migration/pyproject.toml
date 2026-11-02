@@ -1,6 +1,6 @@
 [project]
 name = "gaab-v2-migration"
-version = "4.1.26"
+version = "4.1.27"
 description = "Migration script to convert v1.X use cases to v2.X"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
@@ -22,7 +22,11 @@ dev-dependencies = [
     "pytest-cov==6.0.0",
     "pytest-env==1.1.5",
     "requests==2.33.0",
-    "urllib3>=2.7.0,<2.8.0",
+    "urllib3>=2.8.0,<2.9.0",
+]
+override-dependencies = [
+    "certifi>=2026.10.23",
+    "werkzeug>=3.1.9",
 ]
 
 [tool.black]

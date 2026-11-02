@@ -1,6 +1,6 @@
 [project]
 name = "boto3-layer"
-version = "4.1.26"
+version = "4.1.27"
 description = "Layer for AWS Boto3 python SDK"
 requires-python = ">=3.13"
 license = { text = "Apache-2.0" }
@@ -13,7 +13,7 @@ classifiers = [
 dependencies = [
     "botocore>=1.42.24,<2.0.0",
     "boto3>=1.42.24,<2.0.0",
-    "urllib3>=2.7.0,<2.8.0",
+    "urllib3>=2.8.0,<2.9.0",
 ]
 
 [build-system]

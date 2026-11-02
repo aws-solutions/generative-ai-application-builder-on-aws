@@ -1,6 +1,6 @@
 {
   "name": "@amzn/gen-ai-app-builder-on-aws-infrastructure",
-  "version": "4.1.26",
+  "version": "4.1.27",
   "bin": {
     "infrastructure": "bin/gen-ai-app-builder.js"
   },
@@ -46,8 +46,8 @@
     "@types/node": "^22.10.1",
     "@types/npmlog": "^7.0.0",
     "@types/uuid": "^10.0.0",
-    "aws-cdk": "^2.1126.0",
-    "aws-cdk-lib": "^2.266.0",
+    "aws-cdk": "^2.1146.1",
+    "aws-cdk-lib": "^2.274.0",
     "cdk": "^2.1126.0",
     "cdk-nag": "^2.34.21",
     "constructs": "^10.4.2",

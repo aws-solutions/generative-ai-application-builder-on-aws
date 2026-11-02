@@ -1313,6 +1313,7 @@ json-parse-better-errors under the MIT license.
 json-parse-even-better-errors under the MIT license.
 json-schema under the BSD-3-Clause license.
 json-schema-traverse under the MIT license.
+json-source-map under the MIT license.
 json-stable-stringify under the MIT license.
 json-stable-stringify-without-jsonify under the MIT license.
 json-stringify-safe under the ISC license.

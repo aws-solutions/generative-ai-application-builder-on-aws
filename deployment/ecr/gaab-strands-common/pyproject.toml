@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-common"
-version = "4.1.26"
+version = "4.1.27"
 description = "Shared library for GAAB Strands agents"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -13,7 +13,7 @@ dependencies = [
     "bedrock-agentcore>=1.19.0",
     "strands-agents>=1.10.0",
     # Pin mcp to the 1.x line: 2.x removed the `streamablehttp_client` API used in mcp_tools_loader.py
-    "mcp>=1.23.0,<2.0.0",
+    "mcp>=1.30.0,<2.0.0",
 ]
 
 [build-system]
@@ -28,19 +28,22 @@ dev-dependencies = [
     "pytest>=9.0.3",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.0",
-    "black>=26.3.1",
+    "black>=26.10.1",
     "isort>=5.13.0",
     "moto>=5.1.0",
 ]
 override-dependencies = [
-    "pyjwt>=2.13.0",
+    "pyjwt>=2.15.1",
     "requests>=2.33.0",
     "cryptography>=48.0.1",
     "pygments>=2.20.0",
     "idna>=3.18",
     "starlette>=1.3.1",
-    "aiohttp>=3.14.0",
+    "aiohttp>=3.14.5",
     "pip>=26.2.1",
-    "mcp>=1.23.0,<2.0.0",
-    "anyio>=4.15.1"
+    "mcp>=1.30.0,<2.0.0",
+    "anyio>=4.15.1",
+    "urllib3>=2.8.0",
+    "certifi>=2026.10.23",
+    "werkzeug>=3.1.9",
 ]
