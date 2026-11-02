@@ -1,6 +1,6 @@
 [project]
 name = "gaab-strands-agent"
-version = "4.1.26"
+version = "4.1.27"
 description = "GAAB Strands Agent Runtime for Amazon Bedrock AgentCore"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -12,7 +12,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "setuptools>=70.0.0",
+    "setuptools>=84.1.0",
     "pip>=25.0",
     "wheel>=0.46.2",
 
@@ -21,13 +21,13 @@ dependencies = [
 
     # Strands SDK with OpenTelemetry support
     "strands-agents[otel]>=1.10.0",
-    "strands-agents-tools>=0.2.9",
+    "strands-agents-tools>=0.8.11",
 
     # bedrock-agentcore
     "bedrock-agentcore>=1.19.0",
 
     # Pin mcp to the 1.x line: 2.x removed the `streamablehttp_client` API used in mcp_tools_loader.py
-    "mcp>=1.23.0,<2.0.0",
+    "mcp>=1.30.0,<2.0.0",
 
     # OpenTelemetry for observability
     "aws-opentelemetry-distro>=0.12.1",
@@ -46,7 +46,7 @@ gaab-strands-common = { path = "../gaab-strands-common", editable = true }
 dev = [
     "pytest>=9.0.3",
     "pytest-cov>=5.0.0",
-    "black>=26.3.1",
+    "black>=26.10.1",
     "isort>=5.12.0",
     "mypy>=1.8.0",
 ]
@@ -69,7 +69,7 @@ packages = ["src"]
 dev-dependencies = [
     "pytest>=9.0.3",
     "pytest-cov>=5.0.0",
-    "black>=26.3.1",
+    "black>=26.10.1",
     "isort>=5.12.0",
     "mypy>=1.8.0",
     "moto>=5.0.0",
@@ -77,18 +77,22 @@ dev-dependencies = [
 ]
 override-dependencies = [
     "protobuf>=6.33.5",
-    "pillow>=12.3.0",
-    "pyjwt>=2.13.0",
+    "pillow>=13.0.0",
+    "pyjwt>=2.15.1",
     "requests>=2.33.0",
     "cryptography>=48.0.1",
     "pygments>=2.20.0",
     "idna>=3.18",
     "starlette>=1.3.1",
-    "aiohttp>=3.14.0",
+    "aiohttp>=3.14.5",
     "pip>=26.2.1",
-    "mcp>=1.23.0,<2.0.0",
+    "mcp>=1.30.0,<2.0.0",
     "anyio>=4.15.1",
-    "soupsieve>=2.9.2"
+    "soupsieve>=2.9.2",
+    "urllib3>=2.8.0",
+    "certifi>=2026.10.23",
+    "werkzeug>=3.1.9",
+    "multidict>=6.9.1",
 ]
 
 [tool.black]
